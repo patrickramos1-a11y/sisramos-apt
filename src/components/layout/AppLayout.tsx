@@ -50,6 +50,12 @@ export default function AppLayout({ children }: AppLayoutProps) {
       icon: Users,
       show: role === "admin",
     },
+    {
+      name: "Configurações",
+      href: "/configuracoes",
+      icon: Settings,
+      show: true,
+    },
   ].filter((item) => item.show);
 
   const getRoleBadge = () => {
