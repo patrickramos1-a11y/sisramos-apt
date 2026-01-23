@@ -9,6 +9,7 @@ import Login from "./pages/Login";
 import Cadastro from "./pages/Cadastro";
 import APT from "./pages/APT";
 import Usuarios from "./pages/Usuarios";
+import Configuracoes from "./pages/Configuracoes";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -37,6 +38,14 @@ const App = () => (
               element={
                 <ProtectedRoute requireGestor>
                   <Usuarios />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/configuracoes"
+              element={
+                <ProtectedRoute>
+                  <Configuracoes />
                 </ProtectedRoute>
               }
             />

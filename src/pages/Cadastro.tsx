@@ -5,8 +5,9 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { useToast } from "@/hooks/use-toast";
-import { ClipboardList, Loader2 } from "lucide-react";
+import { ClipboardList, Loader2, Mail, CheckCircle2 } from "lucide-react";
 
 export default function Cadastro() {
   const [nome, setNome] = useState("");
@@ -14,6 +15,7 @@ export default function Cadastro() {
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [showEmailAlert, setShowEmailAlert] = useState(false);
   const { signUp } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
@@ -49,16 +51,53 @@ export default function Cadastro() {
         title: "Erro ao cadastrar",
         description: error.message,
       });
+      setIsLoading(false);
     } else {
+      setShowEmailAlert(true);
       toast({
         title: "Cadastro realizado!",
-        description: "Sua conta foi criada com sucesso",
+        description: "Verifique seu e-mail para confirmar sua conta.",
       });
-      navigate("/apt");
+      setIsLoading(false);
     }
-
-    setIsLoading(false);
   };
+
+  if (showEmailAlert) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-background p-4">
+        <Card className="w-full max-w-md">
+          <CardHeader className="text-center">
+            <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-primary">
+              <CheckCircle2 className="h-6 w-6 text-primary-foreground" />
+            </div>
+            <CardTitle className="text-2xl">Cadastro Realizado!</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <Alert className="border-primary/50 bg-primary/10">
+              <Mail className="h-4 w-4" />
+              <AlertTitle>Verificação de E-mail Necessária</AlertTitle>
+              <AlertDescription>
+                Enviamos um e-mail de verificação para <strong>{email}</strong>. 
+                Por favor, verifique sua caixa de entrada (e a pasta de spam) e 
+                clique no link de confirmação para ativar sua conta.
+              </AlertDescription>
+            </Alert>
+            <p className="text-sm text-muted-foreground text-center">
+              Após confirmar seu e-mail, você poderá fazer login no sistema.
+            </p>
+          </CardContent>
+          <CardFooter>
+            <Button 
+              className="w-full" 
+              onClick={() => navigate("/login")}
+            >
+              Ir para Login
+            </Button>
+          </CardFooter>
+        </Card>
+      </div>
+    );
+  }
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-background p-4">
