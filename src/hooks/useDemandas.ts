@@ -96,10 +96,10 @@ export function useDemandas() {
       query = query.eq("semana_limite", parseInt(filters.semanaLimite));
     }
     if (filters.statusResponsavel && filters.statusResponsavel !== "all") {
-      query = query.eq("status_responsavel", filters.statusResponsavel);
+      query = query.eq("status_responsavel", filters.statusResponsavel as "pendente" | "executado" | "nao_realizado");
     }
     if (filters.statusGestor && filters.statusGestor !== "all") {
-      query = query.eq("status_gestor", filters.statusGestor);
+      query = query.eq("status_gestor", filters.statusGestor as "pendente" | "executado" | "nao_realizado");
     }
     if (filters.busca) {
       query = query.ilike("descricao", `%${filters.busca}%`);
