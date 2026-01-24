@@ -200,7 +200,7 @@ export default function APT() {
             ) : isMobile ? (
               /* Mobile: Cards */
               <div className="space-y-3">
-                {demandas.map((demanda) => {
+                {demandas.map((demanda, index) => {
                   const profile = getProfileById(demanda.responsavel_id);
                   const setor = getSetorById(demanda.setor_id);
                   const canEditResponsavel =
@@ -210,7 +210,7 @@ export default function APT() {
                   return (
                     <DemandaCard
                       key={demanda.id}
-                      numero={demanda.numero}
+                      numero={index + 1}
                       setor={setor?.nome || "Sem setor"}
                       setorCor={setor?.cor || "#E5E7EB"}
                       responsavel={profile?.nome || "Desconhecido"}
@@ -329,7 +329,7 @@ export default function APT() {
                           <DemandaTableRow
                             key={demanda.id}
                             id={demanda.id}
-                            numero={demanda.numero}
+                            numero={index + 1}
                             setor={setor?.nome || "Sem setor"}
                             setorCor={setor?.cor || "#E5E7EB"}
                             responsavel={profile?.nome || "Desconhecido"}
