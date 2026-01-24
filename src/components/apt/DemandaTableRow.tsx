@@ -1,9 +1,15 @@
 import { TableCell, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import StatusBolinha from "./StatusBolinha";
 import { cn } from "@/lib/utils";
-import { Pencil, Trash2 } from "lucide-react";
+import { MoreVertical, Pencil, Trash2 } from "lucide-react";
 
 type StatusBolinha = "pendente" | "executado" | "nao_realizado";
 
@@ -67,7 +73,6 @@ export default function DemandaTableRow({
       className={cn(
         "cursor-pointer transition-colors",
         prioritaria && "bg-[hsl(var(--apt-prioritaria))] hover:bg-[hsl(var(--apt-prioritaria))]/80",
-        // Zebra striping: branco (card) + cinza claro (muted)
         !prioritaria && isAlternateRow && "bg-[hsl(var(--apt-zebra))]",
         !prioritaria && !isAlternateRow && "bg-card",
         !prioritaria && "hover:bg-muted/70",
@@ -117,27 +122,27 @@ export default function DemandaTableRow({
       <TableCell className="text-center w-12">{semanasRepeticao}x</TableCell>
       <TableCell className="text-center w-20">{semanaOrdenacao}ª</TableCell>
       {canEditDemanda && (
-        <TableCell className="text-center w-20" onClick={(e) => e.stopPropagation()}>
-          <div className="flex items-center justify-center gap-1">
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-8 w-8"
-              onClick={onEdit}
-              title="Editar demanda"
-            >
-              <Pencil className="h-4 w-4" />
-            </Button>
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-8 w-8 text-destructive hover:text-destructive"
-              onClick={onDelete}
-              title="Excluir demanda"
-            >
-              <Trash2 className="h-4 w-4" />
-            </Button>
-          </div>
+        <TableCell className="text-center w-12" onClick={(e) => e.stopPropagation()}>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" size="icon" className="h-8 w-8">
+                <MoreVertical className="h-4 w-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem onClick={onEdit}>
+                <Pencil className="h-4 w-4 mr-2" />
+                Editar
+              </DropdownMenuItem>
+              <DropdownMenuItem 
+                onClick={onDelete}
+                className="text-destructive focus:text-destructive"
+              >
+                <Trash2 className="h-4 w-4 mr-2" />
+                Excluir
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </TableCell>
       )}
     </TableRow>
