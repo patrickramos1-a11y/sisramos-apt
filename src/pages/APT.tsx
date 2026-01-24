@@ -313,9 +313,9 @@ export default function APT() {
 
                 <Card>
                   <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead className="w-10">
+                    <TableHeader className="bg-[hsl(var(--apt-header))]">
+                      <TableRow className="hover:bg-[hsl(var(--apt-header))]">
+                        <TableHead className="w-10 text-primary-foreground">
                           <Checkbox
                             checked={allSelected}
                             ref={(el) => {
@@ -326,24 +326,24 @@ export default function APT() {
                             onCheckedChange={toggleSelectAll}
                           />
                         </TableHead>
-                        <TableHead className="text-center w-16">Nº</TableHead>
-                        <TableHead className="w-24">Setor</TableHead>
-                        <TableHead className="w-32">Responsável</TableHead>
-                        <TableHead>Descrição</TableHead>
-                        <TableHead className="text-center w-20">
+                        <TableHead className="text-center w-16 text-primary-foreground">Nº</TableHead>
+                        <TableHead className="w-24 text-primary-foreground">Setor</TableHead>
+                        <TableHead className="w-32 text-primary-foreground">Responsável</TableHead>
+                        <TableHead className="text-primary-foreground">Descrição</TableHead>
+                        <TableHead className="text-center w-20 text-primary-foreground">
                           Feito?
                         </TableHead>
                         {isGestorOrAdmin && (
-                          <TableHead className="text-center w-20">
+                          <TableHead className="text-center w-20 text-primary-foreground">
                             Aprovado?
                           </TableHead>
                         )}
-                        <TableHead className="text-center w-12">X</TableHead>
-                        <TableHead className="text-center w-20">
+                        <TableHead className="text-center w-12 text-primary-foreground">Repetição</TableHead>
+                        <TableHead className="text-center w-20 text-primary-foreground">
                           Semana
                         </TableHead>
                         {isGestorOrAdmin && (
-                          <TableHead className="text-center w-20">
+                          <TableHead className="text-center w-20 text-primary-foreground">
                             Ações
                           </TableHead>
                         )}
