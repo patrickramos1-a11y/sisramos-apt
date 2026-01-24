@@ -44,9 +44,10 @@ export default function Dashboard() {
   const chartNaoRealizadoRef = useRef<HTMLDivElement>(null);
   const chartComparativoRef = useRef<HTMLDivElement>(null);
 
-  // Estados dos filtros
-  const [filterAno, setFilterAno] = useState<string>("all");
-  const [filterMes, setFilterMes] = useState<string>("all");
+  // Estados dos filtros - inicializa com mês e ano atuais
+  const currentDate = new Date();
+  const [filterAno, setFilterAno] = useState<string>(currentDate.getFullYear().toString());
+  const [filterMes, setFilterMes] = useState<string>((currentDate.getMonth() + 1).toString());
   const [filterSemana, setFilterSemana] = useState<string>("all");
   const [filterUsuario, setFilterUsuario] = useState<string>("all");
   const [filterSetor, setFilterSetor] = useState<string>("all");
