@@ -1,10 +1,12 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import AppLayout from "@/components/layout/AppLayout";
 import NovoUsuarioDialog from "@/components/users/NovoUsuarioDialog";
 import EditarUsuarioDialog from "@/components/users/EditarUsuarioDialog";
 import ExcluirUsuarioDialog from "@/components/users/ExcluirUsuarioDialog";
+import AlterarSenhaDialog from "@/components/users/AlterarSenhaDialog";
+import UserFilters from "@/components/users/UserFilters";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -32,9 +34,11 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, Save, User, Pencil, X, Users, Trash2 } from "lucide-react";
+import { Loader2, Save, User, Pencil, X, Users, Trash2, Key } from "lucide-react";
 
 type AppRole = "admin" | "gestor" | "colaborador";
+type SortField = "nome" | "email" | "role";
+type SortDirection = "asc" | "desc";
 
 interface UserWithRole {
   id: string;
@@ -54,9 +58,16 @@ export default function Configuracoes() {
   const [isLoadingUsers, setIsLoadingUsers] = useState(true);
   const [updatingRoleFor, setUpdatingRoleFor] = useState<string | null>(null);
 
+  // Filter and sort states
+  const [searchTerm, setSearchTerm] = useState("");
+  const [roleFilter, setRoleFilter] = useState<AppRole | "all">("all");
+  const [sortField, setSortField] = useState<SortField>("nome");
+  const [sortDirection, setSortDirection] = useState<SortDirection>("asc");
+
   // Dialog states
   const [editingUser, setEditingUser] = useState<UserWithRole | null>(null);
   const [deletingUser, setDeletingUser] = useState<UserWithRole | null>(null);
+  const [changingPasswordUser, setChangingPasswordUser] = useState<UserWithRole | null>(null);
 
   const [formData, setFormData] = useState({
     nome: "",
@@ -82,7 +93,7 @@ export default function Configuracoes() {
             .from("user_roles")
             .select("role")
             .eq("user_id", profile.user_id)
-            .single();
+            .maybeSingle();
 
           usersWithRoles.push({
             ...profile,
@@ -98,6 +109,44 @@ export default function Configuracoes() {
 
     setIsLoadingUsers(false);
   };
+
+  // Filtered and sorted users
+  const filteredAndSortedUsers = useMemo(() => {
+    let result = [...allUsers];
+
+    // Apply search filter
+    if (searchTerm) {
+      const term = searchTerm.toLowerCase();
+      result = result.filter(
+        (u) =>
+          u.nome.toLowerCase().includes(term) ||
+          u.email.toLowerCase().includes(term)
+      );
+    }
+
+    // Apply role filter
+    if (roleFilter !== "all") {
+      result = result.filter((u) => u.role === roleFilter);
+    }
+
+    // Apply sorting
+    result.sort((a, b) => {
+      let comparison = 0;
+      
+      if (sortField === "nome") {
+        comparison = a.nome.localeCompare(b.nome, "pt-BR");
+      } else if (sortField === "email") {
+        comparison = a.email.localeCompare(b.email, "pt-BR");
+      } else if (sortField === "role") {
+        const roleOrder = { admin: 1, gestor: 2, colaborador: 3 };
+        comparison = roleOrder[a.role] - roleOrder[b.role];
+      }
+
+      return sortDirection === "asc" ? comparison : -comparison;
+    });
+
+    return result;
+  }, [allUsers, searchTerm, roleFilter, sortField, sortDirection]);
 
   useEffect(() => {
     if (isGestorOrAdmin) {
@@ -413,13 +462,29 @@ export default function Configuracoes() {
               </div>
             </CardHeader>
             <CardContent>
+              {/* Filters */}
+              <UserFilters
+                searchTerm={searchTerm}
+                onSearchChange={setSearchTerm}
+                roleFilter={roleFilter}
+                onRoleFilterChange={setRoleFilter}
+                sortField={sortField}
+                onSortFieldChange={setSortField}
+                sortDirection={sortDirection}
+                onSortDirectionChange={() =>
+                  setSortDirection((prev) => (prev === "asc" ? "desc" : "asc"))
+                }
+              />
+
               {isLoadingUsers ? (
                 <div className="flex items-center justify-center py-8">
                   <Loader2 className="h-6 w-6 animate-spin text-primary" />
                 </div>
-              ) : allUsers.length === 0 ? (
+              ) : filteredAndSortedUsers.length === 0 ? (
                 <p className="text-center text-muted-foreground py-8">
-                  Nenhum usuário cadastrado
+                  {allUsers.length === 0
+                    ? "Nenhum usuário cadastrado"
+                    : "Nenhum usuário encontrado com os filtros aplicados"}
                 </p>
               ) : (
                 <div className="overflow-x-auto">
@@ -430,11 +495,11 @@ export default function Configuracoes() {
                         <TableHead>E-mail</TableHead>
                         <TableHead>Perfil</TableHead>
                         <TableHead className="w-[150px]">Alterar Perfil</TableHead>
-                        <TableHead className="w-[100px] text-center">Ações</TableHead>
+                        <TableHead className="w-[140px] text-center">Ações</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {allUsers.map((u) => (
+                      {filteredAndSortedUsers.map((u) => (
                         <TableRow key={u.id}>
                           <TableCell className="font-medium">{u.nome}</TableCell>
                           <TableCell>{u.email}</TableCell>
@@ -471,6 +536,14 @@ export default function Configuracoes() {
                                 title="Editar usuário"
                               >
                                 <Pencil className="h-4 w-4" />
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => setChangingPasswordUser(u)}
+                                title="Alterar senha"
+                              >
+                                <Key className="h-4 w-4" />
                               </Button>
                               <Button
                                 variant="ghost"
@@ -525,6 +598,12 @@ export default function Configuracoes() {
         onOpenChange={(open) => !open && setDeletingUser(null)}
         user={deletingUser}
         onUserDeleted={fetchAllUsers}
+      />
+
+      <AlterarSenhaDialog
+        open={!!changingPasswordUser}
+        onOpenChange={(open) => !open && setChangingPasswordUser(null)}
+        user={changingPasswordUser}
       />
     </AppLayout>
   );
