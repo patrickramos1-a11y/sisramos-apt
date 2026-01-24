@@ -24,6 +24,7 @@ export type Database = {
           grupo_id: string | null
           id: string
           mes: number
+          muito_urgente: boolean
           numero: number
           prioritaria: boolean
           responsavel_id: string
@@ -43,6 +44,7 @@ export type Database = {
           grupo_id?: string | null
           id?: string
           mes: number
+          muito_urgente?: boolean
           numero?: number
           prioritaria?: boolean
           responsavel_id: string
@@ -62,6 +64,7 @@ export type Database = {
           grupo_id?: string | null
           id?: string
           mes?: number
+          muito_urgente?: boolean
           numero?: number
           prioritaria?: boolean
           responsavel_id?: string

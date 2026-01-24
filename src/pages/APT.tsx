@@ -43,6 +43,7 @@ interface Demanda {
   mes: number;
   ano: number;
   prioritaria: boolean;
+  muito_urgente?: boolean;
   grupo_id: string | null;
 }
 
@@ -314,6 +315,7 @@ export default function APT() {
                       semanasRepeticao={demanda.semanas_repeticao}
                       semanaLimite={demanda.semana_limite}
                       prioritaria={demanda.prioritaria}
+                      muitoUrgente={demanda.muito_urgente}
                       canEditResponsavel={canEditResponsavel}
                       canEditGestor={canEditGestor}
                       canEditDemanda={canEditDemanda}
@@ -480,6 +482,7 @@ export default function APT() {
                             semanasRepeticao={demanda.semanas_repeticao}
                             semanaLimite={demanda.semana_limite}
                             prioritaria={demanda.prioritaria}
+                            muitoUrgente={demanda.muito_urgente}
                             canEditResponsavel={canEditResponsavel}
                             canEditGestor={canEditGestor}
                             canEditDemanda={canEditDemanda}

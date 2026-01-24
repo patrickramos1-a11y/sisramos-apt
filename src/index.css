@@ -47,6 +47,7 @@ SISRAMOS inspired color palette - forest green theme
     --apt-executado: 0 0% 10%;
     --apt-nao-realizado: 0 72% 50%;
     --apt-prioritaria: 48 100% 90%;
+    --apt-muito-urgente: 0 65% 92%;
     --apt-success: 130 45% 32%;
     --apt-zebra: 120 5% 88%;
     --apt-header: 130 45% 32%;
@@ -125,6 +126,7 @@ SISRAMOS inspired color palette - forest green theme
     --apt-executado: 0 0% 90%;
     --apt-nao-realizado: 0 72% 50%;
     --apt-prioritaria: 48 60% 25%;
+    --apt-muito-urgente: 0 50% 25%;
     --apt-success: 135 50% 45%;
     --apt-zebra: 120 6% 15%;
     --apt-header: 130 40% 25%;
