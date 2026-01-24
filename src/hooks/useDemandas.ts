@@ -149,6 +149,53 @@ export function useDemandas() {
     fetchDemandas();
   }, [fetchDemandas]);
 
+  // Subscribe to real-time changes on demandas table
+  useEffect(() => {
+    if (!user) return;
+
+    const channel = supabase
+      .channel('demandas-realtime')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'demandas',
+        },
+        (payload) => {
+          console.log('Realtime update received:', payload.eventType);
+          
+          if (payload.eventType === 'INSERT') {
+            const newDemanda = payload.new as Demanda;
+            // Only add if it matches current filters (simplified - refetch is safer)
+            setDemandas((prev) => {
+              // Check if already exists to avoid duplicates
+              if (prev.some((d) => d.id === newDemanda.id)) return prev;
+              return [...prev, newDemanda];
+            });
+          } else if (payload.eventType === 'UPDATE') {
+            const updatedDemanda = payload.new as Demanda;
+            setDemandas((prev) =>
+              prev.map((d) =>
+                d.id === updatedDemanda.id ? updatedDemanda : d
+              )
+            );
+          } else if (payload.eventType === 'DELETE') {
+            const deletedId = payload.old.id;
+            setDemandas((prev) => prev.filter((d) => d.id !== deletedId));
+          }
+        }
+      )
+      .subscribe((status) => {
+        console.log('Realtime subscription status:', status);
+      });
+
+    return () => {
+      console.log('Unsubscribing from demandas realtime channel');
+      supabase.removeChannel(channel);
+    };
+  }, [user]);
+
   const cycleStatus = (current: StatusBolinha): StatusBolinha => {
     const cycle: StatusBolinha[] = ["pendente", "executado", "nao_realizado"];
     const currentIndex = cycle.indexOf(current);
