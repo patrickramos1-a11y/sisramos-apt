@@ -21,6 +21,7 @@ import {
   BarChart3,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import NotificationBell from "@/components/notifications/NotificationBell";
 
 interface AppLayoutProps {
   children: React.ReactNode;
@@ -104,7 +105,10 @@ export default function AppLayout({ children }: AppLayoutProps) {
           </div>
 
           {/* User menu */}
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-2">
+            {/* Notification bell */}
+            <NotificationBell />
+            
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="ghost" className="gap-2">

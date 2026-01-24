@@ -4,6 +4,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import { MultiFilters } from "@/components/apt/APTFilters";
 import { SortConfig, SortDirection } from "@/components/apt/DemandaSortHeader";
+import { checkAndCreateWeekNotification } from "@/lib/notificationUtils";
 
 type StatusBolinha = "pendente" | "executado" | "nao_realizado";
 
@@ -62,7 +63,7 @@ export function useDemandas() {
     semana: null,
   });
 
-  const { user, isGestorOrAdmin } = useAuth();
+  const { user, isGestorOrAdmin, profile } = useAuth();
   const { toast } = useToast();
 
   const fetchDemandas = useCallback(async () => {
@@ -178,7 +179,7 @@ export function useDemandas() {
   };
 
   const updateStatusGestor = async (demandaId: string, currentStatus: StatusBolinha) => {
-    if (!isGestorOrAdmin) return;
+    if (!isGestorOrAdmin || !user || !profile) return;
     
     const newStatus = cycleStatus(currentStatus);
     
@@ -194,11 +195,31 @@ export function useDemandas() {
         description: "Erro ao atualizar status",
       });
     } else {
+      // Atualizar estado local
       setDemandas((prev) =>
         prev.map((d) =>
           d.id === demandaId ? { ...d, status_gestor: newStatus } : d
         )
       );
+
+      // Verificar se deve criar notificação de semana concluída
+      const demanda = demandas.find((d) => d.id === demandaId);
+      if (demanda) {
+        for (const semana of demanda.semana_limite) {
+          try {
+            await checkAndCreateWeekNotification({
+              responsavelId: demanda.responsavel_id,
+              semana,
+              mes: demanda.mes,
+              ano: demanda.ano,
+              gestorId: user.id,
+              gestorNome: profile.nome,
+            });
+          } catch (err) {
+            console.error("Erro ao verificar notificação:", err);
+          }
+        }
+      }
     }
   };
 
