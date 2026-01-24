@@ -55,7 +55,7 @@ export default function ExcluirDemandasEmMassaDialog({
     }
   }, [open]);
 
-  const handleDelete = async () => {
+  const handleDelete = async (withSiblings: boolean = false) => {
     if (demandaIds.length === 0) return;
 
     setIsLoading(true);
@@ -63,7 +63,7 @@ export default function ExcluirDemandasEmMassaDialog({
     let idsToDelete = [...demandaIds];
 
     // If user chose to include siblings, add them
-    if (includeIrmas && hasSiblings) {
+    if (withSiblings && hasSiblings) {
       const siblingIds = siblingsNotSelected.map((d) => d.id);
       idsToDelete = [...new Set([...idsToDelete, ...siblingIds])];
     }
@@ -134,10 +134,7 @@ export default function ExcluirDemandasEmMassaDialog({
             <>
               <Button
                 variant="secondary"
-                onClick={() => {
-                  setIncludeIrmas(false);
-                  handleDelete();
-                }}
+                onClick={() => handleDelete(false)}
                 disabled={isLoading}
               >
                 {isLoading && !includeIrmas ? (
@@ -149,7 +146,7 @@ export default function ExcluirDemandasEmMassaDialog({
                 variant="destructive"
                 onClick={() => {
                   setIncludeIrmas(true);
-                  setTimeout(handleDelete, 0);
+                  handleDelete(true);
                 }}
                 disabled={isLoading}
               >
@@ -162,7 +159,7 @@ export default function ExcluirDemandasEmMassaDialog({
           ) : (
             <Button
               variant="destructive"
-              onClick={handleDelete}
+              onClick={() => handleDelete(false)}
               disabled={isLoading}
             >
               {isLoading ? (
