@@ -239,7 +239,7 @@ export default function NovaDemandaDialog({
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="semanas">Semanas (X)</Label>
+            <Label htmlFor="semanas">Repetições</Label>
             <Input
               id="semanas"
               type="number"
@@ -256,7 +256,7 @@ export default function NovaDemandaDialog({
           </div>
 
           <div className="space-y-2">
-            <Label>Semana(s) Limite *</Label>
+            <Label>Semanas *</Label>
             <div className="flex flex-wrap gap-2">
               {[1, 2, 3, 4, 5].map((s) => (
                 <Button

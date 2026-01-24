@@ -183,7 +183,7 @@ export default function APTFilters({
       </div>
 
       <div className="space-y-2">
-        <Label>Semana Limite</Label>
+        <Label>Semanas</Label>
         <Select
           value={filters.semanaLimite}
           onValueChange={(v) => updateFilter("semanaLimite", v)}
