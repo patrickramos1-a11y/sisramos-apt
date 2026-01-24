@@ -63,8 +63,6 @@ export default function NovoUsuarioDialog({ onUserCreated }: NovoUsuarioDialogPr
     setIsLoading(true);
 
     try {
-      const { data: { session } } = await supabase.auth.getSession();
-      
       const response = await supabase.functions.invoke("create-user", {
         body: {
           email: formData.email.trim(),
@@ -75,7 +73,15 @@ export default function NovoUsuarioDialog({ onUserCreated }: NovoUsuarioDialogPr
       });
 
       if (response.error) {
-        throw new Error(response.error.message || "Erro ao criar usuário");
+        // Extrair mensagem de erro do response
+        let errorMsg = "Erro ao criar usuário";
+        try {
+          const errorData = JSON.parse(response.error.message);
+          errorMsg = errorData.error || errorMsg;
+        } catch {
+          errorMsg = response.error.message || errorMsg;
+        }
+        throw new Error(errorMsg);
       }
 
       if (response.data?.error) {
@@ -91,14 +97,15 @@ export default function NovoUsuarioDialog({ onUserCreated }: NovoUsuarioDialogPr
       setOpen(false);
       onUserCreated();
     } catch (error: any) {
+      console.error("Erro ao criar usuário:", error);
       toast({
         variant: "destructive",
         title: "Erro ao criar usuário",
-        description: error.message,
+        description: error.message || "Ocorreu um erro inesperado",
       });
+    } finally {
+      setIsLoading(false);
     }
-
-    setIsLoading(false);
   };
 
   return (
