@@ -166,7 +166,7 @@ export default function APT() {
                   {pendingCount} pendentes
                 </Badge>
               )}
-              {isGestorOrAdmin && pendingApprovalCount > 0 && (
+              {pendingApprovalCount > 0 && (
                 <Badge 
                   variant="outline"
                   className="gap-1.5 bg-primary/10 text-primary border-primary/30"
