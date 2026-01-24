@@ -22,6 +22,7 @@ interface DemandaTableRowProps {
   canEditResponsavel: boolean;
   canEditGestor: boolean;
   canEditDemanda?: boolean;
+  showGestorColumn?: boolean;
   isAlternateRow?: boolean;
   isSelected?: boolean;
   showCheckbox?: boolean;
@@ -48,6 +49,7 @@ export default function DemandaTableRow({
   canEditResponsavel,
   canEditGestor,
   canEditDemanda,
+  showGestorColumn = true,
   isAlternateRow,
   isSelected,
   showCheckbox,
@@ -99,15 +101,17 @@ export default function DemandaTableRow({
           />
         </div>
       </TableCell>
-      <TableCell className="text-center w-20" onClick={(e) => e.stopPropagation()}>
-        <div className="flex justify-center">
-          <StatusBolinha
-            status={statusGestor}
-            onClick={onStatusGestorChange}
-            disabled={!canEditGestor}
-          />
-        </div>
-      </TableCell>
+      {showGestorColumn && (
+        <TableCell className="text-center w-20" onClick={(e) => e.stopPropagation()}>
+          <div className="flex justify-center">
+            <StatusBolinha
+              status={statusGestor}
+              onClick={onStatusGestorChange}
+              disabled={!canEditGestor}
+            />
+          </div>
+        </TableCell>
+      )}
       <TableCell className="text-center w-12">{semanasRepeticao}</TableCell>
       <TableCell className="text-center w-20">{semanaLimite[0]}ª</TableCell>
       {canEditDemanda && (

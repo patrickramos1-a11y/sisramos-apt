@@ -21,6 +21,7 @@ interface DemandaCardProps {
   canEditResponsavel: boolean;
   canEditGestor: boolean;
   canEditDemanda?: boolean;
+  showGestorStatus?: boolean;
   onStatusResponsavelChange: () => void;
   onStatusGestorChange: () => void;
   onEdit?: () => void;
@@ -41,6 +42,7 @@ export default function DemandaCard({
   canEditResponsavel,
   canEditGestor,
   canEditDemanda,
+  showGestorStatus = true,
   onStatusResponsavelChange,
   onStatusGestorChange,
   onEdit,
@@ -92,15 +94,17 @@ export default function DemandaCard({
                 size="lg"
               />
             </div>
-            <div className="text-center">
-              <p className="text-[10px] text-muted-foreground mb-1">Aprovado?</p>
-              <StatusBolinha
-                status={statusGestor}
-                onClick={onStatusGestorChange}
-                disabled={!canEditGestor}
-                size="lg"
-              />
-            </div>
+            {showGestorStatus && (
+              <div className="text-center">
+                <p className="text-[10px] text-muted-foreground mb-1">Aprovado?</p>
+                <StatusBolinha
+                  status={statusGestor}
+                  onClick={onStatusGestorChange}
+                  disabled={!canEditGestor}
+                  size="lg"
+                />
+              </div>
+            )}
           </div>
         </div>
 
