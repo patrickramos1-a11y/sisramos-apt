@@ -220,7 +220,9 @@ export default function APTFilters({
     label: s.nome,
   }));
 
-  const FilterContent = () => (
+  // IMPORTANT: keep this as JSX (not an inline component) to avoid remounting
+  // on every keystroke, which would steal focus from inputs and close popovers.
+  const content = (
     <div className="space-y-4">
       <div className="space-y-2">
         <Label>Buscar</Label>
@@ -291,9 +293,9 @@ export default function APTFilters({
         placeholder="Todos"
       />
 
-      <Button 
-        variant="destructive" 
-        className="w-full" 
+      <Button
+        variant="destructive"
+        className="w-full"
         onClick={onClearFilters}
         disabled={!hasActiveFilters}
       >
@@ -307,7 +309,7 @@ export default function APTFilters({
     <>
       {/* Desktop filters */}
       <div className="hidden lg:block">
-        <FilterContent />
+        {content}
       </div>
 
       {/* Mobile filters */}
@@ -329,7 +331,7 @@ export default function APTFilters({
               <SheetTitle>Filtros</SheetTitle>
             </SheetHeader>
             <div className="mt-6">
-              <FilterContent />
+              {content}
             </div>
           </SheetContent>
         </Sheet>
