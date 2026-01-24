@@ -18,6 +18,7 @@ import {
   User,
   LogOut,
   Settings,
+  BarChart3,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -41,6 +42,12 @@ export default function AppLayout({ children }: AppLayoutProps) {
       name: "APT",
       href: "/apt",
       icon: ClipboardList,
+      show: true,
+    },
+    {
+      name: "Dashboard",
+      href: "/dashboard",
+      icon: BarChart3,
       show: true,
     },
     {
