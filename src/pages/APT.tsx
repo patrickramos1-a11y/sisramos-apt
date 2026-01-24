@@ -1,12 +1,16 @@
+import { useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useDemandas } from "@/hooks/useDemandas";
 import { useIsMobile } from "@/hooks/use-mobile";
 import AppLayout from "@/components/layout/AppLayout";
 import APTFilters from "@/components/apt/APTFilters";
 import NovaDemandaDialog from "@/components/apt/NovaDemandaDialog";
+import EditarDemandaDialog from "@/components/apt/EditarDemandaDialog";
+import ExcluirDemandaDialog from "@/components/apt/ExcluirDemandaDialog";
 import DemandaCard from "@/components/apt/DemandaCard";
 import DemandaTableRow from "@/components/apt/DemandaTableRow";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import {
   Table,
   TableBody,
@@ -16,6 +20,21 @@ import {
 } from "@/components/ui/table";
 import { Card, CardContent } from "@/components/ui/card";
 import { Loader2, AlertCircle, CheckCircle2 } from "lucide-react";
+
+interface Demanda {
+  id: string;
+  numero: number;
+  setor_id: string | null;
+  responsavel_id: string;
+  descricao: string;
+  status_responsavel: "pendente" | "executado" | "nao_realizado";
+  status_gestor: "pendente" | "executado" | "nao_realizado";
+  semanas_repeticao: number;
+  semana_limite: number[];
+  mes: number;
+  ano: number;
+  prioritaria: boolean;
+}
 
 export default function APT() {
   const { user, isGestorOrAdmin } = useAuth();
@@ -36,6 +55,10 @@ export default function APT() {
     pendingCount,
     pendingApprovalCount,
   } = useDemandas();
+
+  // Dialog states
+  const [editingDemanda, setEditingDemanda] = useState<Demanda | null>(null);
+  const [deletingDemanda, setDeletingDemanda] = useState<{ id: string; numero: number } | null>(null);
 
   return (
     <AppLayout>
@@ -147,6 +170,7 @@ export default function APT() {
                       prioritaria={demanda.prioritaria}
                       canEditResponsavel={canEditResponsavel}
                       canEditGestor={canEditGestor}
+                      canEditDemanda={isGestorOrAdmin}
                       onStatusResponsavelChange={() =>
                         updateStatusResponsavel(
                           demanda.id,
@@ -156,6 +180,8 @@ export default function APT() {
                       onStatusGestorChange={() =>
                         updateStatusGestor(demanda.id, demanda.status_gestor)
                       }
+                      onEdit={() => setEditingDemanda(demanda as Demanda)}
+                      onDelete={() => setDeletingDemanda({ id: demanda.id, numero: demanda.numero })}
                     />
                   );
                 })}
@@ -175,11 +201,14 @@ export default function APT() {
                         Aprovado?
                       </TableHead>
                       <TableHead className="text-center w-12">X</TableHead>
-                      <TableHead className="text-center w-16">Semana</TableHead>
+                      <TableHead className="text-center w-20">Semana</TableHead>
+                      {isGestorOrAdmin && (
+                        <TableHead className="text-center w-20">Ações</TableHead>
+                      )}
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {demandas.map((demanda) => {
+                    {demandas.map((demanda, index) => {
                       const profile = getProfileById(demanda.responsavel_id);
                       const setor = getSetorById(demanda.setor_id);
                       const canEditResponsavel =
@@ -201,6 +230,8 @@ export default function APT() {
                           prioritaria={demanda.prioritaria}
                           canEditResponsavel={canEditResponsavel}
                           canEditGestor={canEditGestor}
+                          canEditDemanda={isGestorOrAdmin}
+                          isAlternateRow={index % 2 === 1}
                           onStatusResponsavelChange={() =>
                             updateStatusResponsavel(
                               demanda.id,
@@ -213,6 +244,8 @@ export default function APT() {
                               demanda.status_gestor
                             )
                           }
+                          onEdit={() => setEditingDemanda(demanda as Demanda)}
+                          onDelete={() => setDeletingDemanda({ id: demanda.id, numero: demanda.numero })}
                         />
                       );
                     })}
@@ -223,6 +256,24 @@ export default function APT() {
           </div>
         </div>
       </div>
+
+      {/* Dialogs */}
+      <EditarDemandaDialog
+        open={!!editingDemanda}
+        onOpenChange={(open) => !open && setEditingDemanda(null)}
+        demanda={editingDemanda}
+        profiles={profiles}
+        setores={setores}
+        onDemandaEditada={fetchDemandas}
+      />
+
+      <ExcluirDemandaDialog
+        open={!!deletingDemanda}
+        onOpenChange={(open) => !open && setDeletingDemanda(null)}
+        demandaId={deletingDemanda?.id || null}
+        demandaNumero={deletingDemanda?.numero || null}
+        onDemandaExcluida={fetchDemandas}
+      />
     </AppLayout>
   );
 }
