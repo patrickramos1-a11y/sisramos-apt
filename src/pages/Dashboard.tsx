@@ -15,7 +15,9 @@ import {
   XAxis,
   YAxis,
   CartesianGrid,
-  ResponsiveContainer,
+  PieChart,
+  Pie,
+  Cell,
 } from "recharts";
 import { Loader2 } from "lucide-react";
 
@@ -77,6 +79,49 @@ export default function Dashboard() {
   const setorNames = useMemo(() => {
     return Object.keys(setoresPorUsuarioConfig);
   }, [setoresPorUsuarioConfig]);
+
+  // Dados: Pizza de porcentagem de setores
+  const { setoresPizzaData, setoresPizzaConfig } = useMemo(() => {
+    const setorCounts: Record<string, number> = {};
+    
+    demandas.forEach((demanda) => {
+      const setor = getSetorById(demanda.setor_id);
+      const setorName = setor?.nome || "Sem setor";
+      setorCounts[setorName] = (setorCounts[setorName] || 0) + 1;
+    });
+
+    const total = demandas.length;
+    const colors = [
+      "hsl(var(--primary))",
+      "hsl(142 76% 36%)",
+      "hsl(221 83% 53%)",
+      "hsl(38 92% 50%)",
+      "hsl(280 65% 60%)",
+      "hsl(0 84% 60%)",
+      "hsl(180 70% 45%)",
+      "hsl(320 70% 50%)",
+    ];
+
+    const data = Object.entries(setorCounts).map(([nome, count], index) => {
+      const setorData = setores.find(s => s.nome === nome);
+      return {
+        nome,
+        value: count,
+        percentage: total > 0 ? Math.round((count / total) * 100) : 0,
+        fill: setorData?.cor || colors[index % colors.length],
+      };
+    });
+
+    const config: Record<string, { label: string; color: string }> = {};
+    data.forEach((item) => {
+      config[item.nome] = {
+        label: item.nome,
+        color: item.fill,
+      };
+    });
+
+    return { setoresPizzaData: data, setoresPizzaConfig: config };
+  }, [demandas, getSetorById, setores]);
 
   // Dados: Feito por usuário (status_responsavel = executado)
   const feitoPorUsuario = useMemo(() => {
@@ -194,10 +239,10 @@ export default function Dashboard() {
         <h1 className="text-2xl font-bold">Dashboards</h1>
         
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {/* Setores por Usuário */}
+          {/* Gráfico de Setores - Barras */}
           <Card>
             <CardHeader>
-              <CardTitle className="text-lg">Setores por Usuário</CardTitle>
+              <CardTitle className="text-lg">Gráfico de Setores</CardTitle>
             </CardHeader>
             <CardContent>
               <ChartContainer config={setoresPorUsuarioConfig} className="h-[300px] w-full">
@@ -217,6 +262,43 @@ export default function Dashboard() {
                     />
                   ))}
                 </BarChart>
+              </ChartContainer>
+            </CardContent>
+          </Card>
+
+          {/* Gráfico de Pizza - Porcentagem de Setores */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-lg">Distribuição por Setor</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <ChartContainer config={setoresPizzaConfig} className="h-[300px] w-full">
+                <PieChart>
+                  <ChartTooltip 
+                    content={
+                      <ChartTooltipContent 
+                        formatter={(value, name, item) => (
+                          <span>{item.payload.percentage}% ({value})</span>
+                        )}
+                      />
+                    } 
+                  />
+                  <Pie
+                    data={setoresPizzaData}
+                    dataKey="value"
+                    nameKey="nome"
+                    cx="50%"
+                    cy="50%"
+                    outerRadius={100}
+                    label={({ nome, percentage }) => `${nome}: ${percentage}%`}
+                    labelLine={true}
+                  >
+                    {setoresPizzaData.map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={entry.fill} />
+                    ))}
+                  </Pie>
+                  <ChartLegend content={<ChartLegendContent nameKey="nome" />} />
+                </PieChart>
               </ChartContainer>
             </CardContent>
           </Card>
