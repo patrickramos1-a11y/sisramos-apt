@@ -27,7 +27,8 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Card, CardContent } from "@/components/ui/card";
-import { Loader2, AlertCircle, CheckCircle2, Trash2, Check, ThumbsUp } from "lucide-react";
+import { Loader2, AlertCircle, CheckCircle2, Trash2, Check, ThumbsUp, Copy } from "lucide-react";
+import DuplicarDemandasEmMassaDialog from "@/components/apt/DuplicarDemandasEmMassaDialog";
 
 interface Demanda {
   id: string;
@@ -105,6 +106,7 @@ export default function APT() {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [showBulkDeleteDialog, setShowBulkDeleteDialog] = useState(false);
   const [showBulkStatusDialog, setShowBulkStatusDialog] = useState<"responsavel" | "gestor" | null>(null);
+  const [showBulkDuplicateDialog, setShowBulkDuplicateDialog] = useState(false);
 
   // Calculate sibling count for editing/deleting
   const editingSiblingCount = editingDemanda
@@ -385,6 +387,19 @@ export default function APT() {
                       </Button>
                     )}
 
+                    {/* Duplicar em massa - apenas gestor/admin */}
+                    {isGestorOrAdmin && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="gap-1"
+                        onClick={() => setShowBulkDuplicateDialog(true)}
+                      >
+                        <Copy className="h-4 w-4" />
+                        Duplicar
+                      </Button>
+                    )}
+
                     <Button
                       variant="ghost"
                       size="sm"
@@ -544,6 +559,13 @@ export default function APT() {
         demandaIds={Array.from(selectedIds)}
         type={showBulkStatusDialog || "responsavel"}
         onStatusAtualizado={handleBulkOperationComplete}
+      />
+
+      <DuplicarDemandasEmMassaDialog
+        open={showBulkDuplicateDialog}
+        onOpenChange={setShowBulkDuplicateDialog}
+        selectedIds={selectedIds}
+        onComplete={handleBulkOperationComplete}
       />
     </AppLayout>
   );

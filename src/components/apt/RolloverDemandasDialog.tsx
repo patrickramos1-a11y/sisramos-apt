@@ -152,13 +152,13 @@ export default function RolloverDemandasDialog({
       <DialogTrigger asChild>
         <Button variant="outline" size="sm" className="gap-2">
           <Copy className="h-4 w-4" />
-          <span className="hidden sm:inline">Rollover Mensal</span>
-          <span className="sm:hidden">Rollover</span>
+          <span className="hidden sm:inline">Copiar para próximo mês</span>
+          <span className="sm:hidden">Copiar mês</span>
         </Button>
       </DialogTrigger>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>Rollover de Demandas</DialogTitle>
+          <DialogTitle>Copiar Demandas para Outro Mês</DialogTitle>
           <DialogDescription>
             Copie as demandas de um mês para outro, mantendo o histórico original.
           </DialogDescription>
