@@ -441,6 +441,7 @@ export default function APT() {
         open={showBulkDeleteDialog}
         onOpenChange={setShowBulkDeleteDialog}
         demandaIds={Array.from(selectedIds)}
+        allDemandas={demandas}
         onDemandasExcluidas={handleBulkOperationComplete}
       />
 
