@@ -58,8 +58,8 @@ export default function DemandaCard({
       )}
     >
       <CardContent className="p-0">
-        {/* Header com número, setor e badges */}
-        <div className="flex items-center justify-between gap-2 px-3 py-2 bg-muted/50 border-b">
+        {/* Header com número, setor e badges - cor de destaque para separar cards */}
+        <div className="flex items-center justify-between gap-2 px-3 py-2.5 bg-[hsl(var(--apt-header))] border-b-2 border-primary/20">
           <div className="flex items-center gap-2 flex-wrap">
             <Badge variant="outline" className="font-mono text-xs px-2 py-0.5">
               #{numero}
