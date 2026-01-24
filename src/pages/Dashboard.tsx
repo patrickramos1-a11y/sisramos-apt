@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import AppLayout from "@/components/layout/AppLayout";
 import { useDemandas } from "@/hooks/useDemandas";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -19,10 +19,69 @@ import {
   Pie,
   Cell,
 } from "recharts";
-import { Loader2 } from "lucide-react";
+import { Loader2, X } from "lucide-react";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 
 export default function Dashboard() {
   const { demandas, profiles, setores, isLoading, getProfileById, getSetorById } = useDemandas();
+
+  // Estados dos filtros
+  const [filterAno, setFilterAno] = useState<string>("all");
+  const [filterMes, setFilterMes] = useState<string>("all");
+  const [filterUsuario, setFilterUsuario] = useState<string>("all");
+  const [filterSetor, setFilterSetor] = useState<string>("all");
+
+  // Opções de anos disponíveis
+  const anosDisponiveis = useMemo(() => {
+    const anos = new Set<number>();
+    demandas.forEach((d) => anos.add(d.ano));
+    return Array.from(anos).sort((a, b) => b - a);
+  }, [demandas]);
+
+  // Opções de meses
+  const meses = [
+    { value: "1", label: "Janeiro" },
+    { value: "2", label: "Fevereiro" },
+    { value: "3", label: "Março" },
+    { value: "4", label: "Abril" },
+    { value: "5", label: "Maio" },
+    { value: "6", label: "Junho" },
+    { value: "7", label: "Julho" },
+    { value: "8", label: "Agosto" },
+    { value: "9", label: "Setembro" },
+    { value: "10", label: "Outubro" },
+    { value: "11", label: "Novembro" },
+    { value: "12", label: "Dezembro" },
+  ];
+
+  // Demandas filtradas
+  const demandasFiltradas = useMemo(() => {
+    return demandas.filter((demanda) => {
+      if (filterAno !== "all" && demanda.ano !== parseInt(filterAno)) return false;
+      if (filterMes !== "all" && demanda.mes !== parseInt(filterMes)) return false;
+      if (filterUsuario !== "all" && demanda.responsavel_id !== filterUsuario) return false;
+      if (filterSetor !== "all" && demanda.setor_id !== filterSetor) return false;
+      return true;
+    });
+  }, [demandas, filterAno, filterMes, filterUsuario, filterSetor]);
+
+  // Limpar todos os filtros
+  const limparFiltros = () => {
+    setFilterAno("all");
+    setFilterMes("all");
+    setFilterUsuario("all");
+    setFilterSetor("all");
+  };
+
+  const temFiltrosAtivos = filterAno !== "all" || filterMes !== "all" || filterUsuario !== "all" || filterSetor !== "all";
 
   // Dados: Setores por usuário (X = usuários, Y = setores)
   const { setoresPorUsuarioData, setoresPorUsuarioConfig } = useMemo(() => {
@@ -30,7 +89,7 @@ export default function Dashboard() {
     const userSetorCounts: Record<string, Record<string, number>> = {};
     const allSetorNames = new Set<string>();
     
-    demandas.forEach((demanda) => {
+    demandasFiltradas.forEach((demanda) => {
       const profile = getProfileById(demanda.responsavel_id);
       const userName = profile?.nome || "Desconhecido";
       const setor = getSetorById(demanda.setor_id);
@@ -73,7 +132,7 @@ export default function Dashboard() {
     });
 
     return { setoresPorUsuarioData: data, setoresPorUsuarioConfig: config, setorNames: setorArray };
-  }, [demandas, getProfileById, getSetorById, setores]);
+  }, [demandasFiltradas, getProfileById, getSetorById, setores]);
 
   // Lista de setores para renderizar as barras
   const setorNames = useMemo(() => {
@@ -84,13 +143,13 @@ export default function Dashboard() {
   const { setoresPizzaData, setoresPizzaConfig } = useMemo(() => {
     const setorCounts: Record<string, number> = {};
     
-    demandas.forEach((demanda) => {
+    demandasFiltradas.forEach((demanda) => {
       const setor = getSetorById(demanda.setor_id);
       const setorName = setor?.nome || "Sem setor";
       setorCounts[setorName] = (setorCounts[setorName] || 0) + 1;
     });
 
-    const total = demandas.length;
+    const total = demandasFiltradas.length;
     const colors = [
       "hsl(var(--primary))",
       "hsl(142 76% 36%)",
@@ -121,13 +180,13 @@ export default function Dashboard() {
     });
 
     return { setoresPizzaData: data, setoresPizzaConfig: config };
-  }, [demandas, getSetorById, setores]);
+  }, [demandasFiltradas, getSetorById, setores]);
 
   // Dados: Feito por usuário (status_responsavel = executado)
   const feitoPorUsuario = useMemo(() => {
     const userFeito: Record<string, { feito: number; total: number }> = {};
     
-    demandas.forEach((demanda) => {
+    demandasFiltradas.forEach((demanda) => {
       const profile = getProfileById(demanda.responsavel_id);
       const userName = profile?.nome || "Desconhecido";
       
@@ -145,13 +204,13 @@ export default function Dashboard() {
       feito: data.feito,
       total: data.total,
     })).sort((a, b) => b.feito - a.feito);
-  }, [demandas, getProfileById]);
+  }, [demandasFiltradas, getProfileById]);
 
   // Dados: Aprovado por usuário (status_gestor = executado)
   const aprovadoPorUsuario = useMemo(() => {
     const userAprovado: Record<string, { aprovado: number; total: number }> = {};
     
-    demandas.forEach((demanda) => {
+    demandasFiltradas.forEach((demanda) => {
       const profile = getProfileById(demanda.responsavel_id);
       const userName = profile?.nome || "Desconhecido";
       
@@ -169,13 +228,13 @@ export default function Dashboard() {
       aprovado: data.aprovado,
       total: data.total,
     })).sort((a, b) => b.aprovado - a.aprovado);
-  }, [demandas, getProfileById]);
+  }, [demandasFiltradas, getProfileById]);
 
   // Dados: Não realizado por usuário (status_responsavel = nao_realizado)
   const naoRealizadoPorUsuario = useMemo(() => {
     const userNaoRealizado: Record<string, { nao_realizado: number; total: number }> = {};
     
-    demandas.forEach((demanda) => {
+    demandasFiltradas.forEach((demanda) => {
       const profile = getProfileById(demanda.responsavel_id);
       const userName = profile?.nome || "Desconhecido";
       
@@ -193,13 +252,13 @@ export default function Dashboard() {
       nao_realizado: data.nao_realizado,
       total: data.total,
     })).sort((a, b) => b.nao_realizado - a.nao_realizado);
-  }, [demandas, getProfileById]);
+  }, [demandasFiltradas, getProfileById]);
 
   // Dados: Pendente por usuário (status_responsavel = pendente)
   const pendentePorUsuario = useMemo(() => {
     const userPendente: Record<string, { pendente: number; total: number }> = {};
     
-    demandas.forEach((demanda) => {
+    demandasFiltradas.forEach((demanda) => {
       const profile = getProfileById(demanda.responsavel_id);
       const userName = profile?.nome || "Desconhecido";
       
@@ -217,11 +276,13 @@ export default function Dashboard() {
       pendente: data.pendente,
       total: data.total,
     })).sort((a, b) => b.pendente - a.pendente);
-  }, [demandas, getProfileById]);
+  }, [demandasFiltradas, getProfileById]);
+
+  // Dados: Comparativo completo (feito, aprovado, não realizado, pendente)
   const comparativoCompleto = useMemo(() => {
     const userData: Record<string, { feito: number; aprovado: number; nao_realizado: number; pendente: number }> = {};
     
-    demandas.forEach((demanda) => {
+    demandasFiltradas.forEach((demanda) => {
       const profile = getProfileById(demanda.responsavel_id);
       const userName = profile?.nome || "Desconhecido";
       
@@ -251,7 +312,7 @@ export default function Dashboard() {
       nao_realizado: data.nao_realizado,
       pendente: data.pendente,
     })).sort((a, b) => a.nome.localeCompare(b.nome, "pt-BR"));
-  }, [demandas, getProfileById]);
+  }, [demandasFiltradas, getProfileById]);
 
 
   const chartConfigFeito = {
@@ -314,7 +375,108 @@ export default function Dashboard() {
   return (
     <AppLayout>
       <div className="p-4 lg:p-6 space-y-6">
-        <h1 className="text-2xl font-bold">Dashboards</h1>
+        <div className="flex flex-col gap-4">
+          <h1 className="text-2xl font-bold">Dashboards</h1>
+          
+          {/* Filtros */}
+          <Card>
+            <CardContent className="pt-4">
+              <div className="flex flex-wrap items-center gap-4">
+                {/* Filtro de Ano */}
+                <div className="flex flex-col gap-1">
+                  <span className="text-xs font-medium text-muted-foreground">Ano</span>
+                  <Select value={filterAno} onValueChange={setFilterAno}>
+                    <SelectTrigger className="w-[120px]">
+                      <SelectValue placeholder="Todos" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">Todos</SelectItem>
+                      {anosDisponiveis.map((ano) => (
+                        <SelectItem key={ano} value={ano.toString()}>
+                          {ano}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {/* Filtro de Mês */}
+                <div className="flex flex-col gap-1">
+                  <span className="text-xs font-medium text-muted-foreground">Mês</span>
+                  <Select value={filterMes} onValueChange={setFilterMes}>
+                    <SelectTrigger className="w-[140px]">
+                      <SelectValue placeholder="Todos" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">Todos</SelectItem>
+                      {meses.map((mes) => (
+                        <SelectItem key={mes.value} value={mes.value}>
+                          {mes.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {/* Filtro de Usuário */}
+                <div className="flex flex-col gap-1">
+                  <span className="text-xs font-medium text-muted-foreground">Usuário</span>
+                  <Select value={filterUsuario} onValueChange={setFilterUsuario}>
+                    <SelectTrigger className="w-[180px]">
+                      <SelectValue placeholder="Todos" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">Todos</SelectItem>
+                      {profiles.map((profile) => (
+                        <SelectItem key={profile.user_id} value={profile.user_id}>
+                          {profile.nome}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {/* Filtro de Setor */}
+                <div className="flex flex-col gap-1">
+                  <span className="text-xs font-medium text-muted-foreground">Setor</span>
+                  <Select value={filterSetor} onValueChange={setFilterSetor}>
+                    <SelectTrigger className="w-[160px]">
+                      <SelectValue placeholder="Todos" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">Todos</SelectItem>
+                      {setores.map((setor) => (
+                        <SelectItem key={setor.id} value={setor.id}>
+                          {setor.nome}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {/* Botão Limpar Filtros */}
+                {temFiltrosAtivos && (
+                  <div className="flex flex-col gap-1">
+                    <span className="text-xs font-medium text-transparent">.</span>
+                    <Button variant="outline" size="sm" onClick={limparFiltros} className="gap-1">
+                      <X className="h-4 w-4" />
+                      Limpar
+                    </Button>
+                  </div>
+                )}
+              </div>
+
+              {/* Badge com total filtrado */}
+              {temFiltrosAtivos && (
+                <div className="mt-3 pt-3 border-t">
+                  <Badge variant="secondary">
+                    {demandasFiltradas.length} demanda{demandasFiltradas.length !== 1 ? "s" : ""} encontrada{demandasFiltradas.length !== 1 ? "s" : ""}
+                  </Badge>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </div>
         
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {/* Gráfico de Setores - Barras */}
