@@ -3,6 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import { MultiFilters } from "@/components/apt/APTFilters";
+import { SortConfig, SortDirection } from "@/components/apt/DemandaSortHeader";
 
 type StatusBolinha = "pendente" | "executado" | "nao_realizado";
 
@@ -53,6 +54,12 @@ export function useDemandas() {
     statusResponsavel: [],
     statusGestor: [],
     busca: "",
+  });
+  const [sortConfig, setSortConfig] = useState<SortConfig>({
+    setor: null,
+    responsavel: null,
+    descricao: null,
+    semana: null,
   });
 
   const { user, isGestorOrAdmin } = useAuth();
@@ -217,30 +224,67 @@ export function useDemandas() {
     return setores.find((s) => s.id === setorId);
   }, [setores]);
 
-  // Sort demandas: Setor (A-Z) → Semana (1ª-5ª) → Numero
+  // Toggle sort direction for a field
+  const toggleSort = (field: keyof SortConfig) => {
+    setSortConfig((prev) => {
+      const current = prev[field];
+      let next: SortDirection;
+      if (current === null) next = "asc";
+      else if (current === "asc") next = "desc";
+      else next = null;
+      return { ...prev, [field]: next };
+    });
+  };
+
+  const resetSort = () => {
+    setSortConfig({
+      setor: null,
+      responsavel: null,
+      descricao: null,
+      semana: null,
+    });
+  };
+
+  // Sort demandas based on sortConfig
   const sortedDemandas = useMemo(() => {
-    // Aguarda setores carregarem para ordenar corretamente
-    if (setores.length === 0) {
-      return demandas;
+    // If no sort is applied, return original order (by numero)
+    const hasAnySort = Object.values(sortConfig).some((v) => v !== null);
+    if (!hasAnySort) {
+      return [...demandas].sort((a, b) => a.numero - b.numero);
     }
 
     return [...demandas].sort((a, b) => {
-      // 1. Setor (A-Z)
-      const setorA = getSetorById(a.setor_id)?.nome || "";
-      const setorB = getSetorById(b.setor_id)?.nome || "";
-      const setorComparison = setorA.localeCompare(setorB, "pt-BR");
-      if (setorComparison !== 0) return setorComparison;
+      // Apply sorts in order: setor, responsavel, descricao, semana
+      if (sortConfig.setor) {
+        const setorA = getSetorById(a.setor_id)?.nome || "";
+        const setorB = getSetorById(b.setor_id)?.nome || "";
+        const cmp = setorA.localeCompare(setorB, "pt-BR");
+        if (cmp !== 0) return sortConfig.setor === "asc" ? cmp : -cmp;
+      }
 
-      // 2. Semana (1ª-5ª) - usa a menor semana do array
-      const semanaA = a.semana_limite?.length ? Math.min(...a.semana_limite) : 0;
-      const semanaB = b.semana_limite?.length ? Math.min(...b.semana_limite) : 0;
-      const semanaComparison = semanaA - semanaB;
-      if (semanaComparison !== 0) return semanaComparison;
+      if (sortConfig.responsavel) {
+        const respA = getProfileById(a.responsavel_id)?.nome || "";
+        const respB = getProfileById(b.responsavel_id)?.nome || "";
+        const cmp = respA.localeCompare(respB, "pt-BR");
+        if (cmp !== 0) return sortConfig.responsavel === "asc" ? cmp : -cmp;
+      }
 
-      // 3. Tie-breaker: número do banco
+      if (sortConfig.descricao) {
+        const cmp = a.descricao.localeCompare(b.descricao, "pt-BR");
+        if (cmp !== 0) return sortConfig.descricao === "asc" ? cmp : -cmp;
+      }
+
+      if (sortConfig.semana) {
+        const semanaA = a.semana_limite?.length ? Math.min(...a.semana_limite) : 0;
+        const semanaB = b.semana_limite?.length ? Math.min(...b.semana_limite) : 0;
+        const cmp = semanaA - semanaB;
+        if (cmp !== 0) return sortConfig.semana === "asc" ? cmp : -cmp;
+      }
+
+      // Tie-breaker: numero
       return a.numero - b.numero;
     });
-  }, [demandas, setores, getSetorById]);
+  }, [demandas, sortConfig, getSetorById, getProfileById]);
 
   // Get sibling count for a demand
   const getSiblingCount = useCallback((grupoId: string | null) => {
@@ -264,6 +308,9 @@ export function useDemandas() {
     filters,
     setFilters,
     clearFilters,
+    sortConfig,
+    toggleSort,
+    resetSort,
     fetchDemandas,
     updateStatusResponsavel,
     updateStatusGestor,
