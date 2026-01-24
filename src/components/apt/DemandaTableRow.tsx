@@ -93,7 +93,7 @@ export default function DemandaTableRow({
         </span>
       </TableCell>
       <TableCell className="w-32 truncate">{responsavel}</TableCell>
-      <TableCell className="max-w-xs truncate">{descricao}</TableCell>
+      <TableCell className="whitespace-normal break-words">{descricao}</TableCell>
       <TableCell className="text-center w-20" onClick={(e) => e.stopPropagation()}>
         <div className="flex justify-center">
           <StatusBolinha
