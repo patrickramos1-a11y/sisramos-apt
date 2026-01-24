@@ -1,15 +1,9 @@
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import { Button } from "@/components/ui/button";
 import StatusBolinha from "./StatusBolinha";
+import SwipeableCard from "./SwipeableCard";
 import { cn } from "@/lib/utils";
-import { MoreVertical, Pencil, Trash2, User, RefreshCw, Calendar } from "lucide-react";
+import { User, RefreshCw, Calendar } from "lucide-react";
 
 type StatusBolinha = "pendente" | "executado" | "nao_realizado";
 
@@ -56,7 +50,7 @@ export default function DemandaCard({
 }: DemandaCardProps) {
   const semanaOrdenacao = semanaLimite?.length ? Math.min(...semanaLimite) : 0;
 
-  return (
+  const cardContent = (
     <Card
       className={cn(
         "transition-all hover:shadow-md overflow-hidden",
@@ -64,7 +58,7 @@ export default function DemandaCard({
       )}
     >
       <CardContent className="p-0">
-        {/* Header com número, setor, badges e menu de ações */}
+        {/* Header com número, setor e badges */}
         <div className="flex items-center justify-between gap-2 px-3 py-2 bg-muted/50 border-b">
           <div className="flex items-center gap-2 flex-wrap">
             <Badge variant="outline" className="font-mono text-xs px-2 py-0.5">
@@ -83,28 +77,11 @@ export default function DemandaCard({
             )}
           </div>
           
-          {/* Menu de 3 pontinhos */}
+          {/* Indicador de swipe quando pode editar */}
           {canEditDemanda && (
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="icon" className="h-7 w-7 shrink-0">
-                  <MoreVertical className="h-4 w-4" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                <DropdownMenuItem onClick={onEdit}>
-                  <Pencil className="h-4 w-4 mr-2" />
-                  Editar
-                </DropdownMenuItem>
-                <DropdownMenuItem 
-                  onClick={onDelete}
-                  className="text-destructive focus:text-destructive"
-                >
-                  <Trash2 className="h-4 w-4 mr-2" />
-                  Excluir
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
+            <span className="text-[10px] text-muted-foreground/60 italic">
+              ← deslize
+            </span>
           )}
         </div>
 
@@ -157,4 +134,15 @@ export default function DemandaCard({
       </CardContent>
     </Card>
   );
+
+  // Wrap with swipeable only if can edit
+  if (canEditDemanda) {
+    return (
+      <SwipeableCard onEdit={onEdit} onDelete={onDelete}>
+        {cardContent}
+      </SwipeableCard>
+    );
+  }
+
+  return cardContent;
 }
