@@ -448,7 +448,6 @@ export default function Configuracoes() {
                                 onValueChange={(value: AppRole) =>
                                   handleUpdateRole(u.user_id, value)
                                 }
-                                disabled={u.user_id === user?.id}
                               >
                                 <SelectTrigger className="w-[130px]">
                                   <SelectValue />
@@ -469,7 +468,6 @@ export default function Configuracoes() {
                                 variant="ghost"
                                 size="icon"
                                 onClick={() => setEditingUser(u)}
-                                disabled={u.user_id === user?.id}
                                 title="Editar usuário"
                               >
                                 <Pencil className="h-4 w-4" />
