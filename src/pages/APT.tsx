@@ -324,6 +324,7 @@ export default function APT() {
                               }
                             }}
                             onCheckedChange={toggleSelectAll}
+                            className="border-white data-[state=checked]:bg-white data-[state=checked]:text-primary"
                           />
                         </TableHead>
                         <TableHead className="text-center w-16 text-primary-foreground">Nº</TableHead>
