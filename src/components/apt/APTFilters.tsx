@@ -1,8 +1,9 @@
+import { useRef, useEffect } from "react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Textarea } from "@/components/ui/textarea";
 import {
   Sheet,
   SheetContent,
@@ -221,16 +222,30 @@ export default function APTFilters({
     label: s.nome,
   }));
 
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  // Auto-resize textarea
+  useEffect(() => {
+    const textarea = textareaRef.current;
+    if (textarea) {
+      textarea.style.height = "auto";
+      textarea.style.height = `${Math.min(textarea.scrollHeight, 120)}px`;
+    }
+  }, [filters.busca]);
+
   // IMPORTANT: keep this as JSX (not an inline component) to avoid remounting
   // on every keystroke, which would steal focus from inputs and close popovers.
   const content = (
     <div className="space-y-4">
       <div className="space-y-2">
         <Label>Buscar</Label>
-        <Input
+        <Textarea
+          ref={textareaRef}
           placeholder="Buscar por descrição..."
           value={filters.busca}
           onChange={(e) => updateFilter("busca", e.target.value)}
+          className="min-h-[38px] resize-none overflow-hidden"
+          rows={1}
         />
       </div>
 
