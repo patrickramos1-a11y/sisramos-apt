@@ -8,6 +8,7 @@ import ExcluirUsuarioDialog from "@/components/users/ExcluirUsuarioDialog";
 import AlterarSenhaDialog from "@/components/users/AlterarSenhaDialog";
 import UserFilters from "@/components/users/UserFilters";
 import SetoresManagement from "@/components/setores/SetoresManagement";
+import { ThemeToggle, useTheme } from "@/components/ThemeToggle";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -35,7 +36,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, Save, User, Pencil, X, Users, Trash2, Key } from "lucide-react";
+import { Loader2, Save, User, Pencil, X, Users, Trash2, Key, Palette } from "lucide-react";
 
 type AppRole = "admin" | "gestor" | "colaborador";
 type SortField = "nome" | "email" | "role";
@@ -574,6 +575,32 @@ export default function Configuracoes() {
 
         {/* Gestão de Setores */}
         {isGestorOrAdmin && <SetoresManagement />}
+
+        {/* Aparência */}
+        <Card className="shadow-sm">
+          <CardHeader className="pb-4">
+            <CardTitle className="flex items-center gap-2 text-lg">
+              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                <Palette className="h-4 w-4" />
+              </div>
+              Aparência
+            </CardTitle>
+            <CardDescription>
+              Personalize a aparência do sistema
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+              <div className="space-y-1">
+                <Label>Tema do sistema</Label>
+                <p className="text-sm text-muted-foreground">
+                  Escolha entre tema claro, escuro ou automático (segue o sistema)
+                </p>
+              </div>
+              <ThemeToggle variant="switch" />
+            </div>
+          </CardContent>
+        </Card>
 
         {/* Informação sobre perfil */}
         <Card>
