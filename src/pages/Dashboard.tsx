@@ -195,20 +195,28 @@ export default function Dashboard() {
     })).sort((a, b) => b.nao_realizado - a.nao_realizado);
   }, [demandas, getProfileById]);
 
-  // Dados: Comparativo Feito vs Aprovado
-  const comparativoFeitoAprovado = useMemo(() => {
-    const userData: Record<string, { feito: number; aprovado: number }> = {};
+  // Dados: Comparativo completo (feito, aprovado, não realizado, pendente)
+  const comparativoCompleto = useMemo(() => {
+    const userData: Record<string, { feito: number; aprovado: number; nao_realizado: number; pendente: number }> = {};
     
     demandas.forEach((demanda) => {
       const profile = getProfileById(demanda.responsavel_id);
       const userName = profile?.nome || "Desconhecido";
       
       if (!userData[userName]) {
-        userData[userName] = { feito: 0, aprovado: 0 };
+        userData[userName] = { feito: 0, aprovado: 0, nao_realizado: 0, pendente: 0 };
       }
+      
+      // Status do responsável
       if (demanda.status_responsavel === "executado") {
         userData[userName].feito++;
+      } else if (demanda.status_responsavel === "nao_realizado") {
+        userData[userName].nao_realizado++;
+      } else if (demanda.status_responsavel === "pendente") {
+        userData[userName].pendente++;
       }
+      
+      // Status do gestor (aprovado)
       if (demanda.status_gestor === "executado") {
         userData[userName].aprovado++;
       }
@@ -218,7 +226,9 @@ export default function Dashboard() {
       nome,
       feito: data.feito,
       aprovado: data.aprovado,
-    })).sort((a, b) => (b.feito + b.aprovado) - (a.feito + a.aprovado));
+      nao_realizado: data.nao_realizado,
+      pendente: data.pendente,
+    })).sort((a, b) => a.nome.localeCompare(b.nome, "pt-BR"));
   }, [demandas, getProfileById]);
 
 
@@ -251,6 +261,14 @@ export default function Dashboard() {
     aprovado: {
       label: "Aprovado",
       color: "hsl(221 83% 53%)",
+    },
+    nao_realizado: {
+      label: "Não Realizado",
+      color: "hsl(0 84% 60%)",
+    },
+    pendente: {
+      label: "Pendente",
+      color: "hsl(38 92% 50%)",
     },
   };
 
@@ -388,21 +406,23 @@ export default function Dashboard() {
             </CardContent>
           </Card>
 
-          {/* Comparativo Feito vs Aprovado */}
+          {/* Gráfico de Comparativo */}
           <Card>
             <CardHeader>
-              <CardTitle className="text-lg">Comparativo: Feito vs Aprovado</CardTitle>
+              <CardTitle className="text-lg">Gráfico de Comparativo</CardTitle>
             </CardHeader>
             <CardContent>
               <ChartContainer config={chartConfigComparativo} className="h-[300px] w-full">
-                <BarChart data={comparativoFeitoAprovado} layout="vertical" margin={{ left: 20, right: 20 }}>
-                  <CartesianGrid strokeDasharray="3 3" horizontal={true} vertical={false} />
-                  <XAxis type="number" />
-                  <YAxis dataKey="nome" type="category" width={100} tick={{ fontSize: 12 }} />
+                <BarChart data={comparativoCompleto} margin={{ left: 20, right: 20, bottom: 20 }}>
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                  <XAxis dataKey="nome" tick={{ fontSize: 12 }} />
+                  <YAxis />
                   <ChartTooltip content={<ChartTooltipContent />} />
                   <ChartLegend content={<ChartLegendContent />} />
                   <Bar dataKey="feito" fill="var(--color-feito)" radius={4} />
                   <Bar dataKey="aprovado" fill="var(--color-aprovado)" radius={4} />
+                  <Bar dataKey="nao_realizado" fill="var(--color-nao_realizado)" radius={4} />
+                  <Bar dataKey="pendente" fill="var(--color-pendente)" radius={4} />
                 </BarChart>
               </ChartContainer>
             </CardContent>
