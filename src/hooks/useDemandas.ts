@@ -3,6 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import { SortConfig, SortDirection } from "@/components/apt/DemandaSortHeader";
+import { MultiFilters } from "@/components/apt/APTFilters";
 
 type StatusBolinha = "pendente" | "executado" | "nao_realizado";
 
@@ -39,30 +40,19 @@ interface Setor {
   cor: string;
 }
 
-interface Filters {
-  responsavel: string;
-  setor: string;
-  mes: string;
-  ano: string;
-  semanaLimite: string;
-  statusResponsavel: string;
-  statusGestor: string;
-  busca: string;
-}
-
 export function useDemandas() {
   const [demandas, setDemandas] = useState<Demanda[]>([]);
   const [profiles, setProfiles] = useState<Profile[]>([]);
   const [setores, setSetores] = useState<Setor[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [filters, setFilters] = useState<Filters>({
-    responsavel: "",
-    setor: "",
-    mes: String(new Date().getMonth() + 1),
-    ano: String(new Date().getFullYear()),
-    semanaLimite: "",
-    statusResponsavel: "",
-    statusGestor: "",
+  const [filters, setFilters] = useState<MultiFilters>({
+    responsaveis: [],
+    setores: [],
+    meses: [String(new Date().getMonth() + 1)],
+    anos: [String(new Date().getFullYear())],
+    semanas: [],
+    statusResponsavel: [],
+    statusGestor: [],
     busca: "",
   });
   const [sortConfig, setSortConfig] = useState<SortConfig>({
@@ -87,27 +77,24 @@ export function useDemandas() {
       .order("prioritaria", { ascending: false })
       .order("numero", { ascending: true });
 
-    // Apply filters
-    if (filters.mes && filters.mes !== "all") {
-      query = query.eq("mes", parseInt(filters.mes));
+    // Apply multi-select filters using .in() for arrays
+    if (filters.meses.length > 0) {
+      query = query.in("mes", filters.meses.map((m) => parseInt(m)));
     }
-    if (filters.ano && filters.ano !== "all") {
-      query = query.eq("ano", parseInt(filters.ano));
+    if (filters.anos.length > 0) {
+      query = query.in("ano", filters.anos.map((a) => parseInt(a)));
     }
-    if (filters.responsavel && filters.responsavel !== "all") {
-      query = query.eq("responsavel_id", filters.responsavel);
+    if (filters.responsaveis.length > 0) {
+      query = query.in("responsavel_id", filters.responsaveis);
     }
-    if (filters.setor && filters.setor !== "all") {
-      query = query.eq("setor_id", filters.setor);
+    if (filters.setores.length > 0) {
+      query = query.in("setor_id", filters.setores);
     }
-    if (filters.semanaLimite && filters.semanaLimite !== "all") {
-      query = query.contains("semana_limite", [parseInt(filters.semanaLimite)]);
+    if (filters.statusResponsavel.length > 0) {
+      query = query.in("status_responsavel", filters.statusResponsavel as StatusBolinha[]);
     }
-    if (filters.statusResponsavel && filters.statusResponsavel !== "all") {
-      query = query.eq("status_responsavel", filters.statusResponsavel as "pendente" | "executado" | "nao_realizado");
-    }
-    if (filters.statusGestor && filters.statusGestor !== "all") {
-      query = query.eq("status_gestor", filters.statusGestor as "pendente" | "executado" | "nao_realizado");
+    if (filters.statusGestor.length > 0) {
+      query = query.in("status_gestor", filters.statusGestor as StatusBolinha[]);
     }
     if (filters.busca) {
       query = query.ilike("descricao", `%${filters.busca}%`);
@@ -122,8 +109,17 @@ export function useDemandas() {
         title: "Erro",
         description: "Erro ao carregar demandas",
       });
+      setDemandas([]);
     } else {
-      setDemandas(data || []);
+      // Filter semanas client-side since it's an array column
+      let filteredData = data || [];
+      if (filters.semanas.length > 0) {
+        const semanaNumbers = filters.semanas.map((s) => parseInt(s));
+        filteredData = filteredData.filter((d) =>
+          d.semana_limite.some((sl: number) => semanaNumbers.includes(sl))
+        );
+      }
+      setDemandas(filteredData);
     }
 
     setIsLoading(false);
@@ -208,13 +204,13 @@ export function useDemandas() {
 
   const clearFilters = () => {
     setFilters({
-      responsavel: "",
-      setor: "",
-      mes: "",
-      ano: "",
-      semanaLimite: "",
-      statusResponsavel: "",
-      statusGestor: "",
+      responsaveis: [],
+      setores: [],
+      meses: [],
+      anos: [],
+      semanas: [],
+      statusResponsavel: [],
+      statusGestor: [],
       busca: "",
     });
   };

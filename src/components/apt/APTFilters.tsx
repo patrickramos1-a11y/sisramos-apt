@@ -1,13 +1,7 @@
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Sheet,
   SheetContent,
@@ -15,7 +9,13 @@ import {
   SheetTitle,
   SheetTrigger,
 } from "@/components/ui/sheet";
-import { Filter, X } from "lucide-react";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import { Filter, X, ChevronDown } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 interface Profile {
   id: string;
@@ -28,20 +28,22 @@ interface Setor {
   nome: string;
 }
 
+export interface MultiFilters {
+  responsaveis: string[];
+  setores: string[];
+  meses: string[];
+  anos: string[];
+  semanas: string[];
+  statusResponsavel: string[];
+  statusGestor: string[];
+  busca: string;
+}
+
 interface APTFiltersProps {
   profiles: Profile[];
   setores: Setor[];
-  filters: {
-    responsavel: string;
-    setor: string;
-    mes: string;
-    ano: string;
-    semanaLimite: string;
-    statusResponsavel: string;
-    statusGestor: string;
-    busca: string;
-  };
-  onFiltersChange: (filters: any) => void;
+  filters: MultiFilters;
+  onFiltersChange: (filters: MultiFilters) => void;
   onClearFilters: () => void;
   showResponsavelFilter?: boolean;
 }
@@ -67,11 +69,110 @@ const statusOptions = [
   { value: "nao_realizado", label: "Não Realizado" },
 ];
 
+const semanaOptions = [
+  { value: "1", label: "1ª Semana" },
+  { value: "2", label: "2ª Semana" },
+  { value: "3", label: "3ª Semana" },
+  { value: "4", label: "4ª Semana" },
+  { value: "5", label: "5ª Semana" },
+];
+
 const currentYear = new Date().getFullYear();
 const anos = Array.from({ length: 5 }, (_, i) => ({
   value: String(currentYear - 2 + i),
   label: String(currentYear - 2 + i),
 }));
+
+interface MultiSelectDropdownProps {
+  label: string;
+  options: { value: string; label: string }[];
+  selected: string[];
+  onChange: (selected: string[]) => void;
+  placeholder?: string;
+}
+
+function MultiSelectDropdown({
+  label,
+  options,
+  selected,
+  onChange,
+  placeholder = "Selecionar...",
+}: MultiSelectDropdownProps) {
+  const toggleOption = (value: string) => {
+    if (selected.includes(value)) {
+      onChange(selected.filter((v) => v !== value));
+    } else {
+      onChange([...selected, value]);
+    }
+  };
+
+  const toggleAll = () => {
+    if (selected.length === options.length) {
+      onChange([]);
+    } else {
+      onChange(options.map((o) => o.value));
+    }
+  };
+
+  const getDisplayText = () => {
+    if (selected.length === 0) return placeholder;
+    if (selected.length === 1) {
+      return options.find((o) => o.value === selected[0])?.label || selected[0];
+    }
+    return `${selected.length} selecionados`;
+  };
+
+  return (
+    <div className="space-y-2">
+      <Label>{label}</Label>
+      <Popover>
+        <PopoverTrigger asChild>
+          <Button
+            variant="outline"
+            role="combobox"
+            className={cn(
+              "w-full justify-between font-normal",
+              selected.length > 0 && "text-foreground"
+            )}
+          >
+            <span className="truncate">{getDisplayText()}</span>
+            <ChevronDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+          </Button>
+        </PopoverTrigger>
+        <PopoverContent className="w-full min-w-[200px] p-0 bg-popover border shadow-lg z-50" align="start">
+          <div className="max-h-60 overflow-y-auto p-2 space-y-1">
+            <div
+              className="flex items-center gap-2 px-2 py-1.5 rounded cursor-pointer hover:bg-muted"
+              onClick={toggleAll}
+            >
+              <Checkbox
+                checked={selected.length === options.length}
+                className="pointer-events-none"
+              />
+              <span className="text-sm font-medium">
+                {selected.length === options.length ? "Desmarcar todos" : "Selecionar todos"}
+              </span>
+            </div>
+            <div className="border-t my-1" />
+            {options.map((option) => (
+              <div
+                key={option.value}
+                className="flex items-center gap-2 px-2 py-1.5 rounded cursor-pointer hover:bg-muted"
+                onClick={() => toggleOption(option.value)}
+              >
+                <Checkbox
+                  checked={selected.includes(option.value)}
+                  className="pointer-events-none"
+                />
+                <span className="text-sm">{option.label}</span>
+              </div>
+            ))}
+          </div>
+        </PopoverContent>
+      </Popover>
+    </div>
+  );
+}
 
 export default function APTFilters({
   profiles,
@@ -81,11 +182,29 @@ export default function APTFilters({
   onClearFilters,
   showResponsavelFilter = true,
 }: APTFiltersProps) {
-  const updateFilter = (key: string, value: string) => {
+  const updateFilter = <K extends keyof MultiFilters>(key: K, value: MultiFilters[K]) => {
     onFiltersChange({ ...filters, [key]: value });
   };
 
-  const hasActiveFilters = Object.values(filters).some((v) => v !== "");
+  const hasActiveFilters =
+    filters.responsaveis.length > 0 ||
+    filters.setores.length > 0 ||
+    filters.meses.length > 0 ||
+    filters.anos.length > 0 ||
+    filters.semanas.length > 0 ||
+    filters.statusResponsavel.length > 0 ||
+    filters.statusGestor.length > 0 ||
+    filters.busca !== "";
+
+  const responsavelOptions = profiles.map((p) => ({
+    value: p.user_id,
+    label: p.nome,
+  }));
+
+  const setorOptions = setores.map((s) => ({
+    value: s.id,
+    label: s.nome,
+  }));
 
   const FilterContent = () => (
     <div className="space-y-4">
@@ -99,148 +218,64 @@ export default function APTFilters({
       </div>
 
       {showResponsavelFilter && (
-        <div className="space-y-2">
-          <Label>Responsável</Label>
-          <Select
-            value={filters.responsavel}
-            onValueChange={(v) => updateFilter("responsavel", v)}
-          >
-            <SelectTrigger>
-              <SelectValue placeholder="Todos" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Todos</SelectItem>
-              {profiles.map((p) => (
-                <SelectItem key={p.id} value={p.user_id}>
-                  {p.nome}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
+        <MultiSelectDropdown
+          label="Responsáveis"
+          options={responsavelOptions}
+          selected={filters.responsaveis}
+          onChange={(v) => updateFilter("responsaveis", v)}
+          placeholder="Todos"
+        />
       )}
 
-      <div className="space-y-2">
-        <Label>Setor</Label>
-        <Select
-          value={filters.setor}
-          onValueChange={(v) => updateFilter("setor", v)}
-        >
-          <SelectTrigger>
-            <SelectValue placeholder="Todos" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">Todos</SelectItem>
-            {setores.map((s) => (
-              <SelectItem key={s.id} value={s.id}>
-                {s.nome}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </div>
+      <MultiSelectDropdown
+        label="Setores"
+        options={setorOptions}
+        selected={filters.setores}
+        onChange={(v) => updateFilter("setores", v)}
+        placeholder="Todos"
+      />
 
       <div className="grid grid-cols-2 gap-2">
-        <div className="space-y-2">
-          <Label>Mês</Label>
-          <Select
-            value={filters.mes}
-            onValueChange={(v) => updateFilter("mes", v)}
-          >
-            <SelectTrigger>
-              <SelectValue placeholder="Todos" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Todos</SelectItem>
-              {meses.map((m) => (
-                <SelectItem key={m.value} value={m.value}>
-                  {m.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
+        <MultiSelectDropdown
+          label="Meses"
+          options={meses}
+          selected={filters.meses}
+          onChange={(v) => updateFilter("meses", v)}
+          placeholder="Todos"
+        />
 
-        <div className="space-y-2">
-          <Label>Ano</Label>
-          <Select
-            value={filters.ano}
-            onValueChange={(v) => updateFilter("ano", v)}
-          >
-            <SelectTrigger>
-              <SelectValue placeholder="Todos" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Todos</SelectItem>
-              {anos.map((a) => (
-                <SelectItem key={a.value} value={a.value}>
-                  {a.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
+        <MultiSelectDropdown
+          label="Anos"
+          options={anos}
+          selected={filters.anos}
+          onChange={(v) => updateFilter("anos", v)}
+          placeholder="Todos"
+        />
       </div>
 
-      <div className="space-y-2">
-        <Label>Semanas</Label>
-        <Select
-          value={filters.semanaLimite}
-          onValueChange={(v) => updateFilter("semanaLimite", v)}
-        >
-          <SelectTrigger>
-            <SelectValue placeholder="Todas" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">Todas</SelectItem>
-            <SelectItem value="1">1ª Semana</SelectItem>
-            <SelectItem value="2">2ª Semana</SelectItem>
-            <SelectItem value="3">3ª Semana</SelectItem>
-            <SelectItem value="4">4ª Semana</SelectItem>
-            <SelectItem value="5">5ª Semana</SelectItem>
-          </SelectContent>
-        </Select>
-      </div>
+      <MultiSelectDropdown
+        label="Semanas"
+        options={semanaOptions}
+        selected={filters.semanas}
+        onChange={(v) => updateFilter("semanas", v)}
+        placeholder="Todas"
+      />
 
-      <div className="space-y-2">
-        <Label>Status Responsável</Label>
-        <Select
-          value={filters.statusResponsavel}
-          onValueChange={(v) => updateFilter("statusResponsavel", v)}
-        >
-          <SelectTrigger>
-            <SelectValue placeholder="Todos" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">Todos</SelectItem>
-            {statusOptions.map((s) => (
-              <SelectItem key={s.value} value={s.value}>
-                {s.label}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </div>
+      <MultiSelectDropdown
+        label="Status Responsável"
+        options={statusOptions}
+        selected={filters.statusResponsavel}
+        onChange={(v) => updateFilter("statusResponsavel", v)}
+        placeholder="Todos"
+      />
 
-      <div className="space-y-2">
-        <Label>Status Gestor</Label>
-        <Select
-          value={filters.statusGestor}
-          onValueChange={(v) => updateFilter("statusGestor", v)}
-        >
-          <SelectTrigger>
-            <SelectValue placeholder="Todos" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">Todos</SelectItem>
-            {statusOptions.map((s) => (
-              <SelectItem key={s.value} value={s.value}>
-                {s.label}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </div>
+      <MultiSelectDropdown
+        label="Status Gestor"
+        options={statusOptions}
+        selected={filters.statusGestor}
+        onChange={(v) => updateFilter("statusGestor", v)}
+        placeholder="Todos"
+      />
 
       {hasActiveFilters && (
         <Button variant="outline" className="w-full" onClick={onClearFilters}>
