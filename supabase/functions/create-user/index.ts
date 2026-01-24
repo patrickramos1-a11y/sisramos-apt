@@ -77,8 +77,19 @@ Deno.serve(async (req) => {
 
     if (createError) {
       console.error("Erro ao criar usuário:", createError);
+      
+      // Traduzir mensagens de erro comuns
+      let errorMessage = createError.message;
+      if (errorMessage.includes("already been registered")) {
+        errorMessage = "Já existe um usuário cadastrado com este e-mail";
+      } else if (errorMessage.includes("invalid email")) {
+        errorMessage = "E-mail inválido";
+      } else if (errorMessage.includes("password")) {
+        errorMessage = "A senha deve ter pelo menos 6 caracteres";
+      }
+      
       return new Response(
-        JSON.stringify({ error: createError.message }),
+        JSON.stringify({ error: errorMessage }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
