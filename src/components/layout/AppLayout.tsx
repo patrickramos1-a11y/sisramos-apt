@@ -39,15 +39,15 @@ export default function AppLayout({ children }: AppLayoutProps) {
 
   const navItems = [
     {
-      name: "APT",
-      href: "/apt",
-      icon: ClipboardList,
-      show: true,
-    },
-    {
       name: "Dashboard",
       href: "/dashboard",
       icon: BarChart3,
+      show: true,
+    },
+    {
+      name: "APT",
+      href: "/apt",
+      icon: ClipboardList,
       show: true,
     },
     {
