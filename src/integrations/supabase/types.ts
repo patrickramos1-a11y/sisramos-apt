@@ -21,6 +21,7 @@ export type Database = {
           created_at: string
           data_limite: string | null
           descricao: string
+          grupo_id: string | null
           id: string
           mes: number
           numero: number
@@ -39,6 +40,7 @@ export type Database = {
           created_at?: string
           data_limite?: string | null
           descricao: string
+          grupo_id?: string | null
           id?: string
           mes: number
           numero?: number
@@ -57,6 +59,7 @@ export type Database = {
           created_at?: string
           data_limite?: string | null
           descricao?: string
+          grupo_id?: string | null
           id?: string
           mes?: number
           numero?: number

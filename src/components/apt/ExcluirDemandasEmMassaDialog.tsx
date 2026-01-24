@@ -12,47 +12,45 @@ import { Loader2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 
-interface ExcluirDemandaDialogProps {
+interface ExcluirDemandasEmMassaDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  demandaId: string | null;
-  demandaNumero: number | null;
-  onDemandaExcluida: () => void;
+  demandaIds: string[];
+  onDemandasExcluidas: () => void;
 }
 
-export default function ExcluirDemandaDialog({
+export default function ExcluirDemandasEmMassaDialog({
   open,
   onOpenChange,
-  demandaId,
-  demandaNumero,
-  onDemandaExcluida,
-}: ExcluirDemandaDialogProps) {
+  demandaIds,
+  onDemandasExcluidas,
+}: ExcluirDemandasEmMassaDialogProps) {
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
 
   const handleDelete = async () => {
-    if (!demandaId) return;
+    if (demandaIds.length === 0) return;
 
     setIsLoading(true);
 
     const { error } = await supabase
       .from("demandas")
       .delete()
-      .eq("id", demandaId);
+      .in("id", demandaIds);
 
     if (error) {
       toast({
         variant: "destructive",
-        title: "Erro ao excluir demanda",
+        title: "Erro ao excluir demandas",
         description: error.message,
       });
     } else {
       toast({
-        title: "Demanda excluída!",
-        description: `A demanda #${demandaNumero} foi removida com sucesso`,
+        title: "Demandas excluídas!",
+        description: `${demandaIds.length} demanda(s) foram removidas com sucesso`,
       });
       onOpenChange(false);
-      onDemandaExcluida();
+      onDemandasExcluidas();
     }
 
     setIsLoading(false);
@@ -62,10 +60,12 @@ export default function ExcluirDemandaDialog({
     <AlertDialog open={open} onOpenChange={onOpenChange}>
       <AlertDialogContent>
         <AlertDialogHeader>
-          <AlertDialogTitle>Excluir Demanda #{demandaNumero}?</AlertDialogTitle>
+          <AlertDialogTitle>
+            Excluir {demandaIds.length} demanda(s)?
+          </AlertDialogTitle>
           <AlertDialogDescription>
-            Esta ação não pode ser desfeita. A demanda será permanentemente
-            removida do sistema.
+            Esta ação não pode ser desfeita. As demandas selecionadas serão
+            permanentemente removidas do sistema.
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
@@ -87,7 +87,7 @@ export default function ExcluirDemandaDialog({
                 Excluindo...
               </>
             ) : (
-              "Excluir"
+              `Excluir ${demandaIds.length} demanda(s)`
             )}
           </Button>
         </AlertDialogFooter>

@@ -1,5 +1,6 @@
 import { TableCell, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import StatusBolinha from "./StatusBolinha";
 import { cn } from "@/lib/utils";
 import { Pencil, Trash2 } from "lucide-react";
@@ -7,6 +8,7 @@ import { Pencil, Trash2 } from "lucide-react";
 type StatusBolinha = "pendente" | "executado" | "nao_realizado";
 
 interface DemandaTableRowProps {
+  id: string;
   numero: number;
   setor: string;
   setorCor: string;
@@ -21,14 +23,18 @@ interface DemandaTableRowProps {
   canEditGestor: boolean;
   canEditDemanda?: boolean;
   isAlternateRow?: boolean;
+  isSelected?: boolean;
+  showCheckbox?: boolean;
   onStatusResponsavelChange: () => void;
   onStatusGestorChange: () => void;
   onClick?: () => void;
   onEdit?: () => void;
   onDelete?: () => void;
+  onSelectChange?: (checked: boolean) => void;
 }
 
 export default function DemandaTableRow({
+  id,
   numero,
   setor,
   setorCor,
@@ -43,23 +49,35 @@ export default function DemandaTableRow({
   canEditGestor,
   canEditDemanda,
   isAlternateRow,
+  isSelected,
+  showCheckbox,
   onStatusResponsavelChange,
   onStatusGestorChange,
   onClick,
   onEdit,
   onDelete,
+  onSelectChange,
 }: DemandaTableRowProps) {
   return (
     <TableRow
       className={cn(
-        "cursor-pointer",
+        "cursor-pointer transition-colors",
         prioritaria && "bg-[hsl(var(--apt-prioritaria))] hover:bg-[hsl(var(--apt-prioritaria))]/80",
-        !prioritaria && isAlternateRow && "bg-muted/30",
+        !prioritaria && isAlternateRow && "bg-muted/40",
         !prioritaria && !isAlternateRow && "bg-background",
-        !prioritaria && "hover:bg-muted/50"
+        !prioritaria && "hover:bg-muted/60",
+        isSelected && "ring-2 ring-inset ring-primary/50"
       )}
       onClick={onClick}
     >
+      {showCheckbox && (
+        <TableCell className="w-10" onClick={(e) => e.stopPropagation()}>
+          <Checkbox
+            checked={isSelected}
+            onCheckedChange={(checked) => onSelectChange?.(checked as boolean)}
+          />
+        </TableCell>
+      )}
       <TableCell className="font-mono text-center w-16">{numero}</TableCell>
       <TableCell className="w-24">
         <span
@@ -90,7 +108,7 @@ export default function DemandaTableRow({
         </div>
       </TableCell>
       <TableCell className="text-center w-12">{semanasRepeticao}</TableCell>
-      <TableCell className="text-center w-20">{semanaLimite.map(s => `${s}ª`).join(", ")}</TableCell>
+      <TableCell className="text-center w-20">{semanaLimite[0]}ª</TableCell>
       {canEditDemanda && (
         <TableCell className="text-center w-20" onClick={(e) => e.stopPropagation()}>
           <div className="flex items-center justify-center gap-1">

@@ -95,16 +95,25 @@ export default function NovaDemandaDialog({
 
     setIsLoading(true);
 
-    const { error } = await supabase.from("demandas").insert({
+    // Generate a group ID if creating multiple demands
+    const grupoId = formData.semana_limite.length > 1 
+      ? crypto.randomUUID() 
+      : null;
+
+    // Create one demand for each selected week
+    const demandas = formData.semana_limite.map((semana) => ({
       responsavel_id: formData.responsavel_id,
       setor_id: formData.setor_id || null,
       descricao: formData.descricao.trim(),
       semanas_repeticao: parseInt(formData.semanas_repeticao),
-      semana_limite: formData.semana_limite,
+      semana_limite: [semana],
       mes: parseInt(formData.mes),
       ano: parseInt(formData.ano),
       prioritaria: formData.prioritaria,
-    });
+      grupo_id: grupoId,
+    }));
+
+    const { error } = await supabase.from("demandas").insert(demandas);
 
     if (error) {
       toast({
@@ -113,9 +122,12 @@ export default function NovaDemandaDialog({
         description: error.message,
       });
     } else {
+      const count = formData.semana_limite.length;
       toast({
-        title: "Demanda criada!",
-        description: "A demanda foi adicionada com sucesso",
+        title: count > 1 ? "Demandas criadas!" : "Demanda criada!",
+        description: count > 1 
+          ? `${count} demandas foram adicionadas (uma para cada semana)`
+          : "A demanda foi adicionada com sucesso",
       });
       resetForm();
       setOpen(false);
@@ -259,7 +271,9 @@ export default function NovaDemandaDialog({
               ))}
             </div>
             <p className="text-xs text-muted-foreground">
-              Selecione uma ou mais semanas
+              {formData.semana_limite.length > 1 
+                ? `Serão criadas ${formData.semana_limite.length} demandas, uma para cada semana selecionada`
+                : "Selecione uma ou mais semanas"}
             </p>
           </div>
 
@@ -338,7 +352,9 @@ export default function NovaDemandaDialog({
                   Criando...
                 </>
               ) : (
-                "Criar Demanda"
+                formData.semana_limite.length > 1 
+                  ? `Criar ${formData.semana_limite.length} Demandas`
+                  : "Criar Demanda"
               )}
             </Button>
           </div>
