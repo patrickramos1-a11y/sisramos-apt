@@ -55,11 +55,12 @@ export function useDemandas() {
     statusGestor: [],
     busca: "",
   });
+  // Ordenação padrão: setor, responsável e semana em ordem alfabética (A-Z)
   const [sortConfig, setSortConfig] = useState<SortConfig>({
-    setor: null,
-    responsavel: null,
+    setor: "asc",
+    responsavel: "asc",
     descricao: null,
-    semana: null,
+    semana: "asc",
   });
 
   const { user, isGestorOrAdmin } = useAuth();
@@ -243,10 +244,10 @@ export function useDemandas() {
 
   const resetSort = () => {
     setSortConfig({
-      setor: null,
-      responsavel: null,
+      setor: "asc",
+      responsavel: "asc",
       descricao: null,
-      semana: null,
+      semana: "asc",
     });
   };
 
