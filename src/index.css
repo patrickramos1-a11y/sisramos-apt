@@ -49,6 +49,10 @@ All colors MUST be HSL.
     --apt-success: 142 76% 36%;
     --apt-zebra: 210 20% 94%;
     --apt-header: 161 93% 30%;
+    
+    /* Warning color for past month controls */
+    --warning: 38 92% 50%;
+    --warning-foreground: 38 96% 14%;
 
     --sidebar-background: 0 0% 98%;
     --sidebar-foreground: 0 0% 9%;
@@ -116,6 +120,10 @@ All colors MUST be HSL.
     --apt-success: 142 76% 36%;
     --apt-zebra: 217 33% 16%;
     --apt-header: 161 50% 25%;
+    
+    /* Warning color for past month controls */
+    --warning: 38 92% 50%;
+    --warning-foreground: 38 96% 90%;
 
     --sidebar-background: 240 6% 10%;
     --sidebar-foreground: 0 0% 98%;

@@ -1,6 +1,7 @@
 import { useState, useMemo } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useDemandas } from "@/hooks/useDemandas";
+import { useMonthSettings } from "@/hooks/useMonthSettings";
 import { useIsMobile } from "@/hooks/use-mobile";
 import AppLayout from "@/components/layout/AppLayout";
 import APTFilters from "@/components/apt/APTFilters";
@@ -10,6 +11,8 @@ import ExcluirDemandaIrmaDialog from "@/components/apt/ExcluirDemandaIrmaDialog"
 import ExcluirDemandasEmMassaDialog from "@/components/apt/ExcluirDemandasEmMassaDialog";
 import AtualizarStatusEmMassaDialog from "@/components/apt/AtualizarStatusEmMassaDialog";
 import ExportDemandasButton from "@/components/apt/ExportDemandasButton";
+import RolloverDemandasDialog from "@/components/apt/RolloverDemandasDialog";
+import MonthSettingsControl, { PastMonthWarningBanner } from "@/components/apt/MonthSettingsControl";
 import DemandaCard from "@/components/apt/DemandaCard";
 import DemandaTableRow from "@/components/apt/DemandaTableRow";
 import DemandaSortHeader from "@/components/apt/DemandaSortHeader";
@@ -65,6 +68,30 @@ export default function APT() {
     pendingCount,
     pendingApprovalCount,
   } = useDemandas();
+
+  const {
+    isPastMonth,
+    getMonthSetting,
+    isStatusUpdateAllowed,
+    isEditAllowed,
+    toggleMonthStatus,
+  } = useMonthSettings();
+
+  // Determine the currently viewed month/year from filters
+  const viewedMes = filters.meses.length === 1 ? parseInt(filters.meses[0]) : null;
+  const viewedAno = filters.anos.length === 1 ? parseInt(filters.anos[0]) : null;
+
+  // Check if currently viewing a single past month
+  const isViewingPastMonth = viewedMes !== null && viewedAno !== null && isPastMonth(viewedMes, viewedAno);
+  const currentMonthSetting = viewedMes !== null && viewedAno !== null 
+    ? getMonthSetting(viewedMes, viewedAno) 
+    : undefined;
+  const isCurrentMonthStatusActive = currentMonthSetting?.status_ativo === true;
+
+  // Determine if status updates are allowed for the current view
+  const canUpdateStatus = viewedMes !== null && viewedAno !== null 
+    ? isStatusUpdateAllowed(viewedMes, viewedAno)
+    : true; // Allow if viewing multiple months
 
   // Dialog states
   const [editingDemanda, setEditingDemanda] = useState<Demanda | null>(null);
@@ -160,14 +187,36 @@ export default function APT() {
             />
 
             {isGestorOrAdmin && (
-              <NovaDemandaDialog
-                profiles={profiles}
-                setores={setores}
-                onDemandaCriada={fetchDemandas}
-              />
+              <>
+                <RolloverDemandasDialog onRolloverComplete={fetchDemandas} />
+                <NovaDemandaDialog
+                  profiles={profiles}
+                  setores={setores}
+                  onDemandaCriada={fetchDemandas}
+                />
+              </>
             )}
           </div>
         </div>
+
+        {/* Past month controls - shown when viewing a single past month */}
+        {isViewingPastMonth && viewedMes !== null && viewedAno !== null && (
+          <div className="mb-4 space-y-2">
+            <MonthSettingsControl
+              mes={viewedMes}
+              ano={viewedAno}
+              isPastMonth={isViewingPastMonth}
+              isStatusActive={isCurrentMonthStatusActive}
+              onToggle={() => toggleMonthStatus(viewedMes, viewedAno)}
+              isGestorOrAdmin={isGestorOrAdmin}
+            />
+            <PastMonthWarningBanner
+              isPastMonth={isViewingPastMonth}
+              isStatusActive={isCurrentMonthStatusActive}
+              isCollaborator={!isGestorOrAdmin}
+            />
+          </div>
+        )}
 
         <div className="flex flex-col lg:flex-row gap-6">
           {/* Filters sidebar (desktop) */}
@@ -228,9 +277,19 @@ export default function APT() {
                 {demandas.map((demanda, index) => {
                   const profile = getProfileById(demanda.responsavel_id);
                   const setor = getSetorById(demanda.setor_id);
-                  const canEditResponsavel =
-                    user?.id === demanda.responsavel_id || isGestorOrAdmin;
-                  const canEditGestor = isGestorOrAdmin;
+                  
+                  // Check if this specific demand is in a past month
+                  const demandaIsPastMonth = isPastMonth(demanda.mes, demanda.ano);
+                  const demandaStatusAllowed = isStatusUpdateAllowed(demanda.mes, demanda.ano);
+                  const demandaEditAllowed = isEditAllowed(demanda.mes, demanda.ano, isGestorOrAdmin);
+                  
+                  // Status permissions: only allowed if not past month OR if past month is enabled
+                  const canEditResponsavel = demandaStatusAllowed && 
+                    (user?.id === demanda.responsavel_id || isGestorOrAdmin);
+                  const canEditGestor = demandaStatusAllowed && isGestorOrAdmin;
+                  
+                  // Edit/delete permissions: past months only allow gestor/admin
+                  const canEditDemanda = demandaEditAllowed;
 
                   return (
                     <DemandaCard
@@ -247,7 +306,7 @@ export default function APT() {
                       prioritaria={demanda.prioritaria}
                       canEditResponsavel={canEditResponsavel}
                       canEditGestor={canEditGestor}
-                      canEditDemanda={isGestorOrAdmin}
+                      canEditDemanda={canEditDemanda}
                       showGestorStatus={isGestorOrAdmin}
                       onStatusResponsavelChange={() =>
                         updateStatusResponsavel(
@@ -371,9 +430,18 @@ export default function APT() {
                       {demandas.map((demanda, index) => {
                         const profile = getProfileById(demanda.responsavel_id);
                         const setor = getSetorById(demanda.setor_id);
-                        const canEditResponsavel =
-                          user?.id === demanda.responsavel_id || isGestorOrAdmin;
-                        const canEditGestor = isGestorOrAdmin;
+                        
+                        // Check if this specific demand is in a past month
+                        const demandaStatusAllowed = isStatusUpdateAllowed(demanda.mes, demanda.ano);
+                        const demandaEditAllowed = isEditAllowed(demanda.mes, demanda.ano, isGestorOrAdmin);
+                        
+                        // Status permissions: only allowed if not past month OR if past month is enabled
+                        const canEditResponsavel = demandaStatusAllowed && 
+                          (user?.id === demanda.responsavel_id || isGestorOrAdmin);
+                        const canEditGestor = demandaStatusAllowed && isGestorOrAdmin;
+                        
+                        // Edit/delete permissions: past months only allow gestor/admin
+                        const canEditDemanda = demandaEditAllowed;
 
                         return (
                           <DemandaTableRow
@@ -391,7 +459,7 @@ export default function APT() {
                             prioritaria={demanda.prioritaria}
                             canEditResponsavel={canEditResponsavel}
                             canEditGestor={canEditGestor}
-                            canEditDemanda={isGestorOrAdmin}
+                            canEditDemanda={canEditDemanda}
                             showGestorColumn={isGestorOrAdmin}
                             isAlternateRow={index % 2 === 1}
                             isSelected={selectedIds.has(demanda.id)}
