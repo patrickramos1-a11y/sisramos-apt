@@ -8,6 +8,7 @@ import NovaDemandaDialog from "@/components/apt/NovaDemandaDialog";
 import EditarDemandaIrmaDialog from "@/components/apt/EditarDemandaIrmaDialog";
 import ExcluirDemandaIrmaDialog from "@/components/apt/ExcluirDemandaIrmaDialog";
 import ExcluirDemandasEmMassaDialog from "@/components/apt/ExcluirDemandasEmMassaDialog";
+import AtualizarStatusEmMassaDialog from "@/components/apt/AtualizarStatusEmMassaDialog";
 import DemandaCard from "@/components/apt/DemandaCard";
 import DemandaTableRow from "@/components/apt/DemandaTableRow";
 import DemandaSortHeader from "@/components/apt/DemandaSortHeader";
@@ -22,7 +23,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Card, CardContent } from "@/components/ui/card";
-import { Loader2, AlertCircle, CheckCircle2, Trash2 } from "lucide-react";
+import { Loader2, AlertCircle, CheckCircle2, Trash2, Check, ThumbsUp } from "lucide-react";
 
 interface Demanda {
   id: string;
@@ -72,9 +73,10 @@ export default function APT() {
     grupo_id: string | null;
   } | null>(null);
 
-  // Selection state for bulk delete
+  // Selection state for bulk operations
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [showBulkDeleteDialog, setShowBulkDeleteDialog] = useState(false);
+  const [showBulkStatusDialog, setShowBulkStatusDialog] = useState<"responsavel" | "gestor" | null>(null);
 
   // Calculate sibling count for editing/deleting
   const editingSiblingCount = editingDemanda
@@ -107,7 +109,7 @@ export default function APT() {
   const allSelected = demandas.length > 0 && selectedIds.size === demandas.length;
   const someSelected = selectedIds.size > 0 && selectedIds.size < demandas.length;
 
-  const handleBulkDeleteComplete = () => {
+  const handleBulkOperationComplete = () => {
     setSelectedIds(new Set());
     fetchDemandas();
   };
@@ -223,6 +225,7 @@ export default function APT() {
                       canEditResponsavel={canEditResponsavel}
                       canEditGestor={canEditGestor}
                       canEditDemanda={isGestorOrAdmin}
+                      showGestorStatus={isGestorOrAdmin}
                       onStatusResponsavelChange={() =>
                         updateStatusResponsavel(
                           demanda.id,
@@ -254,21 +257,50 @@ export default function APT() {
                   onResetSort={resetSort}
                 />
 
-                {/* Bulk delete controls */}
-                {isGestorOrAdmin && selectedIds.size > 0 && (
-                  <div className="flex items-center gap-2 mb-2 p-2 bg-destructive/10 rounded-lg">
+                {/* Bulk action controls */}
+                {selectedIds.size > 0 && (
+                  <div className="flex flex-wrap items-center gap-2 mb-2 p-2 bg-muted rounded-lg">
                     <span className="text-sm font-medium">
                       {selectedIds.size} selecionada(s)
                     </span>
+                    
+                    {/* Marcar como feito em massa - disponível para todos */}
                     <Button
-                      variant="destructive"
+                      variant="outline"
                       size="sm"
                       className="gap-1"
-                      onClick={() => setShowBulkDeleteDialog(true)}
+                      onClick={() => setShowBulkStatusDialog("responsavel")}
                     >
-                      <Trash2 className="h-4 w-4" />
-                      Excluir selecionadas
+                      <Check className="h-4 w-4" />
+                      Marcar como Feito
                     </Button>
+
+                    {/* Aprovar em massa - apenas gestor/admin */}
+                    {isGestorOrAdmin && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="gap-1"
+                        onClick={() => setShowBulkStatusDialog("gestor")}
+                      >
+                        <ThumbsUp className="h-4 w-4" />
+                        Aprovar
+                      </Button>
+                    )}
+
+                    {/* Excluir em massa - apenas gestor/admin */}
+                    {isGestorOrAdmin && (
+                      <Button
+                        variant="destructive"
+                        size="sm"
+                        className="gap-1"
+                        onClick={() => setShowBulkDeleteDialog(true)}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                        Excluir
+                      </Button>
+                    )}
+
                     <Button
                       variant="ghost"
                       size="sm"
@@ -283,19 +315,17 @@ export default function APT() {
                   <Table>
                     <TableHeader>
                       <TableRow>
-                        {isGestorOrAdmin && (
-                          <TableHead className="w-10">
-                            <Checkbox
-                              checked={allSelected}
-                              ref={(el) => {
-                                if (el) {
-                                  (el as any).indeterminate = someSelected;
-                                }
-                              }}
-                              onCheckedChange={toggleSelectAll}
-                            />
-                          </TableHead>
-                        )}
+                        <TableHead className="w-10">
+                          <Checkbox
+                            checked={allSelected}
+                            ref={(el) => {
+                              if (el) {
+                                (el as any).indeterminate = someSelected;
+                              }
+                            }}
+                            onCheckedChange={toggleSelectAll}
+                          />
+                        </TableHead>
                         <TableHead className="text-center w-16">Nº</TableHead>
                         <TableHead className="w-24">Setor</TableHead>
                         <TableHead className="w-32">Responsável</TableHead>
@@ -303,9 +333,11 @@ export default function APT() {
                         <TableHead className="text-center w-20">
                           Feito?
                         </TableHead>
-                        <TableHead className="text-center w-20">
-                          Aprovado?
-                        </TableHead>
+                        {isGestorOrAdmin && (
+                          <TableHead className="text-center w-20">
+                            Aprovado?
+                          </TableHead>
+                        )}
                         <TableHead className="text-center w-12">X</TableHead>
                         <TableHead className="text-center w-20">
                           Semana
@@ -342,9 +374,10 @@ export default function APT() {
                             canEditResponsavel={canEditResponsavel}
                             canEditGestor={canEditGestor}
                             canEditDemanda={isGestorOrAdmin}
+                            showGestorColumn={isGestorOrAdmin}
                             isAlternateRow={index % 2 === 1}
                             isSelected={selectedIds.has(demanda.id)}
-                            showCheckbox={isGestorOrAdmin}
+                            showCheckbox={true}
                             onStatusResponsavelChange={() =>
                               updateStatusResponsavel(
                                 demanda.id,
@@ -407,7 +440,15 @@ export default function APT() {
         open={showBulkDeleteDialog}
         onOpenChange={setShowBulkDeleteDialog}
         demandaIds={Array.from(selectedIds)}
-        onDemandasExcluidas={handleBulkDeleteComplete}
+        onDemandasExcluidas={handleBulkOperationComplete}
+      />
+
+      <AtualizarStatusEmMassaDialog
+        open={showBulkStatusDialog !== null}
+        onOpenChange={(open) => !open && setShowBulkStatusDialog(null)}
+        demandaIds={Array.from(selectedIds)}
+        type={showBulkStatusDialog || "responsavel"}
+        onStatusAtualizado={handleBulkOperationComplete}
       />
     </AppLayout>
   );
