@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, useRef } from "react";
 import AppLayout from "@/components/layout/AppLayout";
 import { useDemandas } from "@/hooks/useDemandas";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -29,9 +29,20 @@ import {
 } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import ChartExportButtons from "@/components/dashboard/ChartExportButtons";
+import ExportAllChartsButton from "@/components/dashboard/ExportAllChartsButton";
 
 export default function Dashboard() {
   const { demandas, profiles, setores, isLoading, getProfileById, getSetorById } = useDemandas();
+
+  // Chart refs for export
+  const chartSetoresRef = useRef<HTMLDivElement>(null);
+  const chartPizzaRef = useRef<HTMLDivElement>(null);
+  const chartPendentesRef = useRef<HTMLDivElement>(null);
+  const chartFeitoRef = useRef<HTMLDivElement>(null);
+  const chartAprovadoRef = useRef<HTMLDivElement>(null);
+  const chartNaoRealizadoRef = useRef<HTMLDivElement>(null);
+  const chartComparativoRef = useRef<HTMLDivElement>(null);
 
   // Estados dos filtros
   const [filterAno, setFilterAno] = useState<string>("all");
@@ -39,6 +50,17 @@ export default function Dashboard() {
   const [filterSemana, setFilterSemana] = useState<string>("all");
   const [filterUsuario, setFilterUsuario] = useState<string>("all");
   const [filterSetor, setFilterSetor] = useState<string>("all");
+
+  // All charts info for bulk export
+  const allCharts = [
+    { ref: chartSetoresRef, title: "Gráfico de Setores" },
+    { ref: chartPizzaRef, title: "Distribuição por Setor" },
+    { ref: chartPendentesRef, title: "Gráfico de Pendentes" },
+    { ref: chartFeitoRef, title: "Gráfico de Feito" },
+    { ref: chartAprovadoRef, title: "Gráfico de Aprovado" },
+    { ref: chartNaoRealizadoRef, title: "Gráfico de Não Realizado" },
+    { ref: chartComparativoRef, title: "Gráfico de Comparativo" },
+  ];
 
   // Opções de semanas
   const semanas = [
@@ -388,7 +410,10 @@ export default function Dashboard() {
     <AppLayout>
       <div className="p-4 lg:p-6 space-y-6">
         <div className="flex flex-col gap-4">
-          <h1 className="text-2xl font-bold">Dashboards</h1>
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            <h1 className="text-2xl font-bold">Dashboards</h1>
+            <ExportAllChartsButton charts={allCharts} />
+          </div>
           
           {/* Filtros */}
           <Card>
@@ -511,158 +536,180 @@ export default function Dashboard() {
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {/* Gráfico de Setores - Barras */}
           <Card>
-            <CardHeader>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-lg">Gráfico de Setores</CardTitle>
+              <ChartExportButtons chartRef={chartSetoresRef} chartName="Gráfico de Setores" />
             </CardHeader>
             <CardContent>
-              <ChartContainer config={setoresPorUsuarioConfig} className="h-[300px] w-full">
-                <BarChart data={setoresPorUsuarioData} margin={{ left: 20, right: 20, bottom: 20 }}>
-                  <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                  <XAxis dataKey="nome" tick={{ fontSize: 12 }} />
-                  <YAxis />
-                  <ChartTooltip content={<ChartTooltipContent />} />
-                  <ChartLegend content={<ChartLegendContent />} />
-                  {setorNames.map((setor) => (
-                    <Bar 
-                      key={setor} 
-                      dataKey={setor} 
-                      fill={setoresPorUsuarioConfig[setor]?.color || "hsl(var(--primary))"} 
-                      radius={4} 
-                      stackId="setores"
-                    />
-                  ))}
-                </BarChart>
-              </ChartContainer>
+              <div ref={chartSetoresRef}>
+                <ChartContainer config={setoresPorUsuarioConfig} className="h-[300px] w-full">
+                  <BarChart data={setoresPorUsuarioData} margin={{ left: 20, right: 20, bottom: 20 }}>
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                    <XAxis dataKey="nome" tick={{ fontSize: 12 }} />
+                    <YAxis />
+                    <ChartTooltip content={<ChartTooltipContent />} />
+                    <ChartLegend content={<ChartLegendContent />} />
+                    {setorNames.map((setor) => (
+                      <Bar 
+                        key={setor} 
+                        dataKey={setor} 
+                        fill={setoresPorUsuarioConfig[setor]?.color || "hsl(var(--primary))"} 
+                        radius={4} 
+                        stackId="setores"
+                      />
+                    ))}
+                  </BarChart>
+                </ChartContainer>
+              </div>
             </CardContent>
           </Card>
 
           {/* Gráfico de Pizza - Porcentagem de Setores */}
           <Card>
-            <CardHeader>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-lg">Distribuição por Setor</CardTitle>
+              <ChartExportButtons chartRef={chartPizzaRef} chartName="Distribuição por Setor" />
             </CardHeader>
             <CardContent>
-              <ChartContainer config={setoresPizzaConfig} className="h-[300px] w-full">
-                <PieChart>
-                  <ChartTooltip 
-                    content={
-                      <ChartTooltipContent 
-                        formatter={(value, name, item) => (
-                          <span>{item.payload.percentage}% ({value})</span>
-                        )}
-                      />
-                    } 
-                  />
-                  <Pie
-                    data={setoresPizzaData}
-                    dataKey="value"
-                    nameKey="nome"
-                    cx="50%"
-                    cy="50%"
-                    outerRadius={100}
-                    label={({ nome, percentage }) => `${nome}: ${percentage}%`}
-                    labelLine={true}
-                  >
-                    {setoresPizzaData.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={entry.fill} />
-                    ))}
-                  </Pie>
-                  <ChartLegend content={<ChartLegendContent nameKey="nome" />} />
-                </PieChart>
-              </ChartContainer>
+              <div ref={chartPizzaRef}>
+                <ChartContainer config={setoresPizzaConfig} className="h-[300px] w-full">
+                  <PieChart>
+                    <ChartTooltip 
+                      content={
+                        <ChartTooltipContent 
+                          formatter={(value, name, item) => (
+                            <span>{item.payload.percentage}% ({value})</span>
+                          )}
+                        />
+                      } 
+                    />
+                    <Pie
+                      data={setoresPizzaData}
+                      dataKey="value"
+                      nameKey="nome"
+                      cx="50%"
+                      cy="50%"
+                      outerRadius={100}
+                      label={({ nome, percentage }) => `${nome}: ${percentage}%`}
+                      labelLine={true}
+                    >
+                      {setoresPizzaData.map((entry, index) => (
+                        <Cell key={`cell-${index}`} fill={entry.fill} />
+                      ))}
+                    </Pie>
+                    <ChartLegend content={<ChartLegendContent nameKey="nome" />} />
+                  </PieChart>
+                </ChartContainer>
+              </div>
             </CardContent>
           </Card>
 
           {/* Gráfico de Pendentes */}
           <Card>
-            <CardHeader>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-lg">Gráfico de Pendentes</CardTitle>
+              <ChartExportButtons chartRef={chartPendentesRef} chartName="Gráfico de Pendentes" />
             </CardHeader>
             <CardContent>
-              <ChartContainer config={chartConfigPendente} className="h-[300px] w-full">
-                <BarChart data={pendentePorUsuario} margin={{ left: 20, right: 20, bottom: 20 }}>
-                  <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                  <XAxis dataKey="nome" tick={{ fontSize: 12 }} />
-                  <YAxis />
-                  <ChartTooltip content={<ChartTooltipContent />} />
-                  <Bar dataKey="pendente" fill="var(--color-pendente)" radius={4} />
-                </BarChart>
-              </ChartContainer>
+              <div ref={chartPendentesRef}>
+                <ChartContainer config={chartConfigPendente} className="h-[300px] w-full">
+                  <BarChart data={pendentePorUsuario} margin={{ left: 20, right: 20, bottom: 20 }}>
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                    <XAxis dataKey="nome" tick={{ fontSize: 12 }} />
+                    <YAxis />
+                    <ChartTooltip content={<ChartTooltipContent />} />
+                    <Bar dataKey="pendente" fill="var(--color-pendente)" radius={4} />
+                  </BarChart>
+                </ChartContainer>
+              </div>
             </CardContent>
           </Card>
 
+          {/* Gráfico de Feito */}
           <Card>
-            <CardHeader>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-lg">Gráfico de Feito</CardTitle>
+              <ChartExportButtons chartRef={chartFeitoRef} chartName="Gráfico de Feito" />
             </CardHeader>
             <CardContent>
-              <ChartContainer config={chartConfigFeito} className="h-[300px] w-full">
-                <BarChart data={feitoPorUsuario} margin={{ left: 20, right: 20, bottom: 20 }}>
-                  <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                  <XAxis dataKey="nome" tick={{ fontSize: 12 }} />
-                  <YAxis />
-                  <ChartTooltip content={<ChartTooltipContent />} />
-                  <Bar dataKey="feito" fill="var(--color-feito)" radius={4} />
-                </BarChart>
-              </ChartContainer>
+              <div ref={chartFeitoRef}>
+                <ChartContainer config={chartConfigFeito} className="h-[300px] w-full">
+                  <BarChart data={feitoPorUsuario} margin={{ left: 20, right: 20, bottom: 20 }}>
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                    <XAxis dataKey="nome" tick={{ fontSize: 12 }} />
+                    <YAxis />
+                    <ChartTooltip content={<ChartTooltipContent />} />
+                    <Bar dataKey="feito" fill="var(--color-feito)" radius={4} />
+                  </BarChart>
+                </ChartContainer>
+              </div>
             </CardContent>
           </Card>
 
           {/* Gráfico de Aprovado */}
           <Card>
-            <CardHeader>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-lg">Gráfico de Aprovado</CardTitle>
+              <ChartExportButtons chartRef={chartAprovadoRef} chartName="Gráfico de Aprovado" />
             </CardHeader>
             <CardContent>
-              <ChartContainer config={chartConfigAprovado} className="h-[300px] w-full">
-                <BarChart data={aprovadoPorUsuario} margin={{ left: 20, right: 20, bottom: 20 }}>
-                  <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                  <XAxis dataKey="nome" tick={{ fontSize: 12 }} />
-                  <YAxis />
-                  <ChartTooltip content={<ChartTooltipContent />} />
-                  <Bar dataKey="aprovado" fill="var(--color-aprovado)" radius={4} />
-                </BarChart>
-              </ChartContainer>
+              <div ref={chartAprovadoRef}>
+                <ChartContainer config={chartConfigAprovado} className="h-[300px] w-full">
+                  <BarChart data={aprovadoPorUsuario} margin={{ left: 20, right: 20, bottom: 20 }}>
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                    <XAxis dataKey="nome" tick={{ fontSize: 12 }} />
+                    <YAxis />
+                    <ChartTooltip content={<ChartTooltipContent />} />
+                    <Bar dataKey="aprovado" fill="var(--color-aprovado)" radius={4} />
+                  </BarChart>
+                </ChartContainer>
+              </div>
             </CardContent>
           </Card>
 
           {/* Gráfico de Não Realizado */}
           <Card>
-            <CardHeader>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-lg">Gráfico de Não Realizado</CardTitle>
+              <ChartExportButtons chartRef={chartNaoRealizadoRef} chartName="Gráfico de Não Realizado" />
             </CardHeader>
             <CardContent>
-              <ChartContainer config={chartConfigNaoRealizado} className="h-[300px] w-full">
-                <BarChart data={naoRealizadoPorUsuario} margin={{ left: 20, right: 20, bottom: 20 }}>
-                  <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                  <XAxis dataKey="nome" tick={{ fontSize: 12 }} />
-                  <YAxis />
-                  <ChartTooltip content={<ChartTooltipContent />} />
-                  <Bar dataKey="nao_realizado" fill="var(--color-nao_realizado)" radius={4} />
-                </BarChart>
-              </ChartContainer>
+              <div ref={chartNaoRealizadoRef}>
+                <ChartContainer config={chartConfigNaoRealizado} className="h-[300px] w-full">
+                  <BarChart data={naoRealizadoPorUsuario} margin={{ left: 20, right: 20, bottom: 20 }}>
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                    <XAxis dataKey="nome" tick={{ fontSize: 12 }} />
+                    <YAxis />
+                    <ChartTooltip content={<ChartTooltipContent />} />
+                    <Bar dataKey="nao_realizado" fill="var(--color-nao_realizado)" radius={4} />
+                  </BarChart>
+                </ChartContainer>
+              </div>
             </CardContent>
           </Card>
 
           {/* Gráfico de Comparativo */}
           <Card>
-            <CardHeader>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-lg">Gráfico de Comparativo</CardTitle>
+              <ChartExportButtons chartRef={chartComparativoRef} chartName="Gráfico de Comparativo" />
             </CardHeader>
             <CardContent>
-              <ChartContainer config={chartConfigComparativo} className="h-[300px] w-full">
-                <BarChart data={comparativoCompleto} margin={{ left: 20, right: 20, bottom: 20 }}>
-                  <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                  <XAxis dataKey="nome" tick={{ fontSize: 12 }} />
-                  <YAxis />
-                  <ChartTooltip content={<ChartTooltipContent />} />
-                  <ChartLegend content={<ChartLegendContent />} />
-                  <Bar dataKey="feito" fill="var(--color-feito)" radius={4} />
-                  <Bar dataKey="aprovado" fill="var(--color-aprovado)" radius={4} />
-                  <Bar dataKey="nao_realizado" fill="var(--color-nao_realizado)" radius={4} />
-                  <Bar dataKey="pendente" fill="var(--color-pendente)" radius={4} />
-                </BarChart>
-              </ChartContainer>
+              <div ref={chartComparativoRef}>
+                <ChartContainer config={chartConfigComparativo} className="h-[300px] w-full">
+                  <BarChart data={comparativoCompleto} margin={{ left: 20, right: 20, bottom: 20 }}>
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                    <XAxis dataKey="nome" tick={{ fontSize: 12 }} />
+                    <YAxis />
+                    <ChartTooltip content={<ChartTooltipContent />} />
+                    <ChartLegend content={<ChartLegendContent />} />
+                    <Bar dataKey="feito" fill="var(--color-feito)" radius={4} />
+                    <Bar dataKey="aprovado" fill="var(--color-aprovado)" radius={4} />
+                    <Bar dataKey="nao_realizado" fill="var(--color-nao_realizado)" radius={4} />
+                    <Bar dataKey="pendente" fill="var(--color-pendente)" radius={4} />
+                  </BarChart>
+                </ChartContainer>
+              </div>
             </CardContent>
           </Card>
         </div>
