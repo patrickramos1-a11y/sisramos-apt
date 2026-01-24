@@ -408,22 +408,27 @@ export default function Dashboard() {
 
   return (
     <AppLayout>
-      <div className="p-4 lg:p-6 space-y-6">
+      <div className="p-4 lg:p-6 space-y-6 max-w-[1800px] mx-auto">
         <div className="flex flex-col gap-4">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-            <h1 className="text-2xl font-bold">Dashboards</h1>
+            <div>
+              <h1 className="text-2xl font-bold tracking-tight">Dashboard</h1>
+              <p className="text-sm text-muted-foreground mt-1">
+                Visão geral do desempenho da equipe
+              </p>
+            </div>
             <ExportAllChartsButton charts={allCharts} />
           </div>
           
           {/* Filtros */}
-          <Card>
-            <CardContent className="pt-4">
-              <div className="flex flex-wrap items-center gap-4">
+          <Card className="shadow-sm">
+            <CardContent className="pt-5 pb-4">
+              <div className="flex flex-wrap items-end gap-4">
                 {/* Filtro de Ano */}
-                <div className="flex flex-col gap-1">
-                  <span className="text-xs font-medium text-muted-foreground">Ano</span>
+                <div className="flex flex-col gap-1.5">
+                  <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Ano</span>
                   <Select value={filterAno} onValueChange={setFilterAno}>
-                    <SelectTrigger className="w-[120px]">
+                    <SelectTrigger className="w-[110px] h-9">
                       <SelectValue placeholder="Todos" />
                     </SelectTrigger>
                     <SelectContent>
@@ -438,10 +443,10 @@ export default function Dashboard() {
                 </div>
 
                 {/* Filtro de Mês */}
-                <div className="flex flex-col gap-1">
-                  <span className="text-xs font-medium text-muted-foreground">Mês</span>
+                <div className="flex flex-col gap-1.5">
+                  <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Mês</span>
                   <Select value={filterMes} onValueChange={setFilterMes}>
-                    <SelectTrigger className="w-[140px]">
+                    <SelectTrigger className="w-[130px] h-9">
                       <SelectValue placeholder="Todos" />
                     </SelectTrigger>
                     <SelectContent>
@@ -456,10 +461,10 @@ export default function Dashboard() {
                 </div>
 
                 {/* Filtro de Semana */}
-                <div className="flex flex-col gap-1">
-                  <span className="text-xs font-medium text-muted-foreground">Semana</span>
+                <div className="flex flex-col gap-1.5">
+                  <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Semana</span>
                   <Select value={filterSemana} onValueChange={setFilterSemana}>
-                    <SelectTrigger className="w-[130px]">
+                    <SelectTrigger className="w-[120px] h-9">
                       <SelectValue placeholder="Todas" />
                     </SelectTrigger>
                     <SelectContent>
@@ -474,10 +479,10 @@ export default function Dashboard() {
                 </div>
 
                 {/* Filtro de Usuário */}
-                <div className="flex flex-col gap-1">
-                  <span className="text-xs font-medium text-muted-foreground">Usuário</span>
+                <div className="flex flex-col gap-1.5">
+                  <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Usuário</span>
                   <Select value={filterUsuario} onValueChange={setFilterUsuario}>
-                    <SelectTrigger className="w-[180px]">
+                    <SelectTrigger className="w-[160px] h-9">
                       <SelectValue placeholder="Todos" />
                     </SelectTrigger>
                     <SelectContent>
@@ -492,10 +497,10 @@ export default function Dashboard() {
                 </div>
 
                 {/* Filtro de Setor */}
-                <div className="flex flex-col gap-1">
-                  <span className="text-xs font-medium text-muted-foreground">Setor</span>
+                <div className="flex flex-col gap-1.5">
+                  <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Setor</span>
                   <Select value={filterSetor} onValueChange={setFilterSetor}>
-                    <SelectTrigger className="w-[160px]">
+                    <SelectTrigger className="w-[160px] h-9">
                       <SelectValue placeholder="Todos" />
                     </SelectTrigger>
                     <SelectContent>

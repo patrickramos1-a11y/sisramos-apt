@@ -311,18 +311,20 @@ export default function Configuracoes() {
     <AppLayout>
       <div className="p-4 lg:p-6 max-w-5xl mx-auto space-y-6">
         <div className="mb-6">
-          <h1 className="text-2xl font-bold">Configurações</h1>
-          <p className="text-sm text-muted-foreground">
+          <h1 className="text-2xl font-bold tracking-tight">Configurações</h1>
+          <p className="text-sm text-muted-foreground mt-1">
             Gerencie suas informações pessoais
             {isGestorOrAdmin && " e os usuários do sistema"}
           </p>
         </div>
 
         {/* Dados Pessoais */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <User className="h-5 w-5" />
+        <Card className="shadow-sm">
+          <CardHeader className="pb-4">
+            <CardTitle className="flex items-center gap-2 text-lg">
+              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                <User className="h-4 w-4" />
+              </div>
               Dados Pessoais
             </CardTitle>
             <CardDescription>
@@ -447,15 +449,17 @@ export default function Configuracoes() {
 
         {/* Lista de Usuários - Admin e Gestor */}
         {isGestorOrAdmin && (
-          <Card>
-            <CardHeader>
+          <Card className="shadow-sm">
+            <CardHeader className="pb-4">
               <div className="flex items-center justify-between">
                 <div>
-                  <CardTitle className="flex items-center gap-2">
-                    <Users className="h-5 w-5" />
+                  <CardTitle className="flex items-center gap-2 text-lg">
+                    <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                      <Users className="h-4 w-4" />
+                    </div>
                     Usuários do Sistema
                   </CardTitle>
-                  <CardDescription>
+                  <CardDescription className="mt-1">
                     Gerencie os usuários e seus tipos de perfil
                   </CardDescription>
                 </div>
