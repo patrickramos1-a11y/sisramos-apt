@@ -82,6 +82,33 @@ export type Database = {
           },
         ]
       }
+      month_settings: {
+        Row: {
+          ano: number
+          created_at: string
+          id: string
+          mes: number
+          status_ativo: boolean
+          updated_at: string
+        }
+        Insert: {
+          ano: number
+          created_at?: string
+          id?: string
+          mes: number
+          status_ativo?: boolean
+          updated_at?: string
+        }
+        Update: {
+          ano?: number
+          created_at?: string
+          id?: string
+          mes?: number
+          status_ativo?: boolean
+          updated_at?: string
+        }
+        Relationships: []
+      }
       notification_dismissals: {
         Row: {
           dismissed_at: string
