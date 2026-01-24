@@ -48,6 +48,7 @@ All colors MUST be HSL.
     --apt-prioritaria: 48 96% 89%;
     --apt-success: 142 76% 36%;
     --apt-zebra: 210 20% 94%;
+    --apt-header: 161 93% 30%;
 
     --sidebar-background: 0 0% 98%;
     --sidebar-foreground: 0 0% 9%;
@@ -114,6 +115,7 @@ All colors MUST be HSL.
     --apt-prioritaria: 48 60% 30%;
     --apt-success: 142 76% 36%;
     --apt-zebra: 217 33% 16%;
+    --apt-header: 161 50% 25%;
 
     --sidebar-background: 240 6% 10%;
     --sidebar-foreground: 0 0% 98%;
