@@ -109,13 +109,25 @@ export default function APT() {
   const [showBulkStatusDialog, setShowBulkStatusDialog] = useState<"responsavel" | "gestor" | null>(null);
   const [showBulkDuplicateDialog, setShowBulkDuplicateDialog] = useState(false);
 
-  // Calculate sibling count for editing/deleting
+  // Calculate sibling count and list for editing/deleting
   const editingSiblingCount = editingDemanda
     ? getSiblingCount(editingDemanda.grupo_id)
     : 1;
   const deletingSiblingCount = deletingDemanda
     ? getSiblingCount(deletingDemanda.grupo_id)
     : 1;
+  
+  // Get siblings list for delete preview
+  const deletingSiblings = deletingDemanda?.grupo_id
+    ? demandas
+        .filter((d) => d.grupo_id === deletingDemanda.grupo_id)
+        .map((d) => ({
+          id: d.id,
+          numero: d.numero,
+          descricao: d.descricao,
+          semana_limite: d.semana_limite,
+        }))
+    : [];
 
   const toggleSelection = (id: string, checked: boolean) => {
     setSelectedIds((prev) => {
@@ -545,6 +557,7 @@ export default function APT() {
         demandaNumero={deletingDemanda?.numero || null}
         grupoId={deletingDemanda?.grupo_id || null}
         siblingCount={deletingSiblingCount}
+        siblings={deletingSiblings}
         onDemandaExcluida={fetchDemandas}
       />
 
