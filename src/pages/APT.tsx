@@ -1,16 +1,19 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useDemandas } from "@/hooks/useDemandas";
 import { useIsMobile } from "@/hooks/use-mobile";
 import AppLayout from "@/components/layout/AppLayout";
 import APTFilters from "@/components/apt/APTFilters";
 import NovaDemandaDialog from "@/components/apt/NovaDemandaDialog";
-import EditarDemandaDialog from "@/components/apt/EditarDemandaDialog";
-import ExcluirDemandaDialog from "@/components/apt/ExcluirDemandaDialog";
+import EditarDemandaIrmaDialog from "@/components/apt/EditarDemandaIrmaDialog";
+import ExcluirDemandaIrmaDialog from "@/components/apt/ExcluirDemandaIrmaDialog";
+import ExcluirDemandasEmMassaDialog from "@/components/apt/ExcluirDemandasEmMassaDialog";
 import DemandaCard from "@/components/apt/DemandaCard";
 import DemandaTableRow from "@/components/apt/DemandaTableRow";
+import DemandaSortHeader from "@/components/apt/DemandaSortHeader";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Table,
   TableBody,
@@ -19,7 +22,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Card, CardContent } from "@/components/ui/card";
-import { Loader2, AlertCircle, CheckCircle2 } from "lucide-react";
+import { Loader2, AlertCircle, CheckCircle2, Trash2 } from "lucide-react";
 
 interface Demanda {
   id: string;
@@ -34,6 +37,7 @@ interface Demanda {
   mes: number;
   ano: number;
   prioritaria: boolean;
+  grupo_id: string | null;
 }
 
 export default function APT() {
@@ -52,13 +56,61 @@ export default function APT() {
     updateStatusGestor,
     getProfileById,
     getSetorById,
+    getSiblingCount,
+    sortConfig,
+    toggleSort,
+    resetSort,
     pendingCount,
     pendingApprovalCount,
   } = useDemandas();
 
   // Dialog states
   const [editingDemanda, setEditingDemanda] = useState<Demanda | null>(null);
-  const [deletingDemanda, setDeletingDemanda] = useState<{ id: string; numero: number } | null>(null);
+  const [deletingDemanda, setDeletingDemanda] = useState<{
+    id: string;
+    numero: number;
+    grupo_id: string | null;
+  } | null>(null);
+
+  // Selection state for bulk delete
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [showBulkDeleteDialog, setShowBulkDeleteDialog] = useState(false);
+
+  // Calculate sibling count for editing/deleting
+  const editingSiblingCount = editingDemanda
+    ? getSiblingCount(editingDemanda.grupo_id)
+    : 1;
+  const deletingSiblingCount = deletingDemanda
+    ? getSiblingCount(deletingDemanda.grupo_id)
+    : 1;
+
+  const toggleSelection = (id: string, checked: boolean) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (checked) {
+        next.add(id);
+      } else {
+        next.delete(id);
+      }
+      return next;
+    });
+  };
+
+  const toggleSelectAll = (checked: boolean) => {
+    if (checked) {
+      setSelectedIds(new Set(demandas.map((d) => d.id)));
+    } else {
+      setSelectedIds(new Set());
+    }
+  };
+
+  const allSelected = demandas.length > 0 && selectedIds.size === demandas.length;
+  const someSelected = selectedIds.size > 0 && selectedIds.size < demandas.length;
+
+  const handleBulkDeleteComplete = () => {
+    setSelectedIds(new Set());
+    fetchDemandas();
+  };
 
   return (
     <AppLayout>
@@ -181,98 +233,181 @@ export default function APT() {
                         updateStatusGestor(demanda.id, demanda.status_gestor)
                       }
                       onEdit={() => setEditingDemanda(demanda as Demanda)}
-                      onDelete={() => setDeletingDemanda({ id: demanda.id, numero: demanda.numero })}
+                      onDelete={() =>
+                        setDeletingDemanda({
+                          id: demanda.id,
+                          numero: demanda.numero,
+                          grupo_id: demanda.grupo_id,
+                        })
+                      }
                     />
                   );
                 })}
               </div>
             ) : (
               /* Desktop: Table */
-              <Card>
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead className="text-center w-16">Nº</TableHead>
-                      <TableHead className="w-24">Setor</TableHead>
-                      <TableHead className="w-32">Responsável</TableHead>
-                      <TableHead>Descrição</TableHead>
-                      <TableHead className="text-center w-20">Feito?</TableHead>
-                      <TableHead className="text-center w-20">
-                        Aprovado?
-                      </TableHead>
-                      <TableHead className="text-center w-12">X</TableHead>
-                      <TableHead className="text-center w-20">Semana</TableHead>
-                      {isGestorOrAdmin && (
-                        <TableHead className="text-center w-20">Ações</TableHead>
-                      )}
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {demandas.map((demanda, index) => {
-                      const profile = getProfileById(demanda.responsavel_id);
-                      const setor = getSetorById(demanda.setor_id);
-                      const canEditResponsavel =
-                        user?.id === demanda.responsavel_id || isGestorOrAdmin;
-                      const canEditGestor = isGestorOrAdmin;
+              <>
+                {/* Sort controls */}
+                <DemandaSortHeader
+                  sortConfig={sortConfig}
+                  onSortChange={toggleSort}
+                  onResetSort={resetSort}
+                />
 
-                      return (
-                        <DemandaTableRow
-                          key={demanda.id}
-                          numero={demanda.numero}
-                          setor={setor?.nome || "Sem setor"}
-                          setorCor={setor?.cor || "#E5E7EB"}
-                          responsavel={profile?.nome || "Desconhecido"}
-                          descricao={demanda.descricao}
-                          statusResponsavel={demanda.status_responsavel}
-                          statusGestor={demanda.status_gestor}
-                          semanasRepeticao={demanda.semanas_repeticao}
-                          semanaLimite={demanda.semana_limite}
-                          prioritaria={demanda.prioritaria}
-                          canEditResponsavel={canEditResponsavel}
-                          canEditGestor={canEditGestor}
-                          canEditDemanda={isGestorOrAdmin}
-                          isAlternateRow={index % 2 === 1}
-                          onStatusResponsavelChange={() =>
-                            updateStatusResponsavel(
-                              demanda.id,
-                              demanda.status_responsavel
-                            )
-                          }
-                          onStatusGestorChange={() =>
-                            updateStatusGestor(
-                              demanda.id,
-                              demanda.status_gestor
-                            )
-                          }
-                          onEdit={() => setEditingDemanda(demanda as Demanda)}
-                          onDelete={() => setDeletingDemanda({ id: demanda.id, numero: demanda.numero })}
-                        />
-                      );
-                    })}
-                  </TableBody>
-                </Table>
-              </Card>
+                {/* Bulk delete controls */}
+                {isGestorOrAdmin && selectedIds.size > 0 && (
+                  <div className="flex items-center gap-2 mb-2 p-2 bg-destructive/10 rounded-lg">
+                    <span className="text-sm font-medium">
+                      {selectedIds.size} selecionada(s)
+                    </span>
+                    <Button
+                      variant="destructive"
+                      size="sm"
+                      className="gap-1"
+                      onClick={() => setShowBulkDeleteDialog(true)}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                      Excluir selecionadas
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setSelectedIds(new Set())}
+                    >
+                      Limpar seleção
+                    </Button>
+                  </div>
+                )}
+
+                <Card>
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        {isGestorOrAdmin && (
+                          <TableHead className="w-10">
+                            <Checkbox
+                              checked={allSelected}
+                              ref={(el) => {
+                                if (el) {
+                                  (el as any).indeterminate = someSelected;
+                                }
+                              }}
+                              onCheckedChange={toggleSelectAll}
+                            />
+                          </TableHead>
+                        )}
+                        <TableHead className="text-center w-16">Nº</TableHead>
+                        <TableHead className="w-24">Setor</TableHead>
+                        <TableHead className="w-32">Responsável</TableHead>
+                        <TableHead>Descrição</TableHead>
+                        <TableHead className="text-center w-20">
+                          Feito?
+                        </TableHead>
+                        <TableHead className="text-center w-20">
+                          Aprovado?
+                        </TableHead>
+                        <TableHead className="text-center w-12">X</TableHead>
+                        <TableHead className="text-center w-20">
+                          Semana
+                        </TableHead>
+                        {isGestorOrAdmin && (
+                          <TableHead className="text-center w-20">
+                            Ações
+                          </TableHead>
+                        )}
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {demandas.map((demanda, index) => {
+                        const profile = getProfileById(demanda.responsavel_id);
+                        const setor = getSetorById(demanda.setor_id);
+                        const canEditResponsavel =
+                          user?.id === demanda.responsavel_id || isGestorOrAdmin;
+                        const canEditGestor = isGestorOrAdmin;
+
+                        return (
+                          <DemandaTableRow
+                            key={demanda.id}
+                            id={demanda.id}
+                            numero={demanda.numero}
+                            setor={setor?.nome || "Sem setor"}
+                            setorCor={setor?.cor || "#E5E7EB"}
+                            responsavel={profile?.nome || "Desconhecido"}
+                            descricao={demanda.descricao}
+                            statusResponsavel={demanda.status_responsavel}
+                            statusGestor={demanda.status_gestor}
+                            semanasRepeticao={demanda.semanas_repeticao}
+                            semanaLimite={demanda.semana_limite}
+                            prioritaria={demanda.prioritaria}
+                            canEditResponsavel={canEditResponsavel}
+                            canEditGestor={canEditGestor}
+                            canEditDemanda={isGestorOrAdmin}
+                            isAlternateRow={index % 2 === 1}
+                            isSelected={selectedIds.has(demanda.id)}
+                            showCheckbox={isGestorOrAdmin}
+                            onStatusResponsavelChange={() =>
+                              updateStatusResponsavel(
+                                demanda.id,
+                                demanda.status_responsavel
+                              )
+                            }
+                            onStatusGestorChange={() =>
+                              updateStatusGestor(
+                                demanda.id,
+                                demanda.status_gestor
+                              )
+                            }
+                            onEdit={() =>
+                              setEditingDemanda(demanda as Demanda)
+                            }
+                            onDelete={() =>
+                              setDeletingDemanda({
+                                id: demanda.id,
+                                numero: demanda.numero,
+                                grupo_id: demanda.grupo_id,
+                              })
+                            }
+                            onSelectChange={(checked) =>
+                              toggleSelection(demanda.id, checked)
+                            }
+                          />
+                        );
+                      })}
+                    </TableBody>
+                  </Table>
+                </Card>
+              </>
             )}
           </div>
         </div>
       </div>
 
       {/* Dialogs */}
-      <EditarDemandaDialog
+      <EditarDemandaIrmaDialog
         open={!!editingDemanda}
         onOpenChange={(open) => !open && setEditingDemanda(null)}
         demanda={editingDemanda}
         profiles={profiles}
         setores={setores}
+        siblingCount={editingSiblingCount}
         onDemandaEditada={fetchDemandas}
       />
 
-      <ExcluirDemandaDialog
+      <ExcluirDemandaIrmaDialog
         open={!!deletingDemanda}
         onOpenChange={(open) => !open && setDeletingDemanda(null)}
         demandaId={deletingDemanda?.id || null}
         demandaNumero={deletingDemanda?.numero || null}
+        grupoId={deletingDemanda?.grupo_id || null}
+        siblingCount={deletingSiblingCount}
         onDemandaExcluida={fetchDemandas}
+      />
+
+      <ExcluirDemandasEmMassaDialog
+        open={showBulkDeleteDialog}
+        onOpenChange={setShowBulkDeleteDialog}
+        demandaIds={Array.from(selectedIds)}
+        onDemandasExcluidas={handleBulkDeleteComplete}
       />
     </AppLayout>
   );

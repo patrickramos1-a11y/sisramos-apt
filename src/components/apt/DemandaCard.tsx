@@ -78,7 +78,7 @@ export default function DemandaCard({
             <div className="flex items-center gap-4 text-xs text-muted-foreground">
               <span>Resp: {responsavel}</span>
               <span>X: {semanasRepeticao}</span>
-              <span>{semanaLimite.map(s => `${s}ª`).join(", ")} semana</span>
+              <span>{semanaLimite[0]}ª semana</span>
             </div>
           </div>
 

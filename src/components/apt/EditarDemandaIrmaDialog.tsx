@@ -4,6 +4,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import {
   Dialog,
   DialogContent,
@@ -43,26 +44,30 @@ interface Demanda {
   mes: number;
   ano: number;
   prioritaria: boolean;
+  grupo_id: string | null;
 }
 
-interface EditarDemandaDialogProps {
+interface EditarDemandaIrmaDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   demanda: Demanda | null;
   profiles: Profile[];
   setores: Setor[];
+  siblingCount: number;
   onDemandaEditada: () => void;
 }
 
-export default function EditarDemandaDialog({
+export default function EditarDemandaIrmaDialog({
   open,
   onOpenChange,
   demanda,
   profiles,
   setores,
+  siblingCount,
   onDemandaEditada,
-}: EditarDemandaDialogProps) {
+}: EditarDemandaIrmaDialogProps) {
   const [isLoading, setIsLoading] = useState(false);
+  const [editScope, setEditScope] = useState<"single" | "all">("single");
   const { toast } = useToast();
 
   const [formData, setFormData] = useState({
@@ -70,7 +75,7 @@ export default function EditarDemandaDialog({
     setor_id: "",
     descricao: "",
     semanas_repeticao: "1",
-    semana_limite: [] as number[],
+    semana_limite: 1,
     mes: String(new Date().getMonth() + 1),
     ano: String(new Date().getFullYear()),
     prioritaria: false,
@@ -83,11 +88,12 @@ export default function EditarDemandaDialog({
         setor_id: demanda.setor_id || "",
         descricao: demanda.descricao,
         semanas_repeticao: String(demanda.semanas_repeticao),
-        semana_limite: demanda.semana_limite || [1],
+        semana_limite: demanda.semana_limite[0] || 1,
         mes: String(demanda.mes),
         ano: String(demanda.ano),
         prioritaria: demanda.prioritaria,
       });
+      setEditScope("single");
     }
   }, [demanda]);
 
@@ -103,30 +109,35 @@ export default function EditarDemandaDialog({
       return;
     }
 
-    if (formData.semana_limite.length === 0) {
-      toast({
-        variant: "destructive",
-        title: "Erro",
-        description: "Selecione pelo menos uma semana limite",
-      });
-      return;
-    }
-
     setIsLoading(true);
 
-    const { error } = await supabase
-      .from("demandas")
-      .update({
-        responsavel_id: formData.responsavel_id,
-        setor_id: formData.setor_id || null,
-        descricao: formData.descricao.trim(),
-        semanas_repeticao: parseInt(formData.semanas_repeticao),
-        semana_limite: formData.semana_limite,
-        mes: parseInt(formData.mes),
-        ano: parseInt(formData.ano),
-        prioritaria: formData.prioritaria,
-      })
-      .eq("id", demanda?.id);
+    const updateData = {
+      responsavel_id: formData.responsavel_id,
+      setor_id: formData.setor_id || null,
+      descricao: formData.descricao.trim(),
+      semanas_repeticao: parseInt(formData.semanas_repeticao),
+      mes: parseInt(formData.mes),
+      ano: parseInt(formData.ano),
+      prioritaria: formData.prioritaria,
+    };
+
+    let query;
+    if (editScope === "all" && demanda?.grupo_id) {
+      query = supabase
+        .from("demandas")
+        .update(updateData)
+        .eq("grupo_id", demanda.grupo_id);
+    } else {
+      query = supabase
+        .from("demandas")
+        .update({
+          ...updateData,
+          semana_limite: [formData.semana_limite],
+        })
+        .eq("id", demanda?.id);
+    }
+
+    const { error } = await query;
 
     if (error) {
       toast({
@@ -137,24 +148,16 @@ export default function EditarDemandaDialog({
     } else {
       toast({
         title: "Demanda atualizada!",
-        description: "As alterações foram salvas com sucesso",
+        description:
+          editScope === "all"
+            ? `${siblingCount} demandas foram atualizadas`
+            : "As alterações foram salvas com sucesso",
       });
       onOpenChange(false);
       onDemandaEditada();
     }
 
     setIsLoading(false);
-  };
-
-  const toggleSemana = (semana: number) => {
-    setFormData((prev) => {
-      const current = prev.semana_limite;
-      if (current.includes(semana)) {
-        return { ...prev, semana_limite: current.filter((s) => s !== semana) };
-      } else {
-        return { ...prev, semana_limite: [...current, semana].sort() };
-      }
-    });
   };
 
   const meses = [
@@ -180,6 +183,8 @@ export default function EditarDemandaDialog({
 
   const semanas = [1, 2, 3, 4, 5];
 
+  const hasSiblings = demanda?.grupo_id && siblingCount > 1;
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
@@ -187,6 +192,30 @@ export default function EditarDemandaDialog({
           <DialogTitle>Editar Demanda #{demanda?.numero}</DialogTitle>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4">
+          {hasSiblings && (
+            <div className="p-3 bg-muted rounded-lg space-y-2">
+              <Label className="text-sm font-medium">Aplicar alterações em:</Label>
+              <RadioGroup
+                value={editScope}
+                onValueChange={(v) => setEditScope(v as "single" | "all")}
+                className="flex flex-col gap-2"
+              >
+                <div className="flex items-center space-x-2">
+                  <RadioGroupItem value="single" id="single" />
+                  <Label htmlFor="single" className="font-normal cursor-pointer">
+                    Apenas esta demanda
+                  </Label>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <RadioGroupItem value="all" id="all" />
+                  <Label htmlFor="all" className="font-normal cursor-pointer">
+                    Todas as {siblingCount} demandas do grupo
+                  </Label>
+                </div>
+              </RadioGroup>
+            </div>
+          )}
+
           <div className="space-y-2">
             <Label htmlFor="responsavel">Responsável *</Label>
             <Select
@@ -259,25 +288,26 @@ export default function EditarDemandaDialog({
             />
           </div>
 
-          <div className="space-y-2">
-            <Label>Semana(s) Limite *</Label>
-            <div className="flex flex-wrap gap-2">
-              {semanas.map((s) => (
-                <Button
-                  key={s}
-                  type="button"
-                  variant={formData.semana_limite.includes(s) ? "default" : "outline"}
-                  size="sm"
-                  onClick={() => toggleSemana(s)}
-                >
-                  {s}ª
-                </Button>
-              ))}
+          {editScope === "single" && (
+            <div className="space-y-2">
+              <Label>Semana Limite</Label>
+              <div className="flex flex-wrap gap-2">
+                {semanas.map((s) => (
+                  <Button
+                    key={s}
+                    type="button"
+                    variant={formData.semana_limite === s ? "default" : "outline"}
+                    size="sm"
+                    onClick={() =>
+                      setFormData((prev) => ({ ...prev, semana_limite: s }))
+                    }
+                  >
+                    {s}ª
+                  </Button>
+                ))}
+              </div>
             </div>
-            <p className="text-xs text-muted-foreground">
-              Selecione uma ou mais semanas
-            </p>
-          </div>
+          )}
 
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">

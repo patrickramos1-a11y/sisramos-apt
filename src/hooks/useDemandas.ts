@@ -1,7 +1,8 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
+import { SortConfig, SortDirection } from "@/components/apt/DemandaSortHeader";
 
 type StatusBolinha = "pendente" | "executado" | "nao_realizado";
 
@@ -20,6 +21,7 @@ interface Demanda {
   ativa: boolean;
   mes: number;
   ano: number;
+  grupo_id: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -62,6 +64,12 @@ export function useDemandas() {
     statusResponsavel: "",
     statusGestor: "",
     busca: "",
+  });
+  const [sortConfig, setSortConfig] = useState<SortConfig>({
+    setor: null,
+    responsavel: null,
+    descricao: null,
+    semana: null,
   });
 
   const { user, isGestorOrAdmin } = useAuth();
@@ -211,14 +219,85 @@ export function useDemandas() {
     });
   };
 
-  const getProfileById = (userId: string) => {
+  const getProfileById = useCallback((userId: string) => {
     return profiles.find((p) => p.user_id === userId);
-  };
+  }, [profiles]);
 
-  const getSetorById = (setorId: string | null) => {
+  const getSetorById = useCallback((setorId: string | null) => {
     if (!setorId) return null;
     return setores.find((s) => s.id === setorId);
+  }, [setores]);
+
+  const toggleSort = (field: keyof SortConfig) => {
+    setSortConfig((prev) => {
+      const currentDirection = prev[field];
+      let newDirection: SortDirection;
+      
+      if (currentDirection === null) {
+        newDirection = "asc";
+      } else if (currentDirection === "asc") {
+        newDirection = "desc";
+      } else {
+        newDirection = null;
+      }
+      
+      return { ...prev, [field]: newDirection };
+    });
   };
+
+  const resetSort = () => {
+    setSortConfig({
+      setor: null,
+      responsavel: null,
+      descricao: null,
+      semana: null,
+    });
+  };
+
+  // Sort demandas based on sortConfig
+  const sortedDemandas = useMemo(() => {
+    if (!Object.values(sortConfig).some((v) => v !== null)) {
+      return demandas;
+    }
+
+    return [...demandas].sort((a, b) => {
+      // Sort by each configured field in order
+      for (const field of ["setor", "responsavel", "descricao", "semana"] as const) {
+        const direction = sortConfig[field];
+        if (!direction) continue;
+
+        let comparison = 0;
+
+        if (field === "setor") {
+          const setorA = getSetorById(a.setor_id)?.nome || "";
+          const setorB = getSetorById(b.setor_id)?.nome || "";
+          comparison = setorA.localeCompare(setorB, "pt-BR");
+        } else if (field === "responsavel") {
+          const respA = getProfileById(a.responsavel_id)?.nome || "";
+          const respB = getProfileById(b.responsavel_id)?.nome || "";
+          comparison = respA.localeCompare(respB, "pt-BR");
+        } else if (field === "descricao") {
+          comparison = a.descricao.localeCompare(b.descricao, "pt-BR");
+        } else if (field === "semana") {
+          const semanaA = a.semana_limite[0] || 0;
+          const semanaB = b.semana_limite[0] || 0;
+          comparison = semanaA - semanaB;
+        }
+
+        if (comparison !== 0) {
+          return direction === "asc" ? comparison : -comparison;
+        }
+      }
+
+      return 0;
+    });
+  }, [demandas, sortConfig, getSetorById, getProfileById]);
+
+  // Get sibling count for a demand
+  const getSiblingCount = useCallback((grupoId: string | null) => {
+    if (!grupoId) return 1;
+    return demandas.filter((d) => d.grupo_id === grupoId).length;
+  }, [demandas]);
 
   const pendingCount = demandas.filter(
     (d) => d.status_responsavel === "pendente"
@@ -229,7 +308,7 @@ export function useDemandas() {
   ).length;
 
   return {
-    demandas,
+    demandas: sortedDemandas,
     profiles,
     setores,
     isLoading,
@@ -241,6 +320,10 @@ export function useDemandas() {
     updateStatusGestor,
     getProfileById,
     getSetorById,
+    getSiblingCount,
+    sortConfig,
+    toggleSort,
+    resetSort,
     pendingCount,
     pendingApprovalCount,
   };
