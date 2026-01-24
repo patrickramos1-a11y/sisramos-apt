@@ -217,10 +217,10 @@ export function useDemandas() {
     return setores.find((s) => s.id === setorId);
   }, [setores]);
 
-  // Sort demandas based on sortConfig (Setor A-Z, Responsável A-Z, Semana 1ª-5ª)
+  // Sort demandas: Setor (A-Z) → Semana (1ª-5ª) → Numero
   const sortedDemandas = useMemo(() => {
-    // Aguarda profiles e setores carregarem para ordenar corretamente
-    if (profiles.length === 0 && setores.length === 0) {
+    // Aguarda setores carregarem para ordenar corretamente
+    if (setores.length === 0) {
       return demandas;
     }
 
@@ -231,22 +231,16 @@ export function useDemandas() {
       const setorComparison = setorA.localeCompare(setorB, "pt-BR");
       if (setorComparison !== 0) return setorComparison;
 
-      // 2. Responsável (A-Z)
-      const respA = getProfileById(a.responsavel_id)?.nome || "";
-      const respB = getProfileById(b.responsavel_id)?.nome || "";
-      const respComparison = respA.localeCompare(respB, "pt-BR");
-      if (respComparison !== 0) return respComparison;
-
-      // 3. Semana (1ª-5ª) - usa a menor semana do array
+      // 2. Semana (1ª-5ª) - usa a menor semana do array
       const semanaA = a.semana_limite?.length ? Math.min(...a.semana_limite) : 0;
       const semanaB = b.semana_limite?.length ? Math.min(...b.semana_limite) : 0;
       const semanaComparison = semanaA - semanaB;
       if (semanaComparison !== 0) return semanaComparison;
 
-      // 4. Tie-breaker: número do banco
+      // 3. Tie-breaker: número do banco
       return a.numero - b.numero;
     });
-  }, [demandas, profiles, setores, getSetorById, getProfileById]);
+  }, [demandas, setores, getSetorById]);
 
   // Get sibling count for a demand
   const getSiblingCount = useCallback((grupoId: string | null) => {
