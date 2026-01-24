@@ -104,11 +104,14 @@ Deno.serve(async (req) => {
         );
       }
 
-      // Atualizar email no auth se alterado
+      // Atualizar email no auth se alterado (sem enviar email de verificação)
       if (email) {
         const { error: authUpdateError } = await adminClient.auth.admin.updateUserById(
           userId,
-          { email: email.trim() }
+          { 
+            email: email.trim(),
+            email_confirm: true // Auto-confirmar para não enviar email de verificação
+          }
         );
 
         if (authUpdateError) {
