@@ -22,9 +22,11 @@ import { Loader2 } from "lucide-react";
 export default function Dashboard() {
   const { demandas, profiles, setores, isLoading, getProfileById, getSetorById } = useDemandas();
 
-  // Dados: Setores por usuário
-  const setoresPorUsuario = useMemo(() => {
-    const userSetores: Record<string, Set<string>> = {};
+  // Dados: Setores por usuário (X = usuários, Y = setores)
+  const { setoresPorUsuarioData, setoresPorUsuarioConfig } = useMemo(() => {
+    // Cria uma estrutura: { usuario: { setor1: count, setor2: count, ... } }
+    const userSetorCounts: Record<string, Record<string, number>> = {};
+    const allSetorNames = new Set<string>();
     
     demandas.forEach((demanda) => {
       const profile = getProfileById(demanda.responsavel_id);
@@ -32,17 +34,49 @@ export default function Dashboard() {
       const setor = getSetorById(demanda.setor_id);
       const setorName = setor?.nome || "Sem setor";
       
-      if (!userSetores[userName]) {
-        userSetores[userName] = new Set();
+      allSetorNames.add(setorName);
+      
+      if (!userSetorCounts[userName]) {
+        userSetorCounts[userName] = {};
       }
-      userSetores[userName].add(setorName);
+      userSetorCounts[userName][setorName] = (userSetorCounts[userName][setorName] || 0) + 1;
     });
 
-    return Object.entries(userSetores).map(([nome, setoresSet]) => ({
+    // Converte para o formato do recharts
+    const data = Object.entries(userSetorCounts).map(([nome, setorCounts]) => ({
       nome,
-      setores: setoresSet.size,
-    })).sort((a, b) => b.setores - a.setores);
-  }, [demandas, getProfileById, getSetorById]);
+      ...setorCounts,
+    }));
+
+    // Cria config dinâmico para cada setor com cores distintas
+    const colors = [
+      "hsl(var(--primary))",
+      "hsl(142 76% 36%)",
+      "hsl(221 83% 53%)",
+      "hsl(38 92% 50%)",
+      "hsl(280 65% 60%)",
+      "hsl(0 84% 60%)",
+      "hsl(180 70% 45%)",
+      "hsl(320 70% 50%)",
+    ];
+    
+    const config: Record<string, { label: string; color: string }> = {};
+    const setorArray = Array.from(allSetorNames);
+    setorArray.forEach((setor, index) => {
+      const setorData = setores.find(s => s.nome === setor);
+      config[setor] = {
+        label: setor,
+        color: setorData?.cor || colors[index % colors.length],
+      };
+    });
+
+    return { setoresPorUsuarioData: data, setoresPorUsuarioConfig: config, setorNames: setorArray };
+  }, [demandas, getProfileById, getSetorById, setores]);
+
+  // Lista de setores para renderizar as barras
+  const setorNames = useMemo(() => {
+    return Object.keys(setoresPorUsuarioConfig);
+  }, [setoresPorUsuarioConfig]);
 
   // Dados: Feito por usuário (status_responsavel = executado)
   const feitoPorUsuario = useMemo(() => {
@@ -118,12 +152,6 @@ export default function Dashboard() {
     })).sort((a, b) => (b.feito + b.aprovado) - (a.feito + a.aprovado));
   }, [demandas, getProfileById]);
 
-  const chartConfigSetores = {
-    setores: {
-      label: "Setores",
-      color: "hsl(var(--primary))",
-    },
-  };
 
   const chartConfigFeito = {
     feito: {
@@ -172,13 +200,22 @@ export default function Dashboard() {
               <CardTitle className="text-lg">Setores por Usuário</CardTitle>
             </CardHeader>
             <CardContent>
-              <ChartContainer config={chartConfigSetores} className="h-[300px] w-full">
-                <BarChart data={setoresPorUsuario} layout="vertical" margin={{ left: 20, right: 20 }}>
-                  <CartesianGrid strokeDasharray="3 3" horizontal={true} vertical={false} />
-                  <XAxis type="number" />
-                  <YAxis dataKey="nome" type="category" width={100} tick={{ fontSize: 12 }} />
+              <ChartContainer config={setoresPorUsuarioConfig} className="h-[300px] w-full">
+                <BarChart data={setoresPorUsuarioData} margin={{ left: 20, right: 20, bottom: 20 }}>
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                  <XAxis dataKey="nome" tick={{ fontSize: 12 }} />
+                  <YAxis />
                   <ChartTooltip content={<ChartTooltipContent />} />
-                  <Bar dataKey="setores" fill="var(--color-setores)" radius={4} />
+                  <ChartLegend content={<ChartLegendContent />} />
+                  {setorNames.map((setor) => (
+                    <Bar 
+                      key={setor} 
+                      dataKey={setor} 
+                      fill={setoresPorUsuarioConfig[setor]?.color || "hsl(var(--primary))"} 
+                      radius={4} 
+                      stackId="setores"
+                    />
+                  ))}
                 </BarChart>
               </ChartContainer>
             </CardContent>
