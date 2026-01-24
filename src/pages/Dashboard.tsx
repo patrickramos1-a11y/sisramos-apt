@@ -195,7 +195,29 @@ export default function Dashboard() {
     })).sort((a, b) => b.nao_realizado - a.nao_realizado);
   }, [demandas, getProfileById]);
 
-  // Dados: Comparativo completo (feito, aprovado, não realizado, pendente)
+  // Dados: Pendente por usuário (status_responsavel = pendente)
+  const pendentePorUsuario = useMemo(() => {
+    const userPendente: Record<string, { pendente: number; total: number }> = {};
+    
+    demandas.forEach((demanda) => {
+      const profile = getProfileById(demanda.responsavel_id);
+      const userName = profile?.nome || "Desconhecido";
+      
+      if (!userPendente[userName]) {
+        userPendente[userName] = { pendente: 0, total: 0 };
+      }
+      userPendente[userName].total++;
+      if (demanda.status_responsavel === "pendente") {
+        userPendente[userName].pendente++;
+      }
+    });
+
+    return Object.entries(userPendente).map(([nome, data]) => ({
+      nome,
+      pendente: data.pendente,
+      total: data.total,
+    })).sort((a, b) => b.pendente - a.pendente);
+  }, [demandas, getProfileById]);
   const comparativoCompleto = useMemo(() => {
     const userData: Record<string, { feito: number; aprovado: number; nao_realizado: number; pendente: number }> = {};
     
@@ -250,6 +272,13 @@ export default function Dashboard() {
     nao_realizado: {
       label: "Não Realizado",
       color: "hsl(0 84% 60%)",
+    },
+  };
+
+  const chartConfigPendente = {
+    pendente: {
+      label: "Pendente",
+      color: "hsl(38 92% 50%)",
     },
   };
 
@@ -352,7 +381,24 @@ export default function Dashboard() {
             </CardContent>
           </Card>
 
-          {/* Gráfico de Feito */}
+          {/* Gráfico de Pendentes */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-lg">Gráfico de Pendentes</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <ChartContainer config={chartConfigPendente} className="h-[300px] w-full">
+                <BarChart data={pendentePorUsuario} margin={{ left: 20, right: 20, bottom: 20 }}>
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                  <XAxis dataKey="nome" tick={{ fontSize: 12 }} />
+                  <YAxis />
+                  <ChartTooltip content={<ChartTooltipContent />} />
+                  <Bar dataKey="pendente" fill="var(--color-pendente)" radius={4} />
+                </BarChart>
+              </ChartContainer>
+            </CardContent>
+          </Card>
+
           <Card>
             <CardHeader>
               <CardTitle className="text-lg">Gráfico de Feito</CardTitle>
