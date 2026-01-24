@@ -2,6 +2,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   Sheet,
   SheetContent,
@@ -326,13 +327,15 @@ export default function APTFilters({
               )}
             </Button>
           </SheetTrigger>
-          <SheetContent side="right" className="w-80">
+          <SheetContent side="right" className="w-80 flex flex-col">
             <SheetHeader>
               <SheetTitle>Filtros</SheetTitle>
             </SheetHeader>
-            <div className="mt-6">
-              {content}
-            </div>
+            <ScrollArea className="flex-1 mt-6 -mx-6 px-6">
+              <div className="pb-6">
+                {content}
+              </div>
+            </ScrollArea>
           </SheetContent>
         </Sheet>
       </div>

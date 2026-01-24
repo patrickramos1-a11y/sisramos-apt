@@ -175,15 +175,22 @@ export default function APT() {
 
           {/* Main content */}
           <div className="flex-1 min-w-0">
-            {/* Mobile filters */}
-            <div className="mb-4 lg:hidden">
-              <APTFilters
-                profiles={profiles}
-                setores={setores}
-                filters={filters}
-                onFiltersChange={setFilters}
-                onClearFilters={clearFilters}
-                showResponsavelFilter={isGestorOrAdmin}
+            {/* Mobile filters and sort */}
+            <div className="mb-4 lg:hidden space-y-3">
+              <div className="flex items-center gap-2">
+                <APTFilters
+                  profiles={profiles}
+                  setores={setores}
+                  filters={filters}
+                  onFiltersChange={setFilters}
+                  onClearFilters={clearFilters}
+                  showResponsavelFilter={isGestorOrAdmin}
+                />
+              </div>
+              <DemandaSortHeader
+                sortConfig={sortConfig}
+                onSortChange={toggleSort}
+                onResetSort={resetSort}
               />
             </div>
 
