@@ -115,6 +115,17 @@ export function useExportPDF() {
 
   const exportChartAsPDF = useCallback(
     async (element: HTMLElement, chartName: string) => {
+      // Force light theme for export
+      const root = document.documentElement;
+      const wasDark = root.classList.contains("dark");
+      if (wasDark) {
+        root.classList.remove("dark");
+        root.classList.add("light");
+      }
+
+      // Wait for styles to apply
+      await new Promise((resolve) => setTimeout(resolve, 100));
+
       try {
         const canvas = await html2canvas(element, {
           scale: 2,
@@ -156,6 +167,12 @@ export function useExportPDF() {
       } catch (error) {
         console.error("Erro ao exportar gráfico como PDF:", error);
         throw error;
+      } finally {
+        // Restore dark theme if it was active
+        if (wasDark) {
+          root.classList.remove("light");
+          root.classList.add("dark");
+        }
       }
     },
     []
@@ -163,6 +180,17 @@ export function useExportPDF() {
 
   const exportChartAsImage = useCallback(
     async (element: HTMLElement, chartName: string) => {
+      // Force light theme for export
+      const root = document.documentElement;
+      const wasDark = root.classList.contains("dark");
+      if (wasDark) {
+        root.classList.remove("dark");
+        root.classList.add("light");
+      }
+
+      // Wait for styles to apply
+      await new Promise((resolve) => setTimeout(resolve, 100));
+
       try {
         const canvas = await html2canvas(element, {
           scale: 2,
@@ -178,6 +206,12 @@ export function useExportPDF() {
       } catch (error) {
         console.error("Erro ao exportar gráfico como imagem:", error);
         throw error;
+      } finally {
+        // Restore dark theme if it was active
+        if (wasDark) {
+          root.classList.remove("light");
+          root.classList.add("dark");
+        }
       }
     },
     []
@@ -185,6 +219,17 @@ export function useExportPDF() {
 
   const exportAllChartsAsPDF = useCallback(
     async (elements: { element: HTMLElement; title: string }[]) => {
+      // Force light theme for export
+      const root = document.documentElement;
+      const wasDark = root.classList.contains("dark");
+      if (wasDark) {
+        root.classList.remove("dark");
+        root.classList.add("light");
+      }
+
+      // Wait for styles to apply
+      await new Promise((resolve) => setTimeout(resolve, 100));
+
       try {
         const doc = new jsPDF();
         let isFirstPage = true;
@@ -242,6 +287,12 @@ export function useExportPDF() {
       } catch (error) {
         console.error("Erro ao exportar todos os gráficos:", error);
         throw error;
+      } finally {
+        // Restore dark theme if it was active
+        if (wasDark) {
+          root.classList.remove("light");
+          root.classList.add("dark");
+        }
       }
     },
     []
