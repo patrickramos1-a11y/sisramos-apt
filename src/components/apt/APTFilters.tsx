@@ -125,7 +125,7 @@ function MultiSelectDropdown({
   return (
     <div className="space-y-2">
       <Label>{label}</Label>
-      <Popover>
+      <Popover modal={false}>
         <PopoverTrigger asChild>
           <Button
             variant="outline"
@@ -139,11 +139,20 @@ function MultiSelectDropdown({
             <ChevronDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
           </Button>
         </PopoverTrigger>
-        <PopoverContent className="w-full min-w-[200px] p-0 bg-popover border shadow-lg z-50" align="start">
+        <PopoverContent 
+          className="w-full min-w-[200px] p-0 bg-popover border shadow-lg z-50" 
+          align="start"
+          onOpenAutoFocus={(e) => e.preventDefault()}
+        >
           <div className="max-h-60 overflow-y-auto p-2 space-y-1">
             <div
               className="flex items-center gap-2 px-2 py-1.5 rounded cursor-pointer hover:bg-muted"
-              onClick={toggleAll}
+              onMouseDown={(e) => e.preventDefault()}
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                toggleAll();
+              }}
             >
               <Checkbox
                 checked={selected.length === options.length}
@@ -158,7 +167,12 @@ function MultiSelectDropdown({
               <div
                 key={option.value}
                 className="flex items-center gap-2 px-2 py-1.5 rounded cursor-pointer hover:bg-muted"
-                onClick={() => toggleOption(option.value)}
+                onMouseDown={(e) => e.preventDefault()}
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  toggleOption(option.value);
+                }}
               >
                 <Checkbox
                   checked={selected.includes(option.value)}
@@ -277,12 +291,15 @@ export default function APTFilters({
         placeholder="Todos"
       />
 
-      {hasActiveFilters && (
-        <Button variant="outline" className="w-full" onClick={onClearFilters}>
-          <X className="mr-2 h-4 w-4" />
-          Limpar Filtros
-        </Button>
-      )}
+      <Button 
+        variant="destructive" 
+        className="w-full" 
+        onClick={onClearFilters}
+        disabled={!hasActiveFilters}
+      >
+        <X className="mr-2 h-4 w-4" />
+        Limpar Todos os Filtros
+      </Button>
     </div>
   );
 
