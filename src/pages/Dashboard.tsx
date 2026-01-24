@@ -36,8 +36,18 @@ export default function Dashboard() {
   // Estados dos filtros
   const [filterAno, setFilterAno] = useState<string>("all");
   const [filterMes, setFilterMes] = useState<string>("all");
+  const [filterSemana, setFilterSemana] = useState<string>("all");
   const [filterUsuario, setFilterUsuario] = useState<string>("all");
   const [filterSetor, setFilterSetor] = useState<string>("all");
+
+  // Opções de semanas
+  const semanas = [
+    { value: "1", label: "1ª Semana" },
+    { value: "2", label: "2ª Semana" },
+    { value: "3", label: "3ª Semana" },
+    { value: "4", label: "4ª Semana" },
+    { value: "5", label: "5ª Semana" },
+  ];
 
   // Opções de anos disponíveis
   const anosDisponiveis = useMemo(() => {
@@ -67,21 +77,23 @@ export default function Dashboard() {
     return demandas.filter((demanda) => {
       if (filterAno !== "all" && demanda.ano !== parseInt(filterAno)) return false;
       if (filterMes !== "all" && demanda.mes !== parseInt(filterMes)) return false;
+      if (filterSemana !== "all" && !demanda.semana_limite?.includes(parseInt(filterSemana))) return false;
       if (filterUsuario !== "all" && demanda.responsavel_id !== filterUsuario) return false;
       if (filterSetor !== "all" && demanda.setor_id !== filterSetor) return false;
       return true;
     });
-  }, [demandas, filterAno, filterMes, filterUsuario, filterSetor]);
+  }, [demandas, filterAno, filterMes, filterSemana, filterUsuario, filterSetor]);
 
   // Limpar todos os filtros
   const limparFiltros = () => {
     setFilterAno("all");
     setFilterMes("all");
+    setFilterSemana("all");
     setFilterUsuario("all");
     setFilterSetor("all");
   };
 
-  const temFiltrosAtivos = filterAno !== "all" || filterMes !== "all" || filterUsuario !== "all" || filterSetor !== "all";
+  const temFiltrosAtivos = filterAno !== "all" || filterMes !== "all" || filterSemana !== "all" || filterUsuario !== "all" || filterSetor !== "all";
 
   // Dados: Setores por usuário (X = usuários, Y = setores)
   const { setoresPorUsuarioData, setoresPorUsuarioConfig } = useMemo(() => {
@@ -412,6 +424,24 @@ export default function Dashboard() {
                       {meses.map((mes) => (
                         <SelectItem key={mes.value} value={mes.value}>
                           {mes.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {/* Filtro de Semana */}
+                <div className="flex flex-col gap-1">
+                  <span className="text-xs font-medium text-muted-foreground">Semana</span>
+                  <Select value={filterSemana} onValueChange={setFilterSemana}>
+                    <SelectTrigger className="w-[130px]">
+                      <SelectValue placeholder="Todas" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">Todas</SelectItem>
+                      {semanas.map((semana) => (
+                        <SelectItem key={semana.value} value={semana.value}>
+                          {semana.label}
                         </SelectItem>
                       ))}
                     </SelectContent>
