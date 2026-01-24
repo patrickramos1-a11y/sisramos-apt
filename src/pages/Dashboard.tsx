@@ -303,17 +303,17 @@ export default function Dashboard() {
             </CardContent>
           </Card>
 
-          {/* Feito por Usuário */}
+          {/* Gráfico de Feito */}
           <Card>
             <CardHeader>
-              <CardTitle className="text-lg">Feito por Usuário</CardTitle>
+              <CardTitle className="text-lg">Gráfico de Feito</CardTitle>
             </CardHeader>
             <CardContent>
               <ChartContainer config={chartConfigFeito} className="h-[300px] w-full">
-                <BarChart data={feitoPorUsuario} layout="vertical" margin={{ left: 20, right: 20 }}>
-                  <CartesianGrid strokeDasharray="3 3" horizontal={true} vertical={false} />
-                  <XAxis type="number" />
-                  <YAxis dataKey="nome" type="category" width={100} tick={{ fontSize: 12 }} />
+                <BarChart data={feitoPorUsuario} margin={{ left: 20, right: 20, bottom: 20 }}>
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                  <XAxis dataKey="nome" tick={{ fontSize: 12 }} />
+                  <YAxis />
                   <ChartTooltip content={<ChartTooltipContent />} />
                   <Bar dataKey="feito" fill="var(--color-feito)" radius={4} />
                 </BarChart>
