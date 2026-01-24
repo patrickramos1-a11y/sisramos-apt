@@ -112,7 +112,7 @@ export default function DemandaTableRow({
           </div>
         </TableCell>
       )}
-      <TableCell className="text-center w-12">{semanasRepeticao}</TableCell>
+      <TableCell className="text-center w-12">{semanasRepeticao}x</TableCell>
       <TableCell className="text-center w-20">{semanaLimite[0]}ª</TableCell>
       {canEditDemanda && (
         <TableCell className="text-center w-20" onClick={(e) => e.stopPropagation()}>
