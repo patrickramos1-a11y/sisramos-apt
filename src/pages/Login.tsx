@@ -43,32 +43,51 @@ export default function Login() {
   };
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-background p-4">
-      <Card className="w-full max-w-md">
-        <CardHeader className="text-center">
-          <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-primary">
-            <ClipboardList className="h-6 w-6 text-primary-foreground" />
+    <div className="min-h-screen flex items-center justify-center bg-background p-4">
+      {/* Background pattern - SISRAMOS style diagonal */}
+      <div className="absolute inset-0 overflow-hidden pointer-events-none">
+        <div className="absolute top-0 left-0 w-1/2 h-full bg-primary/5 -skew-x-12 transform-gpu" />
+        <div className="absolute top-0 left-0 w-1/3 h-full bg-primary/3 -skew-x-12 transform-gpu" />
+      </div>
+
+      <Card className="w-full max-w-md shadow-xl relative animate-fade-in border-0 shadow-2xl">
+        <CardHeader className="text-center pb-2">
+          {/* Logo */}
+          <div className="flex justify-center mb-4">
+            <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-primary shadow-lg">
+              <ClipboardList className="h-8 w-8 text-primary-foreground" />
+            </div>
           </div>
-          <CardTitle className="text-2xl">APT</CardTitle>
-          <CardDescription>
+          <CardTitle className="text-2xl font-bold">
+            Sistema APT
+          </CardTitle>
+          <CardDescription className="text-muted-foreground">
             Acompanhamento de Performance de Tarefas
           </CardDescription>
         </CardHeader>
+
         <form onSubmit={handleSubmit}>
-          <CardContent className="space-y-4">
+          <CardContent className="space-y-5 pt-4">
             <div className="space-y-2">
-              <Label htmlFor="email">E-mail</Label>
+              <Label htmlFor="email" className="text-sm font-medium">
+                E-mail
+              </Label>
               <Input
                 id="email"
                 type="email"
                 placeholder="seu@email.com"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
+                disabled={isLoading}
                 required
+                className="h-11"
               />
             </div>
+
             <div className="space-y-2">
-              <Label htmlFor="password">Senha</Label>
+              <Label htmlFor="password" className="text-sm font-medium">
+                Senha
+              </Label>
               <div className="relative">
                 <Input
                   id="password"
@@ -76,13 +95,15 @@ export default function Login() {
                   placeholder="••••••••"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
+                  disabled={isLoading}
                   required
+                  className="h-11 pr-11"
                 />
                 <Button
                   type="button"
                   variant="ghost"
                   size="icon"
-                  className="absolute right-1 top-1/2 -translate-y-1/2 h-7 w-7"
+                  className="absolute right-0 top-0 h-11 w-11 text-muted-foreground hover:text-foreground"
                   onClick={() => setShowPassword((v) => !v)}
                   aria-label={showPassword ? "Ocultar senha" : "Mostrar senha"}
                 >
@@ -95,8 +116,13 @@ export default function Login() {
               </div>
             </div>
           </CardContent>
-          <CardFooter className="flex flex-col gap-4">
-            <Button type="submit" className="w-full" disabled={isLoading}>
+
+          <CardFooter className="flex flex-col gap-4 pt-2">
+            <Button 
+              type="submit" 
+              className="w-full h-11 font-medium shadow-sm" 
+              disabled={isLoading}
+            >
               {isLoading ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -106,8 +132,8 @@ export default function Login() {
                 "Entrar"
               )}
             </Button>
-            <p className="text-center text-sm text-muted-foreground">
-              Para solicitar acesso, entre em contato com o administrador do sistema.
+            <p className="text-center text-xs text-muted-foreground">
+              Entre em contato com o administrador para obter acesso
             </p>
           </CardFooter>
         </form>

@@ -144,35 +144,41 @@ export default function APT() {
 
   return (
     <AppLayout>
-      <div className="p-4 lg:p-6">
+      <div className="p-4 lg:p-6 max-w-[1800px] mx-auto">
         {/* Header */}
-        <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
           <div>
-            <h1 className="text-2xl font-bold">
+            <h1 className="text-2xl font-bold tracking-tight">
               {isGestorOrAdmin ? "APT Geral" : "Minhas Demandas"}
             </h1>
-            <p className="text-sm text-muted-foreground">
+            <p className="text-sm text-muted-foreground mt-1">
               Acompanhamento de Performance de Tarefas
             </p>
-          </div>
-
-          <div className="flex flex-wrap items-center gap-2 sm:gap-4">
-            {/* Status badges */}
-            <div className="hidden sm:flex items-center gap-2">
+            
+            {/* Status badges - mobile visible */}
+            <div className="flex flex-wrap items-center gap-2 mt-3">
               {pendingCount > 0 && (
-                <Badge variant="outline" className="gap-1">
+                <Badge 
+                  variant="outline" 
+                  className="gap-1.5 bg-warning/10 text-warning border-warning/30"
+                >
                   <AlertCircle className="h-3 w-3" />
                   {pendingCount} pendentes
                 </Badge>
               )}
               {isGestorOrAdmin && pendingApprovalCount > 0 && (
-                <Badge variant="secondary" className="gap-1">
+                <Badge 
+                  variant="outline"
+                  className="gap-1.5 bg-primary/10 text-primary border-primary/30"
+                >
                   <CheckCircle2 className="h-3 w-3" />
-                  {pendingApprovalCount} aguardando aprovação
+                  {pendingApprovalCount} aguardando
                 </Badge>
               )}
             </div>
+          </div>
 
+          <div className="flex flex-wrap items-center gap-2">
             {/* Export button */}
             <ExportDemandasButton
               demandas={demandas}
@@ -220,10 +226,12 @@ export default function APT() {
 
         <div className="flex flex-col lg:flex-row gap-6">
           {/* Filters sidebar (desktop) */}
-          <aside className="hidden lg:block w-64 shrink-0">
-            <Card>
-              <CardContent className="p-4">
-                <h2 className="font-semibold mb-4">Filtros</h2>
+          <aside className="hidden lg:block w-72 shrink-0">
+            <Card className="sticky top-20 shadow-sm">
+              <CardContent className="p-5">
+                <h2 className="font-semibold text-sm uppercase tracking-wide text-muted-foreground mb-4">
+                  Filtros
+                </h2>
                 <APTFilters
                   profiles={profiles}
                   setores={setores}
@@ -387,11 +395,11 @@ export default function APT() {
                   </div>
                 )}
 
-                <Card>
+                <Card className="shadow-sm overflow-hidden">
                   <Table>
-                    <TableHeader className="bg-[hsl(var(--apt-header))]">
-                      <TableRow className="hover:bg-[hsl(var(--apt-header))]">
-                        <TableHead className="w-10 text-primary-foreground">
+                    <TableHeader className="bg-primary">
+                      <TableRow className="hover:bg-primary border-0">
+                        <TableHead className="w-10 text-primary-foreground font-semibold">
                           <Checkbox
                             checked={allSelected}
                             ref={(el) => {
@@ -400,27 +408,27 @@ export default function APT() {
                               }
                             }}
                             onCheckedChange={toggleSelectAll}
-                            className="border-white data-[state=checked]:bg-white data-[state=checked]:text-primary"
+                            className="border-primary-foreground/50 data-[state=checked]:bg-primary-foreground data-[state=checked]:text-primary"
                           />
                         </TableHead>
-                        <TableHead className="text-center w-16 text-primary-foreground">Nº</TableHead>
-                        <TableHead className="w-24 text-primary-foreground">Setor</TableHead>
-                        <TableHead className="w-32 text-primary-foreground">Responsável</TableHead>
-                        <TableHead className="text-primary-foreground">Descrição</TableHead>
-                        <TableHead className="text-center w-20 text-primary-foreground">
+                        <TableHead className="text-center w-16 text-primary-foreground font-semibold">Nº</TableHead>
+                        <TableHead className="w-28 text-primary-foreground font-semibold">Setor</TableHead>
+                        <TableHead className="w-36 text-primary-foreground font-semibold">Responsável</TableHead>
+                        <TableHead className="text-primary-foreground font-semibold">Descrição</TableHead>
+                        <TableHead className="text-center w-20 text-primary-foreground font-semibold">
                           Feito?
                         </TableHead>
                         {isGestorOrAdmin && (
-                          <TableHead className="text-center w-20 text-primary-foreground">
+                          <TableHead className="text-center w-20 text-primary-foreground font-semibold">
                             Aprovado?
                           </TableHead>
                         )}
-                        <TableHead className="text-center w-12 text-primary-foreground">Repetição</TableHead>
-                        <TableHead className="text-center w-20 text-primary-foreground">
+                        <TableHead className="text-center w-16 text-primary-foreground font-semibold">Rep.</TableHead>
+                        <TableHead className="text-center w-20 text-primary-foreground font-semibold">
                           Semana
                         </TableHead>
                         {isGestorOrAdmin && (
-                          <TableHead className="text-center w-20 text-primary-foreground">
+                          <TableHead className="text-center w-24 text-primary-foreground font-semibold">
                             Ações
                           </TableHead>
                         )}
