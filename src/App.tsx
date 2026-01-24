@@ -6,9 +6,7 @@ import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider } from "@/contexts/AuthContext";
 import ProtectedRoute from "@/components/ProtectedRoute";
 import Login from "./pages/Login";
-import Cadastro from "./pages/Cadastro";
 import APT from "./pages/APT";
-import Usuarios from "./pages/Usuarios";
 import Configuracoes from "./pages/Configuracoes";
 import NotFound from "./pages/NotFound";
 
@@ -24,20 +22,11 @@ const App = () => (
           <Routes>
             <Route path="/" element={<Navigate to="/apt" replace />} />
             <Route path="/login" element={<Login />} />
-            <Route path="/cadastro" element={<Cadastro />} />
             <Route
               path="/apt"
               element={
                 <ProtectedRoute>
                   <APT />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/usuarios"
-              element={
-                <ProtectedRoute requireGestor>
-                  <Usuarios />
                 </ProtectedRoute>
               }
             />

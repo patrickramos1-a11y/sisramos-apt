@@ -18,7 +18,6 @@ import {
   User,
   LogOut,
   Settings,
-  Users,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -43,12 +42,6 @@ export default function AppLayout({ children }: AppLayoutProps) {
       href: "/apt",
       icon: ClipboardList,
       show: true,
-    },
-    {
-      name: "Gestão de Usuários",
-      href: "/usuarios",
-      icon: Users,
-      show: role === "admin",
     },
     {
       name: "Configurações",

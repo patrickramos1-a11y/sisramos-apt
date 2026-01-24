@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import AppLayout from "@/components/layout/AppLayout";
+import NovoUsuarioDialog from "@/components/users/NovoUsuarioDialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -21,14 +22,24 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2, Save, User, Pencil, X, Users } from "lucide-react";
 
-interface UserProfile {
+type AppRole = "admin" | "gestor" | "colaborador";
+
+interface UserWithRole {
   id: string;
   user_id: string;
   nome: string;
   email: string;
+  role: AppRole;
 }
 
 export default function Configuracoes() {
@@ -37,34 +48,91 @@ export default function Configuracoes() {
   const [isLoading, setIsLoading] = useState(false);
   const [isEditingNome, setIsEditingNome] = useState(false);
   const [isEditingEmail, setIsEditingEmail] = useState(false);
-  const [allUsers, setAllUsers] = useState<UserProfile[]>([]);
+  const [allUsers, setAllUsers] = useState<UserWithRole[]>([]);
   const [isLoadingUsers, setIsLoadingUsers] = useState(true);
-  
+  const [updatingRoleFor, setUpdatingRoleFor] = useState<string | null>(null);
+
   const [formData, setFormData] = useState({
     nome: "",
     email: "",
   });
 
-  const isAdmin = role === "admin";
+  const isGestorOrAdmin = role === "admin" || role === "gestor";
 
   const fetchAllUsers = async () => {
     setIsLoadingUsers(true);
-    const { data } = await supabase
-      .from("profiles")
-      .select("*")
-      .order("nome");
     
-    if (data) {
-      setAllUsers(data);
+    try {
+      const { data: profiles } = await supabase
+        .from("profiles")
+        .select("*")
+        .order("nome");
+
+      if (profiles) {
+        const usersWithRoles: UserWithRole[] = [];
+
+        for (const profile of profiles) {
+          const { data: roleData } = await supabase
+            .from("user_roles")
+            .select("role")
+            .eq("user_id", profile.user_id)
+            .single();
+
+          usersWithRoles.push({
+            ...profile,
+            role: (roleData?.role as AppRole) || "colaborador",
+          });
+        }
+
+        setAllUsers(usersWithRoles);
+      }
+    } catch (error) {
+      console.error("Erro ao carregar usuários:", error);
     }
+
     setIsLoadingUsers(false);
   };
 
   useEffect(() => {
-    if (isAdmin) {
+    if (isGestorOrAdmin) {
       fetchAllUsers();
     }
-  }, [isAdmin]);
+  }, [isGestorOrAdmin]);
+
+  const handleUpdateRole = async (userId: string, newRole: AppRole) => {
+    setUpdatingRoleFor(userId);
+
+    try {
+      const response = await supabase.functions.invoke("update-user-role", {
+        body: { userId, newRole },
+      });
+
+      if (response.error) {
+        throw new Error(response.error.message || "Erro ao atualizar perfil");
+      }
+
+      if (response.data?.error) {
+        throw new Error(response.data.error);
+      }
+
+      setAllUsers((prev) =>
+        prev.map((u) => (u.user_id === userId ? { ...u, role: newRole } : u))
+      );
+
+      toast({
+        title: "Perfil atualizado!",
+        description: "O tipo de perfil foi alterado com sucesso.",
+      });
+    } catch (error: any) {
+      toast({
+        variant: "destructive",
+        title: "Erro ao atualizar perfil",
+        description: error.message,
+      });
+    }
+
+    setUpdatingRoleFor(null);
+  };
 
   const handleSaveNome = async () => {
     if (!formData.nome.trim()) {
@@ -115,7 +183,6 @@ export default function Configuracoes() {
     setIsLoading(true);
 
     try {
-      // Update profile in profiles table
       const { error: profileError } = await supabase
         .from("profiles")
         .update({ email: formData.email.trim() })
@@ -123,7 +190,6 @@ export default function Configuracoes() {
 
       if (profileError) throw profileError;
 
-      // Update auth email
       const { error: authError } = await supabase.auth.updateUser({
         email: formData.email.trim(),
       });
@@ -165,7 +231,17 @@ export default function Configuracoes() {
     setIsEditingEmail(false);
   };
 
-  // Update form when profile loads
+  const getRoleBadge = (userRole: AppRole) => {
+    switch (userRole) {
+      case "admin":
+        return <Badge variant="destructive">Administrador</Badge>;
+      case "gestor":
+        return <Badge variant="default">Gestor</Badge>;
+      default:
+        return <Badge variant="secondary">Colaborador</Badge>;
+    }
+  };
+
   useEffect(() => {
     if (profile) {
       setFormData({
@@ -182,6 +258,7 @@ export default function Configuracoes() {
           <h1 className="text-2xl font-bold">Configurações</h1>
           <p className="text-sm text-muted-foreground">
             Gerencie suas informações pessoais
+            {isGestorOrAdmin && " e os usuários do sistema"}
           </p>
         </div>
 
@@ -312,17 +389,22 @@ export default function Configuracoes() {
           </CardContent>
         </Card>
 
-        {/* Lista de Usuários - Apenas Admin */}
-        {isAdmin && (
+        {/* Lista de Usuários - Admin e Gestor */}
+        {isGestorOrAdmin && (
           <Card>
             <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Users className="h-5 w-5" />
-                Usuários do Sistema
-              </CardTitle>
-              <CardDescription>
-                Lista de todos os usuários cadastrados no sistema
-              </CardDescription>
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle className="flex items-center gap-2">
+                    <Users className="h-5 w-5" />
+                    Usuários do Sistema
+                  </CardTitle>
+                  <CardDescription>
+                    Gerencie os usuários e seus tipos de perfil
+                  </CardDescription>
+                </div>
+                <NovoUsuarioDialog onUserCreated={fetchAllUsers} />
+              </div>
             </CardHeader>
             <CardContent>
               {isLoadingUsers ? (
@@ -339,6 +421,8 @@ export default function Configuracoes() {
                     <TableRow>
                       <TableHead>Nome</TableHead>
                       <TableHead>E-mail</TableHead>
+                      <TableHead>Perfil</TableHead>
+                      <TableHead className="w-[180px]">Alterar Perfil</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -346,6 +430,29 @@ export default function Configuracoes() {
                       <TableRow key={u.id}>
                         <TableCell className="font-medium">{u.nome}</TableCell>
                         <TableCell>{u.email}</TableCell>
+                        <TableCell>{getRoleBadge(u.role)}</TableCell>
+                        <TableCell>
+                          {updatingRoleFor === u.user_id ? (
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                          ) : (
+                            <Select
+                              value={u.role}
+                              onValueChange={(value: AppRole) =>
+                                handleUpdateRole(u.user_id, value)
+                              }
+                              disabled={u.user_id === user?.id}
+                            >
+                              <SelectTrigger className="w-[150px]">
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="colaborador">Colaborador</SelectItem>
+                                <SelectItem value="gestor">Gestor</SelectItem>
+                                <SelectItem value="admin">Administrador</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          )}
+                        </TableCell>
                       </TableRow>
                     ))}
                   </TableBody>
@@ -360,14 +467,13 @@ export default function Configuracoes() {
           <CardContent className="pt-6">
             <div className="flex items-center gap-2">
               <span className="text-sm text-muted-foreground">Seu perfil:</span>
-              <Badge variant={role === "admin" ? "destructive" : role === "gestor" ? "default" : "secondary"}>
-                {role === "admin" ? "Admin" : role === "gestor" ? "Gestor" : "Colaborador"}
-              </Badge>
+              {getRoleBadge(role || "colaborador")}
             </div>
             {role === "colaborador" && (
               <p className="text-xs text-muted-foreground mt-2">
-                Como colaborador, você pode visualizar e atualizar suas demandas. 
-                Para criar demandas ou acessar funcionalidades de gestão, solicite a um administrador.
+                Como colaborador, você pode visualizar e atualizar suas demandas.
+                Para criar demandas ou acessar funcionalidades de gestão, solicite a
+                um administrador.
               </p>
             )}
           </CardContent>

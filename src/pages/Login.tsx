@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -90,10 +90,7 @@ export default function Login() {
               )}
             </Button>
             <p className="text-center text-sm text-muted-foreground">
-              Não tem uma conta?{" "}
-              <Link to="/cadastro" className="text-primary hover:underline">
-                Cadastre-se
-              </Link>
+              Para solicitar acesso, entre em contato com o administrador do sistema.
             </p>
           </CardFooter>
         </form>
