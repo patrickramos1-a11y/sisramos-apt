@@ -76,24 +76,57 @@ Deno.serve(async (req) => {
     });
 
     if (createError) {
+      console.error("Erro ao criar usuário:", createError);
       return new Response(
         JSON.stringify({ error: createError.message }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    // O trigger handle_new_user já cria o profile e role padrão
-    // Atualizar role se diferente de colaborador
-    if (userRole !== "colaborador") {
-      const { error: roleError } = await adminClient
-        .from("user_roles")
-        .update({ role: userRole })
-        .eq("user_id", newUser.user.id);
+    const newUserId = newUser.user.id;
+    console.log(`Usuário criado no auth: ${newUserId}`);
 
-      if (roleError) {
-        console.error("Erro ao atualizar role:", roleError);
-      }
+    // Inserir profile manualmente (trigger não é acionado via admin API)
+    const { error: profileError } = await adminClient
+      .from("profiles")
+      .insert({
+        user_id: newUserId,
+        nome: nome.trim(),
+        email: email.trim(),
+      });
+
+    if (profileError) {
+      console.error("Erro ao criar profile:", profileError);
+      // Tentar deletar o usuário criado para manter consistência
+      await adminClient.auth.admin.deleteUser(newUserId);
+      return new Response(
+        JSON.stringify({ error: "Erro ao criar perfil do usuário" }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
     }
+
+    console.log(`Profile criado para usuário: ${newUserId}`);
+
+    // Inserir role
+    const { error: roleError } = await adminClient
+      .from("user_roles")
+      .insert({
+        user_id: newUserId,
+        role: userRole,
+      });
+
+    if (roleError) {
+      console.error("Erro ao criar role:", roleError);
+      // Profile já foi criado, mas role falhou - tentar limpar
+      await adminClient.from("profiles").delete().eq("user_id", newUserId);
+      await adminClient.auth.admin.deleteUser(newUserId);
+      return new Response(
+        JSON.stringify({ error: "Erro ao definir perfil do usuário" }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    console.log(`Role ${userRole} atribuído ao usuário: ${newUserId}`);
 
     return new Response(
       JSON.stringify({ 
