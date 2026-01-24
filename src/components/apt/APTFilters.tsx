@@ -198,6 +198,18 @@ export default function APTFilters({
   onClearFilters,
   showResponsavelFilter = true,
 }: APTFiltersProps) {
+  // Hooks must be at the top of the component
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  // Auto-resize textarea
+  useEffect(() => {
+    const textarea = textareaRef.current;
+    if (textarea) {
+      textarea.style.height = "auto";
+      textarea.style.height = `${Math.min(textarea.scrollHeight, 120)}px`;
+    }
+  }, [filters.busca]);
+
   const updateFilter = <K extends keyof MultiFilters>(key: K, value: MultiFilters[K]) => {
     onFiltersChange({ ...filters, [key]: value });
   };
@@ -221,17 +233,6 @@ export default function APTFilters({
     value: s.id,
     label: s.nome,
   }));
-
-  const textareaRef = useRef<HTMLTextAreaElement>(null);
-
-  // Auto-resize textarea
-  useEffect(() => {
-    const textarea = textareaRef.current;
-    if (textarea) {
-      textarea.style.height = "auto";
-      textarea.style.height = `${Math.min(textarea.scrollHeight, 120)}px`;
-    }
-  }, [filters.busca]);
 
   // IMPORTANT: keep this as JSX (not an inline component) to avoid remounting
   // on every keystroke, which would steal focus from inputs and close popovers.
