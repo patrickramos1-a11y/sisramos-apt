@@ -63,9 +63,10 @@ export default function DemandaTableRow({
       className={cn(
         "cursor-pointer transition-colors",
         prioritaria && "bg-[hsl(var(--apt-prioritaria))] hover:bg-[hsl(var(--apt-prioritaria))]/80",
-        !prioritaria && isAlternateRow && "bg-muted/40",
-        !prioritaria && !isAlternateRow && "bg-background",
-        !prioritaria && "hover:bg-muted/60",
+        // Zebra striping: branco (card) + cinza claro (muted)
+        !prioritaria && isAlternateRow && "bg-[hsl(var(--apt-zebra))]",
+        !prioritaria && !isAlternateRow && "bg-card",
+        !prioritaria && "hover:bg-muted/70",
         isSelected && "ring-2 ring-inset ring-primary/50"
       )}
       onClick={onClick}
