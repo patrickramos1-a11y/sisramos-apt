@@ -171,6 +171,30 @@ export default function Dashboard() {
     })).sort((a, b) => b.aprovado - a.aprovado);
   }, [demandas, getProfileById]);
 
+  // Dados: Não realizado por usuário (status_responsavel = nao_realizado)
+  const naoRealizadoPorUsuario = useMemo(() => {
+    const userNaoRealizado: Record<string, { nao_realizado: number; total: number }> = {};
+    
+    demandas.forEach((demanda) => {
+      const profile = getProfileById(demanda.responsavel_id);
+      const userName = profile?.nome || "Desconhecido";
+      
+      if (!userNaoRealizado[userName]) {
+        userNaoRealizado[userName] = { nao_realizado: 0, total: 0 };
+      }
+      userNaoRealizado[userName].total++;
+      if (demanda.status_responsavel === "nao_realizado") {
+        userNaoRealizado[userName].nao_realizado++;
+      }
+    });
+
+    return Object.entries(userNaoRealizado).map(([nome, data]) => ({
+      nome,
+      nao_realizado: data.nao_realizado,
+      total: data.total,
+    })).sort((a, b) => b.nao_realizado - a.nao_realizado);
+  }, [demandas, getProfileById]);
+
   // Dados: Comparativo Feito vs Aprovado
   const comparativoFeitoAprovado = useMemo(() => {
     const userData: Record<string, { feito: number; aprovado: number }> = {};
@@ -209,6 +233,13 @@ export default function Dashboard() {
     aprovado: {
       label: "Aprovado",
       color: "hsl(221 83% 53%)",
+    },
+  };
+
+  const chartConfigNaoRealizado = {
+    nao_realizado: {
+      label: "Não Realizado",
+      color: "hsl(0 84% 60%)",
     },
   };
 
@@ -321,19 +352,37 @@ export default function Dashboard() {
             </CardContent>
           </Card>
 
-          {/* Aprovado por Usuário */}
+          {/* Gráfico de Aprovado */}
           <Card>
             <CardHeader>
-              <CardTitle className="text-lg">Aprovado por Usuário</CardTitle>
+              <CardTitle className="text-lg">Gráfico de Aprovado</CardTitle>
             </CardHeader>
             <CardContent>
               <ChartContainer config={chartConfigAprovado} className="h-[300px] w-full">
-                <BarChart data={aprovadoPorUsuario} layout="vertical" margin={{ left: 20, right: 20 }}>
-                  <CartesianGrid strokeDasharray="3 3" horizontal={true} vertical={false} />
-                  <XAxis type="number" />
-                  <YAxis dataKey="nome" type="category" width={100} tick={{ fontSize: 12 }} />
+                <BarChart data={aprovadoPorUsuario} margin={{ left: 20, right: 20, bottom: 20 }}>
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                  <XAxis dataKey="nome" tick={{ fontSize: 12 }} />
+                  <YAxis />
                   <ChartTooltip content={<ChartTooltipContent />} />
                   <Bar dataKey="aprovado" fill="var(--color-aprovado)" radius={4} />
+                </BarChart>
+              </ChartContainer>
+            </CardContent>
+          </Card>
+
+          {/* Gráfico de Não Realizado */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-lg">Gráfico de Não Realizado</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <ChartContainer config={chartConfigNaoRealizado} className="h-[300px] w-full">
+                <BarChart data={naoRealizadoPorUsuario} margin={{ left: 20, right: 20, bottom: 20 }}>
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                  <XAxis dataKey="nome" tick={{ fontSize: 12 }} />
+                  <YAxis />
+                  <ChartTooltip content={<ChartTooltipContent />} />
+                  <Bar dataKey="nao_realizado" fill="var(--color-nao_realizado)" radius={4} />
                 </BarChart>
               </ChartContainer>
             </CardContent>
