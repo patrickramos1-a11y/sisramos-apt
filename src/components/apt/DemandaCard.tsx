@@ -18,6 +18,7 @@ interface DemandaCardProps {
   semanasRepeticao: number;
   semanaLimite: number[];
   prioritaria: boolean;
+  muitoUrgente?: boolean;
   canEditResponsavel: boolean;
   canEditGestor: boolean;
   canEditDemanda?: boolean;
@@ -39,6 +40,7 @@ export default function DemandaCard({
   semanasRepeticao,
   semanaLimite,
   prioritaria,
+  muitoUrgente,
   canEditResponsavel,
   canEditGestor,
   canEditDemanda,
@@ -54,7 +56,8 @@ export default function DemandaCard({
     <Card
       className={cn(
         "transition-all hover:shadow-md overflow-hidden",
-        prioritaria && "bg-[hsl(var(--apt-prioritaria))] border-warning/30"
+        muitoUrgente && "bg-[hsl(var(--apt-muito-urgente))] border-destructive/40",
+        prioritaria && !muitoUrgente && "bg-[hsl(var(--apt-prioritaria))] border-warning/30"
       )}
     >
       <CardContent className="p-0">
@@ -70,8 +73,13 @@ export default function DemandaCard({
             >
               {setor}
             </Badge>
-            {prioritaria && (
-              <Badge variant="destructive" className="text-[10px] px-1.5 py-0">
+            {muitoUrgente && (
+              <Badge className="text-[10px] px-1.5 py-0 bg-destructive/80 text-destructive-foreground">
+                Urgente
+              </Badge>
+            )}
+            {prioritaria && !muitoUrgente && (
+              <Badge variant="destructive" className="text-[10px] px-1.5 py-0 bg-warning text-warning-foreground">
                 Prioritária
               </Badge>
             )}

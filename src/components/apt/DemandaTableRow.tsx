@@ -25,6 +25,7 @@ interface DemandaTableRowProps {
   semanasRepeticao: number;
   semanaLimite: number[];
   prioritaria: boolean;
+  muitoUrgente?: boolean;
   canEditResponsavel: boolean;
   canEditGestor: boolean;
   canEditDemanda?: boolean;
@@ -52,6 +53,7 @@ export default function DemandaTableRow({
   semanasRepeticao,
   semanaLimite,
   prioritaria,
+  muitoUrgente,
   canEditResponsavel,
   canEditGestor,
   canEditDemanda,
@@ -72,10 +74,11 @@ export default function DemandaTableRow({
     <TableRow
       className={cn(
         "cursor-pointer transition-colors",
-        prioritaria && "bg-[hsl(var(--apt-prioritaria))] hover:bg-[hsl(var(--apt-prioritaria))]/80",
-        !prioritaria && isAlternateRow && "bg-[hsl(var(--apt-zebra))]",
-        !prioritaria && !isAlternateRow && "bg-card",
-        !prioritaria && "hover:bg-muted/70",
+        muitoUrgente && "bg-[hsl(var(--apt-muito-urgente))] hover:bg-[hsl(var(--apt-muito-urgente))]/80",
+        prioritaria && !muitoUrgente && "bg-[hsl(var(--apt-prioritaria))] hover:bg-[hsl(var(--apt-prioritaria))]/80",
+        !prioritaria && !muitoUrgente && isAlternateRow && "bg-[hsl(var(--apt-zebra))]",
+        !prioritaria && !muitoUrgente && !isAlternateRow && "bg-card",
+        !prioritaria && !muitoUrgente && "hover:bg-muted/70",
         isSelected && "ring-2 ring-inset ring-primary/50"
       )}
       onClick={onClick}

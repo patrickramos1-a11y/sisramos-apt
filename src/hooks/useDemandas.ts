@@ -20,6 +20,7 @@ interface Demanda {
   semana_limite: number[];
   data_limite: string | null;
   prioritaria: boolean;
+  muito_urgente: boolean;
   ativa: boolean;
   mes: number;
   ano: number;

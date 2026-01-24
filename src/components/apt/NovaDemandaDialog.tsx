@@ -65,6 +65,7 @@ export default function NovaDemandaDialog({
     mes: String(new Date().getMonth() + 1),
     ano: String(new Date().getFullYear()),
     prioritaria: false,
+    muito_urgente: false,
   });
 
   const resetForm = () => {
@@ -77,6 +78,7 @@ export default function NovaDemandaDialog({
       mes: String(new Date().getMonth() + 1),
       ano: String(new Date().getFullYear()),
       prioritaria: false,
+      muito_urgente: false,
     });
   };
 
@@ -136,6 +138,7 @@ export default function NovaDemandaDialog({
       mes: number;
       ano: number;
       prioritaria: boolean;
+      muito_urgente: boolean;
       grupo_id: string | null;
     }[] = [];
 
@@ -156,6 +159,7 @@ export default function NovaDemandaDialog({
           mes: parseInt(formData.mes),
           ano: parseInt(formData.ano),
           prioritaria: formData.prioritaria,
+          muito_urgente: formData.muito_urgente,
           grupo_id: grupoId,
         });
       }
@@ -433,20 +437,40 @@ export default function NovaDemandaDialog({
             </div>
           </div>
 
-          <div className="flex items-center gap-2">
-            <Checkbox
-              id="prioritaria"
-              checked={formData.prioritaria}
-              onCheckedChange={(checked) =>
-                setFormData((prev) => ({
-                  ...prev,
-                  prioritaria: checked as boolean,
-                }))
-              }
-            />
-            <Label htmlFor="prioritaria" className="cursor-pointer">
-              Demanda prioritária (destaque amarelo)
-            </Label>
+          <div className="space-y-3">
+            <div className="flex items-center gap-2">
+              <Checkbox
+                id="prioritaria"
+                checked={formData.prioritaria}
+                disabled={formData.muito_urgente}
+                onCheckedChange={(checked) =>
+                  setFormData((prev) => ({
+                    ...prev,
+                    prioritaria: checked as boolean,
+                  }))
+                }
+              />
+              <Label htmlFor="prioritaria" className="cursor-pointer">
+                Demanda prioritária (destaque amarelo)
+              </Label>
+            </div>
+            
+            <div className="flex items-center gap-2">
+              <Checkbox
+                id="muito_urgente"
+                checked={formData.muito_urgente}
+                onCheckedChange={(checked) =>
+                  setFormData((prev) => ({
+                    ...prev,
+                    muito_urgente: checked as boolean,
+                    prioritaria: checked ? false : prev.prioritaria,
+                  }))
+                }
+              />
+              <Label htmlFor="muito_urgente" className="cursor-pointer text-destructive">
+                Muito urgente (destaque vermelho)
+              </Label>
+            </div>
           </div>
 
           {/* Resumo */}
