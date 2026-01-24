@@ -15,6 +15,9 @@ export default function NotificationBell() {
     notifications,
     unreadCount,
     isLoading,
+    isRead,
+    markAsRead,
+    markAllAsRead,
     dismissNotification,
     dismissAllNotifications,
     dismissSelected,
@@ -36,6 +39,9 @@ export default function NotificationBell() {
         <NotificationList
           notifications={notifications}
           isLoading={isLoading}
+          isRead={isRead}
+          onMarkAsRead={markAsRead}
+          onMarkAllAsRead={markAllAsRead}
           onDismiss={dismissNotification}
           onDismissAll={dismissAllNotifications}
           onDismissSelected={dismissSelected}
