@@ -168,8 +168,8 @@ export default function NotificationList({
           <p className="text-sm">Nenhuma notificação</p>
         </div>
       ) : (
-        <ScrollArea className="max-h-80">
-          <div className="divide-y">
+        <ScrollArea className="h-[350px]">
+          <div className="divide-y pr-3">
             {notifications.map((notification) => {
               const read = isRead(notification.id);
               
