@@ -76,7 +76,8 @@ export function useDemandas() {
       .select("*")
       .eq("ativa", true)
       .order("prioritaria", { ascending: false })
-      .order("numero", { ascending: true });
+      // mantém uma ordem estável vinda do backend; a ordenação principal é feita client-side
+      .order("created_at", { ascending: true });
 
     // Apply multi-select filters using .in() for arrays
     if (filters.meses.length > 0) {
@@ -276,8 +277,9 @@ export function useDemandas() {
         } else if (field === "descricao") {
           comparison = a.descricao.localeCompare(b.descricao, "pt-BR");
         } else if (field === "semana") {
-          const semanaA = a.semana_limite[0] || 0;
-          const semanaB = b.semana_limite[0] || 0;
+          // semana_limite é um array: ordena pela menor semana marcada (1ª..5ª)
+          const semanaA = a.semana_limite?.length ? Math.min(...a.semana_limite) : 0;
+          const semanaB = b.semana_limite?.length ? Math.min(...b.semana_limite) : 0;
           comparison = semanaA - semanaB;
         }
 

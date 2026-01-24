@@ -212,7 +212,7 @@ export default function APT() {
                   return (
                     <DemandaCard
                       key={demanda.id}
-                      numero={demanda.numero}
+                      numero={index + 1}
                       setor={setor?.nome || "Sem setor"}
                       setorCor={setor?.cor || "#E5E7EB"}
                       responsavel={profile?.nome || "Desconhecido"}
@@ -362,7 +362,7 @@ export default function APT() {
                           <DemandaTableRow
                             key={demanda.id}
                             id={demanda.id}
-                            numero={demanda.numero}
+                            numero={index + 1}
                             setor={setor?.nome || "Sem setor"}
                             setorCor={setor?.cor || "#E5E7EB"}
                             responsavel={profile?.nome || "Desconhecido"}
