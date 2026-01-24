@@ -11,7 +11,6 @@ import ExcluirDemandasEmMassaDialog from "@/components/apt/ExcluirDemandasEmMass
 import AtualizarStatusEmMassaDialog from "@/components/apt/AtualizarStatusEmMassaDialog";
 import DemandaCard from "@/components/apt/DemandaCard";
 import DemandaTableRow from "@/components/apt/DemandaTableRow";
-import DemandaSortHeader from "@/components/apt/DemandaSortHeader";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -58,9 +57,6 @@ export default function APT() {
     getProfileById,
     getSetorById,
     getSiblingCount,
-    sortConfig,
-    toggleSort,
-    resetSort,
     pendingCount,
     pendingApprovalCount,
   } = useDemandas();
@@ -212,7 +208,7 @@ export default function APT() {
                   return (
                     <DemandaCard
                       key={demanda.id}
-                      numero={index + 1}
+                      numero={demanda.numero}
                       setor={setor?.nome || "Sem setor"}
                       setorCor={setor?.cor || "#E5E7EB"}
                       responsavel={profile?.nome || "Desconhecido"}
@@ -250,13 +246,6 @@ export default function APT() {
             ) : (
               /* Desktop: Table */
               <>
-                {/* Sort controls */}
-                <DemandaSortHeader
-                  sortConfig={sortConfig}
-                  onSortChange={toggleSort}
-                  onResetSort={resetSort}
-                />
-
                 {/* Bulk action controls */}
                 {selectedIds.size > 0 && (
                   <div className="flex flex-wrap items-center gap-2 mb-2 p-2 bg-muted rounded-lg">
@@ -362,7 +351,7 @@ export default function APT() {
                           <DemandaTableRow
                             key={demanda.id}
                             id={demanda.id}
-                            numero={index + 1}
+                            numero={demanda.numero}
                             setor={setor?.nome || "Sem setor"}
                             setorCor={setor?.cor || "#E5E7EB"}
                             responsavel={profile?.nome || "Desconhecido"}

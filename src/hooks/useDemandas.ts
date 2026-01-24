@@ -75,9 +75,8 @@ export function useDemandas() {
       .from("demandas")
       .select("*")
       .eq("ativa", true)
-      .order("prioritaria", { ascending: false })
-      // mantém uma ordem estável vinda do backend; a ordenação principal é feita client-side
-      .order("created_at", { ascending: true });
+      // ordem estável (e global) baseada na numeração persistida no banco
+      .order("numero", { ascending: true });
 
     // Apply multi-select filters using .in() for arrays
     if (filters.meses.length > 0) {
@@ -288,7 +287,8 @@ export function useDemandas() {
         }
       }
 
-      return 0;
+      // tie-breaker estável: número do banco
+      return a.numero - b.numero;
     });
   }, [demandas, sortConfig, getSetorById, getProfileById]);
 

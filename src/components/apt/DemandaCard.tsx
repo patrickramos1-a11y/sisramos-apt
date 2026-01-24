@@ -48,6 +48,8 @@ export default function DemandaCard({
   onEdit,
   onDelete,
 }: DemandaCardProps) {
+  const semanaOrdenacao = semanaLimite?.length ? Math.min(...semanaLimite) : 0;
+
   return (
     <Card
       className={cn(
@@ -80,7 +82,7 @@ export default function DemandaCard({
             <div className="flex items-center gap-4 text-xs text-muted-foreground">
               <span>Resp: {responsavel}</span>
               <span>X: {semanasRepeticao}</span>
-              <span>{semanaLimite[0]}ª semana</span>
+              <span>{semanaOrdenacao}ª semana</span>
             </div>
           </div>
 
