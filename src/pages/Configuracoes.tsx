@@ -3,6 +3,8 @@ import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import AppLayout from "@/components/layout/AppLayout";
 import NovoUsuarioDialog from "@/components/users/NovoUsuarioDialog";
+import EditarUsuarioDialog from "@/components/users/EditarUsuarioDialog";
+import ExcluirUsuarioDialog from "@/components/users/ExcluirUsuarioDialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -30,7 +32,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, Save, User, Pencil, X, Users } from "lucide-react";
+import { Loader2, Save, User, Pencil, X, Users, Trash2 } from "lucide-react";
 
 type AppRole = "admin" | "gestor" | "colaborador";
 
@@ -52,6 +54,10 @@ export default function Configuracoes() {
   const [isLoadingUsers, setIsLoadingUsers] = useState(true);
   const [updatingRoleFor, setUpdatingRoleFor] = useState<string | null>(null);
 
+  // Dialog states
+  const [editingUser, setEditingUser] = useState<UserWithRole | null>(null);
+  const [deletingUser, setDeletingUser] = useState<UserWithRole | null>(null);
+
   const [formData, setFormData] = useState({
     nome: "",
     email: "",
@@ -61,7 +67,7 @@ export default function Configuracoes() {
 
   const fetchAllUsers = async () => {
     setIsLoadingUsers(true);
-    
+
     try {
       const { data: profiles } = await supabase
         .from("profiles")
@@ -253,7 +259,7 @@ export default function Configuracoes() {
 
   return (
     <AppLayout>
-      <div className="p-4 lg:p-6 max-w-4xl mx-auto space-y-6">
+      <div className="p-4 lg:p-6 max-w-5xl mx-auto space-y-6">
         <div className="mb-6">
           <h1 className="text-2xl font-bold">Configurações</h1>
           <p className="text-sm text-muted-foreground">
@@ -416,47 +422,75 @@ export default function Configuracoes() {
                   Nenhum usuário cadastrado
                 </p>
               ) : (
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Nome</TableHead>
-                      <TableHead>E-mail</TableHead>
-                      <TableHead>Perfil</TableHead>
-                      <TableHead className="w-[180px]">Alterar Perfil</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {allUsers.map((u) => (
-                      <TableRow key={u.id}>
-                        <TableCell className="font-medium">{u.nome}</TableCell>
-                        <TableCell>{u.email}</TableCell>
-                        <TableCell>{getRoleBadge(u.role)}</TableCell>
-                        <TableCell>
-                          {updatingRoleFor === u.user_id ? (
-                            <Loader2 className="h-4 w-4 animate-spin" />
-                          ) : (
-                            <Select
-                              value={u.role}
-                              onValueChange={(value: AppRole) =>
-                                handleUpdateRole(u.user_id, value)
-                              }
-                              disabled={u.user_id === user?.id}
-                            >
-                              <SelectTrigger className="w-[150px]">
-                                <SelectValue />
-                              </SelectTrigger>
-                              <SelectContent>
-                                <SelectItem value="colaborador">Colaborador</SelectItem>
-                                <SelectItem value="gestor">Gestor</SelectItem>
-                                <SelectItem value="admin">Administrador</SelectItem>
-                              </SelectContent>
-                            </Select>
-                          )}
-                        </TableCell>
+                <div className="overflow-x-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Nome</TableHead>
+                        <TableHead>E-mail</TableHead>
+                        <TableHead>Perfil</TableHead>
+                        <TableHead className="w-[150px]">Alterar Perfil</TableHead>
+                        <TableHead className="w-[100px] text-center">Ações</TableHead>
                       </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
+                    </TableHeader>
+                    <TableBody>
+                      {allUsers.map((u) => (
+                        <TableRow key={u.id}>
+                          <TableCell className="font-medium">{u.nome}</TableCell>
+                          <TableCell>{u.email}</TableCell>
+                          <TableCell>{getRoleBadge(u.role)}</TableCell>
+                          <TableCell>
+                            {updatingRoleFor === u.user_id ? (
+                              <Loader2 className="h-4 w-4 animate-spin" />
+                            ) : (
+                              <Select
+                                value={u.role}
+                                onValueChange={(value: AppRole) =>
+                                  handleUpdateRole(u.user_id, value)
+                                }
+                                disabled={u.user_id === user?.id}
+                              >
+                                <SelectTrigger className="w-[130px]">
+                                  <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="colaborador">
+                                    Colaborador
+                                  </SelectItem>
+                                  <SelectItem value="gestor">Gestor</SelectItem>
+                                  <SelectItem value="admin">Admin</SelectItem>
+                                </SelectContent>
+                              </Select>
+                            )}
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex items-center justify-center gap-1">
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => setEditingUser(u)}
+                                disabled={u.user_id === user?.id}
+                                title="Editar usuário"
+                              >
+                                <Pencil className="h-4 w-4" />
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => setDeletingUser(u)}
+                                disabled={u.user_id === user?.id}
+                                title="Excluir usuário"
+                                className="text-destructive hover:text-destructive"
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
               )}
             </CardContent>
           </Card>
@@ -472,13 +506,28 @@ export default function Configuracoes() {
             {role === "colaborador" && (
               <p className="text-xs text-muted-foreground mt-2">
                 Como colaborador, você pode visualizar e atualizar suas demandas.
-                Para criar demandas ou acessar funcionalidades de gestão, solicite a
-                um administrador.
+                Para criar demandas ou acessar funcionalidades de gestão, solicite
+                a um administrador.
               </p>
             )}
           </CardContent>
         </Card>
       </div>
+
+      {/* Dialogs */}
+      <EditarUsuarioDialog
+        open={!!editingUser}
+        onOpenChange={(open) => !open && setEditingUser(null)}
+        user={editingUser}
+        onUserUpdated={fetchAllUsers}
+      />
+
+      <ExcluirUsuarioDialog
+        open={!!deletingUser}
+        onOpenChange={(open) => !open && setDeletingUser(null)}
+        user={deletingUser}
+        onUserDeleted={fetchAllUsers}
+      />
     </AppLayout>
   );
 }
