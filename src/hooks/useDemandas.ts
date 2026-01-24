@@ -2,7 +2,6 @@ import { useState, useEffect, useCallback, useMemo } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
-import { SortConfig, SortDirection } from "@/components/apt/DemandaSortHeader";
 import { MultiFilters } from "@/components/apt/APTFilters";
 
 type StatusBolinha = "pendente" | "executado" | "nao_realizado";
@@ -54,13 +53,6 @@ export function useDemandas() {
     statusResponsavel: [],
     statusGestor: [],
     busca: "",
-  });
-  // Ordenação padrão: setor, responsável e semana em ordem alfabética (A-Z)
-  const [sortConfig, setSortConfig] = useState<SortConfig>({
-    setor: "asc",
-    responsavel: "asc",
-    descricao: null,
-    semana: "asc",
   });
 
   const { user, isGestorOrAdmin } = useAuth();
@@ -225,72 +217,36 @@ export function useDemandas() {
     return setores.find((s) => s.id === setorId);
   }, [setores]);
 
-  const toggleSort = (field: keyof SortConfig) => {
-    setSortConfig((prev) => {
-      const currentDirection = prev[field];
-      let newDirection: SortDirection;
-      
-      if (currentDirection === null) {
-        newDirection = "asc";
-      } else if (currentDirection === "asc") {
-        newDirection = "desc";
-      } else {
-        newDirection = null;
-      }
-      
-      return { ...prev, [field]: newDirection };
-    });
-  };
-
-  const resetSort = () => {
-    setSortConfig({
-      setor: "asc",
-      responsavel: "asc",
-      descricao: null,
-      semana: "asc",
-    });
-  };
-
-  // Sort demandas based on sortConfig
+  // Sort demandas based on sortConfig (Setor A-Z, Responsável A-Z, Semana 1ª-5ª)
   const sortedDemandas = useMemo(() => {
-    if (!Object.values(sortConfig).some((v) => v !== null)) {
+    // Aguarda profiles e setores carregarem para ordenar corretamente
+    if (profiles.length === 0 && setores.length === 0) {
       return demandas;
     }
 
     return [...demandas].sort((a, b) => {
-      // Sort by each configured field in order
-      for (const field of ["setor", "responsavel", "descricao", "semana"] as const) {
-        const direction = sortConfig[field];
-        if (!direction) continue;
+      // 1. Setor (A-Z)
+      const setorA = getSetorById(a.setor_id)?.nome || "";
+      const setorB = getSetorById(b.setor_id)?.nome || "";
+      const setorComparison = setorA.localeCompare(setorB, "pt-BR");
+      if (setorComparison !== 0) return setorComparison;
 
-        let comparison = 0;
+      // 2. Responsável (A-Z)
+      const respA = getProfileById(a.responsavel_id)?.nome || "";
+      const respB = getProfileById(b.responsavel_id)?.nome || "";
+      const respComparison = respA.localeCompare(respB, "pt-BR");
+      if (respComparison !== 0) return respComparison;
 
-        if (field === "setor") {
-          const setorA = getSetorById(a.setor_id)?.nome || "";
-          const setorB = getSetorById(b.setor_id)?.nome || "";
-          comparison = setorA.localeCompare(setorB, "pt-BR");
-        } else if (field === "responsavel") {
-          const respA = getProfileById(a.responsavel_id)?.nome || "";
-          const respB = getProfileById(b.responsavel_id)?.nome || "";
-          comparison = respA.localeCompare(respB, "pt-BR");
-        } else if (field === "descricao") {
-          comparison = a.descricao.localeCompare(b.descricao, "pt-BR");
-        } else if (field === "semana") {
-          // semana_limite é um array: ordena pela menor semana marcada (1ª..5ª)
-          const semanaA = a.semana_limite?.length ? Math.min(...a.semana_limite) : 0;
-          const semanaB = b.semana_limite?.length ? Math.min(...b.semana_limite) : 0;
-          comparison = semanaA - semanaB;
-        }
+      // 3. Semana (1ª-5ª) - usa a menor semana do array
+      const semanaA = a.semana_limite?.length ? Math.min(...a.semana_limite) : 0;
+      const semanaB = b.semana_limite?.length ? Math.min(...b.semana_limite) : 0;
+      const semanaComparison = semanaA - semanaB;
+      if (semanaComparison !== 0) return semanaComparison;
 
-        if (comparison !== 0) {
-          return direction === "asc" ? comparison : -comparison;
-        }
-      }
-
-      // tie-breaker estável: número do banco
+      // 4. Tie-breaker: número do banco
       return a.numero - b.numero;
     });
-  }, [demandas, sortConfig, getSetorById, getProfileById]);
+  }, [demandas, profiles, setores, getSetorById, getProfileById]);
 
   // Get sibling count for a demand
   const getSiblingCount = useCallback((grupoId: string | null) => {
@@ -320,9 +276,6 @@ export function useDemandas() {
     getProfileById,
     getSetorById,
     getSiblingCount,
-    sortConfig,
-    toggleSort,
-    resetSort,
     pendingCount,
     pendingApprovalCount,
   };
