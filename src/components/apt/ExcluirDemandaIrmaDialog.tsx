@@ -13,6 +13,7 @@ import {
 import { Loader2, Undo2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { playDeleteSound, playUndoSound } from "@/lib/audioFeedback";
 
 interface SiblingDemanda {
   id: string;
@@ -97,6 +98,7 @@ export default function ExcluirDemandaIrmaDialog({
         description: error.message,
       });
     } else {
+      playUndoSound();
       toast({
         title: "Exclusão desfeita!",
         description: byGroup 
@@ -150,6 +152,9 @@ export default function ExcluirDemandaIrmaDialog({
 
     // Store for potential undo
     pendingDeleteRef.current = { ids: [demandaId], byGroup: false };
+
+    // Play delete sound
+    playDeleteSound();
 
     // Show toast with undo option
     const { id: toastId } = toast({
@@ -206,6 +211,9 @@ export default function ExcluirDemandaIrmaDialog({
 
     // Store for potential undo
     pendingDeleteRef.current = { ids: [], byGroup: true };
+
+    // Play delete sound
+    playDeleteSound();
 
     // Show toast with undo option
     const { id: toastId } = toast({

@@ -13,6 +13,7 @@ import {
 import { Loader2, AlertTriangle, Undo2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { playDeleteSound, playUndoSound } from "@/lib/audioFeedback";
 
 interface Demanda {
   id: string;
@@ -99,6 +100,7 @@ export default function ExcluirDemandasEmMassaDialog({
         description: error.message,
       });
     } else {
+      playUndoSound();
       toast({
         title: "Exclusão desfeita!",
         description: `${pendingDeleteRef.current.length} demanda(s) foram restauradas`,
@@ -153,6 +155,9 @@ export default function ExcluirDemandasEmMassaDialog({
 
     // Store IDs for potential undo
     pendingDeleteRef.current = idsToDelete;
+
+    // Play delete sound
+    playDeleteSound();
 
     // Show toast with undo option
     const { id: toastId } = toast({
