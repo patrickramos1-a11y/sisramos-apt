@@ -7,6 +7,7 @@ import EditarUsuarioDialog from "@/components/users/EditarUsuarioDialog";
 import ExcluirUsuarioDialog from "@/components/users/ExcluirUsuarioDialog";
 import AlterarSenhaDialog from "@/components/users/AlterarSenhaDialog";
 import UserFilters from "@/components/users/UserFilters";
+import SetoresManagement from "@/components/setores/SetoresManagement";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -566,6 +567,9 @@ export default function Configuracoes() {
             </CardContent>
           </Card>
         )}
+
+        {/* Gestão de Setores */}
+        {isGestorOrAdmin && <SetoresManagement />}
 
         {/* Informação sobre perfil */}
         <Card>

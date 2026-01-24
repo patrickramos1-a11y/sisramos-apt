@@ -14,7 +14,7 @@ interface Demanda {
   status_responsavel: StatusBolinha;
   status_gestor: StatusBolinha;
   semanas_repeticao: number;
-  semana_limite: number;
+  semana_limite: number[];
   data_limite: string | null;
   prioritaria: boolean;
   ativa: boolean;
@@ -93,7 +93,7 @@ export function useDemandas() {
       query = query.eq("setor_id", filters.setor);
     }
     if (filters.semanaLimite && filters.semanaLimite !== "all") {
-      query = query.eq("semana_limite", parseInt(filters.semanaLimite));
+      query = query.contains("semana_limite", [parseInt(filters.semanaLimite)]);
     }
     if (filters.statusResponsavel && filters.statusResponsavel !== "all") {
       query = query.eq("status_responsavel", filters.statusResponsavel as "pendente" | "executado" | "nao_realizado");
@@ -115,7 +115,7 @@ export function useDemandas() {
         description: "Erro ao carregar demandas",
       });
     } else {
-      setDemandas((data as Demanda[]) || []);
+      setDemandas(data || []);
     }
 
     setIsLoading(false);

@@ -26,7 +26,7 @@ export type Database = {
           numero: number
           prioritaria: boolean
           responsavel_id: string
-          semana_limite: number
+          semana_limite: number[]
           semanas_repeticao: number
           setor_id: string | null
           status_gestor: Database["public"]["Enums"]["status_bolinha"]
@@ -44,7 +44,7 @@ export type Database = {
           numero?: number
           prioritaria?: boolean
           responsavel_id: string
-          semana_limite?: number
+          semana_limite?: number[]
           semanas_repeticao?: number
           setor_id?: string | null
           status_gestor?: Database["public"]["Enums"]["status_bolinha"]
@@ -62,7 +62,7 @@ export type Database = {
           numero?: number
           prioritaria?: boolean
           responsavel_id?: string
-          semana_limite?: number
+          semana_limite?: number[]
           semanas_repeticao?: number
           setor_id?: string | null
           status_gestor?: Database["public"]["Enums"]["status_bolinha"]

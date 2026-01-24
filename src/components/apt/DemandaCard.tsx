@@ -1,7 +1,9 @@
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import StatusBolinha from "./StatusBolinha";
 import { cn } from "@/lib/utils";
+import { Pencil, Trash2 } from "lucide-react";
 
 type StatusBolinha = "pendente" | "executado" | "nao_realizado";
 
@@ -14,12 +16,15 @@ interface DemandaCardProps {
   statusResponsavel: StatusBolinha;
   statusGestor: StatusBolinha;
   semanasRepeticao: number;
-  semanaLimite: number;
+  semanaLimite: number[];
   prioritaria: boolean;
   canEditResponsavel: boolean;
   canEditGestor: boolean;
+  canEditDemanda?: boolean;
   onStatusResponsavelChange: () => void;
   onStatusGestorChange: () => void;
+  onEdit?: () => void;
+  onDelete?: () => void;
 }
 
 export default function DemandaCard({
@@ -35,8 +40,11 @@ export default function DemandaCard({
   prioritaria,
   canEditResponsavel,
   canEditGestor,
+  canEditDemanda,
   onStatusResponsavelChange,
   onStatusGestorChange,
+  onEdit,
+  onDelete,
 }: DemandaCardProps) {
   return (
     <Card
@@ -70,7 +78,7 @@ export default function DemandaCard({
             <div className="flex items-center gap-4 text-xs text-muted-foreground">
               <span>Resp: {responsavel}</span>
               <span>X: {semanasRepeticao}</span>
-              <span>{semanaLimite}ª semana</span>
+              <span>{semanaLimite.map(s => `${s}ª`).join(", ")} semana</span>
             </div>
           </div>
 
@@ -95,6 +103,29 @@ export default function DemandaCard({
             </div>
           </div>
         </div>
+
+        {canEditDemanda && (
+          <div className="flex items-center gap-2 mt-3 pt-3 border-t">
+            <Button
+              variant="outline"
+              size="sm"
+              className="flex-1 gap-1"
+              onClick={onEdit}
+            >
+              <Pencil className="h-3 w-3" />
+              Editar
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              className="flex-1 gap-1 text-destructive hover:text-destructive"
+              onClick={onDelete}
+            >
+              <Trash2 className="h-3 w-3" />
+              Excluir
+            </Button>
+          </div>
+        )}
       </CardContent>
     </Card>
   );

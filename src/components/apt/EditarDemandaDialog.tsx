@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -9,7 +9,6 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
 } from "@/components/ui/dialog";
 import {
   Select,
@@ -18,7 +17,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Plus, Loader2 } from "lucide-react";
+import { Loader2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 
@@ -33,18 +32,36 @@ interface Setor {
   nome: string;
 }
 
-interface NovaDemandaDialogProps {
-  profiles: Profile[];
-  setores: Setor[];
-  onDemandaCriada: () => void;
+interface Demanda {
+  id: string;
+  numero: number;
+  setor_id: string | null;
+  responsavel_id: string;
+  descricao: string;
+  semanas_repeticao: number;
+  semana_limite: number[];
+  mes: number;
+  ano: number;
+  prioritaria: boolean;
 }
 
-export default function NovaDemandaDialog({
+interface EditarDemandaDialogProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  demanda: Demanda | null;
+  profiles: Profile[];
+  setores: Setor[];
+  onDemandaEditada: () => void;
+}
+
+export default function EditarDemandaDialog({
+  open,
+  onOpenChange,
+  demanda,
   profiles,
   setores,
-  onDemandaCriada,
-}: NovaDemandaDialogProps) {
-  const [open, setOpen] = useState(false);
+  onDemandaEditada,
+}: EditarDemandaDialogProps) {
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
 
@@ -53,28 +70,30 @@ export default function NovaDemandaDialog({
     setor_id: "",
     descricao: "",
     semanas_repeticao: "1",
-    semana_limite: [1] as number[],
+    semana_limite: [] as number[],
     mes: String(new Date().getMonth() + 1),
     ano: String(new Date().getFullYear()),
     prioritaria: false,
   });
 
-  const resetForm = () => {
-    setFormData({
-      responsavel_id: "",
-      setor_id: "",
-      descricao: "",
-      semanas_repeticao: "1",
-      semana_limite: [1],
-      mes: String(new Date().getMonth() + 1),
-      ano: String(new Date().getFullYear()),
-      prioritaria: false,
-    });
-  };
+  useEffect(() => {
+    if (demanda) {
+      setFormData({
+        responsavel_id: demanda.responsavel_id,
+        setor_id: demanda.setor_id || "",
+        descricao: demanda.descricao,
+        semanas_repeticao: String(demanda.semanas_repeticao),
+        semana_limite: demanda.semana_limite || [1],
+        mes: String(demanda.mes),
+        ano: String(demanda.ano),
+        prioritaria: demanda.prioritaria,
+      });
+    }
+  }, [demanda]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!formData.responsavel_id || !formData.descricao.trim()) {
       toast({
         variant: "destructive",
@@ -95,31 +114,33 @@ export default function NovaDemandaDialog({
 
     setIsLoading(true);
 
-    const { error } = await supabase.from("demandas").insert({
-      responsavel_id: formData.responsavel_id,
-      setor_id: formData.setor_id || null,
-      descricao: formData.descricao.trim(),
-      semanas_repeticao: parseInt(formData.semanas_repeticao),
-      semana_limite: formData.semana_limite,
-      mes: parseInt(formData.mes),
-      ano: parseInt(formData.ano),
-      prioritaria: formData.prioritaria,
-    });
+    const { error } = await supabase
+      .from("demandas")
+      .update({
+        responsavel_id: formData.responsavel_id,
+        setor_id: formData.setor_id || null,
+        descricao: formData.descricao.trim(),
+        semanas_repeticao: parseInt(formData.semanas_repeticao),
+        semana_limite: formData.semana_limite,
+        mes: parseInt(formData.mes),
+        ano: parseInt(formData.ano),
+        prioritaria: formData.prioritaria,
+      })
+      .eq("id", demanda?.id);
 
     if (error) {
       toast({
         variant: "destructive",
-        title: "Erro ao criar demanda",
+        title: "Erro ao editar demanda",
         description: error.message,
       });
     } else {
       toast({
-        title: "Demanda criada!",
-        description: "A demanda foi adicionada com sucesso",
+        title: "Demanda atualizada!",
+        description: "As alterações foram salvas com sucesso",
       });
-      resetForm();
-      setOpen(false);
-      onDemandaCriada();
+      onOpenChange(false);
+      onDemandaEditada();
     }
 
     setIsLoading(false);
@@ -135,7 +156,6 @@ export default function NovaDemandaDialog({
       }
     });
   };
-
 
   const meses = [
     { value: "1", label: "Janeiro" },
@@ -158,17 +178,13 @@ export default function NovaDemandaDialog({
     label: String(currentYear - 2 + i),
   }));
 
+  const semanas = [1, 2, 3, 4, 5];
+
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>
-        <Button className="gap-2">
-          <Plus className="h-4 w-4" />
-          Nova Demanda
-        </Button>
-      </DialogTrigger>
+    <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Nova Demanda</DialogTitle>
+          <DialogTitle>Editar Demanda #{demanda?.numero}</DialogTitle>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-2">
@@ -246,7 +262,7 @@ export default function NovaDemandaDialog({
           <div className="space-y-2">
             <Label>Semana(s) Limite *</Label>
             <div className="flex flex-wrap gap-2">
-              {[1, 2, 3, 4, 5].map((s) => (
+              {semanas.map((s) => (
                 <Button
                   key={s}
                   type="button"
@@ -327,7 +343,7 @@ export default function NovaDemandaDialog({
             <Button
               type="button"
               variant="outline"
-              onClick={() => setOpen(false)}
+              onClick={() => onOpenChange(false)}
             >
               Cancelar
             </Button>
@@ -335,10 +351,10 @@ export default function NovaDemandaDialog({
               {isLoading ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Criando...
+                  Salvando...
                 </>
               ) : (
-                "Criar Demanda"
+                "Salvar Alterações"
               )}
             </Button>
           </div>
