@@ -189,24 +189,26 @@ export default function APT() {
 
           {/* Main content */}
           <div className="flex-1 min-w-0">
-            {/* Mobile filters and sort */}
-            <div className="mb-4 lg:hidden space-y-3">
-              <div className="flex items-center gap-2">
-                <APTFilters
-                  profiles={profiles}
-                  setores={setores}
-                  filters={filters}
-                  onFiltersChange={setFilters}
-                  onClearFilters={clearFilters}
-                  showResponsavelFilter={isGestorOrAdmin}
-                />
-              </div>
+            {/* Mobile filters only (sort header moved below for all devices) */}
+            <div className="mb-4 lg:hidden">
+              <APTFilters
+                profiles={profiles}
+                setores={setores}
+                filters={filters}
+                onFiltersChange={setFilters}
+                onClearFilters={clearFilters}
+                showResponsavelFilter={isGestorOrAdmin}
+              />
+            </div>
+
+            {/* Sort header - shown for all devices when there are demandas */}
+            {!isLoading && demandas.length > 0 && (
               <DemandaSortHeader
                 sortConfig={sortConfig}
                 onSortChange={toggleSort}
                 onResetSort={resetSort}
               />
-            </div>
+            )}
 
             {isLoading ? (
               <div className="flex items-center justify-center py-12">
@@ -271,12 +273,6 @@ export default function APT() {
             ) : (
               /* Desktop: Table */
               <>
-                {/* Sort header */}
-                <DemandaSortHeader
-                  sortConfig={sortConfig}
-                  onSortChange={toggleSort}
-                  onResetSort={resetSort}
-                />
 
                 {/* Bulk action controls */}
                 {selectedIds.size > 0 && (
