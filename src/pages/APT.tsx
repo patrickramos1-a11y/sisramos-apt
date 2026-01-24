@@ -9,6 +9,7 @@ import EditarDemandaIrmaDialog from "@/components/apt/EditarDemandaIrmaDialog";
 import ExcluirDemandaIrmaDialog from "@/components/apt/ExcluirDemandaIrmaDialog";
 import ExcluirDemandasEmMassaDialog from "@/components/apt/ExcluirDemandasEmMassaDialog";
 import AtualizarStatusEmMassaDialog from "@/components/apt/AtualizarStatusEmMassaDialog";
+import ExportDemandasButton from "@/components/apt/ExportDemandasButton";
 import DemandaCard from "@/components/apt/DemandaCard";
 import DemandaTableRow from "@/components/apt/DemandaTableRow";
 import DemandaSortHeader from "@/components/apt/DemandaSortHeader";
@@ -128,7 +129,7 @@ export default function APT() {
             </p>
           </div>
 
-          <div className="flex items-center gap-4">
+          <div className="flex flex-wrap items-center gap-2 sm:gap-4">
             {/* Status badges */}
             <div className="hidden sm:flex items-center gap-2">
               {pendingCount > 0 && (
@@ -144,6 +145,19 @@ export default function APT() {
                 </Badge>
               )}
             </div>
+
+            {/* Export button */}
+            <ExportDemandasButton
+              demandas={demandas}
+              profiles={profiles}
+              setores={setores}
+              getProfileById={getProfileById}
+              getSetorById={getSetorById}
+              activeFilters={{
+                mes: filters.meses.length === 1 ? filters.meses[0] : undefined,
+                ano: filters.anos.length === 1 ? filters.anos[0] : undefined,
+              }}
+            />
 
             {isGestorOrAdmin && (
               <NovaDemandaDialog
