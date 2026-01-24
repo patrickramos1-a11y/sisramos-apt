@@ -60,6 +60,8 @@ export default function DemandaTableRow({
   onDelete,
   onSelectChange,
 }: DemandaTableRowProps) {
+  const semanaOrdenacao = semanaLimite?.length ? Math.min(...semanaLimite) : 0;
+
   return (
     <TableRow
       className={cn(
@@ -113,7 +115,7 @@ export default function DemandaTableRow({
         </TableCell>
       )}
       <TableCell className="text-center w-12">{semanasRepeticao}x</TableCell>
-      <TableCell className="text-center w-20">{semanaLimite[0]}ª</TableCell>
+      <TableCell className="text-center w-20">{semanaOrdenacao}ª</TableCell>
       {canEditDemanda && (
         <TableCell className="text-center w-20" onClick={(e) => e.stopPropagation()}>
           <div className="flex items-center justify-center gap-1">
