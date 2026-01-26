@@ -11,45 +11,8 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const authHeader = req.headers.get("Authorization");
-    if (!authHeader) {
-      return new Response(
-        JSON.stringify({ error: "Não autorizado" }),
-        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
-
-    // Criar cliente com token do usuário para verificar permissões
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-    const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-
-    const userClient = createClient(supabaseUrl, supabaseAnonKey, {
-      global: { headers: { Authorization: authHeader } },
-    });
-
-    // Verificar se o usuário atual é gestor ou admin
-    const { data: { user: currentUser }, error: authError } = await userClient.auth.getUser();
-    if (authError || !currentUser) {
-      return new Response(
-        JSON.stringify({ error: "Não autorizado" }),
-        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
-
-    // Verificar role do usuário
-    const { data: roleData } = await userClient
-      .from("user_roles")
-      .select("role")
-      .eq("user_id", currentUser.id)
-      .single();
-
-    if (!roleData || (roleData.role !== "admin" && roleData.role !== "gestor")) {
-      return new Response(
-        JSON.stringify({ error: "Permissão negada. Apenas administradores e gestores podem criar usuários." }),
-        { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
 
     const { email, password, nome, role } = await req.json();
 
@@ -71,14 +34,13 @@ Deno.serve(async (req) => {
     const { data: newUser, error: createError } = await adminClient.auth.admin.createUser({
       email,
       password,
-      email_confirm: true, // Auto-confirmar e-mail
+      email_confirm: true,
       user_metadata: { nome },
     });
 
     if (createError) {
       console.error("Erro ao criar usuário:", createError);
       
-      // Traduzir mensagens de erro comuns
       let errorMessage = createError.message;
       if (errorMessage.includes("already been registered")) {
         errorMessage = "Já existe um usuário cadastrado com este e-mail";
@@ -97,7 +59,7 @@ Deno.serve(async (req) => {
     const newUserId = newUser.user.id;
     console.log(`Usuário criado no auth: ${newUserId}`);
 
-    // Inserir profile manualmente (trigger não é acionado via admin API)
+    // Inserir profile
     const { error: profileError } = await adminClient
       .from("profiles")
       .insert({
@@ -108,7 +70,6 @@ Deno.serve(async (req) => {
 
     if (profileError) {
       console.error("Erro ao criar profile:", profileError);
-      // Tentar deletar o usuário criado para manter consistência
       await adminClient.auth.admin.deleteUser(newUserId);
       return new Response(
         JSON.stringify({ error: "Erro ao criar perfil do usuário" }),
@@ -128,7 +89,6 @@ Deno.serve(async (req) => {
 
     if (roleError) {
       console.error("Erro ao criar role:", roleError);
-      // Profile já foi criado, mas role falhou - tentar limpar
       await adminClient.from("profiles").delete().eq("user_id", newUserId);
       await adminClient.auth.admin.deleteUser(newUserId);
       return new Response(
