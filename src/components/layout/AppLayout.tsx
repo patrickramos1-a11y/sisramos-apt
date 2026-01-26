@@ -34,8 +34,8 @@ export default function AppLayout({ children }: AppLayoutProps) {
   const location = useLocation();
   const navigate = useNavigate();
 
-  const handleSignOut = async () => {
-    await signOut();
+  const handleSignOut = () => {
+    signOut();
     navigate("/login");
   };
 
@@ -172,10 +172,10 @@ export default function AppLayout({ children }: AppLayoutProps) {
                 <DropdownMenuSeparator />
                 <DropdownMenuItem 
                   onClick={handleSignOut}
-                  className="text-destructive focus:text-destructive focus:bg-destructive/10 cursor-pointer"
+                  className="cursor-pointer"
                 >
                   <LogOut className="mr-2 h-4 w-4" />
-                  Sair do sistema
+                  Trocar usuário
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
