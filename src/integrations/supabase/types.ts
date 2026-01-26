@@ -14,6 +14,36 @@ export type Database = {
   }
   public: {
     Tables: {
+      checklist_items: {
+        Row: {
+          concluido: boolean
+          created_at: string
+          id: string
+          ordem: number
+          semana: number
+          texto: string
+          updated_at: string
+        }
+        Insert: {
+          concluido?: boolean
+          created_at?: string
+          id?: string
+          ordem?: number
+          semana: number
+          texto: string
+          updated_at?: string
+        }
+        Update: {
+          concluido?: boolean
+          created_at?: string
+          id?: string
+          ordem?: number
+          semana?: number
+          texto?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       demandas: {
         Row: {
           ano: number

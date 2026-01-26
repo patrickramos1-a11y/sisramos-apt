@@ -20,6 +20,7 @@ import {
   Settings,
   BarChart3,
   ChevronRight,
+  CheckSquare,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import NotificationBell from "@/components/notifications/NotificationBell";
@@ -44,6 +45,12 @@ export default function AppLayout({ children }: AppLayoutProps) {
       name: "Dashboard",
       href: "/dashboard",
       icon: BarChart3,
+      show: true,
+    },
+    {
+      name: "Checklist",
+      href: "/checklist",
+      icon: CheckSquare,
       show: true,
     },
     {
