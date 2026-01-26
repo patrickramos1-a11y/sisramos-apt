@@ -98,6 +98,25 @@ export default function ExcluirDemandaIrmaDialog({
         description: error.message,
       });
     } else {
+      // If undoing a single delete from a group, recalculate repetitions
+      if (!byGroup && grupoId) {
+        // Get the new count including the restored demand
+        const { data: allSiblings } = await supabase
+          .from("demandas")
+          .select("id")
+          .eq("grupo_id", grupoId)
+          .eq("ativa", true);
+
+        const count = allSiblings?.length || 0;
+        if (count > 0) {
+          await supabase
+            .from("demandas")
+            .update({ semanas_repeticao: count })
+            .eq("grupo_id", grupoId)
+            .eq("ativa", true);
+        }
+      }
+
       playUndoSound();
       toast({
         title: "Exclusão desfeita!",
@@ -129,6 +148,35 @@ export default function ExcluirDemandaIrmaDialog({
     pendingDeleteRef.current = null;
   };
 
+  const updateSiblingsRepetitions = async (grupoIdToUpdate: string) => {
+    // Get remaining siblings in the group
+    const { data: remainingSiblings, error: fetchError } = await supabase
+      .from("demandas")
+      .select("id")
+      .eq("grupo_id", grupoIdToUpdate)
+      .eq("ativa", true);
+
+    if (fetchError) {
+      console.error("Error fetching remaining siblings:", fetchError);
+      return;
+    }
+
+    const remainingCount = remainingSiblings?.length || 0;
+
+    if (remainingCount > 0) {
+      // Update semanas_repeticao for all remaining siblings
+      const { error: updateError } = await supabase
+        .from("demandas")
+        .update({ semanas_repeticao: remainingCount })
+        .eq("grupo_id", grupoIdToUpdate)
+        .eq("ativa", true);
+
+      if (updateError) {
+        console.error("Error updating siblings repetitions:", updateError);
+      }
+    }
+  };
+
   const handleDeleteSingle = async () => {
     if (!demandaId) return;
 
@@ -148,6 +196,11 @@ export default function ExcluirDemandaIrmaDialog({
       });
       setIsLoading(false);
       return;
+    }
+
+    // Update siblings' repetitions if this is part of a group
+    if (grupoId) {
+      await updateSiblingsRepetitions(grupoId);
     }
 
     // Store for potential undo
