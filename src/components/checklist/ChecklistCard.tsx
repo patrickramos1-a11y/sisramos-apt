@@ -1,9 +1,10 @@
 import { useState } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Plus, Pencil, Trash2, Check, X } from "lucide-react";
+import { Progress } from "@/components/ui/progress";
+import { Plus, Pencil, Trash2, Check, X, Calendar, CheckCircle2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface ChecklistItem {
@@ -16,6 +17,7 @@ interface ChecklistCardProps {
   semana: number;
   items: ChecklistItem[];
   canEdit: boolean;
+  isLocked: boolean;
   onAddItem: (texto: string) => Promise<void>;
   onUpdateItem: (id: string, updates: Partial<{ texto: string; concluido: boolean }>) => Promise<void>;
   onDeleteItem: (id: string) => Promise<void>;
@@ -25,6 +27,7 @@ export default function ChecklistCard({
   semana,
   items,
   canEdit,
+  isLocked,
   onAddItem,
   onUpdateItem,
   onDeleteItem,
@@ -61,44 +64,81 @@ export default function ChecklistCard({
   const completedCount = items.filter((i) => i.concluido).length;
   const totalCount = items.length;
   const progress = totalCount > 0 ? (completedCount / totalCount) * 100 : 0;
+  const allCompleted = totalCount > 0 && completedCount === totalCount;
+
+  const canModify = canEdit && !isLocked;
 
   return (
-    <Card className="h-full flex flex-col min-h-[280px]">
-      <CardHeader className="pb-3 space-y-3">
-        <div className="flex items-center justify-between gap-2">
-          <CardTitle className="text-base sm:text-lg font-semibold">
-            {semana}ª Semana
-          </CardTitle>
+    <Card className={cn(
+      "h-full flex flex-col overflow-hidden transition-all duration-200",
+      allCompleted && "ring-2 ring-primary/30 bg-primary/5"
+    )}>
+      {/* Header with gradient */}
+      <CardHeader className="p-0">
+        <div className={cn(
+          "px-4 py-3 bg-gradient-to-r",
+          allCompleted 
+            ? "from-primary/20 to-primary/10" 
+            : "from-muted to-muted/50"
+        )}>
+          <div className="flex items-center justify-between gap-2">
+            <div className="flex items-center gap-2">
+              <div className={cn(
+                "p-1.5 rounded-md",
+                allCompleted ? "bg-primary/20" : "bg-background/80"
+              )}>
+                {allCompleted ? (
+                  <CheckCircle2 className="h-4 w-4 text-primary" />
+                ) : (
+                  <Calendar className="h-4 w-4 text-muted-foreground" />
+                )}
+              </div>
+              <h3 className="font-semibold text-sm sm:text-base">
+                {semana}ª Semana
+              </h3>
+            </div>
+            {totalCount > 0 && (
+              <span className={cn(
+                "text-xs font-medium px-2 py-0.5 rounded-full",
+                allCompleted 
+                  ? "bg-primary/20 text-primary" 
+                  : "bg-background/80 text-muted-foreground"
+              )}>
+                {completedCount}/{totalCount}
+              </span>
+            )}
+          </div>
+          
+          {/* Progress bar */}
           {totalCount > 0 && (
-            <span className="text-xs sm:text-sm text-muted-foreground whitespace-nowrap">
-              {completedCount}/{totalCount}
-            </span>
+            <div className="mt-3">
+              <Progress value={progress} className="h-1.5" />
+            </div>
           )}
         </div>
-        {/* Progress bar */}
-        {totalCount > 0 && (
-          <div className="h-2 bg-muted rounded-full overflow-hidden">
-            <div
-              className="h-full bg-primary transition-all duration-300"
-              style={{ width: `${progress}%` }}
-            />
-          </div>
-        )}
       </CardHeader>
-      <CardContent className="flex-1 flex flex-col pt-0">
+
+      <CardContent className="flex-1 flex flex-col p-4 pt-3">
         {/* Items list */}
-        <div className="flex-1 space-y-2 mb-4">
+        <div className="flex-1 space-y-1.5 mb-4 min-h-[120px]">
           {items.length === 0 ? (
-            <p className="text-xs sm:text-sm text-muted-foreground text-center py-6">
-              Nenhum item cadastrado
-            </p>
+            <div className="flex flex-col items-center justify-center py-8 text-center">
+              <div className="p-3 bg-muted/50 rounded-full mb-2">
+                <Calendar className="h-5 w-5 text-muted-foreground" />
+              </div>
+              <p className="text-xs sm:text-sm text-muted-foreground">
+                Nenhum item cadastrado
+              </p>
+            </div>
           ) : (
             items.map((item) => (
               <div
                 key={item.id}
                 className={cn(
-                  "group flex items-start gap-3 p-3 rounded-lg border border-transparent transition-colors",
-                  item.concluido ? "bg-muted/50" : "hover:bg-muted/30 hover:border-border"
+                  "group flex items-start gap-3 p-2.5 rounded-lg border transition-all duration-150",
+                  item.concluido 
+                    ? "bg-muted/30 border-muted" 
+                    : "border-transparent hover:bg-muted/20 hover:border-border"
                 )}
               >
                 <Checkbox
@@ -107,6 +147,7 @@ export default function ChecklistCard({
                     onUpdateItem(item.id, { concluido: !!checked })
                   }
                   className="mt-0.5 shrink-0"
+                  disabled={isLocked && !canEdit}
                 />
                 {editingId === item.id ? (
                   <div className="flex-1 flex flex-col gap-2">
@@ -127,19 +168,19 @@ export default function ChecklistCard({
                       <Button
                         size="sm"
                         variant="ghost"
-                        className="h-8 px-2"
+                        className="h-7 px-2 text-xs"
                         onClick={handleSaveEdit}
                       >
-                        <Check className="h-4 w-4 text-primary mr-1" />
+                        <Check className="h-3.5 w-3.5 text-primary mr-1" />
                         Salvar
                       </Button>
                       <Button
                         size="sm"
                         variant="ghost"
-                        className="h-8 px-2"
+                        className="h-7 px-2 text-xs"
                         onClick={handleCancelEdit}
                       >
-                        <X className="h-4 w-4 text-muted-foreground mr-1" />
+                        <X className="h-3.5 w-3.5 text-muted-foreground mr-1" />
                         Cancelar
                       </Button>
                     </div>
@@ -154,23 +195,23 @@ export default function ChecklistCard({
                     >
                       {item.texto}
                     </span>
-                    {canEdit && (
-                      <div className="flex items-center gap-1 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity shrink-0">
+                    {canModify && (
+                      <div className="flex items-center gap-0.5 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity shrink-0">
                         <Button
                           size="icon"
                           variant="ghost"
-                          className="h-7 w-7"
+                          className="h-6 w-6"
                           onClick={() => handleStartEdit(item)}
                         >
-                          <Pencil className="h-3.5 w-3.5" />
+                          <Pencil className="h-3 w-3" />
                         </Button>
                         <Button
                           size="icon"
                           variant="ghost"
-                          className="h-7 w-7 text-destructive hover:text-destructive"
+                          className="h-6 w-6 text-destructive hover:text-destructive"
                           onClick={() => onDeleteItem(item.id)}
                         >
-                          <Trash2 className="h-3.5 w-3.5" />
+                          <Trash2 className="h-3 w-3" />
                         </Button>
                       </div>
                     )}
@@ -182,15 +223,15 @@ export default function ChecklistCard({
         </div>
 
         {/* Add new item */}
-        {canEdit && (
+        {canModify && (
           <>
             {isAdding ? (
-              <div className="space-y-2 border-t pt-4">
+              <div className="space-y-2 border-t pt-3">
                 <Textarea
                   placeholder="Digite o item do checklist..."
                   value={newItemText}
                   onChange={(e) => setNewItemText(e.target.value)}
-                  className="min-h-[80px] text-sm resize-none"
+                  className="min-h-[70px] text-sm resize-none"
                   autoFocus
                   onKeyDown={(e) => {
                     if (e.key === "Enter" && !e.shiftKey) {
@@ -207,22 +248,22 @@ export default function ChecklistCard({
                   <Button
                     size="sm"
                     variant="outline"
-                    className="h-8"
+                    className="h-8 text-xs"
                     onClick={() => {
                       setIsAdding(false);
                       setNewItemText("");
                     }}
                   >
-                    <X className="h-4 w-4 mr-1" />
+                    <X className="h-3.5 w-3.5 mr-1" />
                     Cancelar
                   </Button>
                   <Button
                     size="sm"
-                    className="h-8"
+                    className="h-8 text-xs"
                     onClick={handleAddItem}
                     disabled={!newItemText.trim()}
                   >
-                    <Check className="h-4 w-4 mr-1" />
+                    <Check className="h-3.5 w-3.5 mr-1" />
                     Adicionar
                   </Button>
                 </div>
@@ -231,14 +272,20 @@ export default function ChecklistCard({
               <Button
                 variant="outline"
                 size="sm"
-                className="w-full gap-2 mt-auto"
+                className="w-full gap-2 mt-auto text-xs"
                 onClick={() => setIsAdding(true)}
               >
-                <Plus className="h-4 w-4" />
+                <Plus className="h-3.5 w-3.5" />
                 Adicionar item
               </Button>
             )}
           </>
+        )}
+
+        {isLocked && !canEdit && (
+          <p className="text-xs text-muted-foreground text-center mt-2">
+            Mês bloqueado para edição
+          </p>
         )}
       </CardContent>
     </Card>
