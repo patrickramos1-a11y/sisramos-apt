@@ -79,6 +79,11 @@ export function useDemandas() {
       // ordem estável (e global) baseada na numeração persistida no banco
       .order("numero", { ascending: true });
 
+    // Colaboradores só veem suas próprias demandas
+    if (!isGestorOrAdmin) {
+      query = query.eq("responsavel_id", user.id);
+    }
+
     // Apply multi-select filters using .in() for arrays
     if (filters.meses.length > 0) {
       query = query.in("mes", filters.meses.map((m) => parseInt(m)));
@@ -125,7 +130,7 @@ export function useDemandas() {
     }
 
     setIsLoading(false);
-  }, [user, filters, toast]);
+  }, [user, filters, toast, isGestorOrAdmin]);
 
   const fetchProfiles = useCallback(async () => {
     const { data } = await supabase.from("profiles").select("*");
