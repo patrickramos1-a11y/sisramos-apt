@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Progress } from "@/components/ui/progress";
-import { Plus, Pencil, Trash2, Check, X, Calendar, CheckCircle2 } from "lucide-react";
+import { Pencil, Trash2, Check, X, Calendar, CheckCircle2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface ChecklistItem {
@@ -18,7 +18,6 @@ interface ChecklistCardProps {
   items: ChecklistItem[];
   canEdit: boolean;
   isLocked: boolean;
-  onAddItem: (texto: string) => Promise<void>;
   onUpdateItem: (id: string, updates: Partial<{ texto: string; concluido: boolean }>) => Promise<void>;
   onDeleteItem: (id: string) => Promise<void>;
 }
@@ -28,21 +27,11 @@ export default function ChecklistCard({
   items,
   canEdit,
   isLocked,
-  onAddItem,
   onUpdateItem,
   onDeleteItem,
 }: ChecklistCardProps) {
-  const [isAdding, setIsAdding] = useState(false);
-  const [newItemText, setNewItemText] = useState("");
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editingText, setEditingText] = useState("");
-
-  const handleAddItem = async () => {
-    if (!newItemText.trim()) return;
-    await onAddItem(newItemText.trim());
-    setNewItemText("");
-    setIsAdding(false);
-  };
 
   const handleStartEdit = (item: ChecklistItem) => {
     setEditingId(item.id);
@@ -221,66 +210,6 @@ export default function ChecklistCard({
             ))
           )}
         </div>
-
-        {/* Add new item */}
-        {canModify && (
-          <>
-            {isAdding ? (
-              <div className="space-y-2 border-t pt-3">
-                <Textarea
-                  placeholder="Digite o item do checklist..."
-                  value={newItemText}
-                  onChange={(e) => setNewItemText(e.target.value)}
-                  className="min-h-[70px] text-sm resize-none"
-                  autoFocus
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter" && !e.shiftKey) {
-                      e.preventDefault();
-                      handleAddItem();
-                    }
-                    if (e.key === "Escape") {
-                      setIsAdding(false);
-                      setNewItemText("");
-                    }
-                  }}
-                />
-                <div className="flex items-center gap-2 justify-end">
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    className="h-8 text-xs"
-                    onClick={() => {
-                      setIsAdding(false);
-                      setNewItemText("");
-                    }}
-                  >
-                    <X className="h-3.5 w-3.5 mr-1" />
-                    Cancelar
-                  </Button>
-                  <Button
-                    size="sm"
-                    className="h-8 text-xs"
-                    onClick={handleAddItem}
-                    disabled={!newItemText.trim()}
-                  >
-                    <Check className="h-3.5 w-3.5 mr-1" />
-                    Adicionar
-                  </Button>
-                </div>
-              </div>
-            ) : (
-              <Button
-                variant="outline"
-                size="sm"
-                className="w-full gap-2 mt-auto text-xs"
-                onClick={() => setIsAdding(true)}
-              >
-                <Plus className="h-3.5 w-3.5" />
-                Adicionar item
-              </Button>
-            )}
-          </>
-        )}
 
         {isLocked && !canEdit && (
           <p className="text-xs text-muted-foreground text-center mt-2">
