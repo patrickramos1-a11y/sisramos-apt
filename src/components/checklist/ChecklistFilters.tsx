@@ -50,6 +50,11 @@ export default function ChecklistFilters({
   onFiltersChange,
   onClearFilters,
 }: ChecklistFiltersProps) {
+  // Guard against undefined filters during hot reload
+  if (!filters) {
+    return null;
+  }
+
   const hasActiveFilters =
     filters.semanas.length > 0 ||
     filters.searchTerm.trim() !== "" ||
