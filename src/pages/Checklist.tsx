@@ -5,6 +5,7 @@ import { useMonthSettings } from "@/hooks/useMonthSettings";
 import AppLayout from "@/components/layout/AppLayout";
 import ChecklistCard from "@/components/checklist/ChecklistCard";
 import ChecklistFilters, { ChecklistMultiFilters } from "@/components/checklist/ChecklistFilters";
+import NovoItemChecklistDialog from "@/components/checklist/NovoItemChecklistDialog";
 import { Loader2, Info, Copy, Lock, Unlock } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
@@ -97,6 +98,11 @@ export default function Checklist() {
     }
   };
 
+  // Handler for adding item from the global dialog
+  const handleAddItemFromDialog = async (texto: string, semana: number, mes: number, ano: number) => {
+    await addItem(semana, texto, mes, ano);
+  };
+
   const handleClearFilters = () => {
     setFilters({
       meses: [String(now.getMonth() + 1)],
@@ -186,6 +192,14 @@ export default function Checklist() {
                   )}
                 </Button>
               )}
+
+              {/* Add new item button */}
+              <NovoItemChecklistDialog
+                onAddItem={handleAddItemFromDialog}
+                defaultMes={viewedMes ?? now.getMonth() + 1}
+                defaultAno={viewedAno ?? now.getFullYear()}
+                defaultSemana={1}
+              />
 
               {/* Rollover button */}
               <AlertDialog>
