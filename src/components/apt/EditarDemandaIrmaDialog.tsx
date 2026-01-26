@@ -276,20 +276,22 @@ export default function EditarDemandaIrmaDialog({
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="semanas">Semanas (X)</Label>
+            <Label htmlFor="semanas">Repetições</Label>
             <Input
               id="semanas"
               type="number"
               min="1"
               max="52"
               value={formData.semanas_repeticao}
-              onChange={(e) =>
-                setFormData((prev) => ({
-                  ...prev,
-                  semanas_repeticao: e.target.value,
-                }))
-              }
+              readOnly
+              disabled
+              className="bg-muted"
             />
+            <p className="text-xs text-muted-foreground">
+              {siblingCount > 1 
+                ? `Calculado automaticamente (${siblingCount} demandas no grupo)`
+                : "Demanda individual"}
+            </p>
           </div>
 
           {editScope === "single" && (

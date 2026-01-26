@@ -237,8 +237,12 @@ export default function ExcluirDemandaIrmaDialog({
     }, UNDO_TIMEOUT + 500);
 
     onOpenChange(false);
-    onDemandaExcluida();
     setIsLoading(false);
+    
+    // Small delay to ensure DB update is complete before refresh
+    setTimeout(() => {
+      onDemandaExcluida();
+    }, 100);
   };
 
   const handleDeleteAll = async () => {
