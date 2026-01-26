@@ -44,16 +44,12 @@ export default function Login() {
   const [users, setUsers] = useState<UserOption[]>([]);
   const [isLoadingUsers, setIsLoadingUsers] = useState(true);
   const [isLoggingIn, setIsLoggingIn] = useState<string | null>(null);
-  const { selectUser, profile } = useAuth();
+  const { selectUser, profile, signOut } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
 
-  // Redirect if already logged in
-  useEffect(() => {
-    if (profile) {
-      navigate("/apt");
-    }
-  }, [profile, navigate]);
+  // Check if coming from a logout (profile is null but we're on login page)
+  // Don't auto-redirect - let user choose another profile
 
   // Fetch all users
   useEffect(() => {
@@ -100,6 +96,11 @@ export default function Login() {
   }, []);
 
   const handleSelectUser = async (userId: string) => {
+    // If already logged in as a different user, sign out first
+    if (profile && profile.user_id !== userId) {
+      signOut();
+    }
+
     setIsLoggingIn(userId);
 
     const { error } = await selectUser(userId);
