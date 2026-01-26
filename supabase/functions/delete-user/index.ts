@@ -11,58 +11,14 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const authHeader = req.headers.get("Authorization");
-    if (!authHeader) {
-      return new Response(
-        JSON.stringify({ error: "Não autorizado" }),
-        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
-
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-    const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-
-    const userClient = createClient(supabaseUrl, supabaseAnonKey, {
-      global: { headers: { Authorization: authHeader } },
-    });
-
-    // Verificar se o usuário atual é gestor ou admin
-    const { data: { user: currentUser }, error: authError } = await userClient.auth.getUser();
-    if (authError || !currentUser) {
-      return new Response(
-        JSON.stringify({ error: "Não autorizado" }),
-        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
-
-    // Verificar role do usuário
-    const { data: roleData } = await userClient
-      .from("user_roles")
-      .select("role")
-      .eq("user_id", currentUser.id)
-      .single();
-
-    if (!roleData || (roleData.role !== "admin" && roleData.role !== "gestor")) {
-      return new Response(
-        JSON.stringify({ error: "Permissão negada. Apenas administradores e gestores podem excluir usuários." }),
-        { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
 
     const { userId } = await req.json();
 
     if (!userId) {
       return new Response(
         JSON.stringify({ error: "ID do usuário é obrigatório" }),
-        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
-
-    // Não permitir excluir a si mesmo
-    if (userId === currentUser.id) {
-      return new Response(
-        JSON.stringify({ error: "Você não pode excluir sua própria conta" }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
@@ -86,7 +42,7 @@ Deno.serve(async (req) => {
       );
     }
 
-    console.log(`Usuário ${userId} excluído por ${currentUser.id}`);
+    console.log(`Usuário ${userId} excluído com sucesso`);
 
     return new Response(
       JSON.stringify({ success: true }),
