@@ -15,13 +15,13 @@ export interface ChecklistItem {
 }
 
 interface UseChecklistOptions {
-  mes: number;
-  ano: number;
-  semana?: number | null;
+  meses: number[];
+  anos: number[];
+  semanas: number[];
   searchTerm?: string;
 }
 
-export function useChecklist({ mes, ano, semana, searchTerm }: UseChecklistOptions) {
+export function useChecklist({ meses, anos, semanas, searchTerm }: UseChecklistOptions) {
   const [items, setItems] = useState<ChecklistItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const { toast } = useToast();
@@ -33,14 +33,21 @@ export function useChecklist({ mes, ano, semana, searchTerm }: UseChecklistOptio
       let query = (supabase
         .from("checklist_items")
         .select("*") as any)
-        .eq("mes", mes)
-        .eq("ano", ano)
+        .order("ano", { ascending: false })
+        .order("mes", { ascending: false })
         .order("semana")
         .order("ordem")
         .order("created_at");
 
-      if (semana) {
-        query = query.eq("semana", semana);
+      // Apply multi-select filters using .in() for arrays
+      if (meses.length > 0) {
+        query = query.in("mes", meses);
+      }
+      if (anos.length > 0) {
+        query = query.in("ano", anos);
+      }
+      if (semanas.length > 0) {
+        query = query.in("semana", semanas);
       }
 
       if (searchTerm && searchTerm.trim()) {
@@ -56,7 +63,7 @@ export function useChecklist({ mes, ano, semana, searchTerm }: UseChecklistOptio
     } finally {
       setIsLoading(false);
     }
-  }, [mes, ano, semana, searchTerm]);
+  }, [meses, anos, semanas, searchTerm]);
 
   useEffect(() => {
     fetchItems();
@@ -82,10 +89,12 @@ export function useChecklist({ mes, ano, semana, searchTerm }: UseChecklistOptio
     };
   }, [fetchItems]);
 
-  const addItem = async (semanaNum: number, texto: string) => {
+  const addItem = async (semanaNum: number, texto: string, mes: number, ano: number) => {
     try {
-      // Get the max order for this week
-      const weekItems = items.filter((i) => i.semana === semanaNum);
+      // Get the max order for this week in this specific month/year
+      const weekItems = items.filter(
+        (i) => i.semana === semanaNum && i.mes === mes && i.ano === ano
+      );
       const maxOrder = weekItems.length > 0 
         ? Math.max(...weekItems.map((i) => i.ordem)) 
         : -1;
@@ -155,18 +164,35 @@ export function useChecklist({ mes, ano, semana, searchTerm }: UseChecklistOptio
     }
   };
 
-  const getItemsByWeek = (semanaNum: number) => {
-    return items.filter((item) => item.semana === semanaNum);
+  const getItemsByWeek = (semanaNum: number, mes?: number, ano?: number) => {
+    return items.filter((item) => {
+      let match = item.semana === semanaNum;
+      if (mes !== undefined) match = match && item.mes === mes;
+      if (ano !== undefined) match = match && item.ano === ano;
+      return match;
+    });
   };
 
-  const rolloverToNextMonth = async () => {
+  const rolloverToNextMonth = async (fromMes: number, fromAno: number) => {
     try {
       // Calculate next month
-      let nextMes = mes + 1;
-      let nextAno = ano;
+      let nextMes = fromMes + 1;
+      let nextAno = fromAno;
       if (nextMes > 12) {
         nextMes = 1;
-        nextAno = ano + 1;
+        nextAno = fromAno + 1;
+      }
+
+      // Get items from source month
+      const sourceItems = items.filter((i) => i.mes === fromMes && i.ano === fromAno);
+
+      if (sourceItems.length === 0) {
+        toast({
+          variant: "destructive",
+          title: "Nenhum item para copiar",
+          description: `Não há itens em ${fromMes}/${fromAno} para copiar.`,
+        });
+        return;
       }
 
       // Check if next month already has items
@@ -187,14 +213,7 @@ export function useChecklist({ mes, ano, semana, searchTerm }: UseChecklistOptio
       }
 
       // Copy items to next month with concluido = false
-      const itemsToInsert: Array<{
-        semana: number;
-        texto: string;
-        ordem: number;
-        mes: number;
-        ano: number;
-        concluido: boolean;
-      }> = items.map((item) => ({
+      const itemsToInsert = sourceItems.map((item) => ({
         semana: item.semana,
         texto: item.texto,
         ordem: item.ordem,
@@ -202,15 +221,6 @@ export function useChecklist({ mes, ano, semana, searchTerm }: UseChecklistOptio
         ano: nextAno,
         concluido: false,
       }));
-
-      if (itemsToInsert.length === 0) {
-        toast({
-          variant: "destructive",
-          title: "Nenhum item para copiar",
-          description: "Não há itens no mês atual para copiar.",
-        });
-        return;
-      }
 
       const { error } = await (supabase.from("checklist_items") as any).insert(itemsToInsert);
 
