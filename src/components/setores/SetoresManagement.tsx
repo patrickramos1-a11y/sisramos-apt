@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Card,
   CardContent,
@@ -32,7 +33,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Loader2, Plus, Pencil, Trash2, Palette } from "lucide-react";
+import { Loader2, Plus, Pencil, Trash2, Palette, Trash } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 
@@ -66,6 +67,10 @@ export default function SetoresManagement() {
   const [novoSetorOpen, setNovoSetorOpen] = useState(false);
   const [editingSetor, setEditingSetor] = useState<Setor | null>(null);
   const [deletingSetor, setDeletingSetor] = useState<Setor | null>(null);
+  const [deletingMultiple, setDeletingMultiple] = useState(false);
+
+  // Selection state
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
 
   // Form state
   const [formData, setFormData] = useState({ nome: "", cor: "#E5E7EB" });
@@ -200,6 +205,53 @@ export default function SetoresManagement() {
     setIsSaving(false);
   };
 
+  const handleDeleteMultiple = async () => {
+    if (selectedIds.size === 0) return;
+
+    setIsSaving(true);
+
+    const { error } = await supabase
+      .from("setores")
+      .delete()
+      .in("id", Array.from(selectedIds));
+
+    if (error) {
+      toast({
+        variant: "destructive",
+        title: "Erro ao excluir setores",
+        description: error.message,
+      });
+    } else {
+      toast({
+        title: "Setores excluídos!",
+        description: `${selectedIds.size} setor(es) removido(s) com sucesso`,
+      });
+      setSelectedIds(new Set());
+      setDeletingMultiple(false);
+      fetchSetores();
+    }
+
+    setIsSaving(false);
+  };
+
+  const toggleSelectAll = () => {
+    if (selectedIds.size === setores.length) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(setores.map((s) => s.id)));
+    }
+  };
+
+  const toggleSelect = (id: string) => {
+    const newSelected = new Set(selectedIds);
+    if (newSelected.has(id)) {
+      newSelected.delete(id);
+    } else {
+      newSelected.add(id);
+    }
+    setSelectedIds(newSelected);
+  };
+
   const openEditDialog = (setor: Setor) => {
     setFormData({ nome: setor.nome, cor: setor.cor || "#E5E7EB" });
     setEditingSetor(setor);
@@ -251,13 +303,25 @@ export default function SetoresManagement() {
               Gerencie os setores utilizados nas demandas
             </CardDescription>
           </div>
-          <Dialog open={novoSetorOpen} onOpenChange={setNovoSetorOpen}>
-            <DialogTrigger asChild>
-              <Button size="sm" className="gap-2" onClick={resetForm}>
-                <Plus className="h-4 w-4" />
-                Novo Setor
+          <div className="flex items-center gap-2">
+            {selectedIds.size > 0 && (
+              <Button
+                size="sm"
+                variant="destructive"
+                className="gap-2"
+                onClick={() => setDeletingMultiple(true)}
+              >
+                <Trash className="h-4 w-4" />
+                Excluir ({selectedIds.size})
               </Button>
-            </DialogTrigger>
+            )}
+            <Dialog open={novoSetorOpen} onOpenChange={setNovoSetorOpen}>
+              <DialogTrigger asChild>
+                <Button size="sm" className="gap-2" onClick={resetForm}>
+                  <Plus className="h-4 w-4" />
+                  Novo Setor
+                </Button>
+              </DialogTrigger>
             <DialogContent>
               <DialogHeader>
                 <DialogTitle>Novo Setor</DialogTitle>
@@ -295,8 +359,9 @@ export default function SetoresManagement() {
                   </Button>
                 </div>
               </form>
-            </DialogContent>
-          </Dialog>
+              </DialogContent>
+            </Dialog>
+          </div>
         </div>
       </CardHeader>
       <CardContent>
@@ -313,6 +378,13 @@ export default function SetoresManagement() {
             <Table>
               <TableHeader>
                 <TableRow>
+                  <TableHead className="w-[50px]">
+                    <Checkbox
+                      checked={selectedIds.size === setores.length && setores.length > 0}
+                      onCheckedChange={toggleSelectAll}
+                      aria-label="Selecionar todos"
+                    />
+                  </TableHead>
                   <TableHead>Cor</TableHead>
                   <TableHead>Nome</TableHead>
                   <TableHead className="w-[100px] text-center">Ações</TableHead>
@@ -322,8 +394,15 @@ export default function SetoresManagement() {
                 {setores.map((setor, index) => (
                   <TableRow 
                     key={setor.id}
-                    className={index % 2 === 1 ? "bg-muted/30" : ""}
+                    className={`${index % 2 === 1 ? "bg-muted/30" : ""} ${selectedIds.has(setor.id) ? "bg-primary/10" : ""}`}
                   >
+                    <TableCell>
+                      <Checkbox
+                        checked={selectedIds.has(setor.id)}
+                        onCheckedChange={() => toggleSelect(setor.id)}
+                        aria-label={`Selecionar ${setor.nome}`}
+                      />
+                    </TableCell>
                     <TableCell>
                       <div
                         className="w-8 h-8 rounded-full border"
@@ -434,6 +513,41 @@ export default function SetoresManagement() {
                 </>
               ) : (
                 "Excluir"
+              )}
+            </Button>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Delete Multiple Dialog */}
+      <AlertDialog
+        open={deletingMultiple}
+        onOpenChange={(open) => !open && setDeletingMultiple(false)}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Excluir {selectedIds.size} setor(es)?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Esta ação não pode ser desfeita. Demandas associadas a estes setores
+              ficarão sem setor definido.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setDeletingMultiple(false)}
+              disabled={isSaving}
+            >
+              Cancelar
+            </Button>
+            <Button variant="destructive" onClick={handleDeleteMultiple} disabled={isSaving}>
+              {isSaving ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Excluindo...
+                </>
+              ) : (
+                `Excluir ${selectedIds.size} setor(es)`
               )}
             </Button>
           </AlertDialogFooter>
