@@ -4,26 +4,29 @@ import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
-import { ClipboardList, Loader2, User, Search, Users } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { ClipboardList, Loader2 } from "lucide-react";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 type AppRole = "admin" | "gestor" | "colaborador";
 
 interface UserOption {
   user_id: string;
   nome: string;
-  email: string;
   role: AppRole;
 }
 
 export default function Login() {
   const [users, setUsers] = useState<UserOption[]>([]);
   const [isLoadingUsers, setIsLoadingUsers] = useState(true);
-  const [isSelectingUser, setIsSelectingUser] = useState<string | null>(null);
-  const [searchTerm, setSearchTerm] = useState("");
+  const [selectedUserId, setSelectedUserId] = useState<string>("");
+  const [isLoggingIn, setIsLoggingIn] = useState(false);
   const { selectUser, profile } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
@@ -64,7 +67,6 @@ export default function Login() {
             usersWithRoles.push({
               user_id: profile.user_id,
               nome: profile.nome,
-              email: profile.email,
               role: (roleData?.role as AppRole) || "colaborador",
             });
           }
@@ -80,10 +82,19 @@ export default function Login() {
     fetchUsers();
   }, []);
 
-  const handleSelectUser = async (userId: string) => {
-    setIsSelectingUser(userId);
+  const handleLogin = async () => {
+    if (!selectedUserId) {
+      toast({
+        variant: "destructive",
+        title: "Selecione um usuário",
+        description: "Por favor, selecione um usuário para continuar",
+      });
+      return;
+    }
 
-    const { error } = await selectUser(userId);
+    setIsLoggingIn(true);
+
+    const { error } = await selectUser(selectedUserId);
 
     if (error) {
       toast({
@@ -91,7 +102,7 @@ export default function Login() {
         title: "Erro ao entrar",
         description: error.message,
       });
-      setIsSelectingUser(null);
+      setIsLoggingIn(false);
     } else {
       toast({
         title: "Bem-vindo!",
@@ -101,32 +112,15 @@ export default function Login() {
     }
   };
 
-  const filteredUsers = users.filter(
-    (u) =>
-      u.nome.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      u.email.toLowerCase().includes(searchTerm.toLowerCase())
-  );
-
-  const getRoleBadge = (userRole: AppRole) => {
-    switch (userRole) {
-      case "admin":
-        return <Badge variant="destructive" className="text-xs">Admin</Badge>;
-      case "gestor":
-        return <Badge variant="default" className="text-xs">Gestor</Badge>;
-      default:
-        return <Badge variant="secondary" className="text-xs">Colaborador</Badge>;
-    }
-  };
-
   return (
     <div className="min-h-screen flex items-center justify-center bg-background p-4">
-      {/* Background pattern - SISRAMOS style diagonal */}
+      {/* Background pattern */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
         <div className="absolute top-0 left-0 w-1/2 h-full bg-primary/5 -skew-x-12 transform-gpu" />
         <div className="absolute top-0 left-0 w-1/3 h-full bg-primary/3 -skew-x-12 transform-gpu" />
       </div>
 
-      <Card className="w-full max-w-lg shadow-xl relative animate-fade-in border-0 shadow-2xl">
+      <Card className="w-full max-w-md shadow-xl relative animate-fade-in border-0 shadow-2xl">
         <CardHeader className="text-center pb-2">
           {/* Logo */}
           <div className="flex justify-center mb-4">
@@ -143,64 +137,41 @@ export default function Login() {
         </CardHeader>
 
         <CardContent className="space-y-4 pt-4">
-          {/* Search */}
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input
-              placeholder="Buscar por nome ou e-mail..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-9"
-            />
-          </div>
+          {isLoadingUsers ? (
+            <div className="flex items-center justify-center py-8">
+              <Loader2 className="h-6 w-6 animate-spin text-primary" />
+            </div>
+          ) : (
+            <>
+              <Select value={selectedUserId} onValueChange={setSelectedUserId}>
+                <SelectTrigger className="w-full h-12">
+                  <SelectValue placeholder="Selecione seu nome..." />
+                </SelectTrigger>
+                <SelectContent>
+                  {users.map((u) => (
+                    <SelectItem key={u.user_id} value={u.user_id}>
+                      {u.nome}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
 
-          {/* Users list */}
-          <div className="max-h-80 overflow-y-auto space-y-2 pr-1">
-            {isLoadingUsers ? (
-              <div className="flex items-center justify-center py-8">
-                <Loader2 className="h-6 w-6 animate-spin text-primary" />
-              </div>
-            ) : filteredUsers.length === 0 ? (
-              <div className="text-center py-8 text-muted-foreground">
-                <Users className="h-12 w-12 mx-auto mb-3 opacity-50" />
-                <p className="text-sm">
-                  {users.length === 0
-                    ? "Nenhum usuário cadastrado"
-                    : "Nenhum usuário encontrado"}
-                </p>
-              </div>
-            ) : (
-              filteredUsers.map((u) => (
-                <Button
-                  key={u.user_id}
-                  variant="outline"
-                  className={cn(
-                    "w-full justify-start h-auto py-3 px-4 gap-3 text-left",
-                    isSelectingUser === u.user_id && "bg-primary/10 border-primary"
-                  )}
-                  onClick={() => handleSelectUser(u.user_id)}
-                  disabled={isSelectingUser !== null}
-                >
-                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary">
-                    {isSelectingUser === u.user_id ? (
-                      <Loader2 className="h-5 w-5 animate-spin" />
-                    ) : (
-                      <User className="h-5 w-5" />
-                    )}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2">
-                      <span className="font-medium truncate">{u.nome}</span>
-                      {getRoleBadge(u.role)}
-                    </div>
-                    <span className="text-xs text-muted-foreground truncate block">
-                      {u.email}
-                    </span>
-                  </div>
-                </Button>
-              ))
-            )}
-          </div>
+              <Button
+                className="w-full h-12"
+                onClick={handleLogin}
+                disabled={!selectedUserId || isLoggingIn}
+              >
+                {isLoggingIn ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                    Entrando...
+                  </>
+                ) : (
+                  "Entrar"
+                )}
+              </Button>
+            </>
+          )}
 
           <p className="text-center text-xs text-muted-foreground pt-2">
             Entre em contato com o administrador para criar um novo usuário
