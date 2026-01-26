@@ -8,6 +8,7 @@ import ProtectedRoute from "@/components/ProtectedRoute";
 import Login from "./pages/Login";
 import APT from "./pages/APT";
 import Dashboard from "./pages/Dashboard";
+import Checklist from "./pages/Checklist";
 import Configuracoes from "./pages/Configuracoes";
 import NotFound from "./pages/NotFound";
 
@@ -36,6 +37,14 @@ const App = () => (
               element={
                 <ProtectedRoute>
                   <Dashboard />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/checklist"
+              element={
+                <ProtectedRoute>
+                  <Checklist />
                 </ProtectedRoute>
               }
             />
