@@ -176,11 +176,21 @@ export function useDemandas() {
             });
           } else if (payload.eventType === 'UPDATE') {
             const updatedDemanda = payload.new as Demanda;
-            setDemandas((prev) =>
-              prev.map((d) =>
+            setDemandas((prev) => {
+              // If demand is now inactive, remove it from the list
+              if (!updatedDemanda.ativa) {
+                return prev.filter((d) => d.id !== updatedDemanda.id);
+              }
+              // If it was inactive and is now active (undo), add it back
+              const exists = prev.some((d) => d.id === updatedDemanda.id);
+              if (!exists && updatedDemanda.ativa) {
+                return [...prev, updatedDemanda];
+              }
+              // Otherwise just update
+              return prev.map((d) =>
                 d.id === updatedDemanda.id ? updatedDemanda : d
-              )
-            );
+              );
+            });
           } else if (payload.eventType === 'DELETE') {
             const deletedId = payload.old.id;
             setDemandas((prev) => prev.filter((d) => d.id !== deletedId));
