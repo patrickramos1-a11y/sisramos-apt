@@ -16,27 +16,33 @@ export type Database = {
     Tables: {
       checklist_items: {
         Row: {
+          ano: number
           concluido: boolean
           created_at: string
           id: string
+          mes: number
           ordem: number
           semana: number
           texto: string
           updated_at: string
         }
         Insert: {
+          ano?: number
           concluido?: boolean
           created_at?: string
           id?: string
+          mes?: number
           ordem?: number
           semana: number
           texto: string
           updated_at?: string
         }
         Update: {
+          ano?: number
           concluido?: boolean
           created_at?: string
           id?: string
+          mes?: number
           ordem?: number
           semana?: number
           texto?: string
