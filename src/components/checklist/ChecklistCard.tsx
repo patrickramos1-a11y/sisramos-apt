@@ -97,7 +97,7 @@ export default function ChecklistCard({
               <div
                 key={item.id}
                 className={cn(
-                  "flex items-start gap-2 p-2 rounded-md transition-colors",
+                  "group flex items-start gap-2 p-2 rounded-md transition-colors",
                   item.concluido && "bg-muted/50"
                 )}
               >
@@ -141,14 +141,14 @@ export default function ChecklistCard({
                   <>
                     <span
                       className={cn(
-                        "flex-1 text-sm leading-relaxed",
+                        "flex-1 text-sm leading-relaxed break-words",
                         item.concluido && "line-through text-muted-foreground"
                       )}
                     >
                       {item.texto}
                     </span>
                     {canEdit && (
-                      <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <div className="flex items-center gap-1 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
                         <Button
                           size="icon"
                           variant="ghost"
