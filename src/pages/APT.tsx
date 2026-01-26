@@ -306,9 +306,8 @@ export default function APT() {
                   const demandaStatusAllowed = isStatusUpdateAllowed(demanda.mes, demanda.ano);
                   const demandaEditAllowed = isEditAllowed(demanda.mes, demanda.ano, isGestorOrAdmin);
                   
-                  // Status permissions: only allowed if not past month OR if past month is enabled
-                  const canEditResponsavel = demandaStatusAllowed && 
-                    (user?.id === demanda.responsavel_id || isGestorOrAdmin);
+                  // Status permissions: only the responsible user can edit "Feito"
+                  const canEditResponsavel = demandaStatusAllowed && user?.id === demanda.responsavel_id;
                   const canEditGestor = demandaStatusAllowed && isGestorOrAdmin;
                   
                   // Edit/delete permissions: past months only allow gestor/admin
@@ -472,9 +471,8 @@ export default function APT() {
                         const demandaStatusAllowed = isStatusUpdateAllowed(demanda.mes, demanda.ano);
                         const demandaEditAllowed = isEditAllowed(demanda.mes, demanda.ano, isGestorOrAdmin);
                         
-                        // Status permissions: only allowed if not past month OR if past month is enabled
-                        const canEditResponsavel = demandaStatusAllowed && 
-                          (user?.id === demanda.responsavel_id || isGestorOrAdmin);
+                        // Status permissions: only the responsible user can edit "Feito"
+                        const canEditResponsavel = demandaStatusAllowed && user?.id === demanda.responsavel_id;
                         const canEditGestor = demandaStatusAllowed && isGestorOrAdmin;
                         
                         // Edit/delete permissions: past months only allow gestor/admin
