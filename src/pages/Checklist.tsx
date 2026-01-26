@@ -42,10 +42,12 @@ export default function Checklist() {
     searchTerm: "",
   });
 
-  // Convert string arrays to number arrays for the hook
-  const mesesNum = filters.meses.map((m) => parseInt(m));
-  const anosNum = filters.anos.map((a) => parseInt(a));
-  const semanasNum = filters.semanas.map((s) => parseInt(s));
+  // Convert string arrays to number arrays for the hook.
+  // IMPORTANT: memoize to avoid recreating arrays on every render,
+  // which would cause useChecklist() dependencies to change and refetch in a loop.
+  const mesesNum = useMemo(() => filters.meses.map((m) => parseInt(m, 10)), [filters.meses]);
+  const anosNum = useMemo(() => filters.anos.map((a) => parseInt(a, 10)), [filters.anos]);
+  const semanasNum = useMemo(() => filters.semanas.map((s) => parseInt(s, 10)), [filters.semanas]);
 
   const { isLoading, getItemsByWeek, addItem, updateItem, deleteItem, rolloverToNextMonth, items } = useChecklist({
     meses: mesesNum,
