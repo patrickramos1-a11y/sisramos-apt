@@ -51,7 +51,7 @@ interface UserWithRole {
 }
 
 export default function Configuracoes() {
-  const { user, profile, role } = useAuth();
+  const { profile, role } = useAuth();
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
   const [isEditingNome, setIsEditingNome] = useState(false);
@@ -207,7 +207,7 @@ export default function Configuracoes() {
       const { error } = await supabase
         .from("profiles")
         .update({ nome: formData.nome.trim() })
-        .eq("user_id", user?.id);
+        .eq("user_id", profile?.user_id);
 
       if (error) throw error;
 
@@ -243,29 +243,15 @@ export default function Configuracoes() {
       const { error: profileError } = await supabase
         .from("profiles")
         .update({ email: formData.email.trim() })
-        .eq("user_id", user?.id);
+        .eq("user_id", profile?.user_id);
 
       if (profileError) throw profileError;
 
-      const { error: authError } = await supabase.auth.updateUser({
-        email: formData.email.trim(),
-      });
-
-      if (authError) {
-        toast({
-          variant: "destructive",
-          title: "Erro ao atualizar e-mail",
-          description: authError.message,
-        });
-        setIsLoading(false);
-        return;
-      }
-
       toast({
-        title: "Verificação necessária",
-        description:
-          "Um e-mail de verificação foi enviado para o novo endereço. Verifique sua caixa de entrada.",
+        title: "E-mail atualizado!",
+        description: "Seu e-mail foi alterado com sucesso.",
       });
+
       setIsEditingEmail(false);
     } catch (error: any) {
       toast({
@@ -555,7 +541,7 @@ export default function Configuracoes() {
                                 variant="ghost"
                                 size="icon"
                                 onClick={() => setDeletingUser(u)}
-                                disabled={u.user_id === user?.id}
+                                disabled={u.user_id === profile?.user_id}
                                 title="Excluir usuário"
                                 className="text-destructive hover:text-destructive"
                               >

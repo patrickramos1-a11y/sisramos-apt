@@ -1,6 +1,4 @@
 import React, { createContext, useContext, useEffect, useState } from "react";
-import { User, Session } from "@supabase/supabase-js";
-import { supabase } from "@/integrations/supabase/client";
 
 type AppRole = "admin" | "gestor" | "colaborador";
 
@@ -11,38 +9,49 @@ interface Profile {
   email: string;
 }
 
+// Simplified user object for compatibility
+interface SimpleUser {
+  id: string;
+}
+
 interface AuthContextType {
-  user: User | null;
-  session: Session | null;
+  user: SimpleUser | null;
   profile: Profile | null;
   role: AppRole | null;
   isLoading: boolean;
   isGestorOrAdmin: boolean;
-  signIn: (email: string, password: string) => Promise<{ error: Error | null }>;
-  signUp: (email: string, password: string, nome: string) => Promise<{ error: Error | null }>;
-  signOut: () => Promise<void>;
+  selectUser: (userId: string) => Promise<{ error: Error | null }>;
+  signOut: () => void;
 }
+
+const SELECTED_USER_KEY = "apt_selected_user";
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const [user, setUser] = useState<User | null>(null);
-  const [session, setSession] = useState<Session | null>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
   const [role, setRole] = useState<AppRole | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
-  const fetchProfile = async (userId: string) => {
+  // Create a simple user object from profile for compatibility
+  const user: SimpleUser | null = profile ? { id: profile.user_id } : null;
+
+  const fetchUserData = async (userId: string) => {
     try {
-      const { data: profileData } = await supabase
+      const { supabase } = await import("@/integrations/supabase/client");
+      
+      const { data: profileData, error: profileError } = await supabase
         .from("profiles")
         .select("*")
         .eq("user_id", userId)
         .single();
 
-      if (profileData) {
-        setProfile(profileData);
+      if (profileError || !profileData) {
+        console.error("Error fetching profile:", profileError);
+        return false;
       }
+
+      setProfile(profileData);
 
       const { data: roleData } = await supabase
         .from("user_roles")
@@ -52,73 +61,52 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       if (roleData) {
         setRole(roleData.role as AppRole);
+      } else {
+        setRole("colaborador");
       }
+
+      return true;
     } catch (error) {
-      console.error("Error fetching profile:", error);
+      console.error("Error fetching user data:", error);
+      return false;
     }
   };
 
   useEffect(() => {
-    // Set up auth state listener BEFORE checking session
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, newSession) => {
-        setSession(newSession);
-        setUser(newSession?.user ?? null);
-
-        if (newSession?.user) {
-          // Use setTimeout to avoid Supabase deadlock
-          setTimeout(() => fetchProfile(newSession.user.id), 0);
-        } else {
-          setProfile(null);
-          setRole(null);
+    // Check for saved user on mount
+    const savedUserId = localStorage.getItem(SELECTED_USER_KEY);
+    
+    if (savedUserId) {
+      fetchUserData(savedUserId).then((success) => {
+        if (!success) {
+          localStorage.removeItem(SELECTED_USER_KEY);
         }
-
-        if (event === "SIGNED_OUT") {
-          setProfile(null);
-          setRole(null);
-        }
-
         setIsLoading(false);
-      }
-    );
-
-    // Then check for existing session
-    supabase.auth.getSession().then(({ data: { session: existingSession } }) => {
-      setSession(existingSession);
-      setUser(existingSession?.user ?? null);
-      
-      if (existingSession?.user) {
-        fetchProfile(existingSession.user.id);
-      }
-      
+      });
+    } else {
       setIsLoading(false);
-    });
-
-    return () => subscription.unsubscribe();
+    }
   }, []);
 
-  const signIn = async (email: string, password: string) => {
-    const { error } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    });
-    return { error };
+  const selectUser = async (userId: string): Promise<{ error: Error | null }> => {
+    try {
+      const success = await fetchUserData(userId);
+      
+      if (success) {
+        localStorage.setItem(SELECTED_USER_KEY, userId);
+        return { error: null };
+      } else {
+        return { error: new Error("Usuário não encontrado") };
+      }
+    } catch (error) {
+      return { error: error as Error };
+    }
   };
 
-  const signUp = async (email: string, password: string, nome: string) => {
-    const { error } = await supabase.auth.signUp({
-      email,
-      password,
-      options: {
-        emailRedirectTo: window.location.origin,
-        data: { nome },
-      },
-    });
-    return { error };
-  };
-
-  const signOut = async () => {
-    await supabase.auth.signOut();
+  const signOut = () => {
+    localStorage.removeItem(SELECTED_USER_KEY);
+    setProfile(null);
+    setRole(null);
   };
 
   const isGestorOrAdmin = role === "gestor" || role === "admin";
@@ -127,13 +115,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     <AuthContext.Provider
       value={{
         user,
-        session,
         profile,
         role,
         isLoading,
         isGestorOrAdmin,
-        signIn,
-        signUp,
+        selectUser,
         signOut,
       }}
     >
