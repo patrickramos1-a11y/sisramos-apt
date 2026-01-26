@@ -204,11 +204,20 @@ export default function NovaDemandaDialog({
   const toggleSemana = (semana: number) => {
     setFormData((prev) => {
       const current = prev.semana_limite;
+      let newSemanas: number[];
       if (current.includes(semana)) {
-        return { ...prev, semana_limite: current.filter((s) => s !== semana) };
+        newSemanas = current.filter((s) => s !== semana);
+        // Don't allow empty - keep at least one
+        if (newSemanas.length === 0) newSemanas = [semana];
       } else {
-        return { ...prev, semana_limite: [...current, semana].sort() };
+        newSemanas = [...current, semana].sort();
       }
+      // Auto-update repetições based on selected weeks count
+      return { 
+        ...prev, 
+        semana_limite: newSemanas,
+        semanas_repeticao: String(newSemanas.length)
+      };
     });
   };
 
@@ -362,13 +371,13 @@ export default function NovaDemandaDialog({
               min="1"
               max="52"
               value={formData.semanas_repeticao}
-              onChange={(e) =>
-                setFormData((prev) => ({
-                  ...prev,
-                  semanas_repeticao: e.target.value,
-                }))
-              }
+              readOnly
+              disabled
+              className="bg-muted"
             />
+            <p className="text-xs text-muted-foreground">
+              Calculado automaticamente pelas semanas selecionadas
+            </p>
           </div>
 
           <div className="space-y-2">
