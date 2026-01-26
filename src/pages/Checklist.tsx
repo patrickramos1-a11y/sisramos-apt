@@ -4,7 +4,7 @@ import { useChecklist } from "@/hooks/useChecklist";
 import { useMonthSettings } from "@/hooks/useMonthSettings";
 import AppLayout from "@/components/layout/AppLayout";
 import ChecklistCard from "@/components/checklist/ChecklistCard";
-import ChecklistFilters from "@/components/checklist/ChecklistFilters";
+import ChecklistFilters, { ChecklistMultiFilters } from "@/components/checklist/ChecklistFilters";
 import { Loader2, Info, Copy, Lock, Unlock } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
@@ -19,6 +19,13 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 const SEMANAS = [1, 2, 3, 4, 5];
 
@@ -26,47 +33,123 @@ export default function Checklist() {
   const { isGestorOrAdmin } = useAuth();
   const now = new Date();
 
-  // Filters state
-  const [mes, setMes] = useState(now.getMonth() + 1);
-  const [ano, setAno] = useState(now.getFullYear());
-  const [semana, setSemana] = useState<number | null>(null);
-  const [searchTerm, setSearchTerm] = useState("");
+  // Filters state - using multi-select arrays
+  const [filters, setFilters] = useState<ChecklistMultiFilters>({
+    meses: [String(now.getMonth() + 1)],
+    anos: [String(now.getFullYear())],
+    semanas: [],
+    searchTerm: "",
+  });
+
+  // Convert string arrays to number arrays for the hook
+  const mesesNum = filters.meses.map((m) => parseInt(m));
+  const anosNum = filters.anos.map((a) => parseInt(a));
+  const semanasNum = filters.semanas.map((s) => parseInt(s));
 
   const { isLoading, getItemsByWeek, addItem, updateItem, deleteItem, rolloverToNextMonth, items } = useChecklist({
-    mes,
-    ano,
-    semana,
-    searchTerm,
+    meses: mesesNum,
+    anos: anosNum,
+    semanas: semanasNum,
+    searchTerm: filters.searchTerm,
   });
 
   const { getMonthSetting, toggleMonthStatus } = useMonthSettings();
-  const monthSettings = getMonthSetting(mes, ano);
+
+  // For rollover, we need to select a specific month/year
+  const [rolloverMes, setRolloverMes] = useState(now.getMonth() + 1);
+  const [rolloverAno, setRolloverAno] = useState(now.getFullYear());
+
+  // Determine if viewing is for a single month (for lock status)
+  const isSingleMonthView = filters.meses.length === 1 && filters.anos.length === 1;
+  const viewedMes = isSingleMonthView ? parseInt(filters.meses[0]) : null;
+  const viewedAno = isSingleMonthView ? parseInt(filters.anos[0]) : null;
+  
+  const monthSettings = viewedMes && viewedAno ? getMonthSetting(viewedMes, viewedAno) : null;
 
   // Determine if this is a past month (locked by default)
-  const isCurrentMonth = mes === now.getMonth() + 1 && ano === now.getFullYear();
-  const isPastMonth = ano < now.getFullYear() || (ano === now.getFullYear() && mes < now.getMonth() + 1);
+  const isCurrentMonth = viewedMes === now.getMonth() + 1 && viewedAno === now.getFullYear();
+  const isPastMonth = viewedMes && viewedAno && (viewedAno < now.getFullYear() || (viewedAno === now.getFullYear() && viewedMes < now.getMonth() + 1));
   
   // Check if editing is locked
-  const isLocked = isPastMonth && !monthSettings?.status_ativo;
+  const isLocked = isSingleMonthView && isPastMonth && !monthSettings?.status_ativo;
 
   // Which weeks to show based on filter
-  const semanasToShow = semana ? [semana] : SEMANAS;
+  const semanasToShow = semanasNum.length > 0 ? semanasNum : SEMANAS;
 
-  // Calculate next month label
-  const nextMonth = useMemo(() => {
-    let nextMes = mes + 1;
-    let nextAno = ano;
+  // Calculate next month label for rollover
+  const nextMonthLabel = useMemo(() => {
+    let nextMes = rolloverMes + 1;
+    let nextAno = rolloverAno;
     if (nextMes > 12) {
       nextMes = 1;
-      nextAno = ano + 1;
+      nextAno = rolloverAno + 1;
     }
     const monthNames = ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez"];
     return `${monthNames[nextMes - 1]}/${nextAno}`;
-  }, [mes, ano]);
+  }, [rolloverMes, rolloverAno]);
+
+  // Items count for rollover from selected month
+  const rolloverItemsCount = items.filter((i) => i.mes === rolloverMes && i.ano === rolloverAno).length;
 
   const handleToggleLock = () => {
-    toggleMonthStatus(mes, ano);
+    if (viewedMes && viewedAno) {
+      toggleMonthStatus(viewedMes, viewedAno);
+    }
   };
+
+  const handleClearFilters = () => {
+    setFilters({
+      meses: [String(now.getMonth() + 1)],
+      anos: [String(now.getFullYear())],
+      semanas: [],
+      searchTerm: "",
+    });
+  };
+
+  const currentYear = new Date().getFullYear();
+  const anosOptions = Array.from({ length: 5 }, (_, i) => currentYear - 2 + i);
+  const mesesOptions = [
+    { value: 1, label: "Janeiro" },
+    { value: 2, label: "Fevereiro" },
+    { value: 3, label: "Março" },
+    { value: 4, label: "Abril" },
+    { value: 5, label: "Maio" },
+    { value: 6, label: "Junho" },
+    { value: 7, label: "Julho" },
+    { value: 8, label: "Agosto" },
+    { value: 9, label: "Setembro" },
+    { value: 10, label: "Outubro" },
+    { value: 11, label: "Novembro" },
+    { value: 12, label: "Dezembro" },
+  ];
+
+  // Group items by month/year for display when viewing multiple periods
+  const groupedItems = useMemo(() => {
+    const groups: { mes: number; ano: number; items: typeof items }[] = [];
+    const seen = new Set<string>();
+    
+    items.forEach((item) => {
+      const key = `${item.ano}-${item.mes}`;
+      if (!seen.has(key)) {
+        seen.add(key);
+        groups.push({
+          mes: item.mes,
+          ano: item.ano,
+          items: items.filter((i) => i.mes === item.mes && i.ano === item.ano),
+        });
+      }
+    });
+    
+    // Sort by year desc, then month desc
+    groups.sort((a, b) => {
+      if (a.ano !== b.ano) return b.ano - a.ano;
+      return b.mes - a.mes;
+    });
+    
+    return groups;
+  }, [items]);
+
+  const isMultiPeriodView = !isSingleMonthView || groupedItems.length > 1;
 
   return (
     <AppLayout>
@@ -82,8 +165,8 @@ export default function Checklist() {
 
           {isGestorOrAdmin && (
             <div className="flex items-center gap-2 flex-wrap">
-              {/* Toggle lock for past months */}
-              {isPastMonth && (
+              {/* Toggle lock for past months (only when viewing single month) */}
+              {isSingleMonthView && isPastMonth && (
                 <Button
                   variant={isLocked ? "outline" : "secondary"}
                   size="sm"
@@ -109,21 +192,56 @@ export default function Checklist() {
                 <AlertDialogTrigger asChild>
                   <Button variant="outline" size="sm" className="gap-2">
                     <Copy className="h-4 w-4" />
-                    <span className="hidden sm:inline">Copiar para {nextMonth}</span>
+                    <span className="hidden sm:inline">Copiar para próximo mês</span>
                     <span className="sm:hidden">Copiar</span>
                   </Button>
                 </AlertDialogTrigger>
                 <AlertDialogContent>
                   <AlertDialogHeader>
-                    <AlertDialogTitle>Copiar checklist para o próximo mês?</AlertDialogTitle>
-                    <AlertDialogDescription>
-                      Isso irá copiar todos os {items.length} itens do checklist atual para{" "}
-                      <strong>{nextMonth}</strong>. Os itens serão copiados com status "não concluído".
+                    <AlertDialogTitle>Copiar checklist para o próximo mês</AlertDialogTitle>
+                    <AlertDialogDescription className="space-y-4">
+                      <p>Selecione o mês de origem para copiar os itens:</p>
+                      <div className="flex gap-2">
+                        <Select 
+                          value={String(rolloverAno)} 
+                          onValueChange={(v) => setRolloverAno(Number(v))}
+                        >
+                          <SelectTrigger className="w-24">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {anosOptions.map((a) => (
+                              <SelectItem key={a} value={String(a)}>{a}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <Select 
+                          value={String(rolloverMes)} 
+                          onValueChange={(v) => setRolloverMes(Number(v))}
+                        >
+                          <SelectTrigger className="w-32">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {mesesOptions.map((m) => (
+                              <SelectItem key={m.value} value={String(m.value)}>{m.label}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <p>
+                        Isso irá copiar {rolloverItemsCount > 0 ? `todos os ${rolloverItemsCount} itens` : "os itens"} do checklist 
+                        de <strong>{mesesOptions.find(m => m.value === rolloverMes)?.label}/{rolloverAno}</strong> para{" "}
+                        <strong>{nextMonthLabel}</strong>. Os itens serão copiados com status "não concluído".
+                      </p>
                     </AlertDialogDescription>
                   </AlertDialogHeader>
                   <AlertDialogFooter>
                     <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                    <AlertDialogAction onClick={rolloverToNextMonth}>
+                    <AlertDialogAction 
+                      onClick={() => rolloverToNextMonth(rolloverMes, rolloverAno)}
+                      disabled={rolloverItemsCount === 0}
+                    >
                       Confirmar cópia
                     </AlertDialogAction>
                   </AlertDialogFooter>
@@ -142,8 +260,8 @@ export default function Checklist() {
           </AlertDescription>
         </Alert>
 
-        {/* Lock indicator for past months */}
-        {isPastMonth && (
+        {/* Lock indicator for past months (only when viewing single month) */}
+        {isSingleMonthView && isPastMonth && (
           <Alert variant={isLocked ? "default" : "destructive"} className={isLocked ? "bg-amber-500/10 border-amber-500/30" : ""}>
             {isLocked ? (
               <>
@@ -165,14 +283,9 @@ export default function Checklist() {
 
         {/* Filters */}
         <ChecklistFilters
-          mes={mes}
-          ano={ano}
-          semana={semana}
-          searchTerm={searchTerm}
-          onMesChange={setMes}
-          onAnoChange={setAno}
-          onSemanaChange={setSemana}
-          onSearchChange={setSearchTerm}
+          filters={filters}
+          onFiltersChange={setFilters}
+          onClearFilters={handleClearFilters}
         />
 
         {/* Content */}
@@ -180,7 +293,53 @@ export default function Checklist() {
           <div className="flex items-center justify-center py-12">
             <Loader2 className="h-8 w-8 animate-spin text-primary" />
           </div>
+        ) : isMultiPeriodView ? (
+          // Multi-period view: group by month/year
+          <div className="space-y-8">
+            {groupedItems.length === 0 ? (
+              <div className="text-center py-12 text-muted-foreground">
+                Nenhum item encontrado para os filtros selecionados.
+              </div>
+            ) : (
+              groupedItems.map((group) => {
+                const monthName = mesesOptions.find(m => m.value === group.mes)?.label || group.mes;
+                const groupIsPast = group.ano < now.getFullYear() || (group.ano === now.getFullYear() && group.mes < now.getMonth() + 1);
+                const groupSettings = getMonthSetting(group.mes, group.ano);
+                const groupIsLocked = groupIsPast && !groupSettings?.status_ativo;
+
+                return (
+                  <div key={`${group.ano}-${group.mes}`} className="space-y-4">
+                    <h2 className="text-lg font-semibold border-b pb-2">
+                      {monthName} / {group.ano}
+                      {groupIsLocked && (
+                        <Lock className="inline-block ml-2 h-4 w-4 text-amber-600" />
+                      )}
+                    </h2>
+                    <div className={`grid gap-4 ${
+                      semanasToShow.length === 1 
+                        ? "grid-cols-1 max-w-md mx-auto" 
+                        : "grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5"
+                    }`}>
+                      {semanasToShow.map((sem) => (
+                        <ChecklistCard
+                          key={`${group.ano}-${group.mes}-${sem}`}
+                          semana={sem}
+                          items={getItemsByWeek(sem, group.mes, group.ano)}
+                          canEdit={isGestorOrAdmin}
+                          isLocked={groupIsLocked}
+                          onAddItem={(texto) => addItem(sem, texto, group.mes, group.ano)}
+                          onUpdateItem={updateItem}
+                          onDeleteItem={deleteItem}
+                        />
+                      ))}
+                    </div>
+                  </div>
+                );
+              })
+            )}
+          </div>
         ) : (
+          // Single period view
           <div className={`grid gap-4 ${
             semanasToShow.length === 1 
               ? "grid-cols-1 max-w-md mx-auto" 
@@ -190,10 +349,10 @@ export default function Checklist() {
               <ChecklistCard
                 key={sem}
                 semana={sem}
-                items={getItemsByWeek(sem)}
+                items={getItemsByWeek(sem, viewedMes ?? undefined, viewedAno ?? undefined)}
                 canEdit={isGestorOrAdmin}
                 isLocked={isLocked}
-                onAddItem={(texto) => addItem(sem, texto)}
+                onAddItem={(texto) => addItem(sem, texto, viewedMes ?? now.getMonth() + 1, viewedAno ?? now.getFullYear())}
                 onUpdateItem={updateItem}
                 onDeleteItem={deleteItem}
               />
