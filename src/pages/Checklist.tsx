@@ -341,7 +341,6 @@ export default function Checklist() {
                           items={getItemsByWeek(sem, group.mes, group.ano)}
                           canEdit={isGestorOrAdmin}
                           isLocked={groupIsLocked}
-                          onAddItem={(texto) => addItem(sem, texto, group.mes, group.ano)}
                           onUpdateItem={updateItem}
                           onDeleteItem={deleteItem}
                         />
@@ -366,7 +365,6 @@ export default function Checklist() {
                 items={getItemsByWeek(sem, viewedMes ?? undefined, viewedAno ?? undefined)}
                 canEdit={isGestorOrAdmin}
                 isLocked={isLocked}
-                onAddItem={(texto) => addItem(sem, texto, viewedMes ?? now.getMonth() + 1, viewedAno ?? now.getFullYear())}
                 onUpdateItem={updateItem}
                 onDeleteItem={deleteItem}
               />
