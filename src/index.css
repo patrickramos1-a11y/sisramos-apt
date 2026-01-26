@@ -211,6 +211,12 @@ SISRAMOS inspired color palette - forest green theme
 }
 
 @layer components {
+  /* Radix popper wrapper can sit behind transformed/stacking contexts.
+     Force a high z-index so dropdowns (Select, Popover, etc.) always open above overlays. */
+  [data-radix-popper-content-wrapper] {
+    z-index: 9999 !important;
+  }
+
   /* Diagonal header accent - SISRAMOS style */
   .diagonal-header {
     position: relative;
