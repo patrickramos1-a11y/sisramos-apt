@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
+import { FormattedTextarea } from "@/components/ui/formatted-textarea";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -352,7 +352,7 @@ export default function NovaDemandaDialog({
 
           <div className="space-y-2">
             <Label htmlFor="descricao">Descrição *</Label>
-            <Textarea
+            <FormattedTextarea
               id="descricao"
               placeholder="Descreva a demanda..."
               value={formData.descricao}
