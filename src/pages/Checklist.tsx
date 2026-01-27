@@ -350,23 +350,46 @@ export default function Checklist() {
                         <Lock className="inline-block ml-2 h-4 w-4 text-amber-600" />
                       )}
                     </h2>
-                    <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 justify-items-center">
-                      {semanasToShow.map((sem) => (
-                        <ChecklistCard
-                          key={`${group.ano}-${group.mes}-${sem}`}
-                          semana={sem}
-                          items={getItemsByWeek(sem, group.mes, group.ano)}
-                          canEdit={isGestorOrAdmin}
-                          isLocked={groupIsLocked}
-                          currentUserId={user?.id}
-                          isGestorOrAdmin={isGestorOrAdmin}
-                          profiles={profiles}
-                          onUpdateItem={updateItem}
-                          onDeleteItem={deleteItem}
-                          onUpdateAssignees={updateAssignees}
-                        />
+                    {/* First row: weeks 1, 2, 3 */}
+                    <div className="flex flex-wrap justify-center gap-4">
+                      {semanasToShow.filter(s => s <= 3).map((sem) => (
+                        <div key={`${group.ano}-${group.mes}-${sem}`} className="w-full sm:w-auto">
+                          <ChecklistCard
+                            semana={sem}
+                            items={getItemsByWeek(sem, group.mes, group.ano)}
+                            canEdit={isGestorOrAdmin}
+                            isLocked={groupIsLocked}
+                            currentUserId={user?.id}
+                            isGestorOrAdmin={isGestorOrAdmin}
+                            profiles={profiles}
+                            onUpdateItem={updateItem}
+                            onDeleteItem={deleteItem}
+                            onUpdateAssignees={updateAssignees}
+                          />
+                        </div>
                       ))}
                     </div>
+                    {/* Second row: weeks 4, 5 centered */}
+                    {semanasToShow.some(s => s > 3) && (
+                      <div className="flex flex-wrap justify-center gap-4 mt-4">
+                        {semanasToShow.filter(s => s > 3).map((sem) => (
+                          <div key={`${group.ano}-${group.mes}-${sem}`} className="w-full sm:w-auto">
+                            <ChecklistCard
+                              semana={sem}
+                              items={getItemsByWeek(sem, group.mes, group.ano)}
+                              canEdit={isGestorOrAdmin}
+                              isLocked={groupIsLocked}
+                              currentUserId={user?.id}
+                              isGestorOrAdmin={isGestorOrAdmin}
+                              profiles={profiles}
+                              onUpdateItem={updateItem}
+                              onDeleteItem={deleteItem}
+                              onUpdateAssignees={updateAssignees}
+                            />
+                          </div>
+                        ))}
+                      </div>
+                    )}
                   </div>
                 );
               })
@@ -374,22 +397,47 @@ export default function Checklist() {
           </div>
         ) : (
           // Single period view
-          <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 justify-items-center">
-            {semanasToShow.map((sem) => (
-              <ChecklistCard
-                key={sem}
-                semana={sem}
-                items={getItemsByWeek(sem, viewedMes ?? undefined, viewedAno ?? undefined)}
-                canEdit={isGestorOrAdmin}
-                isLocked={isLocked ?? false}
-                currentUserId={user?.id}
-                isGestorOrAdmin={isGestorOrAdmin}
-                profiles={profiles}
-                onUpdateItem={updateItem}
-                onDeleteItem={deleteItem}
-                onUpdateAssignees={updateAssignees}
-              />
-            ))}
+          <div className="space-y-4">
+            {/* First row: weeks 1, 2, 3 */}
+            <div className="flex flex-wrap justify-center gap-4">
+              {semanasToShow.filter(s => s <= 3).map((sem) => (
+                <div key={sem} className="w-full sm:w-auto">
+                  <ChecklistCard
+                    semana={sem}
+                    items={getItemsByWeek(sem, viewedMes ?? undefined, viewedAno ?? undefined)}
+                    canEdit={isGestorOrAdmin}
+                    isLocked={isLocked ?? false}
+                    currentUserId={user?.id}
+                    isGestorOrAdmin={isGestorOrAdmin}
+                    profiles={profiles}
+                    onUpdateItem={updateItem}
+                    onDeleteItem={deleteItem}
+                    onUpdateAssignees={updateAssignees}
+                  />
+                </div>
+              ))}
+            </div>
+            {/* Second row: weeks 4, 5 centered */}
+            {semanasToShow.some(s => s > 3) && (
+              <div className="flex flex-wrap justify-center gap-4">
+                {semanasToShow.filter(s => s > 3).map((sem) => (
+                  <div key={sem} className="w-full sm:w-auto">
+                    <ChecklistCard
+                      semana={sem}
+                      items={getItemsByWeek(sem, viewedMes ?? undefined, viewedAno ?? undefined)}
+                      canEdit={isGestorOrAdmin}
+                      isLocked={isLocked ?? false}
+                      currentUserId={user?.id}
+                      isGestorOrAdmin={isGestorOrAdmin}
+                      profiles={profiles}
+                      onUpdateItem={updateItem}
+                      onDeleteItem={deleteItem}
+                      onUpdateAssignees={updateAssignees}
+                    />
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         )}
       </div>
