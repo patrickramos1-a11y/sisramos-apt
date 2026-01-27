@@ -2,6 +2,12 @@ import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 
+export interface ChecklistItemAssignee {
+  id: string;
+  checklist_item_id: string;
+  user_id: string;
+}
+
 export interface ChecklistItem {
   id: string;
   semana: number;
@@ -12,6 +18,7 @@ export interface ChecklistItem {
   ano: number;
   created_at: string;
   updated_at: string;
+  assignees?: string[]; // user_ids assigned to this item
 }
 
 interface UseChecklistOptions {
@@ -23,8 +30,32 @@ interface UseChecklistOptions {
 
 export function useChecklist({ meses, anos, semanas, searchTerm }: UseChecklistOptions) {
   const [items, setItems] = useState<ChecklistItem[]>([]);
+  const [assigneesMap, setAssigneesMap] = useState<Record<string, string[]>>({});
   const [isLoading, setIsLoading] = useState(true);
   const { toast } = useToast();
+
+  const fetchAssignees = useCallback(async (itemIds: string[]) => {
+    if (itemIds.length === 0) return {};
+    
+    const { data, error } = await (supabase
+      .from("checklist_item_assignees")
+      .select("*") as any)
+      .in("checklist_item_id", itemIds);
+    
+    if (error) {
+      console.error("Error fetching assignees:", error);
+      return {};
+    }
+    
+    const map: Record<string, string[]> = {};
+    (data || []).forEach((a: ChecklistItemAssignee) => {
+      if (!map[a.checklist_item_id]) {
+        map[a.checklist_item_id] = [];
+      }
+      map[a.checklist_item_id].push(a.user_id);
+    });
+    return map;
+  }, []);
 
   const fetchItems = useCallback(async () => {
     try {
@@ -57,19 +88,31 @@ export function useChecklist({ meses, anos, semanas, searchTerm }: UseChecklistO
       const { data, error } = await query;
 
       if (error) throw error;
-      setItems((data as ChecklistItem[]) || []);
+      
+      const fetchedItems = (data as ChecklistItem[]) || [];
+      const itemIds = fetchedItems.map((i) => i.id);
+      const assignees = await fetchAssignees(itemIds);
+      setAssigneesMap(assignees);
+      
+      // Attach assignees to items
+      const itemsWithAssignees = fetchedItems.map((item) => ({
+        ...item,
+        assignees: assignees[item.id] || [],
+      }));
+      
+      setItems(itemsWithAssignees);
     } catch (error) {
       console.error("Error fetching checklist items:", error);
     } finally {
       setIsLoading(false);
     }
-  }, [meses, anos, semanas, searchTerm]);
+  }, [meses, anos, semanas, searchTerm, fetchAssignees]);
 
   useEffect(() => {
     fetchItems();
 
-    // Subscribe to realtime changes
-    const channel = supabase
+    // Subscribe to realtime changes for checklist_items
+    const itemsChannel = supabase
       .channel("checklist_items_changes")
       .on(
         "postgres_changes",
@@ -84,8 +127,25 @@ export function useChecklist({ meses, anos, semanas, searchTerm }: UseChecklistO
       )
       .subscribe();
 
+    // Subscribe to realtime changes for assignees
+    const assigneesChannel = supabase
+      .channel("checklist_assignees_changes")
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "checklist_item_assignees",
+        },
+        () => {
+          fetchItems();
+        }
+      )
+      .subscribe();
+
     return () => {
-      supabase.removeChannel(channel);
+      supabase.removeChannel(itemsChannel);
+      supabase.removeChannel(assigneesChannel);
     };
   }, [fetchItems]);
 
@@ -240,6 +300,59 @@ export function useChecklist({ meses, anos, semanas, searchTerm }: UseChecklistO
     }
   };
 
+  const updateAssignees = async (itemId: string, userIds: string[]) => {
+    try {
+      // Get current assignees
+      const currentAssignees = assigneesMap[itemId] || [];
+      
+      // Find users to add and remove
+      const toAdd = userIds.filter((id) => !currentAssignees.includes(id));
+      const toRemove = currentAssignees.filter((id) => !userIds.includes(id));
+      
+      // Remove unassigned users
+      if (toRemove.length > 0) {
+        const { error: deleteError } = await (supabase
+          .from("checklist_item_assignees") as any)
+          .delete()
+          .eq("checklist_item_id", itemId)
+          .in("user_id", toRemove);
+        
+        if (deleteError) throw deleteError;
+      }
+      
+      // Add new assignees
+      if (toAdd.length > 0) {
+        const { error: insertError } = await (supabase
+          .from("checklist_item_assignees") as any)
+          .insert(toAdd.map((userId) => ({
+            checklist_item_id: itemId,
+            user_id: userId,
+          })));
+        
+        if (insertError) throw insertError;
+      }
+      
+      // Update local state immediately
+      setAssigneesMap((prev) => ({
+        ...prev,
+        [itemId]: userIds,
+      }));
+      
+      setItems((prev) =>
+        prev.map((item) =>
+          item.id === itemId ? { ...item, assignees: userIds } : item
+        )
+      );
+    } catch (error: any) {
+      console.error("Error updating assignees:", error);
+      toast({
+        variant: "destructive",
+        title: "Erro ao atribuir usuários",
+        description: error.message,
+      });
+    }
+  };
+
   return {
     items,
     isLoading,
@@ -248,6 +361,7 @@ export function useChecklist({ meses, anos, semanas, searchTerm }: UseChecklistO
     deleteItem,
     getItemsByWeek,
     rolloverToNextMonth,
+    updateAssignees,
     refetch: fetchItems,
   };
 }

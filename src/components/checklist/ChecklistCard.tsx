@@ -4,13 +4,23 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Progress } from "@/components/ui/progress";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Pencil, Trash2, Check, X, Calendar, CheckCircle2 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import UserAssignmentPopover from "./UserAssignmentPopover";
+
+interface Profile {
+  id: string;
+  user_id: string;
+  nome: string;
+  email: string;
+}
 
 interface ChecklistItem {
   id: string;
   texto: string;
   concluido: boolean;
+  assignees?: string[];
 }
 
 interface ChecklistCardProps {
@@ -18,8 +28,12 @@ interface ChecklistCardProps {
   items: ChecklistItem[];
   canEdit: boolean;
   isLocked: boolean;
+  currentUserId?: string;
+  isGestorOrAdmin: boolean;
+  profiles: Profile[];
   onUpdateItem: (id: string, updates: Partial<{ texto: string; concluido: boolean }>) => Promise<void>;
   onDeleteItem: (id: string) => Promise<void>;
+  onUpdateAssignees: (itemId: string, userIds: string[]) => Promise<void>;
 }
 
 export default function ChecklistCard({
@@ -27,8 +41,12 @@ export default function ChecklistCard({
   items,
   canEdit,
   isLocked,
+  currentUserId,
+  isGestorOrAdmin,
+  profiles,
   onUpdateItem,
   onDeleteItem,
+  onUpdateAssignees,
 }: ChecklistCardProps) {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editingText, setEditingText] = useState("");
@@ -59,7 +77,7 @@ export default function ChecklistCard({
 
   return (
     <Card className={cn(
-      "h-full flex flex-col overflow-hidden transition-all duration-200",
+      "w-full max-w-sm h-full flex flex-col overflow-hidden transition-all duration-200",
       allCompleted && "ring-2 ring-primary/30 bg-primary/5"
     )}>
       {/* Header with gradient */}
@@ -120,94 +138,155 @@ export default function ChecklistCard({
               </p>
             </div>
           ) : (
-            items.map((item) => (
-              <div
-                key={item.id}
-                className={cn(
-                  "group flex items-start gap-3 p-2.5 rounded-lg border transition-all duration-150",
-                  item.concluido 
-                    ? "bg-muted/30 border-muted" 
-                    : "border-transparent hover:bg-muted/20 hover:border-border"
-                )}
-              >
-                <Checkbox
-                  checked={item.concluido}
-                  onCheckedChange={(checked) =>
-                    onUpdateItem(item.id, { concluido: !!checked })
-                  }
-                  className="mt-0.5 shrink-0"
-                  disabled={isLocked && !canEdit}
-                />
-                {editingId === item.id ? (
-                  <div className="flex-1 flex flex-col gap-2">
-                    <Textarea
-                      value={editingText}
-                      onChange={(e) => setEditingText(e.target.value)}
-                      className="min-h-[60px] text-sm resize-none"
-                      autoFocus
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter" && !e.shiftKey) {
-                          e.preventDefault();
-                          handleSaveEdit();
-                        }
-                        if (e.key === "Escape") handleCancelEdit();
-                      }}
-                    />
-                    <div className="flex items-center gap-1 justify-end">
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        className="h-7 px-2 text-xs"
-                        onClick={handleSaveEdit}
-                      >
-                        <Check className="h-3.5 w-3.5 text-primary mr-1" />
-                        Salvar
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        className="h-7 px-2 text-xs"
-                        onClick={handleCancelEdit}
-                      >
-                        <X className="h-3.5 w-3.5 text-muted-foreground mr-1" />
-                        Cancelar
-                      </Button>
-                    </div>
-                  </div>
-                ) : (
-                  <>
-                    <span
-                      className={cn(
-                        "flex-1 text-xs sm:text-sm leading-relaxed break-words",
-                        item.concluido && "line-through text-muted-foreground"
-                      )}
-                    >
-                      {item.texto}
-                    </span>
-                    {canModify && (
-                      <div className="flex items-center gap-0.5 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity shrink-0">
+            items.map((item) => {
+              const itemAssignees = item.assignees || [];
+              const isAssignedToMe = currentUserId && itemAssignees.includes(currentUserId);
+              const canCompleteItem = isGestorOrAdmin || isAssignedToMe || itemAssignees.length === 0;
+              const assignedProfiles = profiles.filter((p) => itemAssignees.includes(p.user_id));
+              
+              const getInitials = (nome: string) => {
+                const parts = nome.split(" ").filter(Boolean);
+                if (parts.length === 0) return "?";
+                if (parts.length === 1) return parts[0][0].toUpperCase();
+                return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+              };
+              
+              const getAvatarColor = (nome: string) => {
+                const colors = [
+                  "bg-blue-500", "bg-green-500", "bg-purple-500", "bg-orange-500",
+                  "bg-pink-500", "bg-cyan-500", "bg-indigo-500", "bg-teal-500",
+                ];
+                let hash = 0;
+                for (let i = 0; i < nome.length; i++) {
+                  hash = nome.charCodeAt(i) + ((hash << 5) - hash);
+                }
+                return colors[Math.abs(hash) % colors.length];
+              };
+              
+              return (
+                <div
+                  key={item.id}
+                  className={cn(
+                    "group flex items-start gap-2 p-2.5 rounded-lg border transition-all duration-150",
+                    item.concluido 
+                      ? "bg-muted/30 border-muted" 
+                      : "border-transparent hover:bg-muted/20 hover:border-border"
+                  )}
+                >
+                  <Checkbox
+                    checked={item.concluido}
+                    onCheckedChange={(checked) =>
+                      onUpdateItem(item.id, { concluido: !!checked })
+                    }
+                    className="mt-0.5 shrink-0"
+                    disabled={!canCompleteItem || (isLocked && !canEdit)}
+                  />
+                  {editingId === item.id ? (
+                    <div className="flex-1 flex flex-col gap-2">
+                      <Textarea
+                        value={editingText}
+                        onChange={(e) => setEditingText(e.target.value)}
+                        className="min-h-[60px] text-sm resize-none"
+                        autoFocus
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter" && !e.shiftKey) {
+                            e.preventDefault();
+                            handleSaveEdit();
+                          }
+                          if (e.key === "Escape") handleCancelEdit();
+                        }}
+                      />
+                      <div className="flex items-center gap-1 justify-end">
                         <Button
-                          size="icon"
+                          size="sm"
                           variant="ghost"
-                          className="h-6 w-6"
-                          onClick={() => handleStartEdit(item)}
+                          className="h-7 px-2 text-xs"
+                          onClick={handleSaveEdit}
                         >
-                          <Pencil className="h-3 w-3" />
+                          <Check className="h-3.5 w-3.5 text-primary mr-1" />
+                          Salvar
                         </Button>
                         <Button
-                          size="icon"
+                          size="sm"
                           variant="ghost"
-                          className="h-6 w-6 text-destructive hover:text-destructive"
-                          onClick={() => onDeleteItem(item.id)}
+                          className="h-7 px-2 text-xs"
+                          onClick={handleCancelEdit}
                         >
-                          <Trash2 className="h-3 w-3" />
+                          <X className="h-3.5 w-3.5 text-muted-foreground mr-1" />
+                          Cancelar
                         </Button>
                       </div>
-                    )}
-                  </>
-                )}
-              </div>
-            ))
+                    </div>
+                  ) : (
+                    <>
+                      <div className="flex-1 min-w-0">
+                        <span
+                          className={cn(
+                            "block text-xs sm:text-sm leading-relaxed break-words",
+                            item.concluido && "line-through text-muted-foreground"
+                          )}
+                        >
+                          {item.texto}
+                        </span>
+                        {/* Assigned users display */}
+                        <div className="flex items-center gap-1 mt-1.5 flex-wrap">
+                          {assignedProfiles.length > 0 ? (
+                            <div className="flex items-center -space-x-1">
+                              {assignedProfiles.slice(0, 4).map((profile) => (
+                                <Avatar
+                                  key={profile.user_id}
+                                  className={cn("h-5 w-5 border-2 border-background", getAvatarColor(profile.nome))}
+                                  title={profile.nome}
+                                >
+                                  <AvatarFallback className="text-[8px] font-medium text-white bg-transparent">
+                                    {getInitials(profile.nome)}
+                                  </AvatarFallback>
+                                </Avatar>
+                              ))}
+                              {assignedProfiles.length > 4 && (
+                                <div className="h-5 w-5 rounded-full bg-muted flex items-center justify-center text-[8px] font-medium border-2 border-background">
+                                  +{assignedProfiles.length - 4}
+                                </div>
+                              )}
+                            </div>
+                          ) : null}
+                          {/* Assignment popover for gestor/admin */}
+                          {canModify && (
+                            <UserAssignmentPopover
+                              profiles={profiles}
+                              assignedUserIds={itemAssignees}
+                              onAssignmentChange={(userIds) => onUpdateAssignees(item.id, userIds)}
+                              disabled={isLocked && !canEdit}
+                              compact
+                            />
+                          )}
+                        </div>
+                      </div>
+                      {canModify && (
+                        <div className="flex items-center gap-0.5 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity shrink-0">
+                          <Button
+                            size="icon"
+                            variant="ghost"
+                            className="h-6 w-6"
+                            onClick={() => handleStartEdit(item)}
+                          >
+                            <Pencil className="h-3 w-3" />
+                          </Button>
+                          <Button
+                            size="icon"
+                            variant="ghost"
+                            className="h-6 w-6 text-destructive hover:text-destructive"
+                            onClick={() => onDeleteItem(item.id)}
+                          >
+                            <Trash2 className="h-3 w-3" />
+                          </Button>
+                        </div>
+                      )}
+                    </>
+                  )}
+                </div>
+              );
+            })
           )}
         </div>
 

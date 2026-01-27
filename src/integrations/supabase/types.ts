@@ -14,6 +14,35 @@ export type Database = {
   }
   public: {
     Tables: {
+      checklist_item_assignees: {
+        Row: {
+          checklist_item_id: string
+          created_at: string
+          id: string
+          user_id: string
+        }
+        Insert: {
+          checklist_item_id: string
+          created_at?: string
+          id?: string
+          user_id: string
+        }
+        Update: {
+          checklist_item_id?: string
+          created_at?: string
+          id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "checklist_item_assignees_checklist_item_id_fkey"
+            columns: ["checklist_item_id"]
+            isOneToOne: false
+            referencedRelation: "checklist_items"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       checklist_items: {
         Row: {
           ano: number
