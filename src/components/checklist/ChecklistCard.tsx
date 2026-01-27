@@ -75,29 +75,40 @@ export default function ChecklistCard({
 
   const canModify = canEdit && !isLocked;
 
+  // Different colors for each week
+  const weekColors: Record<number, { bg: string; icon: string; badge: string }> = {
+    1: { bg: "from-emerald-500/20 to-emerald-500/5", icon: "bg-emerald-500/30 text-emerald-700 dark:text-emerald-400", badge: "bg-emerald-500/20 text-emerald-700 dark:text-emerald-400" },
+    2: { bg: "from-blue-500/20 to-blue-500/5", icon: "bg-blue-500/30 text-blue-700 dark:text-blue-400", badge: "bg-blue-500/20 text-blue-700 dark:text-blue-400" },
+    3: { bg: "from-purple-500/20 to-purple-500/5", icon: "bg-purple-500/30 text-purple-700 dark:text-purple-400", badge: "bg-purple-500/20 text-purple-700 dark:text-purple-400" },
+    4: { bg: "from-orange-500/20 to-orange-500/5", icon: "bg-orange-500/30 text-orange-700 dark:text-orange-400", badge: "bg-orange-500/20 text-orange-700 dark:text-orange-400" },
+    5: { bg: "from-pink-500/20 to-pink-500/5", icon: "bg-pink-500/30 text-pink-700 dark:text-pink-400", badge: "bg-pink-500/20 text-pink-700 dark:text-pink-400" },
+  };
+
+  const weekColor = weekColors[semana] || weekColors[1];
+
   return (
     <Card className={cn(
       "w-full min-w-[280px] max-w-md h-full flex flex-col overflow-hidden transition-all duration-200 shadow-sm hover:shadow-md",
       allCompleted && "ring-2 ring-primary/30 bg-primary/5"
     )}>
-      {/* Header with gradient */}
+      {/* Header with gradient based on week */}
       <CardHeader className="p-0">
         <div className={cn(
           "px-4 py-3 bg-gradient-to-r",
           allCompleted 
             ? "from-primary/20 to-primary/10" 
-            : "from-muted to-muted/50"
+            : weekColor.bg
         )}>
           <div className="flex items-center justify-between gap-2">
             <div className="flex items-center gap-2">
               <div className={cn(
                 "p-1.5 rounded-md",
-                allCompleted ? "bg-primary/20" : "bg-background/80"
+                allCompleted ? "bg-primary/20" : weekColor.icon
               )}>
                 {allCompleted ? (
                   <CheckCircle2 className="h-4 w-4 text-primary" />
                 ) : (
-                  <Calendar className="h-4 w-4 text-muted-foreground" />
+                  <Calendar className="h-4 w-4" />
                 )}
               </div>
               <h3 className="font-semibold text-sm sm:text-base">
@@ -109,7 +120,7 @@ export default function ChecklistCard({
                 "text-xs font-medium px-2 py-0.5 rounded-full",
                 allCompleted 
                   ? "bg-primary/20 text-primary" 
-                  : "bg-background/80 text-muted-foreground"
+                  : weekColor.badge
               )}>
                 {completedCount}/{totalCount}
               </span>
