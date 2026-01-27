@@ -1,7 +1,8 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useChecklist } from "@/hooks/useChecklist";
 import { useMonthSettings } from "@/hooks/useMonthSettings";
+import { supabase } from "@/integrations/supabase/client";
 import AppLayout from "@/components/layout/AppLayout";
 import ChecklistCard from "@/components/checklist/ChecklistCard";
 import ChecklistFilters, { ChecklistMultiFilters } from "@/components/checklist/ChecklistFilters";
@@ -28,11 +29,29 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 
+interface Profile {
+  id: string;
+  user_id: string;
+  nome: string;
+  email: string;
+}
+
 const SEMANAS = [1, 2, 3, 4, 5];
 
 export default function Checklist() {
-  const { isGestorOrAdmin } = useAuth();
+  const { isGestorOrAdmin, user } = useAuth();
   const now = new Date();
+
+  // Profiles for user assignment
+  const [profiles, setProfiles] = useState<Profile[]>([]);
+
+  useEffect(() => {
+    const fetchProfiles = async () => {
+      const { data } = await supabase.from("profiles").select("*");
+      setProfiles((data as Profile[]) || []);
+    };
+    fetchProfiles();
+  }, []);
 
   // Filters state - using multi-select arrays
   const [filters, setFilters] = useState<ChecklistMultiFilters>({
@@ -49,7 +68,7 @@ export default function Checklist() {
   const anosNum = useMemo(() => filters.anos.map((a) => parseInt(a, 10)), [filters.anos]);
   const semanasNum = useMemo(() => filters.semanas.map((s) => parseInt(s, 10)), [filters.semanas]);
 
-  const { isLoading, getItemsByWeek, addItem, updateItem, deleteItem, rolloverToNextMonth, items } = useChecklist({
+  const { isLoading, getItemsByWeek, addItem, updateItem, deleteItem, rolloverToNextMonth, updateAssignees, items } = useChecklist({
     meses: mesesNum,
     anos: anosNum,
     semanas: semanasNum,
@@ -331,11 +350,7 @@ export default function Checklist() {
                         <Lock className="inline-block ml-2 h-4 w-4 text-amber-600" />
                       )}
                     </h2>
-                    <div className={`grid gap-4 ${
-                      semanasToShow.length === 1 
-                        ? "grid-cols-1 max-w-md mx-auto" 
-                        : "grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5"
-                    }`}>
+                    <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 justify-items-center">
                       {semanasToShow.map((sem) => (
                         <ChecklistCard
                           key={`${group.ano}-${group.mes}-${sem}`}
@@ -343,8 +358,12 @@ export default function Checklist() {
                           items={getItemsByWeek(sem, group.mes, group.ano)}
                           canEdit={isGestorOrAdmin}
                           isLocked={groupIsLocked}
+                          currentUserId={user?.id}
+                          isGestorOrAdmin={isGestorOrAdmin}
+                          profiles={profiles}
                           onUpdateItem={updateItem}
                           onDeleteItem={deleteItem}
+                          onUpdateAssignees={updateAssignees}
                         />
                       ))}
                     </div>
@@ -355,20 +374,20 @@ export default function Checklist() {
           </div>
         ) : (
           // Single period view
-          <div className={`grid gap-4 ${
-            semanasToShow.length === 1 
-              ? "grid-cols-1 max-w-md mx-auto" 
-              : "grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5"
-          }`}>
+          <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 justify-items-center">
             {semanasToShow.map((sem) => (
               <ChecklistCard
                 key={sem}
                 semana={sem}
                 items={getItemsByWeek(sem, viewedMes ?? undefined, viewedAno ?? undefined)}
                 canEdit={isGestorOrAdmin}
-                isLocked={isLocked}
+                isLocked={isLocked ?? false}
+                currentUserId={user?.id}
+                isGestorOrAdmin={isGestorOrAdmin}
+                profiles={profiles}
                 onUpdateItem={updateItem}
                 onDeleteItem={deleteItem}
+                onUpdateAssignees={updateAssignees}
               />
             ))}
           </div>
