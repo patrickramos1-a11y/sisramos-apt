@@ -77,7 +77,7 @@ export default function ChecklistCard({
 
   return (
     <Card className={cn(
-      "w-full max-w-sm h-full flex flex-col overflow-hidden transition-all duration-200",
+      "w-full min-w-[280px] max-w-md h-full flex flex-col overflow-hidden transition-all duration-200 shadow-sm hover:shadow-md",
       allCompleted && "ring-2 ring-primary/30 bg-primary/5"
     )}>
       {/* Header with gradient */}
