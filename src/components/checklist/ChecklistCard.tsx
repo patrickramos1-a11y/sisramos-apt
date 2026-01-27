@@ -228,9 +228,17 @@ export default function ChecklistCard({
                         >
                           {item.texto}
                         </span>
-                        {/* Assigned users display */}
+                        {/* Assigned users display OR assignment popover */}
                         <div className="flex items-center gap-1 mt-1.5 flex-wrap">
-                          {assignedProfiles.length > 0 ? (
+                          {canModify ? (
+                            <UserAssignmentPopover
+                              profiles={profiles}
+                              assignedUserIds={itemAssignees}
+                              onAssignmentChange={(userIds) => onUpdateAssignees(item.id, userIds)}
+                              disabled={isLocked && !canEdit}
+                              compact={false}
+                            />
+                          ) : assignedProfiles.length > 0 ? (
                             <div className="flex items-center -space-x-1">
                               {assignedProfiles.slice(0, 4).map((profile) => (
                                 <Avatar
@@ -250,16 +258,6 @@ export default function ChecklistCard({
                               )}
                             </div>
                           ) : null}
-                          {/* Assignment popover for gestor/admin */}
-                          {canModify && (
-                            <UserAssignmentPopover
-                              profiles={profiles}
-                              assignedUserIds={itemAssignees}
-                              onAssignmentChange={(userIds) => onUpdateAssignees(item.id, userIds)}
-                              disabled={isLocked && !canEdit}
-                              compact
-                            />
-                          )}
                         </div>
                       </div>
                       {canModify && (
