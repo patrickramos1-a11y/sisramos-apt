@@ -16,6 +16,7 @@ export interface ChecklistItem {
   ordem: number;
   mes: number;
   ano: number;
+  link?: string | null;
   created_at: string;
   updated_at: string;
   assignees?: string[]; // user_ids assigned to this item
@@ -183,7 +184,7 @@ export function useChecklist({ meses, anos, semanas, searchTerm }: UseChecklistO
     }
   };
 
-  const updateItem = async (id: string, updates: Partial<Pick<ChecklistItem, "texto" | "concluido">>) => {
+  const updateItem = async (id: string, updates: Partial<Pick<ChecklistItem, "texto" | "concluido" | "link">>) => {
     try {
       // Optimistically update local state immediately to prevent visual refresh
       setItems((prev) =>
