@@ -155,8 +155,8 @@ export default function ChecklistDetailDialog({
         </div>
 
         {/* Content */}
-        <ScrollArea className="flex-1 px-6 py-4">
-          <div className="space-y-2">
+        <ScrollArea className="flex-1 max-h-[60vh] overflow-auto">
+          <div className="space-y-2 px-6 py-4">
             {items.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-12 text-center">
                 <div className="p-3 bg-muted/50 rounded-full mb-2">
