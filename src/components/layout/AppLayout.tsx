@@ -60,12 +60,6 @@ export default function AppLayout({ children }: AppLayoutProps) {
       show: true,
     },
     {
-      name: "Gerenciamento",
-      href: "/apt/gerenciamento",
-      icon: BarChart3,
-      show: isGestorOrAdmin,
-    },
-    {
       name: "Configurações",
       href: "/configuracoes",
       icon: Settings,

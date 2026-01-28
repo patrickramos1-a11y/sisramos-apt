@@ -1,0 +1,1031 @@
+import { useState, useMemo, useEffect, useCallback } from "react";
+import { useAuth } from "@/contexts/AuthContext";
+import { supabase } from "@/integrations/supabase/client";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Label } from "@/components/ui/label";
+import { Checkbox } from "@/components/ui/checkbox";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+  SheetTrigger,
+} from "@/components/ui/sheet";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { 
+  Loader2, Building2, ClipboardList, Users, ChevronRight, Calendar, 
+  Plus, MoreVertical, Pencil, Trash2, Filter, ChevronDown, X
+} from "lucide-react";
+import StatusBolinha from "@/components/apt/StatusBolinha";
+import NovaDemandaDialog from "@/components/apt/NovaDemandaDialog";
+import EditarDemandaIrmaDialog from "@/components/apt/EditarDemandaIrmaDialog";
+import ExcluirDemandaIrmaDialog from "@/components/apt/ExcluirDemandaIrmaDialog";
+import { cn } from "@/lib/utils";
+
+interface Profile {
+  id: string;
+  user_id: string;
+  nome: string;
+}
+
+interface Setor {
+  id: string;
+  nome: string;
+  cor: string;
+}
+
+interface Demanda {
+  id: string;
+  numero: number;
+  setor_id: string | null;
+  responsavel_id: string;
+  descricao: string;
+  status_responsavel: "pendente" | "executado" | "nao_realizado";
+  status_gestor: "pendente" | "executado" | "nao_realizado";
+  semanas_repeticao: number;
+  semana_limite: number[];
+  mes: number;
+  ano: number;
+  prioritaria: boolean;
+  muito_urgente?: boolean;
+  grupo_id: string | null;
+  ativa: boolean;
+}
+
+interface ConsolidatedDemand {
+  grupo_id: string | null;
+  descricao: string;
+  responsavel_id: string;
+  setor_id: string | null;
+  prioritaria: boolean;
+  muito_urgente: boolean;
+  mes: number;
+  ano: number;
+  siblings: Array<{
+    id: string;
+    numero: number;
+    semana_limite: number[];
+    status_responsavel: "pendente" | "executado" | "nao_realizado";
+    status_gestor: "pendente" | "executado" | "nao_realizado";
+    mes: number;
+    ano: number;
+    prioritaria: boolean;
+    muito_urgente: boolean;
+  }>;
+}
+
+interface GerenciamentoFilters {
+  setores: string[];
+  responsaveis: string[];
+  prioridade: boolean;
+  muitoUrgente: boolean;
+  meses: string[];
+  semanas: string[];
+}
+
+interface APTGerenciamentoProps {
+  profiles: Profile[];
+  setores: Setor[];
+  onDemandaChange: () => void;
+}
+
+const meses = [
+  { value: "1", label: "Janeiro" },
+  { value: "2", label: "Fevereiro" },
+  { value: "3", label: "Março" },
+  { value: "4", label: "Abril" },
+  { value: "5", label: "Maio" },
+  { value: "6", label: "Junho" },
+  { value: "7", label: "Julho" },
+  { value: "8", label: "Agosto" },
+  { value: "9", label: "Setembro" },
+  { value: "10", label: "Outubro" },
+  { value: "11", label: "Novembro" },
+  { value: "12", label: "Dezembro" },
+];
+
+const semanaOptions = [
+  { value: "1", label: "1ª Semana" },
+  { value: "2", label: "2ª Semana" },
+  { value: "3", label: "3ª Semana" },
+  { value: "4", label: "4ª Semana" },
+  { value: "5", label: "5ª Semana" },
+];
+
+// Multi-select dropdown component
+function MultiSelectDropdown({
+  label,
+  options,
+  selected,
+  onChange,
+  placeholder = "Selecionar...",
+}: {
+  label: string;
+  options: { value: string; label: string }[];
+  selected: string[];
+  onChange: (selected: string[]) => void;
+  placeholder?: string;
+}) {
+  const toggleOption = (value: string) => {
+    if (selected.includes(value)) {
+      onChange(selected.filter((v) => v !== value));
+    } else {
+      onChange([...selected, value]);
+    }
+  };
+
+  const getDisplayText = () => {
+    if (selected.length === 0) return placeholder;
+    if (selected.length === 1) {
+      return options.find((o) => o.value === selected[0])?.label || selected[0];
+    }
+    return `${selected.length} selecionados`;
+  };
+
+  return (
+    <div className="space-y-1.5">
+      <Label className="text-xs">{label}</Label>
+      <Popover modal={false}>
+        <PopoverTrigger asChild>
+          <Button
+            variant="outline"
+            role="combobox"
+            size="sm"
+            className={cn(
+              "w-full justify-between font-normal h-8 text-xs",
+              selected.length > 0 && "text-foreground"
+            )}
+          >
+            <span className="truncate">{getDisplayText()}</span>
+            <ChevronDown className="ml-1 h-3 w-3 shrink-0 opacity-50" />
+          </Button>
+        </PopoverTrigger>
+        <PopoverContent 
+          className="w-full min-w-[160px] p-0 bg-popover border shadow-lg z-50" 
+          align="start"
+          onOpenAutoFocus={(e) => e.preventDefault()}
+        >
+          <div className="max-h-48 overflow-y-auto p-1.5 space-y-0.5">
+            {options.map((option) => (
+              <div
+                key={option.value}
+                className="flex items-center gap-2 px-2 py-1 rounded cursor-pointer hover:bg-muted text-xs"
+                onMouseDown={(e) => e.preventDefault()}
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  toggleOption(option.value);
+                }}
+              >
+                <Checkbox
+                  checked={selected.includes(option.value)}
+                  className="pointer-events-none h-3 w-3"
+                />
+                <span>{option.label}</span>
+              </div>
+            ))}
+          </div>
+        </PopoverContent>
+      </Popover>
+    </div>
+  );
+}
+
+export default function APTGerenciamento({
+  profiles,
+  setores,
+  onDemandaChange,
+}: APTGerenciamentoProps) {
+  const { user, isGestorOrAdmin } = useAuth();
+  
+  // Fetch ALL demands from DB (not filtered by useDemandas hook)
+  const [allDemandas, setAllDemandas] = useState<Demanda[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+
+  const [selectedDemand, setSelectedDemand] = useState<ConsolidatedDemand | null>(null);
+  const [selectedSetor, setSelectedSetor] = useState<Setor | null>(null);
+
+  // Filters
+  const [filters, setFilters] = useState<GerenciamentoFilters>({
+    setores: [],
+    responsaveis: [],
+    prioridade: false,
+    muitoUrgente: false,
+    meses: [String(new Date().getMonth() + 1)],
+    semanas: [],
+  });
+
+  // Edit/Delete states
+  const [editingDemanda, setEditingDemanda] = useState<Demanda | null>(null);
+  const [deletingDemanda, setDeletingDemanda] = useState<{
+    id: string;
+    numero: number;
+    grupo_id: string | null;
+  } | null>(null);
+
+  // Fetch all demands
+  const fetchAllDemandas = useCallback(async () => {
+    setIsLoading(true);
+    
+    let query = supabase
+      .from("demandas")
+      .select("*")
+      .eq("ativa", true)
+      .order("numero", { ascending: true });
+
+    // Apply filters
+    if (filters.meses.length > 0) {
+      query = query.in("mes", filters.meses.map(m => parseInt(m)));
+    }
+    if (filters.setores.length > 0) {
+      query = query.in("setor_id", filters.setores);
+    }
+    if (filters.responsaveis.length > 0) {
+      query = query.in("responsavel_id", filters.responsaveis);
+    }
+    if (filters.prioridade) {
+      query = query.eq("prioritaria", true);
+    }
+    if (filters.muitoUrgente) {
+      query = query.eq("muito_urgente", true);
+    }
+
+    const { data, error } = await query;
+
+    if (error) {
+      console.error("Error fetching all demands:", error);
+      setAllDemandas([]);
+    } else {
+      let filteredData = data || [];
+      
+      // Client-side filter for semanas
+      if (filters.semanas.length > 0) {
+        const semanaNumbers = filters.semanas.map(s => parseInt(s));
+        filteredData = filteredData.filter(d =>
+          d.semana_limite.some((sl: number) => semanaNumbers.includes(sl))
+        );
+      }
+      
+      setAllDemandas(filteredData);
+    }
+    
+    setIsLoading(false);
+  }, [filters]);
+
+  useEffect(() => {
+    fetchAllDemandas();
+  }, [fetchAllDemandas]);
+
+  // Consolidate demands - group by grupo_id or individual id
+  const consolidatedDemands = useMemo(() => {
+    const groupMap = new Map<string, ConsolidatedDemand>();
+    
+    allDemandas.forEach((d) => {
+      const key = d.grupo_id || d.id;
+      
+      if (groupMap.has(key)) {
+        const existing = groupMap.get(key)!;
+        existing.siblings.push({
+          id: d.id,
+          numero: d.numero,
+          semana_limite: d.semana_limite,
+          status_responsavel: d.status_responsavel,
+          status_gestor: d.status_gestor,
+          mes: d.mes,
+          ano: d.ano,
+          prioritaria: d.prioritaria,
+          muito_urgente: d.muito_urgente || false,
+        });
+      } else {
+        groupMap.set(key, {
+          grupo_id: d.grupo_id,
+          descricao: d.descricao,
+          responsavel_id: d.responsavel_id,
+          setor_id: d.setor_id,
+          prioritaria: d.prioritaria,
+          muito_urgente: d.muito_urgente || false,
+          mes: d.mes,
+          ano: d.ano,
+          siblings: [{
+            id: d.id,
+            numero: d.numero,
+            semana_limite: d.semana_limite,
+            status_responsavel: d.status_responsavel,
+            status_gestor: d.status_gestor,
+            mes: d.mes,
+            ano: d.ano,
+            prioritaria: d.prioritaria,
+            muito_urgente: d.muito_urgente || false,
+          }],
+        });
+      }
+    });
+    
+    return Array.from(groupMap.values());
+  }, [allDemandas]);
+
+  // Stats by sector
+  const sectorStats = useMemo(() => {
+    const stats = new Map<string, { count: number; completed: number; pending: number }>();
+    
+    allDemandas.forEach((d) => {
+      const setorId = d.setor_id || "sem-setor";
+      const current = stats.get(setorId) || { count: 0, completed: 0, pending: 0 };
+      current.count++;
+      if (d.status_gestor === "executado") {
+        current.completed++;
+      } else {
+        current.pending++;
+      }
+      stats.set(setorId, current);
+    });
+    
+    return stats;
+  }, [allDemandas]);
+
+  // Demands for selected sector (consolidated view)
+  const sectorConsolidatedDemands = useMemo(() => {
+    if (!selectedSetor) return [];
+    const setorId = selectedSetor.id;
+    
+    const sectorDemandas = allDemandas.filter((d) => d.setor_id === setorId);
+    
+    // Consolidate
+    const groupMap = new Map<string, ConsolidatedDemand>();
+    
+    sectorDemandas.forEach((d) => {
+      const key = d.grupo_id || d.id;
+      
+      if (groupMap.has(key)) {
+        const existing = groupMap.get(key)!;
+        existing.siblings.push({
+          id: d.id,
+          numero: d.numero,
+          semana_limite: d.semana_limite,
+          status_responsavel: d.status_responsavel,
+          status_gestor: d.status_gestor,
+          mes: d.mes,
+          ano: d.ano,
+          prioritaria: d.prioritaria,
+          muito_urgente: d.muito_urgente || false,
+        });
+      } else {
+        groupMap.set(key, {
+          grupo_id: d.grupo_id,
+          descricao: d.descricao,
+          responsavel_id: d.responsavel_id,
+          setor_id: d.setor_id,
+          prioritaria: d.prioritaria,
+          muito_urgente: d.muito_urgente || false,
+          mes: d.mes,
+          ano: d.ano,
+          siblings: [{
+            id: d.id,
+            numero: d.numero,
+            semana_limite: d.semana_limite,
+            status_responsavel: d.status_responsavel,
+            status_gestor: d.status_gestor,
+            mes: d.mes,
+            ano: d.ano,
+            prioritaria: d.prioritaria,
+            muito_urgente: d.muito_urgente || false,
+          }],
+        });
+      }
+    });
+    
+    return Array.from(groupMap.values());
+  }, [allDemandas, selectedSetor]);
+
+  const getProfileById = useCallback((userId: string) => {
+    return profiles.find((p) => p.user_id === userId);
+  }, [profiles]);
+
+  const getSetorById = useCallback((setorId: string | null) => {
+    if (!setorId) return null;
+    return setores.find((s) => s.id === setorId);
+  }, [setores]);
+
+  const getDemandaById = useCallback((id: string) => {
+    return allDemandas.find((d) => d.id === id);
+  }, [allDemandas]);
+
+  const getSiblingCount = useCallback((grupoId: string | null) => {
+    if (!grupoId) return 1;
+    return allDemandas.filter((d) => d.grupo_id === grupoId).length;
+  }, [allDemandas]);
+
+  const handleDemandaChange = () => {
+    fetchAllDemandas();
+    onDemandaChange();
+  };
+
+  const clearFilters = () => {
+    setFilters({
+      setores: [],
+      responsaveis: [],
+      prioridade: false,
+      muitoUrgente: false,
+      meses: [],
+      semanas: [],
+    });
+  };
+
+  const hasActiveFilters = 
+    filters.setores.length > 0 ||
+    filters.responsaveis.length > 0 ||
+    filters.prioridade ||
+    filters.muitoUrgente ||
+    filters.meses.length > 0 ||
+    filters.semanas.length > 0;
+
+  const responsavelOptions = profiles.map((p) => ({
+    value: p.user_id,
+    label: p.nome,
+  }));
+
+  const setorOptions = setores.map((s) => ({
+    value: s.id,
+    label: s.nome,
+  }));
+
+  // Get siblings for delete dialog
+  const deletingSiblings = deletingDemanda?.grupo_id
+    ? allDemandas
+        .filter((d) => d.grupo_id === deletingDemanda.grupo_id)
+        .map((d) => ({
+          id: d.id,
+          numero: d.numero,
+          descricao: d.descricao,
+          semana_limite: d.semana_limite,
+        }))
+    : [];
+
+  const editingSiblingCount = editingDemanda
+    ? getSiblingCount(editingDemanda.grupo_id)
+    : 1;
+
+  const deletingSiblingCount = deletingDemanda
+    ? getSiblingCount(deletingDemanda.grupo_id)
+    : 1;
+
+  // Demand row component for consolidated view
+  const ConsolidatedDemandRow = ({ demand, showActions = true }: { demand: ConsolidatedDemand; showActions?: boolean }) => {
+    const profile = getProfileById(demand.responsavel_id);
+    const setor = getSetorById(demand.setor_id);
+    const firstSibling = demand.siblings[0];
+    
+    return (
+      <TableRow 
+        className={cn(
+          "cursor-pointer hover:bg-muted/50",
+          demand.muito_urgente && "bg-[hsl(var(--apt-muito-urgente))]/30",
+          demand.prioritaria && !demand.muito_urgente && "bg-[hsl(var(--apt-priority))]/30"
+        )}
+        onClick={() => setSelectedDemand(demand)}
+      >
+        <TableCell className="max-w-[300px]">
+          <p className="truncate">{demand.descricao}</p>
+        </TableCell>
+        <TableCell>
+          <div className="flex items-center gap-2">
+            <Users className="h-4 w-4 text-muted-foreground" />
+            {profile?.nome || "Desconhecido"}
+          </div>
+        </TableCell>
+        <TableCell>
+          {setor ? (
+            <div className="flex items-center gap-2">
+              <div
+                className="w-2 h-2 rounded-full"
+                style={{ backgroundColor: setor.cor || "#E5E7EB" }}
+              />
+              {setor.nome}
+            </div>
+          ) : (
+            <span className="text-muted-foreground">-</span>
+          )}
+        </TableCell>
+        <TableCell className="text-center">
+          <Badge variant="secondary">
+            {demand.siblings.length}X
+          </Badge>
+        </TableCell>
+        {showActions && (
+          <TableCell>
+            <div className="flex items-center gap-1">
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
+                  <Button variant="ghost" size="icon" className="h-8 w-8">
+                    <MoreVertical className="h-4 w-4" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuItem
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      const demanda = getDemandaById(firstSibling.id);
+                      if (demanda) setEditingDemanda(demanda);
+                    }}
+                  >
+                    <Pencil className="mr-2 h-4 w-4" />
+                    Editar
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setDeletingDemanda({
+                        id: firstSibling.id,
+                        numero: firstSibling.numero,
+                        grupo_id: demand.grupo_id,
+                      });
+                    }}
+                    className="text-destructive"
+                  >
+                    <Trash2 className="mr-2 h-4 w-4" />
+                    Excluir
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+              <ChevronRight className="h-4 w-4 text-muted-foreground" />
+            </div>
+          </TableCell>
+        )}
+      </TableRow>
+    );
+  };
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center py-12">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-6">
+      {/* Filters */}
+      <div className="flex flex-wrap items-end gap-3">
+        <Sheet>
+          <SheetTrigger asChild>
+            <Button variant="outline" size="sm" className="gap-2">
+              <Filter className="h-4 w-4" />
+              Filtros
+              {hasActiveFilters && (
+                <span className="ml-1 rounded-full bg-primary px-2 py-0.5 text-xs text-primary-foreground">
+                  !
+                </span>
+              )}
+            </Button>
+          </SheetTrigger>
+          <SheetContent side="left" className="w-72 flex flex-col">
+            <SheetHeader>
+              <SheetTitle className="flex items-center gap-2">
+                <Filter className="h-4 w-4" />
+                Filtros
+              </SheetTitle>
+            </SheetHeader>
+            <ScrollArea className="flex-1 mt-4 -mx-6 px-6">
+              <div className="space-y-4 pb-6">
+                <MultiSelectDropdown
+                  label="Setores"
+                  options={setorOptions}
+                  selected={filters.setores}
+                  onChange={(v) => setFilters(prev => ({ ...prev, setores: v }))}
+                  placeholder="Todos"
+                />
+
+                <MultiSelectDropdown
+                  label="Responsáveis"
+                  options={responsavelOptions}
+                  selected={filters.responsaveis}
+                  onChange={(v) => setFilters(prev => ({ ...prev, responsaveis: v }))}
+                  placeholder="Todos"
+                />
+
+                <MultiSelectDropdown
+                  label="Meses"
+                  options={meses}
+                  selected={filters.meses}
+                  onChange={(v) => setFilters(prev => ({ ...prev, meses: v }))}
+                  placeholder="Todos"
+                />
+
+                <MultiSelectDropdown
+                  label="Semanas"
+                  options={semanaOptions}
+                  selected={filters.semanas}
+                  onChange={(v) => setFilters(prev => ({ ...prev, semanas: v }))}
+                  placeholder="Todas"
+                />
+
+                <div className="space-y-2">
+                  <Label className="text-xs">Prioridade</Label>
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-2">
+                      <Checkbox
+                        id="prioridade"
+                        checked={filters.prioridade}
+                        onCheckedChange={(checked) => 
+                          setFilters(prev => ({ ...prev, prioridade: checked as boolean }))
+                        }
+                      />
+                      <Label htmlFor="prioridade" className="text-xs cursor-pointer">
+                        Prioritária (amarelo)
+                      </Label>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Checkbox
+                        id="muitoUrgente"
+                        checked={filters.muitoUrgente}
+                        onCheckedChange={(checked) => 
+                          setFilters(prev => ({ ...prev, muitoUrgente: checked as boolean }))
+                        }
+                      />
+                      <Label htmlFor="muitoUrgente" className="text-xs cursor-pointer text-destructive">
+                        Muito Urgente (vermelho)
+                      </Label>
+                    </div>
+                  </div>
+                </div>
+
+                <Button
+                  variant="destructive"
+                  size="sm"
+                  className="w-full"
+                  onClick={clearFilters}
+                  disabled={!hasActiveFilters}
+                >
+                  <X className="mr-2 h-4 w-4" />
+                  Limpar Filtros
+                </Button>
+              </div>
+            </ScrollArea>
+          </SheetContent>
+        </Sheet>
+
+        {/* Active filter badges */}
+        {hasActiveFilters && (
+          <div className="flex flex-wrap gap-1">
+            {filters.meses.length > 0 && (
+              <Badge variant="secondary" className="text-xs">
+                {filters.meses.length} mês(es)
+              </Badge>
+            )}
+            {filters.setores.length > 0 && (
+              <Badge variant="secondary" className="text-xs">
+                {filters.setores.length} setor(es)
+              </Badge>
+            )}
+            {filters.responsaveis.length > 0 && (
+              <Badge variant="secondary" className="text-xs">
+                {filters.responsaveis.length} resp.
+              </Badge>
+            )}
+            {filters.prioridade && (
+              <Badge variant="secondary" className="text-xs bg-[hsl(var(--apt-priority))]/30">
+                Prioritária
+              </Badge>
+            )}
+            {filters.muitoUrgente && (
+              <Badge variant="secondary" className="text-xs bg-destructive/20 text-destructive">
+                Muito Urgente
+              </Badge>
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* Sector Cards */}
+      <section>
+        <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
+          <Building2 className="h-5 w-5" />
+          Demandas por Setor
+        </h2>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+          {setores.map((setor) => {
+            const stats = sectorStats.get(setor.id) || { count: 0, completed: 0, pending: 0 };
+            const completionRate = stats.count > 0 ? Math.round((stats.completed / stats.count) * 100) : 0;
+            
+            // Check if this sector has muito_urgente demands
+            const hasMuitoUrgente = allDemandas.some(
+              (d) => d.setor_id === setor.id && d.muito_urgente
+            );
+            
+            return (
+              <Card 
+                key={setor.id}
+                className={cn(
+                  "cursor-pointer hover:shadow-md transition-all hover:scale-[1.02]",
+                  hasMuitoUrgente && "ring-2 ring-destructive shadow-[0_0_15px_rgba(239,68,68,0.3)]"
+                )}
+                onClick={() => setSelectedSetor(setor)}
+              >
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-base flex items-center gap-2">
+                    <div
+                      className="w-3 h-3 rounded-full"
+                      style={{ backgroundColor: setor.cor || "#E5E7EB" }}
+                    />
+                    {setor.nome}
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="flex items-center justify-between">
+                    <div className="space-y-1">
+                      <p className="text-2xl font-bold">{stats.count}</p>
+                      <p className="text-xs text-muted-foreground">demandas</p>
+                    </div>
+                    <div className="text-right space-y-1">
+                      <Badge variant={completionRate === 100 ? "default" : "secondary"}>
+                        {completionRate}% concluído
+                      </Badge>
+                      <p className="text-xs text-muted-foreground">
+                        {stats.pending} pendentes
+                      </p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            );
+          })}
+          
+          {/* "Sem Setor" card */}
+          {sectorStats.has("sem-setor") && (
+            <Card 
+              className="cursor-pointer hover:shadow-md transition-all hover:scale-[1.02] border-dashed"
+              onClick={() => setSelectedSetor({ id: "sem-setor", nome: "Sem Setor", cor: "#E5E7EB" } as Setor)}
+            >
+              <CardHeader className="pb-2">
+                <CardTitle className="text-base flex items-center gap-2 text-muted-foreground">
+                  <div className="w-3 h-3 rounded-full bg-muted" />
+                  Sem Setor
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="flex items-center justify-between">
+                  <div className="space-y-1">
+                    <p className="text-2xl font-bold">
+                      {sectorStats.get("sem-setor")?.count || 0}
+                    </p>
+                    <p className="text-xs text-muted-foreground">demandas</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+        </div>
+      </section>
+
+      {/* Consolidated Demands */}
+      <section>
+        <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
+          <ClipboardList className="h-5 w-5" />
+          Demandas Consolidadas
+          <Badge variant="outline" className="ml-2">
+            {consolidatedDemands.length} únicas
+          </Badge>
+        </h2>
+        
+        <Card>
+          <ScrollArea className="max-h-[500px]">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Descrição</TableHead>
+                  <TableHead>Responsável</TableHead>
+                  <TableHead>Setor</TableHead>
+                  <TableHead className="text-center">Repetições</TableHead>
+                  <TableHead className="w-20">Ações</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {consolidatedDemands.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
+                      Nenhuma demanda encontrada
+                    </TableCell>
+                  </TableRow>
+                ) : (
+                  consolidatedDemands.map((demand, idx) => (
+                    <ConsolidatedDemandRow key={demand.grupo_id || idx} demand={demand} />
+                  ))
+                )}
+              </TableBody>
+            </Table>
+          </ScrollArea>
+        </Card>
+      </section>
+
+      {/* Demand Siblings Dialog */}
+      <Dialog open={!!selectedDemand} onOpenChange={() => setSelectedDemand(null)}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              {selectedDemand?.setor_id && (
+                <div
+                  className="w-3 h-3 rounded-full"
+                  style={{ backgroundColor: getSetorById(selectedDemand.setor_id)?.cor || "#E5E7EB" }}
+                />
+              )}
+              {getSetorById(selectedDemand?.setor_id || null)?.nome || "Sem Setor"}
+            </DialogTitle>
+          </DialogHeader>
+          {selectedDemand && (
+            <div className="space-y-4">
+              <div>
+                <p className="text-sm text-muted-foreground mb-1">Descrição</p>
+                <p className="font-medium">{selectedDemand.descricao}</p>
+              </div>
+              
+              <div className="flex gap-4">
+                <div>
+                  <p className="text-sm text-muted-foreground mb-1">Responsável</p>
+                  <p className="font-medium">
+                    {getProfileById(selectedDemand.responsavel_id)?.nome || "Desconhecido"}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-sm text-muted-foreground mb-1">Setor</p>
+                  <p className="font-medium">
+                    {getSetorById(selectedDemand.setor_id)?.nome || "Sem setor"}
+                  </p>
+                </div>
+              </div>
+              
+              <div>
+                <p className="text-sm text-muted-foreground mb-2">
+                  Demandas ({selectedDemand.siblings.length})
+                </p>
+                <div className="space-y-2">
+                  {selectedDemand.siblings.map((sibling) => (
+                    <div 
+                      key={sibling.id}
+                      className="flex items-center justify-between p-3 rounded-lg border bg-muted/30"
+                    >
+                      <div className="flex items-center gap-2">
+                        <Calendar className="h-4 w-4 text-muted-foreground" />
+                        <span className="text-sm">
+                          {sibling.semana_limite.length > 1 
+                            ? `Semanas ${sibling.semana_limite.join(", ")}`
+                            : `${sibling.semana_limite[0]}ª Semana`
+                          }
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-3">
+                        <div className="flex items-center gap-1">
+                          <span className="text-xs text-muted-foreground">Feito:</span>
+                          <StatusBolinha status={sibling.status_responsavel} />
+                        </div>
+                        <div className="flex items-center gap-1">
+                          <span className="text-xs text-muted-foreground">Aprovado:</span>
+                          <StatusBolinha status={sibling.status_gestor} />
+                        </div>
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" size="icon" className="h-7 w-7">
+                              <MoreVertical className="h-4 w-4" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuItem
+                              onClick={() => {
+                                const demanda = getDemandaById(sibling.id);
+                                if (demanda) {
+                                  setSelectedDemand(null);
+                                  setEditingDemanda(demanda);
+                                }
+                              }}
+                            >
+                              <Pencil className="mr-2 h-4 w-4" />
+                              Editar
+                            </DropdownMenuItem>
+                            <DropdownMenuItem
+                              onClick={() => {
+                                setSelectedDemand(null);
+                                setDeletingDemanda({
+                                  id: sibling.id,
+                                  numero: sibling.numero,
+                                  grupo_id: selectedDemand.grupo_id,
+                                });
+                              }}
+                              className="text-destructive"
+                            >
+                              <Trash2 className="mr-2 h-4 w-4" />
+                              Excluir
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Sector Details Dialog */}
+      <Dialog open={!!selectedSetor} onOpenChange={() => setSelectedSetor(null)}>
+        <DialogContent className="max-w-3xl max-h-[85vh] flex flex-col">
+          <DialogHeader>
+            <DialogTitle className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <div
+                  className="w-3 h-3 rounded-full"
+                  style={{ backgroundColor: selectedSetor?.cor || "#E5E7EB" }}
+                />
+                {selectedSetor?.nome || "Sem Setor"}
+              </div>
+              <NovaDemandaDialog
+                profiles={profiles}
+                setores={setores}
+                onDemandaCriada={handleDemandaChange}
+                lockedSetorId={selectedSetor?.id !== "sem-setor" ? selectedSetor?.id : undefined}
+              />
+            </DialogTitle>
+          </DialogHeader>
+          
+          <ScrollArea className="flex-1">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Descrição</TableHead>
+                  <TableHead>Responsável</TableHead>
+                  <TableHead>Setor</TableHead>
+                  <TableHead className="text-center">Repetições</TableHead>
+                  <TableHead className="w-20">Ações</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {sectorConsolidatedDemands.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
+                      Nenhuma demanda neste setor
+                    </TableCell>
+                  </TableRow>
+                ) : (
+                  sectorConsolidatedDemands.map((demand, idx) => (
+                    <ConsolidatedDemandRow key={demand.grupo_id || idx} demand={demand} />
+                  ))
+                )}
+              </TableBody>
+            </Table>
+          </ScrollArea>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit Dialog */}
+      <EditarDemandaIrmaDialog
+        open={!!editingDemanda}
+        onOpenChange={(open) => !open && setEditingDemanda(null)}
+        demanda={editingDemanda}
+        profiles={profiles}
+        setores={setores}
+        siblingCount={editingSiblingCount}
+        onDemandaEditada={handleDemandaChange}
+      />
+
+      {/* Delete Dialog */}
+      <ExcluirDemandaIrmaDialog
+        open={!!deletingDemanda}
+        onOpenChange={(open) => !open && setDeletingDemanda(null)}
+        demandaId={deletingDemanda?.id || null}
+        demandaNumero={deletingDemanda?.numero || null}
+        grupoId={deletingDemanda?.grupo_id || null}
+        siblingCount={deletingSiblingCount}
+        siblings={deletingSiblings}
+        onDemandaExcluida={handleDemandaChange}
+      />
+    </div>
+  );
+}

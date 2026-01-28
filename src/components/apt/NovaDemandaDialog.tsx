@@ -44,12 +44,14 @@ interface NovaDemandaDialogProps {
   profiles: Profile[];
   setores: Setor[];
   onDemandaCriada: () => void;
+  lockedSetorId?: string;
 }
 
 export default function NovaDemandaDialog({
   profiles,
   setores,
   onDemandaCriada,
+  lockedSetorId,
 }: NovaDemandaDialogProps) {
   const [open, setOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
@@ -58,7 +60,7 @@ export default function NovaDemandaDialog({
 
   const [formData, setFormData] = useState({
     responsavel_ids: [] as string[],
-    setor_id: "",
+    setor_id: lockedSetorId || "",
     descricao: "",
     semanas_repeticao: "1",
     semana_limite: [1] as number[],
@@ -71,7 +73,7 @@ export default function NovaDemandaDialog({
   const resetForm = () => {
     setFormData({
       responsavel_ids: [],
-      setor_id: "",
+      setor_id: lockedSetorId || "",
       descricao: "",
       semanas_repeticao: "1",
       semana_limite: [1],
@@ -81,6 +83,8 @@ export default function NovaDemandaDialog({
       muito_urgente: false,
     });
   };
+
+  const isSetorLocked = !!lockedSetorId;
 
   const toggleResponsavel = (userId: string) => {
     setFormData((prev) => {
@@ -330,14 +334,15 @@ export default function NovaDemandaDialog({
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="setor">Setor</Label>
+            <Label htmlFor="setor">Setor {isSetorLocked && <span className="text-xs text-muted-foreground">(bloqueado)</span>}</Label>
             <Select
               value={formData.setor_id}
               onValueChange={(v) =>
                 setFormData((prev) => ({ ...prev, setor_id: v }))
               }
+              disabled={isSetorLocked}
             >
-              <SelectTrigger>
+              <SelectTrigger className={isSetorLocked ? "bg-muted" : ""}>
                 <SelectValue placeholder="Selecione o setor" />
               </SelectTrigger>
               <SelectContent>
