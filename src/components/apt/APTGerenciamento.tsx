@@ -7,6 +7,13 @@ import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import {
   Dialog,
   DialogContent,
@@ -41,7 +48,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { 
   Loader2, Building2, ClipboardList, Users, ChevronRight, Calendar, 
-  Plus, MoreVertical, Pencil, Trash2, Filter, ChevronDown, X
+  MoreVertical, Pencil, Trash2, Filter, ChevronDown, X, Star
 } from "lucide-react";
 import StatusBolinha from "@/components/apt/StatusBolinha";
 import NovaDemandaDialog from "@/components/apt/NovaDemandaDialog";
@@ -104,8 +111,7 @@ interface ConsolidatedDemand {
 interface GerenciamentoFilters {
   setores: string[];
   responsaveis: string[];
-  prioridade: boolean;
-  muitoUrgente: boolean;
+  prioridade: boolean; // Filter for starred sectors
   meses: string[];
   semanas: string[];
 }
@@ -229,6 +235,12 @@ export default function APTGerenciamento({
   const [allDemandas, setAllDemandas] = useState<Demanda[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
+  // Starred/priority sectors (local state)
+  const [starredSectors, setStarredSectors] = useState<Set<string>>(() => {
+    const saved = localStorage.getItem("apt-starred-sectors");
+    return saved ? new Set(JSON.parse(saved)) : new Set();
+  });
+
   const [selectedDemand, setSelectedDemand] = useState<ConsolidatedDemand | null>(null);
   const [selectedSetor, setSelectedSetor] = useState<Setor | null>(null);
 
@@ -236,8 +248,7 @@ export default function APTGerenciamento({
   const [filters, setFilters] = useState<GerenciamentoFilters>({
     setores: [],
     responsaveis: [],
-    prioridade: false,
-    muitoUrgente: false,
+    prioridade: false, // Only show starred sectors
     meses: [String(new Date().getMonth() + 1)],
     semanas: [],
   });
@@ -250,7 +261,25 @@ export default function APTGerenciamento({
     grupo_id: string | null;
   } | null>(null);
 
-  // Fetch all demands
+  // Save starred sectors to localStorage
+  useEffect(() => {
+    localStorage.setItem("apt-starred-sectors", JSON.stringify([...starredSectors]));
+  }, [starredSectors]);
+
+  const toggleSectorStar = (setorId: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setStarredSectors(prev => {
+      const next = new Set(prev);
+      if (next.has(setorId)) {
+        next.delete(setorId);
+      } else {
+        next.add(setorId);
+      }
+      return next;
+    });
+  };
+
+  // Fetch all demands (with only month/year filter for relevance)
   const fetchAllDemandas = useCallback(async () => {
     setIsLoading(true);
     
@@ -269,12 +298,6 @@ export default function APTGerenciamento({
     }
     if (filters.responsaveis.length > 0) {
       query = query.in("responsavel_id", filters.responsaveis);
-    }
-    if (filters.prioridade) {
-      query = query.eq("prioritaria", true);
-    }
-    if (filters.muitoUrgente) {
-      query = query.eq("muito_urgente", true);
     }
 
     const { data, error } = await query;
@@ -297,7 +320,7 @@ export default function APTGerenciamento({
     }
     
     setIsLoading(false);
-  }, [filters]);
+  }, [filters.meses, filters.setores, filters.responsaveis, filters.semanas]);
 
   useEffect(() => {
     fetchAllDemandas();
@@ -353,17 +376,28 @@ export default function APTGerenciamento({
 
   // Stats by sector
   const sectorStats = useMemo(() => {
-    const stats = new Map<string, { count: number; completed: number; pending: number }>();
+    const stats = new Map<string, { 
+      count: number; 
+      completed: number; 
+      pending: number;
+      responsaveis: Set<string>;
+    }>();
     
     allDemandas.forEach((d) => {
       const setorId = d.setor_id || "sem-setor";
-      const current = stats.get(setorId) || { count: 0, completed: 0, pending: 0 };
+      const current = stats.get(setorId) || { 
+        count: 0, 
+        completed: 0, 
+        pending: 0,
+        responsaveis: new Set<string>()
+      };
       current.count++;
       if (d.status_gestor === "executado") {
         current.completed++;
       } else {
         current.pending++;
       }
+      current.responsaveis.add(d.responsavel_id);
       stats.set(setorId, current);
     });
     
@@ -373,9 +407,11 @@ export default function APTGerenciamento({
   // Demands for selected sector (consolidated view)
   const sectorConsolidatedDemands = useMemo(() => {
     if (!selectedSetor) return [];
-    const setorId = selectedSetor.id;
+    const setorId = selectedSetor.id === "sem-setor" ? null : selectedSetor.id;
     
-    const sectorDemandas = allDemandas.filter((d) => d.setor_id === setorId);
+    const sectorDemandas = allDemandas.filter((d) => 
+      selectedSetor.id === "sem-setor" ? d.setor_id === null : d.setor_id === setorId
+    );
     
     // Consolidate
     const groupMap = new Map<string, ConsolidatedDemand>();
@@ -424,6 +460,12 @@ export default function APTGerenciamento({
     return Array.from(groupMap.values());
   }, [allDemandas, selectedSetor]);
 
+  // Filtered sectors based on priority filter
+  const filteredSetores = useMemo(() => {
+    if (!filters.prioridade) return setores;
+    return setores.filter(s => starredSectors.has(s.id));
+  }, [setores, filters.prioridade, starredSectors]);
+
   const getProfileById = useCallback((userId: string) => {
     return profiles.find((p) => p.user_id === userId);
   }, [profiles]);
@@ -452,7 +494,6 @@ export default function APTGerenciamento({
       setores: [],
       responsaveis: [],
       prioridade: false,
-      muitoUrgente: false,
       meses: [],
       semanas: [],
     });
@@ -462,7 +503,6 @@ export default function APTGerenciamento({
     filters.setores.length > 0 ||
     filters.responsaveis.length > 0 ||
     filters.prioridade ||
-    filters.muitoUrgente ||
     filters.meses.length > 0 ||
     filters.semanas.length > 0;
 
@@ -495,6 +535,11 @@ export default function APTGerenciamento({
   const deletingSiblingCount = deletingDemanda
     ? getSiblingCount(deletingDemanda.grupo_id)
     : 1;
+
+  // Get initials for avatar
+  const getInitials = (name: string) => {
+    return name.split(" ").map(n => n[0]).slice(0, 2).join("").toUpperCase();
+  };
 
   // Demand row component for consolidated view
   const ConsolidatedDemandRow = ({ demand, showActions = true }: { demand: ConsolidatedDemand; showActions?: boolean }) => {
@@ -648,32 +693,19 @@ export default function APTGerenciamento({
                 />
 
                 <div className="space-y-2">
-                  <Label className="text-xs">Prioridade</Label>
-                  <div className="space-y-2">
-                    <div className="flex items-center gap-2">
-                      <Checkbox
-                        id="prioridade"
-                        checked={filters.prioridade}
-                        onCheckedChange={(checked) => 
-                          setFilters(prev => ({ ...prev, prioridade: checked as boolean }))
-                        }
-                      />
-                      <Label htmlFor="prioridade" className="text-xs cursor-pointer">
-                        Prioritária (amarelo)
-                      </Label>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <Checkbox
-                        id="muitoUrgente"
-                        checked={filters.muitoUrgente}
-                        onCheckedChange={(checked) => 
-                          setFilters(prev => ({ ...prev, muitoUrgente: checked as boolean }))
-                        }
-                      />
-                      <Label htmlFor="muitoUrgente" className="text-xs cursor-pointer text-destructive">
-                        Muito Urgente (vermelho)
-                      </Label>
-                    </div>
+                  <Label className="text-xs">Prioridade (cards com estrela)</Label>
+                  <div className="flex items-center gap-2">
+                    <Checkbox
+                      id="prioridade"
+                      checked={filters.prioridade}
+                      onCheckedChange={(checked) => 
+                        setFilters(prev => ({ ...prev, prioridade: checked as boolean }))
+                      }
+                    />
+                    <Label htmlFor="prioridade" className="text-xs cursor-pointer flex items-center gap-1">
+                      <Star className="h-3 w-3 text-destructive fill-destructive" />
+                      Apenas prioritários
+                    </Label>
                   </div>
                 </div>
 
@@ -711,13 +743,9 @@ export default function APTGerenciamento({
               </Badge>
             )}
             {filters.prioridade && (
-              <Badge variant="secondary" className="text-xs bg-[hsl(var(--apt-priority))]/30">
-                Prioritária
-              </Badge>
-            )}
-            {filters.muitoUrgente && (
-              <Badge variant="secondary" className="text-xs bg-destructive/20 text-destructive">
-                Muito Urgente
+              <Badge variant="secondary" className="text-xs flex items-center gap-1">
+                <Star className="h-3 w-3 fill-destructive text-destructive" />
+                Prioritários
               </Badge>
             )}
           </div>
@@ -731,35 +759,54 @@ export default function APTGerenciamento({
           Demandas por Setor
         </h2>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-          {setores.map((setor) => {
-            const stats = sectorStats.get(setor.id) || { count: 0, completed: 0, pending: 0 };
+          {filteredSetores.map((setor) => {
+            const stats = sectorStats.get(setor.id) || { 
+              count: 0, 
+              completed: 0, 
+              pending: 0,
+              responsaveis: new Set<string>()
+            };
             const completionRate = stats.count > 0 ? Math.round((stats.completed / stats.count) * 100) : 0;
+            const isStarred = starredSectors.has(setor.id);
             
-            // Check if this sector has muito_urgente demands
-            const hasMuitoUrgente = allDemandas.some(
-              (d) => d.setor_id === setor.id && d.muito_urgente
-            );
+            // Get responsible users for this sector
+            const responsaveisArray = Array.from(stats.responsaveis);
             
             return (
               <Card 
                 key={setor.id}
                 className={cn(
-                  "cursor-pointer hover:shadow-md transition-all hover:scale-[1.02]",
-                  hasMuitoUrgente && "ring-2 ring-destructive shadow-[0_0_15px_rgba(239,68,68,0.3)]"
+                  "cursor-pointer hover:shadow-md transition-all hover:scale-[1.02] relative",
+                  isStarred && "ring-2 ring-destructive shadow-[0_0_15px_rgba(239,68,68,0.4)]"
                 )}
                 onClick={() => setSelectedSetor(setor)}
               >
-                <CardHeader className="pb-2">
+                {/* Star toggle button */}
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="absolute top-2 right-2 h-7 w-7 z-10"
+                  onClick={(e) => toggleSectorStar(setor.id, e)}
+                >
+                  <Star 
+                    className={cn(
+                      "h-4 w-4 transition-colors",
+                      isStarred ? "fill-destructive text-destructive" : "text-muted-foreground"
+                    )} 
+                  />
+                </Button>
+                
+                <CardHeader className="pb-2 pr-10">
                   <CardTitle className="text-base flex items-center gap-2">
                     <div
-                      className="w-3 h-3 rounded-full"
+                      className="w-3 h-3 rounded-full shrink-0"
                       style={{ backgroundColor: setor.cor || "#E5E7EB" }}
                     />
-                    {setor.nome}
+                    <span className="truncate">{setor.nome}</span>
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="flex items-center justify-between">
+                  <div className="flex items-center justify-between mb-3">
                     <div className="space-y-1">
                       <p className="text-2xl font-bold">{stats.count}</p>
                       <p className="text-xs text-muted-foreground">demandas</p>
@@ -773,13 +820,60 @@ export default function APTGerenciamento({
                       </p>
                     </div>
                   </div>
+                  
+                  {/* Responsáveis avatars */}
+                  {responsaveisArray.length > 0 && (
+                    <div className="flex items-center gap-1 pt-2 border-t">
+                      <TooltipProvider>
+                        <div className="flex -space-x-2">
+                          {responsaveisArray.slice(0, 4).map((userId) => {
+                            const profile = getProfileById(userId);
+                            if (!profile) return null;
+                            return (
+                              <Tooltip key={userId}>
+                                <TooltipTrigger asChild>
+                                  <Avatar className="h-6 w-6 border-2 border-background">
+                                    <AvatarFallback className="text-[10px] bg-muted">
+                                      {getInitials(profile.nome)}
+                                    </AvatarFallback>
+                                  </Avatar>
+                                </TooltipTrigger>
+                                <TooltipContent>
+                                  <p className="text-xs">{profile.nome}</p>
+                                </TooltipContent>
+                              </Tooltip>
+                            );
+                          })}
+                          {responsaveisArray.length > 4 && (
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <Avatar className="h-6 w-6 border-2 border-background">
+                                  <AvatarFallback className="text-[10px] bg-muted">
+                                    +{responsaveisArray.length - 4}
+                                  </AvatarFallback>
+                                </Avatar>
+                              </TooltipTrigger>
+                              <TooltipContent>
+                                <p className="text-xs">
+                                  {responsaveisArray.slice(4).map(id => getProfileById(id)?.nome).join(", ")}
+                                </p>
+                              </TooltipContent>
+                            </Tooltip>
+                          )}
+                        </div>
+                      </TooltipProvider>
+                      <span className="text-xs text-muted-foreground ml-1">
+                        {responsaveisArray.length} {responsaveisArray.length === 1 ? "responsável" : "responsáveis"}
+                      </span>
+                    </div>
+                  )}
                 </CardContent>
               </Card>
             );
           })}
           
           {/* "Sem Setor" card */}
-          {sectorStats.has("sem-setor") && (
+          {sectorStats.has("sem-setor") && !filters.prioridade && (
             <Card 
               className="cursor-pointer hover:shadow-md transition-all hover:scale-[1.02] border-dashed"
               onClick={() => setSelectedSetor({ id: "sem-setor", nome: "Sem Setor", cor: "#E5E7EB" } as Setor)}

@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -10,10 +10,10 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Loader2, Undo2 } from "lucide-react";
+import { Loader2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { playDeleteSound, playUndoSound } from "@/lib/audioFeedback";
+import { playDeleteSound } from "@/lib/audioFeedback";
 
 interface SiblingDemanda {
   id: string;
@@ -33,8 +33,6 @@ interface ExcluirDemandaIrmaDialogProps {
   onDemandaExcluida: () => void;
 }
 
-const UNDO_TIMEOUT = 8000; // 8 seconds to undo
-
 export default function ExcluirDemandaIrmaDialog({
   open,
   onOpenChange,
@@ -47,9 +45,7 @@ export default function ExcluirDemandaIrmaDialog({
 }: ExcluirDemandaIrmaDialogProps) {
   const [isLoading, setIsLoading] = useState(false);
   const [showPreview, setShowPreview] = useState(false);
-  const { toast, dismiss } = useToast();
-  const undoTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-  const pendingDeleteRef = useRef<{ ids: string[]; byGroup: boolean } | null>(null);
+  const { toast } = useToast();
 
   // Reset state when dialog opens
   useEffect(() => {
@@ -57,96 +53,6 @@ export default function ExcluirDemandaIrmaDialog({
       setShowPreview(false);
     }
   }, [open]);
-
-  // Cleanup timeout on unmount
-  useEffect(() => {
-    return () => {
-      if (undoTimeoutRef.current) {
-        clearTimeout(undoTimeoutRef.current);
-      }
-    };
-  }, []);
-
-  const handleUndo = async (toastId: string) => {
-    if (!pendingDeleteRef.current) return;
-    
-    // Cancel the pending permanent delete
-    if (undoTimeoutRef.current) {
-      clearTimeout(undoTimeoutRef.current);
-      undoTimeoutRef.current = null;
-    }
-
-    const { ids, byGroup } = pendingDeleteRef.current;
-
-    // Restore the demands (set ativa back to true)
-    let query = supabase.from("demandas").update({ ativa: true });
-    
-    if (byGroup && grupoId) {
-      query = query.eq("grupo_id", grupoId);
-    } else {
-      query = query.in("id", ids);
-    }
-
-    const { error } = await query;
-
-    dismiss(toastId);
-
-    if (error) {
-      toast({
-        variant: "destructive",
-        title: "Erro ao desfazer",
-        description: error.message,
-      });
-    } else {
-      // If undoing a single delete from a group, recalculate repetitions
-      if (!byGroup && grupoId) {
-        // Get the new count including the restored demand
-        const { data: allSiblings } = await supabase
-          .from("demandas")
-          .select("id")
-          .eq("grupo_id", grupoId)
-          .eq("ativa", true);
-
-        const count = allSiblings?.length || 0;
-        if (count > 0) {
-          await supabase
-            .from("demandas")
-            .update({ semanas_repeticao: count })
-            .eq("grupo_id", grupoId)
-            .eq("ativa", true);
-        }
-      }
-
-      playUndoSound();
-      toast({
-        title: "Exclusão desfeita!",
-        description: byGroup 
-          ? `${siblingCount} demandas foram restauradas`
-          : "A demanda foi restaurada",
-      });
-      onDemandaExcluida();
-    }
-
-    pendingDeleteRef.current = null;
-  };
-
-  const permanentlyDelete = async (ids: string[], byGroup: boolean) => {
-    let query = supabase.from("demandas").delete();
-    
-    if (byGroup && grupoId) {
-      query = query.eq("grupo_id", grupoId);
-    } else {
-      query = query.in("id", ids);
-    }
-
-    const { error } = await query;
-
-    if (error) {
-      console.error("Error permanently deleting demands:", error);
-    }
-    
-    pendingDeleteRef.current = null;
-  };
 
   const updateSiblingsRepetitions = async (grupoIdToUpdate: string) => {
     // Get remaining siblings in the group
@@ -182,10 +88,10 @@ export default function ExcluirDemandaIrmaDialog({
 
     setIsLoading(true);
 
-    // Soft delete first (set ativa to false)
+    // Hard delete - permanently remove from database
     const { error } = await supabase
       .from("demandas")
-      .update({ ativa: false })
+      .delete()
       .eq("id", demandaId);
 
     if (error) {
@@ -203,38 +109,13 @@ export default function ExcluirDemandaIrmaDialog({
       await updateSiblingsRepetitions(grupoId);
     }
 
-    // Store for potential undo
-    pendingDeleteRef.current = { ids: [demandaId], byGroup: false };
-
     // Play delete sound
     playDeleteSound();
 
-    // Show toast with undo option
-    const { id: toastId } = toast({
+    toast({
       title: "Demanda excluída!",
-      description: (
-        <div className="flex items-center justify-between gap-2">
-          <span>Demanda #{demandaNumero} removida</span>
-          <Button
-            variant="outline"
-            size="sm"
-            className="h-7 gap-1"
-            onClick={() => handleUndo(toastId)}
-          >
-            <Undo2 className="h-3 w-3" />
-            Desfazer
-          </Button>
-        </div>
-      ),
-      duration: UNDO_TIMEOUT,
+      description: `Demanda #${demandaNumero} removida permanentemente`,
     });
-
-    // Schedule permanent delete after timeout
-    undoTimeoutRef.current = setTimeout(() => {
-      if (pendingDeleteRef.current) {
-        permanentlyDelete(pendingDeleteRef.current.ids, pendingDeleteRef.current.byGroup);
-      }
-    }, UNDO_TIMEOUT + 500);
 
     onOpenChange(false);
     setIsLoading(false);
@@ -250,10 +131,10 @@ export default function ExcluirDemandaIrmaDialog({
 
     setIsLoading(true);
 
-    // Soft delete first (set ativa to false)
+    // Hard delete - permanently remove all siblings from database
     const { error } = await supabase
       .from("demandas")
-      .update({ ativa: false })
+      .delete()
       .eq("grupo_id", grupoId);
 
     if (error) {
@@ -266,38 +147,13 @@ export default function ExcluirDemandaIrmaDialog({
       return;
     }
 
-    // Store for potential undo
-    pendingDeleteRef.current = { ids: [], byGroup: true };
-
     // Play delete sound
     playDeleteSound();
 
-    // Show toast with undo option
-    const { id: toastId } = toast({
+    toast({
       title: "Demandas excluídas!",
-      description: (
-        <div className="flex items-center justify-between gap-2">
-          <span>{siblingCount} demandas do grupo removidas</span>
-          <Button
-            variant="outline"
-            size="sm"
-            className="h-7 gap-1"
-            onClick={() => handleUndo(toastId)}
-          >
-            <Undo2 className="h-3 w-3" />
-            Desfazer
-          </Button>
-        </div>
-      ),
-      duration: UNDO_TIMEOUT,
+      description: `${siblingCount} demandas do grupo removidas permanentemente`,
     });
-
-    // Schedule permanent delete after timeout
-    undoTimeoutRef.current = setTimeout(() => {
-      if (pendingDeleteRef.current) {
-        permanentlyDelete(pendingDeleteRef.current.ids, pendingDeleteRef.current.byGroup);
-      }
-    }, UNDO_TIMEOUT + 500);
 
     onOpenChange(false);
     onDemandaExcluida();
@@ -367,13 +223,13 @@ export default function ExcluirDemandaIrmaDialog({
                     </div>
                   )}
                   
-                  <p className="text-sm text-muted-foreground">
-                    Você terá alguns segundos para desfazer a ação.
+                  <p className="text-sm text-destructive font-medium">
+                    ⚠️ Esta ação é permanente e não pode ser desfeita.
                   </p>
                 </>
               ) : (
                 <p>
-                  A demanda será removida. Você terá alguns segundos para desfazer a ação.
+                  A demanda será removida permanentemente. Esta ação não pode ser desfeita.
                 </p>
               )}
             </div>
