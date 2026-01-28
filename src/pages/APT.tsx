@@ -20,10 +20,13 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
-  Collapsible,
-  CollapsibleContent,
-  CollapsibleTrigger,
-} from "@/components/ui/collapsible";
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+  SheetTrigger,
+} from "@/components/ui/sheet";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   Table,
   TableBody,
@@ -32,7 +35,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Card, CardContent } from "@/components/ui/card";
-import { Loader2, AlertCircle, CheckCircle2, Trash2, Check, ThumbsUp, Copy, ChevronDown, ChevronUp, Filter } from "lucide-react";
+import { Loader2, AlertCircle, CheckCircle2, Trash2, Check, ThumbsUp, Copy, Filter, ChevronDown } from "lucide-react";
 import DuplicarDemandasEmMassaDialog from "@/components/apt/DuplicarDemandasEmMassaDialog";
 
 interface Demanda {
@@ -114,8 +117,17 @@ export default function APT() {
   const [showBulkStatusDialog, setShowBulkStatusDialog] = useState<"responsavel" | "gestor" | null>(null);
   const [showBulkDuplicateDialog, setShowBulkDuplicateDialog] = useState(false);
   
-  // Collapsible filters state
-  const [filtersOpen, setFiltersOpen] = useState(true);
+  // Filters active count for badge
+  const hasActiveFilters =
+    filters.responsaveis.length > 0 ||
+    filters.setores.length > 0 ||
+    filters.meses.length > 0 ||
+    filters.anos.length > 0 ||
+    filters.semanas.length > 0 ||
+    filters.statusResponsavel.length > 0 ||
+    filters.statusGestor.length > 0 ||
+    filters.repeticoes.length > 0 ||
+    filters.busca !== "";
 
   // Calculate sibling count and list for editing/deleting
   const editingSiblingCount = editingDemanda
@@ -247,41 +259,45 @@ export default function APT() {
           </div>
         )}
 
+        {/* Desktop Filters Toggle Button */}
+        <div className="hidden lg:flex mb-4">
+          <Sheet>
+            <SheetTrigger asChild>
+              <Button variant="outline" className="gap-2">
+                <Filter className="h-4 w-4" />
+                Filtros
+                {hasActiveFilters && (
+                  <span className="ml-1 rounded-full bg-primary px-2 py-0.5 text-xs text-primary-foreground">
+                    !
+                  </span>
+                )}
+                <ChevronDown className="h-4 w-4 opacity-50" />
+              </Button>
+            </SheetTrigger>
+            <SheetContent side="left" className="w-80 flex flex-col">
+              <SheetHeader>
+                <SheetTitle className="flex items-center gap-2">
+                  <Filter className="h-4 w-4" />
+                  Filtros
+                </SheetTitle>
+              </SheetHeader>
+              <ScrollArea className="flex-1 mt-6 -mx-6 px-6">
+                <div className="pb-6">
+                  <APTFilters
+                    profiles={profiles}
+                    setores={setores}
+                    filters={filters}
+                    onFiltersChange={setFilters}
+                    onClearFilters={clearFilters}
+                    showResponsavelFilter={isGestorOrAdmin}
+                  />
+                </div>
+              </ScrollArea>
+            </SheetContent>
+          </Sheet>
+        </div>
+
         <div className="flex flex-col lg:flex-row gap-6">
-          {/* Filters sidebar (desktop) */}
-          <aside className="hidden lg:block w-72 shrink-0">
-            <Collapsible open={filtersOpen} onOpenChange={setFiltersOpen}>
-              <Card className="sticky top-20 shadow-sm">
-                <CollapsibleTrigger asChild>
-                  <div className="flex items-center justify-between p-4 cursor-pointer hover:bg-muted/50 transition-colors">
-                    <h2 className="font-semibold text-sm uppercase tracking-wide text-muted-foreground flex items-center gap-2">
-                      <Filter className="h-4 w-4" />
-                      Filtros
-                    </h2>
-                    <Button variant="ghost" size="sm" className="h-6 w-6 p-0">
-                      {filtersOpen ? (
-                        <ChevronUp className="h-4 w-4" />
-                      ) : (
-                        <ChevronDown className="h-4 w-4" />
-                      )}
-                    </Button>
-                  </div>
-                </CollapsibleTrigger>
-                <CollapsibleContent>
-                  <CardContent className="pt-0 pb-5 px-5">
-                    <APTFilters
-                      profiles={profiles}
-                      setores={setores}
-                      filters={filters}
-                      onFiltersChange={setFilters}
-                      onClearFilters={clearFilters}
-                      showResponsavelFilter={isGestorOrAdmin}
-                    />
-                  </CardContent>
-                </CollapsibleContent>
-              </Card>
-            </Collapsible>
-          </aside>
 
           {/* Main content */}
           <div className="flex-1 min-w-0">
