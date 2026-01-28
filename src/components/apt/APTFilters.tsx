@@ -38,6 +38,7 @@ export interface MultiFilters {
   semanas: string[];
   statusResponsavel: string[];
   statusGestor: string[];
+  repeticoes: string[];
   busca: string;
 }
 
@@ -84,6 +85,14 @@ const anos = Array.from({ length: 5 }, (_, i) => ({
   value: String(currentYear - 2 + i),
   label: String(currentYear - 2 + i),
 }));
+
+const repeticaoOptions = [
+  { value: "1", label: "1X" },
+  { value: "2", label: "2X" },
+  { value: "3", label: "3X" },
+  { value: "4", label: "4X" },
+  { value: "5", label: "5X" },
+];
 
 interface MultiSelectDropdownProps {
   label: string;
@@ -222,6 +231,7 @@ export default function APTFilters({
     filters.semanas.length > 0 ||
     filters.statusResponsavel.length > 0 ||
     filters.statusGestor.length > 0 ||
+    filters.repeticoes.length > 0 ||
     filters.busca !== "";
 
   const responsavelOptions = profiles.map((p) => ({
@@ -308,6 +318,14 @@ export default function APTFilters({
         selected={filters.statusGestor}
         onChange={(v) => updateFilter("statusGestor", v)}
         placeholder="Todos"
+      />
+
+      <MultiSelectDropdown
+        label="Repetição (X)"
+        options={repeticaoOptions}
+        selected={filters.repeticoes}
+        onChange={(v) => updateFilter("repeticoes", v)}
+        placeholder="Todas"
       />
 
       <Button

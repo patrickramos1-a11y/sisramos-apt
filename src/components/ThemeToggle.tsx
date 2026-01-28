@@ -18,6 +18,14 @@ export function useTheme() {
     return "light";
   });
 
+  // Apply theme on initial load (runs once before React hydration)
+  useEffect(() => {
+    const savedTheme = localStorage.getItem("theme") as Theme | null;
+    if (savedTheme && savedTheme !== theme) {
+      setThemeState(savedTheme);
+    }
+  }, []);
+
   useEffect(() => {
     const root = window.document.documentElement;
     
