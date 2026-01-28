@@ -75,8 +75,7 @@ export default function EditarDemandaIrmaDialog({
     responsavel_id: "",
     setor_id: "",
     descricao: "",
-    semanas_repeticao: "1",
-    semana_limite: 1,
+    semanas_selecionadas: [1] as number[],
     mes: String(new Date().getMonth() + 1),
     ano: String(new Date().getFullYear()),
     prioritaria: false,
@@ -89,8 +88,7 @@ export default function EditarDemandaIrmaDialog({
         responsavel_id: demanda.responsavel_id,
         setor_id: demanda.setor_id || "",
         descricao: demanda.descricao,
-        semanas_repeticao: String(demanda.semanas_repeticao),
-        semana_limite: demanda.semana_limite[0] || 1,
+        semanas_selecionadas: demanda.semana_limite || [1],
         mes: String(demanda.mes),
         ano: String(demanda.ano),
         prioritaria: demanda.prioritaria,
@@ -112,56 +110,188 @@ export default function EditarDemandaIrmaDialog({
       return;
     }
 
-    setIsLoading(true);
-
-    const updateData = {
-      responsavel_id: formData.responsavel_id,
-      setor_id: formData.setor_id || null,
-      descricao: formData.descricao.trim(),
-      semanas_repeticao: parseInt(formData.semanas_repeticao),
-      mes: parseInt(formData.mes),
-      ano: parseInt(formData.ano),
-      prioritaria: formData.prioritaria,
-      muito_urgente: formData.muito_urgente,
-    };
-
-    let query;
-    if (editScope === "all" && demanda?.grupo_id) {
-      query = supabase
-        .from("demandas")
-        .update(updateData)
-        .eq("grupo_id", demanda.grupo_id);
-    } else {
-      query = supabase
-        .from("demandas")
-        .update({
-          ...updateData,
-          semana_limite: [formData.semana_limite],
-        })
-        .eq("id", demanda?.id);
+    if (formData.semanas_selecionadas.length === 0) {
+      toast({
+        variant: "destructive",
+        title: "Erro",
+        description: "Selecione pelo menos uma semana",
+      });
+      return;
     }
 
-    const { error } = await query;
+    setIsLoading(true);
 
-    if (error) {
+    try {
+      const baseUpdateData = {
+        responsavel_id: formData.responsavel_id,
+        setor_id: formData.setor_id || null,
+        descricao: formData.descricao.trim(),
+        mes: parseInt(formData.mes),
+        ano: parseInt(formData.ano),
+        prioritaria: formData.prioritaria,
+        muito_urgente: formData.muito_urgente,
+      };
+
+      if (editScope === "all" && demanda?.grupo_id) {
+        // Update all siblings
+        const { error } = await supabase
+          .from("demandas")
+          .update(baseUpdateData)
+          .eq("grupo_id", demanda.grupo_id);
+
+        if (error) throw error;
+
+        toast({
+          title: "Demandas atualizadas!",
+          description: `${siblingCount} demandas foram atualizadas`,
+        });
+      } else {
+        // Single demand - check if we need to expand to multiple weeks
+        const currentWeeks = demanda?.semana_limite || [];
+        const newWeeks = formData.semanas_selecionadas;
+        
+        // Find weeks to add (new siblings) and weeks to remove
+        const weeksToAdd = newWeeks.filter(w => !currentWeeks.includes(w));
+        const weeksToKeep = newWeeks.filter(w => currentWeeks.includes(w));
+        
+        // If this is a single demand (no grupo_id) and we're adding more weeks
+        // OR if we're expanding an existing demand
+        if (weeksToAdd.length > 0 || newWeeks.length !== currentWeeks.length || !currentWeeks.every(w => newWeeks.includes(w))) {
+          // Get or create a grupo_id
+          let grupoId = demanda?.grupo_id;
+          if (!grupoId && newWeeks.length > 1) {
+            grupoId = crypto.randomUUID();
+          }
+
+          // Update the current demand with the first selected week
+          const { error: updateError } = await supabase
+            .from("demandas")
+            .update({
+              ...baseUpdateData,
+              semana_limite: [newWeeks[0]],
+              semanas_repeticao: newWeeks.length,
+              grupo_id: newWeeks.length > 1 ? grupoId : null,
+            })
+            .eq("id", demanda?.id);
+
+          if (updateError) throw updateError;
+
+          // Create new siblings for additional weeks
+          if (newWeeks.length > 1) {
+            const newSiblings = newWeeks.slice(1).map(semana => ({
+              responsavel_id: formData.responsavel_id,
+              setor_id: formData.setor_id || null,
+              descricao: formData.descricao.trim(),
+              mes: parseInt(formData.mes),
+              ano: parseInt(formData.ano),
+              prioritaria: formData.prioritaria,
+              muito_urgente: formData.muito_urgente,
+              semana_limite: [semana],
+              semanas_repeticao: newWeeks.length,
+              grupo_id: grupoId,
+            }));
+
+            // Check if siblings already exist for these weeks
+            if (grupoId && demanda?.grupo_id) {
+              // Get existing siblings
+              const { data: existingSiblings } = await supabase
+                .from("demandas")
+                .select("id, semana_limite")
+                .eq("grupo_id", grupoId)
+                .neq("id", demanda.id);
+
+              const existingWeeks = new Set(
+                (existingSiblings || []).flatMap(s => s.semana_limite)
+              );
+
+              // Only insert siblings for weeks that don't exist yet
+              const siblingsToInsert = newSiblings.filter(
+                s => !existingWeeks.has(s.semana_limite[0])
+              );
+
+              if (siblingsToInsert.length > 0) {
+                const { error: insertError } = await supabase
+                  .from("demandas")
+                  .insert(siblingsToInsert);
+
+                if (insertError) throw insertError;
+              }
+
+              // Update existing siblings with new repetition count
+              const { error: siblingUpdateError } = await supabase
+                .from("demandas")
+                .update({ semanas_repeticao: newWeeks.length })
+                .eq("grupo_id", grupoId);
+
+              if (siblingUpdateError) throw siblingUpdateError;
+            } else {
+              const { error: insertError } = await supabase
+                .from("demandas")
+                .insert(newSiblings);
+
+              if (insertError) throw insertError;
+            }
+          }
+
+          toast({
+            title: "Demanda atualizada!",
+            description: newWeeks.length > 1 
+              ? `Demanda expandida para ${newWeeks.length} semanas`
+              : "As alterações foram salvas com sucesso",
+          });
+        } else {
+          // Simple update - no week changes
+          const { error } = await supabase
+            .from("demandas")
+            .update({
+              ...baseUpdateData,
+              semana_limite: newWeeks,
+              semanas_repeticao: newWeeks.length,
+            })
+            .eq("id", demanda?.id);
+
+          if (error) throw error;
+
+          toast({
+            title: "Demanda atualizada!",
+            description: "As alterações foram salvas com sucesso",
+          });
+        }
+      }
+
+      onOpenChange(false);
+      // Small delay to ensure DB updates are processed
+      setTimeout(() => {
+        onDemandaEditada();
+      }, 200);
+    } catch (error: any) {
       toast({
         variant: "destructive",
         title: "Erro ao editar demanda",
         description: error.message,
       });
-    } else {
-      toast({
-        title: "Demanda atualizada!",
-        description:
-          editScope === "all"
-            ? `${siblingCount} demandas foram atualizadas`
-            : "As alterações foram salvas com sucesso",
-      });
-      onOpenChange(false);
-      onDemandaEditada();
     }
 
     setIsLoading(false);
+  };
+
+  const toggleSemana = (semana: number) => {
+    setFormData((prev) => {
+      const current = prev.semanas_selecionadas;
+      if (current.includes(semana)) {
+        // Don't allow removing all weeks
+        if (current.length === 1) return prev;
+        return {
+          ...prev,
+          semanas_selecionadas: current.filter((s) => s !== semana),
+        };
+      } else {
+        return {
+          ...prev,
+          semanas_selecionadas: [...current, semana].sort((a, b) => a - b),
+        };
+      }
+    });
   };
 
   const meses = [
@@ -282,36 +412,37 @@ export default function EditarDemandaIrmaDialog({
               type="number"
               min="1"
               max="52"
-              value={formData.semanas_repeticao}
+              value={formData.semanas_selecionadas.length}
               readOnly
               disabled
               className="bg-muted"
             />
             <p className="text-xs text-muted-foreground">
-              {siblingCount > 1 
-                ? `Calculado automaticamente (${siblingCount} demandas no grupo)`
-                : "Demanda individual"}
+              Calculado automaticamente com base nas semanas selecionadas
             </p>
           </div>
 
           {editScope === "single" && (
             <div className="space-y-2">
-              <Label>Semana Limite</Label>
+              <Label>Semanas (selecione uma ou mais)</Label>
               <div className="flex flex-wrap gap-2">
                 {semanas.map((s) => (
                   <Button
                     key={s}
                     type="button"
-                    variant={formData.semana_limite === s ? "default" : "outline"}
+                    variant={formData.semanas_selecionadas.includes(s) ? "default" : "outline"}
                     size="sm"
-                    onClick={() =>
-                      setFormData((prev) => ({ ...prev, semana_limite: s }))
-                    }
+                    onClick={() => toggleSemana(s)}
                   >
                     {s}ª
                   </Button>
                 ))}
               </div>
+              <p className="text-xs text-muted-foreground">
+                {formData.semanas_selecionadas.length > 1 
+                  ? `Selecionadas: ${formData.semanas_selecionadas.map(s => `${s}ª`).join(", ")} - criará demandas irmãs automaticamente`
+                  : "Selecione mais semanas para criar demandas irmãs"}
+              </p>
             </div>
           )}
 

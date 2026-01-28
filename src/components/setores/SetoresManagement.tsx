@@ -257,38 +257,48 @@ export default function SetoresManagement() {
     setEditingSetor(setor);
   };
 
-  const ColorPicker = () => (
-    <div className="space-y-2">
-      <Label>Cor</Label>
-      <div className="flex flex-wrap gap-2">
-        {PRESET_COLORS.map((color) => (
-          <button
-            key={color}
-            type="button"
-            className={`w-8 h-8 rounded-full border-2 transition-all ${
-              formData.cor === color
-                ? "border-foreground scale-110"
-                : "border-transparent hover:scale-105"
-            }`}
-            style={{ backgroundColor: color }}
-            onClick={() => setFormData((prev) => ({ ...prev, cor: color }))}
-          />
-        ))}
+  const ColorPicker = () => {
+    const [isColorPickerOpen, setIsColorPickerOpen] = useState(false);
+    
+    return (
+      <div className="space-y-2">
+        <Label>Cor</Label>
+        <div className="flex flex-wrap gap-2">
+          {PRESET_COLORS.map((color) => (
+            <button
+              key={color}
+              type="button"
+              className={`w-8 h-8 rounded-full border-2 transition-all ${
+                formData.cor === color
+                  ? "border-foreground scale-110"
+                  : "border-transparent hover:scale-105"
+              }`}
+              style={{ backgroundColor: color }}
+              onClick={() => setFormData((prev) => ({ ...prev, cor: color }))}
+            />
+          ))}
+        </div>
+        <div className="flex items-center gap-2 mt-2">
+          <Palette className="h-4 w-4 text-muted-foreground" />
+          <div className="relative">
+            <Input
+              type="color"
+              value={formData.cor}
+              onChange={(e) =>
+                setFormData((prev) => ({ ...prev, cor: e.target.value }))
+              }
+              onFocus={() => setIsColorPickerOpen(true)}
+              onBlur={() => setIsColorPickerOpen(false)}
+              className="w-12 h-8 p-0 border-0 cursor-pointer"
+            />
+          </div>
+          <span className="text-xs text-muted-foreground">
+            {isColorPickerOpen ? "Clique fora para confirmar" : "Cor personalizada"}
+          </span>
+        </div>
       </div>
-      <div className="flex items-center gap-2 mt-2">
-        <Palette className="h-4 w-4 text-muted-foreground" />
-        <Input
-          type="color"
-          value={formData.cor}
-          onChange={(e) =>
-            setFormData((prev) => ({ ...prev, cor: e.target.value }))
-          }
-          className="w-12 h-8 p-0 border-0"
-        />
-        <span className="text-xs text-muted-foreground">Cor personalizada</span>
-      </div>
-    </div>
-  );
+    );
+  };
 
   return (
     <Card>

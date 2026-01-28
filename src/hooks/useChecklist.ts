@@ -185,6 +185,13 @@ export function useChecklist({ meses, anos, semanas, searchTerm }: UseChecklistO
 
   const updateItem = async (id: string, updates: Partial<Pick<ChecklistItem, "texto" | "concluido">>) => {
     try {
+      // Optimistically update local state immediately to prevent visual refresh
+      setItems((prev) =>
+        prev.map((item) =>
+          item.id === id ? { ...item, ...updates } : item
+        )
+      );
+
       const { error } = await supabase
         .from("checklist_items")
         .update(updates)
@@ -193,6 +200,8 @@ export function useChecklist({ meses, anos, semanas, searchTerm }: UseChecklistO
       if (error) throw error;
     } catch (error: any) {
       console.error("Error updating item:", error);
+      // Revert optimistic update on error
+      fetchItems();
       toast({
         variant: "destructive",
         title: "Erro ao atualizar",

@@ -55,6 +55,7 @@ export function useDemandas() {
     semanas: [],
     statusResponsavel: [],
     statusGestor: [],
+    repeticoes: [],
     busca: "",
   });
   const [sortConfig, setSortConfig] = useState<SortConfig>({
@@ -126,6 +127,15 @@ export function useDemandas() {
           d.semana_limite.some((sl: number) => semanaNumbers.includes(sl))
         );
       }
+      
+      // Filter by repetition count client-side
+      if (filters.repeticoes.length > 0) {
+        const repeticaoNumbers = filters.repeticoes.map((r) => parseInt(r));
+        filteredData = filteredData.filter((d) =>
+          repeticaoNumbers.includes(d.semanas_repeticao)
+        );
+      }
+      
       setDemandas(filteredData);
     }
 
@@ -295,6 +305,7 @@ export function useDemandas() {
       semanas: [],
       statusResponsavel: [],
       statusGestor: [],
+      repeticoes: [],
       busca: "",
     });
   };

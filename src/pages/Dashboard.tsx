@@ -36,12 +36,7 @@ export default function Dashboard() {
   const { demandas, profiles, setores, isLoading, getProfileById, getSetorById } = useDemandas();
 
   // Chart refs for export
-  const chartSetoresRef = useRef<HTMLDivElement>(null);
   const chartPizzaRef = useRef<HTMLDivElement>(null);
-  const chartPendentesRef = useRef<HTMLDivElement>(null);
-  const chartFeitoRef = useRef<HTMLDivElement>(null);
-  const chartAprovadoRef = useRef<HTMLDivElement>(null);
-  const chartNaoRealizadoRef = useRef<HTMLDivElement>(null);
   const chartComparativoRef = useRef<HTMLDivElement>(null);
 
   // Estados dos filtros - inicializa com mês e ano atuais
@@ -54,13 +49,8 @@ export default function Dashboard() {
 
   // All charts info for bulk export
   const allCharts = [
-    { ref: chartSetoresRef, title: "Gráfico de Setores" },
     { ref: chartPizzaRef, title: "Distribuição por Setor" },
-    { ref: chartPendentesRef, title: "Gráfico de Pendentes" },
-    { ref: chartFeitoRef, title: "Gráfico de Feito" },
-    { ref: chartAprovadoRef, title: "Gráfico de Aprovado" },
-    { ref: chartNaoRealizadoRef, title: "Gráfico de Não Realizado" },
-    { ref: chartComparativoRef, title: "Gráfico de Comparativo" },
+    { ref: chartComparativoRef, title: "Status por Usuário" },
   ];
 
   // Opções de semanas
@@ -118,62 +108,6 @@ export default function Dashboard() {
 
   const temFiltrosAtivos = filterAno !== "all" || filterMes !== "all" || filterSemana !== "all" || filterUsuario !== "all" || filterSetor !== "all";
 
-  // Dados: Setores por usuário (X = usuários, Y = setores)
-  const { setoresPorUsuarioData, setoresPorUsuarioConfig } = useMemo(() => {
-    // Cria uma estrutura: { usuario: { setor1: count, setor2: count, ... } }
-    const userSetorCounts: Record<string, Record<string, number>> = {};
-    const allSetorNames = new Set<string>();
-    
-    demandasFiltradas.forEach((demanda) => {
-      const profile = getProfileById(demanda.responsavel_id);
-      const userName = profile?.nome || "Desconhecido";
-      const setor = getSetorById(demanda.setor_id);
-      const setorName = setor?.nome || "Sem setor";
-      
-      allSetorNames.add(setorName);
-      
-      if (!userSetorCounts[userName]) {
-        userSetorCounts[userName] = {};
-      }
-      userSetorCounts[userName][setorName] = (userSetorCounts[userName][setorName] || 0) + 1;
-    });
-
-    // Converte para o formato do recharts
-    const data = Object.entries(userSetorCounts).map(([nome, setorCounts]) => ({
-      nome,
-      ...setorCounts,
-    }));
-
-    // Cria config dinâmico para cada setor com cores distintas
-    const colors = [
-      "hsl(var(--primary))",
-      "hsl(142 76% 36%)",
-      "hsl(221 83% 53%)",
-      "hsl(38 92% 50%)",
-      "hsl(280 65% 60%)",
-      "hsl(0 84% 60%)",
-      "hsl(180 70% 45%)",
-      "hsl(320 70% 50%)",
-    ];
-    
-    const config: Record<string, { label: string; color: string }> = {};
-    const setorArray = Array.from(allSetorNames);
-    setorArray.forEach((setor, index) => {
-      const setorData = setores.find(s => s.nome === setor);
-      config[setor] = {
-        label: setor,
-        color: setorData?.cor || colors[index % colors.length],
-      };
-    });
-
-    return { setoresPorUsuarioData: data, setoresPorUsuarioConfig: config, setorNames: setorArray };
-  }, [demandasFiltradas, getProfileById, getSetorById, setores]);
-
-  // Lista de setores para renderizar as barras
-  const setorNames = useMemo(() => {
-    return Object.keys(setoresPorUsuarioConfig);
-  }, [setoresPorUsuarioConfig]);
-
   // Dados: Pizza de porcentagem de setores
   const { setoresPizzaData, setoresPizzaConfig } = useMemo(() => {
     const setorCounts: Record<string, number> = {};
@@ -217,102 +151,6 @@ export default function Dashboard() {
     return { setoresPizzaData: data, setoresPizzaConfig: config };
   }, [demandasFiltradas, getSetorById, setores]);
 
-  // Dados: Feito por usuário (status_responsavel = executado)
-  const feitoPorUsuario = useMemo(() => {
-    const userFeito: Record<string, { feito: number; total: number }> = {};
-    
-    demandasFiltradas.forEach((demanda) => {
-      const profile = getProfileById(demanda.responsavel_id);
-      const userName = profile?.nome || "Desconhecido";
-      
-      if (!userFeito[userName]) {
-        userFeito[userName] = { feito: 0, total: 0 };
-      }
-      userFeito[userName].total++;
-      if (demanda.status_responsavel === "executado") {
-        userFeito[userName].feito++;
-      }
-    });
-
-    return Object.entries(userFeito).map(([nome, data]) => ({
-      nome,
-      feito: data.feito,
-      total: data.total,
-    })).sort((a, b) => b.feito - a.feito);
-  }, [demandasFiltradas, getProfileById]);
-
-  // Dados: Aprovado por usuário (status_gestor = executado)
-  const aprovadoPorUsuario = useMemo(() => {
-    const userAprovado: Record<string, { aprovado: number; total: number }> = {};
-    
-    demandasFiltradas.forEach((demanda) => {
-      const profile = getProfileById(demanda.responsavel_id);
-      const userName = profile?.nome || "Desconhecido";
-      
-      if (!userAprovado[userName]) {
-        userAprovado[userName] = { aprovado: 0, total: 0 };
-      }
-      userAprovado[userName].total++;
-      if (demanda.status_gestor === "executado") {
-        userAprovado[userName].aprovado++;
-      }
-    });
-
-    return Object.entries(userAprovado).map(([nome, data]) => ({
-      nome,
-      aprovado: data.aprovado,
-      total: data.total,
-    })).sort((a, b) => b.aprovado - a.aprovado);
-  }, [demandasFiltradas, getProfileById]);
-
-  // Dados: Não realizado por usuário (status_responsavel = nao_realizado)
-  const naoRealizadoPorUsuario = useMemo(() => {
-    const userNaoRealizado: Record<string, { nao_realizado: number; total: number }> = {};
-    
-    demandasFiltradas.forEach((demanda) => {
-      const profile = getProfileById(demanda.responsavel_id);
-      const userName = profile?.nome || "Desconhecido";
-      
-      if (!userNaoRealizado[userName]) {
-        userNaoRealizado[userName] = { nao_realizado: 0, total: 0 };
-      }
-      userNaoRealizado[userName].total++;
-      if (demanda.status_responsavel === "nao_realizado") {
-        userNaoRealizado[userName].nao_realizado++;
-      }
-    });
-
-    return Object.entries(userNaoRealizado).map(([nome, data]) => ({
-      nome,
-      nao_realizado: data.nao_realizado,
-      total: data.total,
-    })).sort((a, b) => b.nao_realizado - a.nao_realizado);
-  }, [demandasFiltradas, getProfileById]);
-
-  // Dados: Pendente por usuário (status_responsavel = pendente)
-  const pendentePorUsuario = useMemo(() => {
-    const userPendente: Record<string, { pendente: number; total: number }> = {};
-    
-    demandasFiltradas.forEach((demanda) => {
-      const profile = getProfileById(demanda.responsavel_id);
-      const userName = profile?.nome || "Desconhecido";
-      
-      if (!userPendente[userName]) {
-        userPendente[userName] = { pendente: 0, total: 0 };
-      }
-      userPendente[userName].total++;
-      if (demanda.status_responsavel === "pendente") {
-        userPendente[userName].pendente++;
-      }
-    });
-
-    return Object.entries(userPendente).map(([nome, data]) => ({
-      nome,
-      pendente: data.pendente,
-      total: data.total,
-    })).sort((a, b) => b.pendente - a.pendente);
-  }, [demandasFiltradas, getProfileById]);
-
   // Dados: Comparativo completo (feito, aprovado, não realizado, pendente)
   const comparativoCompleto = useMemo(() => {
     const userData: Record<string, { feito: number; aprovado: number; nao_realizado: number; pendente: number }> = {};
@@ -349,34 +187,17 @@ export default function Dashboard() {
     })).sort((a, b) => a.nome.localeCompare(b.nome, "pt-BR"));
   }, [demandasFiltradas, getProfileById]);
 
+  // Summary statistics
+  const summaryStats = useMemo(() => {
+    const total = demandasFiltradas.length;
+    const feito = demandasFiltradas.filter(d => d.status_responsavel === "executado").length;
+    const aprovado = demandasFiltradas.filter(d => d.status_gestor === "executado").length;
+    const pendente = demandasFiltradas.filter(d => d.status_responsavel === "pendente").length;
+    const naoRealizado = demandasFiltradas.filter(d => d.status_responsavel === "nao_realizado").length;
+    
+    return { total, feito, aprovado, pendente, naoRealizado };
+  }, [demandasFiltradas]);
 
-  const chartConfigFeito = {
-    feito: {
-      label: "Feito",
-      color: "hsl(142 76% 36%)",
-    },
-  };
-
-  const chartConfigAprovado = {
-    aprovado: {
-      label: "Aprovado",
-      color: "hsl(221 83% 53%)",
-    },
-  };
-
-  const chartConfigNaoRealizado = {
-    nao_realizado: {
-      label: "Não Realizado",
-      color: "hsl(0 84% 60%)",
-    },
-  };
-
-  const chartConfigPendente = {
-    pendente: {
-      label: "Pendente",
-      color: "hsl(38 92% 50%)",
-    },
-  };
 
   const chartConfigComparativo = {
     feito: {
@@ -514,17 +335,6 @@ export default function Dashboard() {
                     </SelectContent>
                   </Select>
                 </div>
-
-                {/* Botão Limpar Filtros */}
-                {temFiltrosAtivos && (
-                  <div className="flex flex-col gap-1">
-                    <span className="text-xs font-medium text-transparent">.</span>
-                    <Button variant="outline" size="sm" onClick={limparFiltros} className="gap-1">
-                      <X className="h-4 w-4" />
-                      Limpar
-                    </Button>
-                  </div>
-                )}
               </div>
 
               {/* Badge com total filtrado */}
@@ -537,162 +347,54 @@ export default function Dashboard() {
               )}
             </CardContent>
           </Card>
+
+          {/* Summary Cards */}
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm font-medium text-muted-foreground">Total</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{summaryStats.total}</div>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm font-medium text-muted-foreground">Feito</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold text-green-600">{summaryStats.feito}</div>
+                <p className="text-xs text-muted-foreground">
+                  {summaryStats.total > 0 ? Math.round((summaryStats.feito / summaryStats.total) * 100) : 0}%
+                </p>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm font-medium text-muted-foreground">Aprovado</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold text-blue-600">{summaryStats.aprovado}</div>
+                <p className="text-xs text-muted-foreground">
+                  {summaryStats.total > 0 ? Math.round((summaryStats.aprovado / summaryStats.total) * 100) : 0}%
+                </p>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm font-medium text-muted-foreground">Pendente</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold text-yellow-600">{summaryStats.pendente}</div>
+                <p className="text-xs text-muted-foreground">
+                  {summaryStats.total > 0 ? Math.round((summaryStats.pendente / summaryStats.total) * 100) : 0}%
+                </p>
+              </CardContent>
+            </Card>
+          </div>
         </div>
         
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {/* Gráfico de Setores - Barras */}
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-lg">Gráfico de Setores</CardTitle>
-              <ChartExportButtons chartRef={chartSetoresRef} chartName="Gráfico de Setores" />
-            </CardHeader>
-            <CardContent>
-              <div ref={chartSetoresRef}>
-                <ChartContainer config={setoresPorUsuarioConfig} className="h-[300px] w-full">
-                  <BarChart data={setoresPorUsuarioData} margin={{ left: 20, right: 20, bottom: 20 }}>
-                    <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                    <XAxis dataKey="nome" tick={{ fontSize: 12 }} />
-                    <YAxis />
-                    <ChartTooltip content={<ChartTooltipContent />} />
-                    <ChartLegend content={<ChartLegendContent />} />
-                    {setorNames.map((setor) => (
-                      <Bar 
-                        key={setor} 
-                        dataKey={setor} 
-                        fill={setoresPorUsuarioConfig[setor]?.color || "hsl(var(--primary))"} 
-                        radius={4} 
-                        stackId="setores"
-                      />
-                    ))}
-                  </BarChart>
-                </ChartContainer>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Gráfico de Pizza - Porcentagem de Setores */}
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-lg">Distribuição por Setor</CardTitle>
-              <ChartExportButtons chartRef={chartPizzaRef} chartName="Distribuição por Setor" />
-            </CardHeader>
-            <CardContent>
-              <div ref={chartPizzaRef}>
-                <ChartContainer config={setoresPizzaConfig} className="h-[300px] w-full">
-                  <PieChart>
-                    <ChartTooltip 
-                      content={
-                        <ChartTooltipContent 
-                          formatter={(value, name, item) => (
-                            <span>{item.payload.percentage}% ({value})</span>
-                          )}
-                        />
-                      } 
-                    />
-                    <Pie
-                      data={setoresPizzaData}
-                      dataKey="value"
-                      nameKey="nome"
-                      cx="50%"
-                      cy="50%"
-                      outerRadius={100}
-                      label={({ nome, percentage }) => `${nome}: ${percentage}%`}
-                      labelLine={true}
-                    >
-                      {setoresPizzaData.map((entry, index) => (
-                        <Cell key={`cell-${index}`} fill={entry.fill} />
-                      ))}
-                    </Pie>
-                    <ChartLegend content={<ChartLegendContent nameKey="nome" />} />
-                  </PieChart>
-                </ChartContainer>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Gráfico de Pendentes */}
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-lg">Gráfico de Pendentes</CardTitle>
-              <ChartExportButtons chartRef={chartPendentesRef} chartName="Gráfico de Pendentes" />
-            </CardHeader>
-            <CardContent>
-              <div ref={chartPendentesRef}>
-                <ChartContainer config={chartConfigPendente} className="h-[300px] w-full">
-                  <BarChart data={pendentePorUsuario} margin={{ left: 20, right: 20, bottom: 20 }}>
-                    <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                    <XAxis dataKey="nome" tick={{ fontSize: 12 }} />
-                    <YAxis />
-                    <ChartTooltip content={<ChartTooltipContent />} />
-                    <Bar dataKey="pendente" fill="var(--color-pendente)" radius={4} />
-                  </BarChart>
-                </ChartContainer>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Gráfico de Feito */}
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-lg">Gráfico de Feito</CardTitle>
-              <ChartExportButtons chartRef={chartFeitoRef} chartName="Gráfico de Feito" />
-            </CardHeader>
-            <CardContent>
-              <div ref={chartFeitoRef}>
-                <ChartContainer config={chartConfigFeito} className="h-[300px] w-full">
-                  <BarChart data={feitoPorUsuario} margin={{ left: 20, right: 20, bottom: 20 }}>
-                    <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                    <XAxis dataKey="nome" tick={{ fontSize: 12 }} />
-                    <YAxis />
-                    <ChartTooltip content={<ChartTooltipContent />} />
-                    <Bar dataKey="feito" fill="var(--color-feito)" radius={4} />
-                  </BarChart>
-                </ChartContainer>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Gráfico de Aprovado */}
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-lg">Gráfico de Aprovado</CardTitle>
-              <ChartExportButtons chartRef={chartAprovadoRef} chartName="Gráfico de Aprovado" />
-            </CardHeader>
-            <CardContent>
-              <div ref={chartAprovadoRef}>
-                <ChartContainer config={chartConfigAprovado} className="h-[300px] w-full">
-                  <BarChart data={aprovadoPorUsuario} margin={{ left: 20, right: 20, bottom: 20 }}>
-                    <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                    <XAxis dataKey="nome" tick={{ fontSize: 12 }} />
-                    <YAxis />
-                    <ChartTooltip content={<ChartTooltipContent />} />
-                    <Bar dataKey="aprovado" fill="var(--color-aprovado)" radius={4} />
-                  </BarChart>
-                </ChartContainer>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Gráfico de Não Realizado */}
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-lg">Gráfico de Não Realizado</CardTitle>
-              <ChartExportButtons chartRef={chartNaoRealizadoRef} chartName="Gráfico de Não Realizado" />
-            </CardHeader>
-            <CardContent>
-              <div ref={chartNaoRealizadoRef}>
-                <ChartContainer config={chartConfigNaoRealizado} className="h-[300px] w-full">
-                  <BarChart data={naoRealizadoPorUsuario} margin={{ left: 20, right: 20, bottom: 20 }}>
-                    <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                    <XAxis dataKey="nome" tick={{ fontSize: 12 }} />
-                    <YAxis />
-                    <ChartTooltip content={<ChartTooltipContent />} />
-                    <Bar dataKey="nao_realizado" fill="var(--color-nao_realizado)" radius={4} />
-                  </BarChart>
-                </ChartContainer>
-              </div>
-            </CardContent>
-          </Card>
 
           {/* Gráfico de Comparativo */}
           <Card>
