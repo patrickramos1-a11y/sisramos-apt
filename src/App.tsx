@@ -7,6 +7,7 @@ import { AuthProvider } from "@/contexts/AuthContext";
 import ProtectedRoute from "@/components/ProtectedRoute";
 import Login from "./pages/Login";
 import APT from "./pages/APT";
+import APTGerenciamento from "./pages/APTGerenciamento";
 import Dashboard from "./pages/Dashboard";
 import Checklist from "./pages/Checklist";
 import Configuracoes from "./pages/Configuracoes";
@@ -29,6 +30,14 @@ const App = () => (
               element={
                 <ProtectedRoute>
                   <APT />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/apt/gerenciamento"
+              element={
+                <ProtectedRoute>
+                  <APTGerenciamento />
                 </ProtectedRoute>
               }
             />

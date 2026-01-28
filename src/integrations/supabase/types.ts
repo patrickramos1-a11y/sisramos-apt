@@ -49,6 +49,7 @@ export type Database = {
           concluido: boolean
           created_at: string
           id: string
+          link: string | null
           mes: number
           ordem: number
           semana: number
@@ -60,6 +61,7 @@ export type Database = {
           concluido?: boolean
           created_at?: string
           id?: string
+          link?: string | null
           mes?: number
           ordem?: number
           semana: number
@@ -71,6 +73,7 @@ export type Database = {
           concluido?: boolean
           created_at?: string
           id?: string
+          link?: string | null
           mes?: number
           ordem?: number
           semana?: number
