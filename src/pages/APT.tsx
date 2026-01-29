@@ -1,4 +1,5 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
+import { useSearchParams } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { useDemandas } from "@/hooks/useDemandas";
 import { useMonthSettings } from "@/hooks/useMonthSettings";
@@ -17,6 +18,7 @@ import DemandaCard from "@/components/apt/DemandaCard";
 import DemandaTableRow from "@/components/apt/DemandaTableRow";
 import DemandaSortHeader from "@/components/apt/DemandaSortHeader";
 import APTGerenciamento from "@/components/apt/APTGerenciamento";
+import GerenciamentoLista from "@/components/apt/GerenciamentoLista";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -37,7 +39,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Card, CardContent } from "@/components/ui/card";
-import { Loader2, AlertCircle, CheckCircle2, Trash2, Check, ThumbsUp, Copy, Filter, ChevronDown, ClipboardList, BarChart3 } from "lucide-react";
+import { Loader2, AlertCircle, CheckCircle2, Trash2, Check, ThumbsUp, Copy, Filter, ChevronDown, ClipboardList, BarChart3, PanelLeft, List } from "lucide-react";
 import DuplicarDemandasEmMassaDialog from "@/components/apt/DuplicarDemandasEmMassaDialog";
 
 interface Demanda {
@@ -58,7 +60,9 @@ interface Demanda {
 }
 
 export default function APT() {
-  const { user, isGestorOrAdmin } = useAuth();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const { user, isGestorOrAdmin, role } = useAuth();
+  const isColaborador = role === "colaborador";
   const isMobile = useIsMobile();
   const {
     demandas,
@@ -89,8 +93,24 @@ export default function APT() {
     toggleMonthStatus,
   } = useMonthSettings();
 
-  // Tab state
-  const [activeTab, setActiveTab] = useState<string>("demandas");
+  // Get tab/subtab from URL params (defaults to execucao for everyone)
+  const urlTab = searchParams.get("tab") || "execucao";
+  const urlSubTab = searchParams.get("subtab") || "painel";
+  
+  // Main tab: "execucao" or "gerenciamento"
+  const [activeTab, setActiveTab] = useState<string>(urlTab);
+  // Sub-tab within gerenciamento: "painel" or "lista"
+  const [gerenciamentoSubTab, setGerenciamentoSubTab] = useState<string>(urlSubTab);
+  
+  // Sync URL with tab state
+  useEffect(() => {
+    const params = new URLSearchParams();
+    params.set("tab", activeTab);
+    if (activeTab === "gerenciamento") {
+      params.set("subtab", gerenciamentoSubTab);
+    }
+    setSearchParams(params, { replace: true });
+  }, [activeTab, gerenciamentoSubTab, setSearchParams]);
 
   // Determine the currently viewed month/year from filters
   const viewedMes = filters.meses.length === 1 ? parseInt(filters.meses[0]) : null;
@@ -200,20 +220,18 @@ export default function APT() {
         {/* Tabs */}
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
           <TabsList className="mb-4">
-            <TabsTrigger value="demandas" className="gap-2">
+            <TabsTrigger value="execucao" className="gap-2">
               <ClipboardList className="h-4 w-4" />
-              APT
+              Execução
             </TabsTrigger>
-            {isGestorOrAdmin && (
-              <TabsTrigger value="gerenciamento" className="gap-2">
-                <BarChart3 className="h-4 w-4" />
-                Gerenciamento
-              </TabsTrigger>
-            )}
+            <TabsTrigger value="gerenciamento" className="gap-2">
+              <BarChart3 className="h-4 w-4" />
+              Gerenciamento
+            </TabsTrigger>
           </TabsList>
 
-          {/* Tab: Demandas */}
-          <TabsContent value="demandas" className="mt-0">
+          {/* Tab: Execução (Demandas) */}
+          <TabsContent value="execucao" className="mt-0">
             {/* Status badges and actions */}
             <div className="mb-4 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
               {/* Status badges - mobile visible */}
@@ -603,15 +621,39 @@ export default function APT() {
           </TabsContent>
 
           {/* Tab: Gerenciamento */}
-          {isGestorOrAdmin && (
-            <TabsContent value="gerenciamento" className="mt-0">
-              <APTGerenciamento 
-                profiles={profiles}
-                setores={setores}
-                onDemandaChange={fetchDemandas}
-              />
-            </TabsContent>
-          )}
+          <TabsContent value="gerenciamento" className="mt-0">
+            {/* Sub-tabs within Gerenciamento */}
+            <Tabs value={gerenciamentoSubTab} onValueChange={setGerenciamentoSubTab} className="w-full">
+              <TabsList className="mb-4">
+                <TabsTrigger value="painel" className="gap-2">
+                  <PanelLeft className="h-4 w-4" />
+                  Painel
+                </TabsTrigger>
+                <TabsTrigger value="lista" className="gap-2">
+                  <List className="h-4 w-4" />
+                  Lista
+                </TabsTrigger>
+              </TabsList>
+
+              {/* Sub-tab: Painel (existing APTGerenciamento component) */}
+              <TabsContent value="painel" className="mt-0">
+                <APTGerenciamento 
+                  profiles={profiles}
+                  setores={setores}
+                  onDemandaChange={fetchDemandas}
+                />
+              </TabsContent>
+
+              {/* Sub-tab: Lista (new component with fixed filters) */}
+              <TabsContent value="lista" className="mt-0">
+                <GerenciamentoLista
+                  profiles={profiles}
+                  setores={setores}
+                  onDemandaChange={fetchDemandas}
+                />
+              </TabsContent>
+            </Tabs>
+          </TabsContent>
         </Tabs>
       </div>
 
