@@ -910,9 +910,9 @@ export default function APTGerenciamento({
         </h2>
         
         <Card>
-          <ScrollArea className="max-h-[500px]">
+          <ScrollArea className="max-h-[calc(100vh-400px)] min-h-[300px]">
             <Table>
-              <TableHeader>
+              <TableHeader className="sticky top-0 bg-card z-10">
                 <TableRow>
                   <TableHead>Descrição</TableHead>
                   <TableHead>Responsável</TableHead>
