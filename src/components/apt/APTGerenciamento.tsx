@@ -910,7 +910,7 @@ export default function APTGerenciamento({
         </h2>
         
         <Card>
-          <ScrollArea className="max-h-[calc(100vh-400px)] min-h-[300px]">
+          <div className="overflow-auto max-h-[60vh]">
             <Table>
               <TableHeader className="sticky top-0 bg-card z-10">
                 <TableRow>
@@ -935,7 +935,7 @@ export default function APTGerenciamento({
                 )}
               </TableBody>
             </Table>
-          </ScrollArea>
+          </div>
         </Card>
       </section>
 
