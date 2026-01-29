@@ -24,6 +24,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import NotificationBell from "@/components/notifications/NotificationBell";
+import APTDropdownMenu from "./APTDropdownMenu";
 
 interface AppLayoutProps {
   children: React.ReactNode;
@@ -40,6 +41,7 @@ export default function AppLayout({ children }: AppLayoutProps) {
     navigate("/login");
   };
 
+  // Nav items without APT (which uses dropdown)
   const navItems = [
     {
       name: "Dashboard",
@@ -51,12 +53,6 @@ export default function AppLayout({ children }: AppLayoutProps) {
       name: "Checklist",
       href: "/checklist",
       icon: CheckSquare,
-      show: true,
-    },
-    {
-      name: "APT",
-      href: "/apt",
-      icon: ClipboardList,
       show: true,
     },
     {
@@ -112,7 +108,30 @@ export default function AppLayout({ children }: AppLayoutProps) {
 
             {/* Desktop nav */}
             <nav className="hidden md:flex items-center">
-              {navItems.map((item, index) => {
+              {navItems.slice(0, 2).map((item) => {
+                const isActive = location.pathname === item.href;
+                return (
+                  <Link
+                    key={item.href}
+                    to={item.href}
+                    className={cn(
+                      "flex items-center gap-2 px-4 py-2 text-sm font-medium transition-all rounded-md mx-0.5",
+                      isActive
+                        ? "bg-primary text-primary-foreground shadow-sm"
+                        : "text-muted-foreground hover:text-foreground hover:bg-muted"
+                    )}
+                  >
+                    <item.icon className="h-4 w-4" />
+                    {item.name}
+                  </Link>
+                );
+              })}
+              
+              {/* APT Dropdown Menu */}
+              <APTDropdownMenu />
+              
+              {/* Configurações */}
+              {navItems.slice(2).map((item) => {
                 const isActive = location.pathname === item.href;
                 return (
                   <Link
@@ -207,7 +226,31 @@ export default function AppLayout({ children }: AppLayoutProps) {
         {mobileMenuOpen && (
           <nav className="border-t bg-card/95 backdrop-blur-sm p-3 md:hidden animate-fade-in">
             <div className="flex flex-col gap-1">
-              {navItems.map((item) => {
+              {navItems.slice(0, 2).map((item) => {
+                const isActive = location.pathname === item.href;
+                return (
+                  <Link
+                    key={item.href}
+                    to={item.href}
+                    onClick={() => setMobileMenuOpen(false)}
+                    className={cn(
+                      "flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-all",
+                      isActive
+                        ? "bg-primary text-primary-foreground shadow-sm"
+                        : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                    )}
+                  >
+                    <item.icon className="h-5 w-5" />
+                    {item.name}
+                  </Link>
+                );
+              })}
+              
+              {/* APT Mobile Menu */}
+              <APTDropdownMenu isMobile onItemClick={() => setMobileMenuOpen(false)} />
+              
+              {/* Configurações */}
+              {navItems.slice(2).map((item) => {
                 const isActive = location.pathname === item.href;
                 return (
                   <Link

@@ -43,6 +43,44 @@ export type Database = {
           },
         ]
       }
+      checklist_item_completions: {
+        Row: {
+          checklist_item_id: string
+          completed: boolean
+          completed_at: string | null
+          created_at: string
+          id: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          checklist_item_id: string
+          completed?: boolean
+          completed_at?: string | null
+          created_at?: string
+          id?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          checklist_item_id?: string
+          completed?: boolean
+          completed_at?: string | null
+          created_at?: string
+          id?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "checklist_item_completions_checklist_item_id_fkey"
+            columns: ["checklist_item_id"]
+            isOneToOne: false
+            referencedRelation: "checklist_items"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       checklist_items: {
         Row: {
           ano: number
@@ -279,6 +317,7 @@ export type Database = {
       }
       profiles: {
         Row: {
+          cor: string | null
           created_at: string
           email: string
           id: string
@@ -287,6 +326,7 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          cor?: string | null
           created_at?: string
           email: string
           id?: string
@@ -295,6 +335,7 @@ export type Database = {
           user_id: string
         }
         Update: {
+          cor?: string | null
           created_at?: string
           email?: string
           id?: string

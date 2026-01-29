@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
@@ -13,9 +13,16 @@ import {
 } from "@/components/ui/dialog";
 import { MultiSelectDropdown } from "@/components/ui/multi-select-dropdown";
 import { Plus } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
+
+interface Profile {
+  id: string;
+  user_id: string;
+  nome: string;
+}
 
 interface NovoItemChecklistDialogProps {
-  onAddItem: (texto: string, semana: number, mes: number, ano: number) => Promise<void>;
+  onAddItem: (texto: string, semana: number, mes: number, ano: number, assignees?: string[]) => Promise<void>;
   defaultMes?: number;
   defaultAno?: number;
   defaultSemana?: number;
@@ -62,10 +69,26 @@ export default function NovoItemChecklistDialog({
   const [meses, setMeses] = useState<string[]>([String(defaultMes ?? now.getMonth() + 1)]);
   const [anos, setAnos] = useState<string[]>([String(defaultAno ?? now.getFullYear())]);
   const [semanas, setSemanas] = useState<string[]>([String(defaultSemana ?? 1)]);
+  const [selectedResponsaveis, setSelectedResponsaveis] = useState<string[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [profiles, setProfiles] = useState<Profile[]>([]);
+
+  // Fetch profiles on mount
+  useEffect(() => {
+    const fetchProfiles = async () => {
+      const { data } = await supabase.from("profiles").select("id, user_id, nome");
+      setProfiles((data as Profile[]) || []);
+    };
+    fetchProfiles();
+  }, []);
 
   // Calculate total items that will be created
   const totalItems = anos.length * meses.length * semanas.length;
+
+  const responsavelOptions = profiles.map(p => ({
+    value: p.user_id,
+    label: p.nome,
+  }));
 
   const handleSubmit = async () => {
     if (!texto.trim() || anos.length === 0 || meses.length === 0 || semanas.length === 0) return;
@@ -76,11 +99,18 @@ export default function NovoItemChecklistDialog({
       for (const ano of anos) {
         for (const mes of meses) {
           for (const semana of semanas) {
-            await onAddItem(texto.trim(), parseInt(semana), parseInt(mes), parseInt(ano));
+            await onAddItem(
+              texto.trim(), 
+              parseInt(semana), 
+              parseInt(mes), 
+              parseInt(ano),
+              selectedResponsaveis.length > 0 ? selectedResponsaveis : undefined
+            );
           }
         }
       }
       setTexto("");
+      setSelectedResponsaveis([]);
       setOpen(false);
     } finally {
       setIsSubmitting(false);
@@ -95,9 +125,9 @@ export default function NovoItemChecklistDialog({
       setMeses([String(defaultMes ?? now.getMonth() + 1)]);
       setAnos([String(defaultAno ?? now.getFullYear())]);
       setSemanas([String(defaultSemana ?? 1)]);
+      setSelectedResponsaveis([]);
     }
   };
-
   const isValid = texto.trim() && anos.length > 0 && meses.length > 0 && semanas.length > 0;
 
   return (
@@ -149,6 +179,22 @@ export default function NovoItemChecklistDialog({
                 placeholder="Semana"
               />
             </div>
+          </div>
+
+          {/* Responsáveis selection */}
+          <div className="space-y-2">
+            <Label>Responsáveis (opcional)</Label>
+            <MultiSelectDropdown
+              options={responsavelOptions}
+              selected={selectedResponsaveis}
+              onChange={setSelectedResponsaveis}
+              placeholder="Selecionar responsáveis..."
+            />
+            {selectedResponsaveis.length > 0 && (
+              <p className="text-xs text-muted-foreground">
+                {selectedResponsaveis.length} responsável(is) selecionado(s)
+              </p>
+            )}
           </div>
 
           {/* Info about how many items will be created */}

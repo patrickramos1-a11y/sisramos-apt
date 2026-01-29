@@ -159,8 +159,8 @@ export default function Checklist() {
     }
   };
 
-  const handleAddItemFromDialog = async (texto: string, semana: number, mes: number, ano: number) => {
-    await addItem(semana, texto, mes, ano);
+  const handleAddItemFromDialog = async (texto: string, semana: number, mes: number, ano: number, assignees?: string[]) => {
+    await addItem(semana, texto, mes, ano, assignees);
   };
 
   const handleClearFilters = () => {

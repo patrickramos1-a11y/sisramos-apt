@@ -37,6 +37,7 @@ import {
 } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2, Save, User, Pencil, X, Users, Trash2, Key, Palette } from "lucide-react";
+import UserColorPicker from "@/components/users/UserColorPicker";
 
 type AppRole = "admin" | "gestor" | "colaborador";
 type SortField = "nome" | "email" | "role";
@@ -48,6 +49,7 @@ interface UserWithRole {
   nome: string;
   email: string;
   role: AppRole;
+  cor?: string;
 }
 
 export default function Configuracoes() {
@@ -99,6 +101,7 @@ export default function Configuracoes() {
 
           usersWithRoles.push({
             ...profile,
+            cor: (profile as any).cor || "#6B7280",
             role: (roleData?.role as AppRole) || "colaborador",
           });
         }
@@ -189,6 +192,32 @@ export default function Configuracoes() {
     }
 
     setUpdatingRoleFor(null);
+  };
+
+  const handleUpdateUserColor = async (userId: string, newColor: string) => {
+    try {
+      const { error } = await supabase
+        .from("profiles")
+        .update({ cor: newColor })
+        .eq("user_id", userId);
+
+      if (error) throw error;
+
+      setAllUsers((prev) =>
+        prev.map((u) => (u.user_id === userId ? { ...u, cor: newColor } : u))
+      );
+
+      toast({
+        title: "Cor atualizada!",
+        description: "A cor do usuário foi alterada com sucesso.",
+      });
+    } catch (error: any) {
+      toast({
+        variant: "destructive",
+        title: "Erro ao atualizar cor",
+        description: error.message,
+      });
+    }
   };
 
   const handleSaveNome = async () => {
@@ -487,6 +516,7 @@ export default function Configuracoes() {
                         <TableHead>E-mail</TableHead>
                         <TableHead>Perfil</TableHead>
                         <TableHead className="w-[150px]">Alterar Perfil</TableHead>
+                        <TableHead className="w-[80px]">Cor</TableHead>
                         <TableHead className="w-[140px] text-center">Ações</TableHead>
                       </TableRow>
                     </TableHeader>
@@ -518,6 +548,12 @@ export default function Configuracoes() {
                                 </SelectContent>
                               </Select>
                             )}
+                          </TableCell>
+                          <TableCell>
+                            <UserColorPicker
+                              color={u.cor || "#6B7280"}
+                              onChange={(color) => handleUpdateUserColor(u.user_id, color)}
+                            />
                           </TableCell>
                           <TableCell>
                             <div className="flex items-center justify-center gap-1">

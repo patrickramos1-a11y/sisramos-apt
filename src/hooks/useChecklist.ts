@@ -150,7 +150,7 @@ export function useChecklist({ meses, anos, semanas, searchTerm }: UseChecklistO
     };
   }, [fetchItems]);
 
-  const addItem = async (semanaNum: number, texto: string, mes: number, ano: number) => {
+  const addItem = async (semanaNum: number, texto: string, mes: number, ano: number, assignees?: string[]) => {
     try {
       // Get the max order for this week in this specific month/year
       const weekItems = items.filter(
@@ -160,15 +160,29 @@ export function useChecklist({ meses, anos, semanas, searchTerm }: UseChecklistO
         ? Math.max(...weekItems.map((i) => i.ordem)) 
         : -1;
 
-      const { error } = await (supabase.from("checklist_items") as any).insert({
+      const { data: insertedItem, error } = await (supabase.from("checklist_items") as any).insert({
         semana: semanaNum,
         texto,
         ordem: maxOrder + 1,
         mes,
         ano,
-      });
+      }).select().single();
 
       if (error) throw error;
+
+      // If assignees are provided, insert them
+      if (assignees && assignees.length > 0 && insertedItem) {
+        const { error: assigneeError } = await (supabase
+          .from("checklist_item_assignees") as any)
+          .insert(assignees.map(userId => ({
+            checklist_item_id: insertedItem.id,
+            user_id: userId,
+          })));
+        
+        if (assigneeError) {
+          console.error("Error adding assignees:", assigneeError);
+        }
+      }
 
       toast({
         title: "Item adicionado",
