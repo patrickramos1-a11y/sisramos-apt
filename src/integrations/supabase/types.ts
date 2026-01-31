@@ -14,6 +14,369 @@ export type Database = {
   }
   public: {
     Tables: {
+      backlog_anexos: {
+        Row: {
+          backlog_item_id: string
+          created_at: string
+          id: string
+          nome_arquivo: string
+          tamanho: number
+          tipo_arquivo: string
+          uploaded_by: string | null
+          url: string
+        }
+        Insert: {
+          backlog_item_id: string
+          created_at?: string
+          id?: string
+          nome_arquivo: string
+          tamanho: number
+          tipo_arquivo: string
+          uploaded_by?: string | null
+          url: string
+        }
+        Update: {
+          backlog_item_id?: string
+          created_at?: string
+          id?: string
+          nome_arquivo?: string
+          tamanho?: number
+          tipo_arquivo?: string
+          uploaded_by?: string | null
+          url?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "backlog_anexos_backlog_item_id_fkey"
+            columns: ["backlog_item_id"]
+            isOneToOne: false
+            referencedRelation: "backlog_items"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "backlog_anexos_uploaded_by_fkey"
+            columns: ["uploaded_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      backlog_changelog: {
+        Row: {
+          acao: string
+          backlog_item_id: string
+          created_at: string
+          dados_anteriores: Json | null
+          dados_novos: Json | null
+          id: string
+          observacao: string | null
+          usuario_id: string | null
+        }
+        Insert: {
+          acao: string
+          backlog_item_id: string
+          created_at?: string
+          dados_anteriores?: Json | null
+          dados_novos?: Json | null
+          id?: string
+          observacao?: string | null
+          usuario_id?: string | null
+        }
+        Update: {
+          acao?: string
+          backlog_item_id?: string
+          created_at?: string
+          dados_anteriores?: Json | null
+          dados_novos?: Json | null
+          id?: string
+          observacao?: string | null
+          usuario_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "backlog_changelog_backlog_item_id_fkey"
+            columns: ["backlog_item_id"]
+            isOneToOne: false
+            referencedRelation: "backlog_items"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "backlog_changelog_usuario_id_fkey"
+            columns: ["usuario_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      backlog_item_modulos: {
+        Row: {
+          backlog_item_id: string
+          id: string
+          modulo_id: string
+        }
+        Insert: {
+          backlog_item_id: string
+          id?: string
+          modulo_id: string
+        }
+        Update: {
+          backlog_item_id?: string
+          id?: string
+          modulo_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "backlog_item_modulos_backlog_item_id_fkey"
+            columns: ["backlog_item_id"]
+            isOneToOne: false
+            referencedRelation: "backlog_items"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "backlog_item_modulos_modulo_id_fkey"
+            columns: ["modulo_id"]
+            isOneToOne: false
+            referencedRelation: "backlog_modulos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      backlog_items: {
+        Row: {
+          categoria: Database["public"]["Enums"]["backlog_categoria"]
+          created_at: string
+          data_conclusao: string | null
+          data_inicio_implementacao: string | null
+          data_lancamento: string | null
+          dependente_de_creditos: boolean
+          descricao_detalhada: string | null
+          estimativa_esforco: Database["public"]["Enums"]["backlog_esforco"]
+          id: string
+          impacto_esperado: Database["public"]["Enums"]["backlog_impacto"]
+          numero: number
+          prioridade: Database["public"]["Enums"]["backlog_prioridade"]
+          projeto_id: string
+          responsavel_produto_id: string | null
+          responsavel_tecnico_id: string | null
+          status: Database["public"]["Enums"]["backlog_status"]
+          titulo: string
+          updated_at: string
+        }
+        Insert: {
+          categoria: Database["public"]["Enums"]["backlog_categoria"]
+          created_at?: string
+          data_conclusao?: string | null
+          data_inicio_implementacao?: string | null
+          data_lancamento?: string | null
+          dependente_de_creditos?: boolean
+          descricao_detalhada?: string | null
+          estimativa_esforco?: Database["public"]["Enums"]["backlog_esforco"]
+          id?: string
+          impacto_esperado?: Database["public"]["Enums"]["backlog_impacto"]
+          numero?: number
+          prioridade?: Database["public"]["Enums"]["backlog_prioridade"]
+          projeto_id: string
+          responsavel_produto_id?: string | null
+          responsavel_tecnico_id?: string | null
+          status?: Database["public"]["Enums"]["backlog_status"]
+          titulo: string
+          updated_at?: string
+        }
+        Update: {
+          categoria?: Database["public"]["Enums"]["backlog_categoria"]
+          created_at?: string
+          data_conclusao?: string | null
+          data_inicio_implementacao?: string | null
+          data_lancamento?: string | null
+          dependente_de_creditos?: boolean
+          descricao_detalhada?: string | null
+          estimativa_esforco?: Database["public"]["Enums"]["backlog_esforco"]
+          id?: string
+          impacto_esperado?: Database["public"]["Enums"]["backlog_impacto"]
+          numero?: number
+          prioridade?: Database["public"]["Enums"]["backlog_prioridade"]
+          projeto_id?: string
+          responsavel_produto_id?: string | null
+          responsavel_tecnico_id?: string | null
+          status?: Database["public"]["Enums"]["backlog_status"]
+          titulo?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "backlog_items_projeto_id_fkey"
+            columns: ["projeto_id"]
+            isOneToOne: false
+            referencedRelation: "backlog_projetos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "backlog_items_responsavel_produto_id_fkey"
+            columns: ["responsavel_produto_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "backlog_items_responsavel_tecnico_id_fkey"
+            columns: ["responsavel_tecnico_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      backlog_modulos: {
+        Row: {
+          created_at: string
+          id: string
+          nome: string
+          projeto_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          nome: string
+          projeto_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          nome?: string
+          projeto_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "backlog_modulos_projeto_id_fkey"
+            columns: ["projeto_id"]
+            isOneToOne: false
+            referencedRelation: "backlog_projetos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      backlog_projetos: {
+        Row: {
+          ativo: boolean
+          created_at: string
+          descricao: string | null
+          id: string
+          nome: string
+          updated_at: string
+        }
+        Insert: {
+          ativo?: boolean
+          created_at?: string
+          descricao?: string | null
+          id?: string
+          nome: string
+          updated_at?: string
+        }
+        Update: {
+          ativo?: boolean
+          created_at?: string
+          descricao?: string | null
+          id?: string
+          nome?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      backlog_registros_implementacao: {
+        Row: {
+          backlog_item_id: string
+          created_at: string
+          data: string
+          descricao: string
+          id: string
+          responsavel_id: string | null
+          status: Database["public"]["Enums"]["backlog_registro_status"]
+        }
+        Insert: {
+          backlog_item_id: string
+          created_at?: string
+          data?: string
+          descricao: string
+          id?: string
+          responsavel_id?: string | null
+          status?: Database["public"]["Enums"]["backlog_registro_status"]
+        }
+        Update: {
+          backlog_item_id?: string
+          created_at?: string
+          data?: string
+          descricao?: string
+          id?: string
+          responsavel_id?: string | null
+          status?: Database["public"]["Enums"]["backlog_registro_status"]
+        }
+        Relationships: [
+          {
+            foreignKeyName: "backlog_registros_implementacao_backlog_item_id_fkey"
+            columns: ["backlog_item_id"]
+            isOneToOne: false
+            referencedRelation: "backlog_items"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "backlog_registros_implementacao_responsavel_id_fkey"
+            columns: ["responsavel_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      backlog_validacoes: {
+        Row: {
+          backlog_item_id: string
+          created_at: string
+          data_validacao: string
+          id: string
+          observacoes: string | null
+          tipo_validacao: Database["public"]["Enums"]["backlog_tipo_validacao"]
+          validado: boolean
+          validado_por: string | null
+        }
+        Insert: {
+          backlog_item_id: string
+          created_at?: string
+          data_validacao?: string
+          id?: string
+          observacoes?: string | null
+          tipo_validacao: Database["public"]["Enums"]["backlog_tipo_validacao"]
+          validado?: boolean
+          validado_por?: string | null
+        }
+        Update: {
+          backlog_item_id?: string
+          created_at?: string
+          data_validacao?: string
+          id?: string
+          observacoes?: string | null
+          tipo_validacao?: Database["public"]["Enums"]["backlog_tipo_validacao"]
+          validado?: boolean
+          validado_por?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "backlog_validacoes_backlog_item_id_fkey"
+            columns: ["backlog_item_id"]
+            isOneToOne: false
+            referencedRelation: "backlog_items"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "backlog_validacoes_validado_por_fkey"
+            columns: ["validado_por"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       checklist_item_assignees: {
         Row: {
           checklist_item_id: string
@@ -401,6 +764,35 @@ export type Database = {
     }
     Enums: {
       app_role: "admin" | "gestor" | "colaborador"
+      backlog_categoria:
+        | "nova_funcionalidade"
+        | "melhoria"
+        | "correcao_bug"
+        | "ajuste_tecnico"
+        | "ux_ui"
+        | "relatorios"
+        | "seguranca"
+        | "infraestrutura"
+      backlog_esforco: "pequeno" | "medio" | "grande"
+      backlog_impacto: "baixo" | "medio" | "alto"
+      backlog_prioridade: "alta" | "media" | "baixa"
+      backlog_registro_status: "executado" | "nao_executado"
+      backlog_status:
+        | "ideia"
+        | "em_analise"
+        | "refinado"
+        | "aguardando_recursos"
+        | "em_implementacao"
+        | "em_testes"
+        | "implementado"
+        | "lancado"
+        | "validado"
+        | "arquivado"
+      backlog_tipo_validacao:
+        | "teste_funcional"
+        | "validacao_visual"
+        | "validacao_tecnica"
+        | "regra_negocio"
       status_bolinha: "pendente" | "executado" | "nao_realizado"
     }
     CompositeTypes: {
@@ -530,6 +922,38 @@ export const Constants = {
   public: {
     Enums: {
       app_role: ["admin", "gestor", "colaborador"],
+      backlog_categoria: [
+        "nova_funcionalidade",
+        "melhoria",
+        "correcao_bug",
+        "ajuste_tecnico",
+        "ux_ui",
+        "relatorios",
+        "seguranca",
+        "infraestrutura",
+      ],
+      backlog_esforco: ["pequeno", "medio", "grande"],
+      backlog_impacto: ["baixo", "medio", "alto"],
+      backlog_prioridade: ["alta", "media", "baixa"],
+      backlog_registro_status: ["executado", "nao_executado"],
+      backlog_status: [
+        "ideia",
+        "em_analise",
+        "refinado",
+        "aguardando_recursos",
+        "em_implementacao",
+        "em_testes",
+        "implementado",
+        "lancado",
+        "validado",
+        "arquivado",
+      ],
+      backlog_tipo_validacao: [
+        "teste_funcional",
+        "validacao_visual",
+        "validacao_tecnica",
+        "regra_negocio",
+      ],
       status_bolinha: ["pendente", "executado", "nao_realizado"],
     },
   },

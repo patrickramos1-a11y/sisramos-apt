@@ -10,6 +10,7 @@ import APT from "./pages/APT";
 import Dashboard from "./pages/Dashboard";
 import Checklist from "./pages/Checklist";
 import Configuracoes from "./pages/Configuracoes";
+import Backlog from "./pages/Backlog";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -45,6 +46,14 @@ const App = () => (
               element={
                 <ProtectedRoute>
                   <Checklist />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/backlog"
+              element={
+                <ProtectedRoute>
+                  <Backlog />
                 </ProtectedRoute>
               }
             />

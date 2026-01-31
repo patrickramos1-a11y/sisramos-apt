@@ -25,6 +25,7 @@ import {
 import { cn } from "@/lib/utils";
 import NotificationBell from "@/components/notifications/NotificationBell";
 import APTDropdownMenu from "./APTDropdownMenu";
+import BacklogDropdownMenu from "./BacklogDropdownMenu";
 
 interface AppLayoutProps {
   children: React.ReactNode;
@@ -129,6 +130,9 @@ export default function AppLayout({ children }: AppLayoutProps) {
               
               {/* APT Dropdown Menu */}
               <APTDropdownMenu />
+              
+              {/* Backlog Dropdown Menu */}
+              <BacklogDropdownMenu />
               
               {/* Configurações */}
               {navItems.slice(2).map((item) => {
@@ -248,6 +252,9 @@ export default function AppLayout({ children }: AppLayoutProps) {
               
               {/* APT Mobile Menu */}
               <APTDropdownMenu isMobile onItemClick={() => setMobileMenuOpen(false)} />
+              
+              {/* Backlog Mobile Menu */}
+              <BacklogDropdownMenu isMobile onItemClick={() => setMobileMenuOpen(false)} />
               
               {/* Configurações */}
               {navItems.slice(2).map((item) => {
