@@ -263,14 +263,14 @@ export default function NovoBacklogItemDialog({ open, onOpenChange }: NovoBacklo
               <div>
                 <Label>Responsável pelo Produto</Label>
                 <Select
-                  value={form.responsavel_produto_id}
-                  onValueChange={(v) => setForm({ ...form, responsavel_produto_id: v })}
+                  value={form.responsavel_produto_id || "none"}
+                  onValueChange={(v) => setForm({ ...form, responsavel_produto_id: v === "none" ? "" : v })}
                 >
                   <SelectTrigger>
                     <SelectValue placeholder="Selecione" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">Nenhum</SelectItem>
+                    <SelectItem value="none">Nenhum</SelectItem>
                     {profiles?.map(profile => (
                       <SelectItem key={profile.id} value={profile.id}>
                         {profile.nome}
@@ -283,14 +283,14 @@ export default function NovoBacklogItemDialog({ open, onOpenChange }: NovoBacklo
               <div>
                 <Label>Responsável Técnico</Label>
                 <Select
-                  value={form.responsavel_tecnico_id}
-                  onValueChange={(v) => setForm({ ...form, responsavel_tecnico_id: v })}
+                  value={form.responsavel_tecnico_id || "none"}
+                  onValueChange={(v) => setForm({ ...form, responsavel_tecnico_id: v === "none" ? "" : v })}
                 >
                   <SelectTrigger>
                     <SelectValue placeholder="Selecione" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">Nenhum</SelectItem>
+                    <SelectItem value="none">Nenhum</SelectItem>
                     {profiles?.map(profile => (
                       <SelectItem key={profile.id} value={profile.id}>
                         {profile.nome}
