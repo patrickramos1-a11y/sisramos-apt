@@ -40,12 +40,40 @@ export default function ExcluirDemandaIrmaDialog({
   demandaNumero,
   grupoId,
   siblingCount,
-  siblings = [],
+  siblings: passedSiblings = [],
   onDemandaExcluida,
 }: ExcluirDemandaIrmaDialogProps) {
   const [isLoading, setIsLoading] = useState(false);
   const [showPreview, setShowPreview] = useState(false);
+  const [allSiblings, setAllSiblings] = useState<SiblingDemanda[]>([]);
+  const [actualSiblingCount, setActualSiblingCount] = useState(siblingCount);
   const { toast } = useToast();
+
+  // Fetch all siblings from DB when dialog opens to ensure we have complete data
+  useEffect(() => {
+    if (open && grupoId) {
+      const fetchAllSiblings = async () => {
+        const { data, error } = await supabase
+          .from("demandas")
+          .select("id, numero, descricao, semana_limite")
+          .eq("grupo_id", grupoId)
+          .eq("ativa", true);
+        
+        if (!error && data) {
+          setAllSiblings(data);
+          setActualSiblingCount(data.length);
+        } else {
+          // Fallback to passed siblings
+          setAllSiblings(passedSiblings);
+          setActualSiblingCount(siblingCount);
+        }
+      };
+      fetchAllSiblings();
+    } else if (open) {
+      setAllSiblings(passedSiblings);
+      setActualSiblingCount(siblingCount);
+    }
+  }, [open, grupoId, passedSiblings, siblingCount]);
 
   // Reset state when dialog opens
   useEffect(() => {
@@ -152,7 +180,7 @@ export default function ExcluirDemandaIrmaDialog({
 
     toast({
       title: "Demandas excluídas!",
-      description: `${siblingCount} demandas do grupo removidas permanentemente`,
+      description: `${actualSiblingCount} demandas do grupo removidas permanentemente`,
     });
 
     onOpenChange(false);
@@ -160,10 +188,10 @@ export default function ExcluirDemandaIrmaDialog({
     setIsLoading(false);
   };
 
-  const hasSiblings = grupoId && siblingCount > 1;
+  const hasSiblings = grupoId && actualSiblingCount > 1;
   
   // Get other siblings (excluding current demand)
-  const otherSiblings = siblings.filter(s => s.id !== demandaId);
+  const otherSiblings = allSiblings.filter(s => s.id !== demandaId);
 
   const getSemanaLabel = (semanas: number[]) => {
     if (!semanas || semanas.length === 0) return "";
@@ -180,7 +208,7 @@ export default function ExcluirDemandaIrmaDialog({
               {hasSiblings ? (
                 <>
                   <p>
-                    Esta demanda faz parte de um grupo com {siblingCount} demandas
+                    Esta demanda faz parte de um grupo com {actualSiblingCount} demandas
                     relacionadas (criadas em semanas diferentes).
                   </p>
                   
@@ -263,7 +291,7 @@ export default function ExcluirDemandaIrmaDialog({
                 {isLoading ? (
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                 ) : null}
-                Todas ({siblingCount})
+                Todas ({actualSiblingCount})
               </Button>
             </>
           ) : (

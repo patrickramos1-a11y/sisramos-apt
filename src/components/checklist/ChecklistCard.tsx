@@ -14,6 +14,7 @@ interface Profile {
   user_id: string;
   nome: string;
   email: string;
+  cor?: string | null;
 }
 
 interface ChecklistItem {
@@ -162,18 +163,6 @@ export default function ChecklistCard({
                 return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
               };
               
-              const getAvatarColor = (nome: string) => {
-                const colors = [
-                  "bg-blue-500", "bg-green-500", "bg-purple-500", "bg-orange-500",
-                  "bg-pink-500", "bg-cyan-500", "bg-indigo-500", "bg-teal-500",
-                ];
-                let hash = 0;
-                for (let i = 0; i < nome.length; i++) {
-                  hash = nome.charCodeAt(i) + ((hash << 5) - hash);
-                }
-                return colors[Math.abs(hash) % colors.length];
-              };
-              
               return (
                 <div
                   key={item.id}
@@ -254,10 +243,14 @@ export default function ChecklistCard({
                               {assignedProfiles.slice(0, 4).map((profile) => (
                                 <Avatar
                                   key={profile.user_id}
-                                  className={cn("h-5 w-5 border-2 border-background", getAvatarColor(profile.nome))}
+                                  className="h-5 w-5 border-2 border-background"
+                                  style={{ backgroundColor: profile.cor || '#6B7280' }}
                                   title={profile.nome}
                                 >
-                                  <AvatarFallback className="text-[8px] font-medium text-white bg-transparent">
+                                  <AvatarFallback 
+                                    className="text-[8px] font-medium text-white bg-transparent"
+                                    style={{ backgroundColor: profile.cor || '#6B7280' }}
+                                  >
                                     {getInitials(profile.nome)}
                                   </AvatarFallback>
                                 </Avatar>
