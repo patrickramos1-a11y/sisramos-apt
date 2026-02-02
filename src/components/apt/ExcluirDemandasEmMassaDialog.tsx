@@ -43,18 +43,42 @@ export default function ExcluirDemandasEmMassaDialog({
   const [isLoading, setIsLoading] = useState(false);
   const [includeIrmas, setIncludeIrmas] = useState(false);
   const [showPreview, setShowPreview] = useState(false);
+  const [siblingsNotSelected, setSiblingsNotSelected] = useState<Demanda[]>([]);
   const { toast, dismiss } = useToast();
   const undoTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const pendingDeleteRef = useRef<string[] | null>(null);
 
-  // Calculate sibling info
+  // Calculate sibling info - fetch from DB to ensure we have complete data
   const selectedDemandas = allDemandas.filter((d) => demandaIds.includes(d.id));
   const grupoIds = [...new Set(selectedDemandas.map((d) => d.grupo_id).filter(Boolean))] as string[];
-  
-  // Find siblings not selected
-  const siblingsNotSelected = allDemandas.filter(
-    (d) => d.grupo_id && grupoIds.includes(d.grupo_id) && !demandaIds.includes(d.id)
-  );
+
+  // Fetch all siblings from DB when dialog opens
+  useEffect(() => {
+    if (open && grupoIds.length > 0) {
+      const fetchAllSiblings = async () => {
+        const { data, error } = await supabase
+          .from("demandas")
+          .select("id, numero, descricao, semana_limite, grupo_id")
+          .in("grupo_id", grupoIds)
+          .eq("ativa", true);
+        
+        if (!error && data) {
+          // Find siblings not in selection
+          const notSelected = data.filter((d) => !demandaIds.includes(d.id));
+          setSiblingsNotSelected(notSelected);
+        } else {
+          // Fallback to local calculation
+          const localSiblings = allDemandas.filter(
+            (d) => d.grupo_id && grupoIds.includes(d.grupo_id) && !demandaIds.includes(d.id)
+          );
+          setSiblingsNotSelected(localSiblings);
+        }
+      };
+      fetchAllSiblings();
+    } else if (open) {
+      setSiblingsNotSelected([]);
+    }
+  }, [open, demandaIds, grupoIds.join(","), allDemandas]);
   
   const hasSiblings = siblingsNotSelected.length > 0;
   const totalWithSiblings = demandaIds.length + siblingsNotSelected.length;

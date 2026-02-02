@@ -60,6 +60,7 @@ interface Profile {
   id: string;
   user_id: string;
   nome: string;
+  cor?: string | null;
 }
 
 interface Setor {
@@ -289,6 +290,11 @@ export default function APTGerenciamento({
       .eq("ativa", true)
       .order("numero", { ascending: true });
 
+    // Colaboradores só veem suas próprias demandas
+    if (!isGestorOrAdmin && user) {
+      query = query.eq("responsavel_id", user.id);
+    }
+
     // Apply filters
     if (filters.meses.length > 0) {
       query = query.in("mes", filters.meses.map(m => parseInt(m)));
@@ -320,7 +326,7 @@ export default function APTGerenciamento({
     }
     
     setIsLoading(false);
-  }, [filters.meses, filters.setores, filters.responsaveis, filters.semanas]);
+  }, [filters.meses, filters.setores, filters.responsaveis, filters.semanas, isGestorOrAdmin, user]);
 
   useEffect(() => {
     fetchAllDemandas();
@@ -547,6 +553,9 @@ export default function APTGerenciamento({
     const setor = getSetorById(demand.setor_id);
     const firstSibling = demand.siblings[0];
     
+    // Colaboradores não podem editar/excluir
+    const canShowActions = showActions && isGestorOrAdmin;
+    
     return (
       <TableRow 
         className={cn(
@@ -561,7 +570,17 @@ export default function APTGerenciamento({
         </TableCell>
         <TableCell>
           <div className="flex items-center gap-2">
-            <Users className="h-4 w-4 text-muted-foreground" />
+            <Avatar 
+              className="h-6 w-6 border border-background"
+              style={{ backgroundColor: profile?.cor || '#6B7280' }}
+            >
+              <AvatarFallback 
+                className="text-[10px] text-white bg-transparent"
+                style={{ backgroundColor: profile?.cor || '#6B7280' }}
+              >
+                {profile ? getInitials(profile.nome) : "?"}
+              </AvatarFallback>
+            </Avatar>
             {profile?.nome || "Desconhecido"}
           </div>
         </TableCell>
@@ -583,7 +602,7 @@ export default function APTGerenciamento({
             {demand.siblings.length}X
           </Badge>
         </TableCell>
-        {showActions && (
+        {canShowActions && (
           <TableCell>
             <div className="flex items-center gap-1">
               <DropdownMenu>
@@ -621,6 +640,11 @@ export default function APTGerenciamento({
               </DropdownMenu>
               <ChevronRight className="h-4 w-4 text-muted-foreground" />
             </div>
+          </TableCell>
+        )}
+        {!canShowActions && showActions && (
+          <TableCell>
+            <ChevronRight className="h-4 w-4 text-muted-foreground" />
           </TableCell>
         )}
       </TableRow>
@@ -832,8 +856,14 @@ export default function APTGerenciamento({
                             return (
                               <Tooltip key={userId}>
                                 <TooltipTrigger asChild>
-                                  <Avatar className="h-6 w-6 border-2 border-background">
-                                    <AvatarFallback className="text-[10px] bg-muted">
+                                  <Avatar 
+                                    className="h-6 w-6 border-2 border-background"
+                                    style={{ backgroundColor: profile.cor || '#6B7280' }}
+                                  >
+                                    <AvatarFallback 
+                                      className="text-[10px] text-white bg-transparent"
+                                      style={{ backgroundColor: profile.cor || '#6B7280' }}
+                                    >
                                       {getInitials(profile.nome)}
                                     </AvatarFallback>
                                   </Avatar>
@@ -999,45 +1029,49 @@ export default function APTGerenciamento({
                           <span className="text-xs text-muted-foreground">Feito:</span>
                           <StatusBolinha status={sibling.status_responsavel} />
                         </div>
-                        <div className="flex items-center gap-1">
-                          <span className="text-xs text-muted-foreground">Aprovado:</span>
-                          <StatusBolinha status={sibling.status_gestor} />
-                        </div>
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" size="icon" className="h-7 w-7">
-                              <MoreVertical className="h-4 w-4" />
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end">
-                            <DropdownMenuItem
-                              onClick={() => {
-                                const demanda = getDemandaById(sibling.id);
-                                if (demanda) {
+                        {isGestorOrAdmin && (
+                          <div className="flex items-center gap-1">
+                            <span className="text-xs text-muted-foreground">Aprovado:</span>
+                            <StatusBolinha status={sibling.status_gestor} />
+                          </div>
+                        )}
+                        {isGestorOrAdmin && (
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button variant="ghost" size="icon" className="h-7 w-7">
+                                <MoreVertical className="h-4 w-4" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                              <DropdownMenuItem
+                                onClick={() => {
+                                  const demanda = getDemandaById(sibling.id);
+                                  if (demanda) {
+                                    setSelectedDemand(null);
+                                    setEditingDemanda(demanda);
+                                  }
+                                }}
+                              >
+                                <Pencil className="mr-2 h-4 w-4" />
+                                Editar
+                              </DropdownMenuItem>
+                              <DropdownMenuItem
+                                onClick={() => {
                                   setSelectedDemand(null);
-                                  setEditingDemanda(demanda);
-                                }
-                              }}
-                            >
-                              <Pencil className="mr-2 h-4 w-4" />
-                              Editar
-                            </DropdownMenuItem>
-                            <DropdownMenuItem
-                              onClick={() => {
-                                setSelectedDemand(null);
-                                setDeletingDemanda({
-                                  id: sibling.id,
-                                  numero: sibling.numero,
-                                  grupo_id: selectedDemand.grupo_id,
-                                });
-                              }}
-                              className="text-destructive"
-                            >
-                              <Trash2 className="mr-2 h-4 w-4" />
-                              Excluir
-                            </DropdownMenuItem>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
+                                  setDeletingDemanda({
+                                    id: sibling.id,
+                                    numero: sibling.numero,
+                                    grupo_id: selectedDemand.grupo_id,
+                                  });
+                                }}
+                                className="text-destructive"
+                              >
+                                <Trash2 className="mr-2 h-4 w-4" />
+                                Excluir
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        )}
                       </div>
                     </div>
                   ))}
@@ -1060,12 +1094,14 @@ export default function APTGerenciamento({
                 />
                 {selectedSetor?.nome || "Sem Setor"}
               </div>
-              <NovaDemandaDialog
-                profiles={profiles}
-                setores={setores}
-                onDemandaCriada={handleDemandaChange}
-                lockedSetorId={selectedSetor?.id !== "sem-setor" ? selectedSetor?.id : undefined}
-              />
+              {isGestorOrAdmin && (
+                <NovaDemandaDialog
+                  profiles={profiles}
+                  setores={setores}
+                  onDemandaCriada={handleDemandaChange}
+                  lockedSetorId={selectedSetor?.id !== "sem-setor" ? selectedSetor?.id : undefined}
+                />
+              )}
             </DialogTitle>
           </DialogHeader>
           
