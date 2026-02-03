@@ -5,6 +5,7 @@ import { useDemandas } from "@/hooks/useDemandas";
 import { useMonthSettings } from "@/hooks/useMonthSettings";
 import { useIsMobile } from "@/hooks/use-mobile";
 import AppLayout from "@/components/layout/AppLayout";
+import APTHorizontalFilters from "@/components/apt/APTHorizontalFilters";
 import APTFilters from "@/components/apt/APTFilters";
 import NovaDemandaDialog from "@/components/apt/NovaDemandaDialog";
 import EditarDemandaIrmaDialog from "@/components/apt/EditarDemandaIrmaDialog";
@@ -152,7 +153,9 @@ export default function APT() {
     filters.statusResponsavel.length > 0 ||
     filters.statusGestor.length > 0 ||
     filters.repeticoes.length > 0 ||
-    filters.busca !== "";
+    filters.busca !== "" ||
+    filters.urgente ||
+    filters.prioridade;
 
   // Calculate sibling count and list for editing/deleting
   const editingSiblingCount = editingDemanda
@@ -302,59 +305,34 @@ export default function APT() {
               </div>
             )}
 
-            {/* Desktop Filters Toggle Button */}
-            <div className="hidden lg:flex mb-4">
-              <Sheet>
-                <SheetTrigger asChild>
-                  <Button variant="outline" className="gap-2">
-                    <Filter className="h-4 w-4" />
-                    Filtros
-                    {hasActiveFilters && (
-                      <span className="ml-1 rounded-full bg-primary px-2 py-0.5 text-xs text-primary-foreground">
-                        !
-                      </span>
-                    )}
-                    <ChevronDown className="h-4 w-4 opacity-50" />
-                  </Button>
-                </SheetTrigger>
-                <SheetContent side="left" className="w-80 flex flex-col">
-                  <SheetHeader>
-                    <SheetTitle className="flex items-center gap-2">
-                      <Filter className="h-4 w-4" />
-                      Filtros
-                    </SheetTitle>
-                  </SheetHeader>
-                  <ScrollArea className="flex-1 mt-6 -mx-6 px-6">
-                    <div className="pb-6">
-                      <APTFilters
-                        profiles={profiles}
-                        setores={setores}
-                        filters={filters}
-                        onFiltersChange={setFilters}
-                        onClearFilters={clearFilters}
-                        showResponsavelFilter={isGestorOrAdmin}
-                      />
-                    </div>
-                  </ScrollArea>
-                </SheetContent>
-              </Sheet>
+            {/* Horizontal Filters - Always visible on desktop */}
+            <div className="hidden lg:block">
+              <APTHorizontalFilters
+                profiles={profiles}
+                setores={setores}
+                filters={filters}
+                onFiltersChange={setFilters}
+                onClearFilters={clearFilters}
+                showResponsavelFilter={isGestorOrAdmin}
+              />
+            </div>
+
+            {/* Mobile filters */}
+            <div className="mb-4 lg:hidden">
+              <APTFilters
+                profiles={profiles}
+                setores={setores}
+                filters={filters}
+                onFiltersChange={setFilters}
+                onClearFilters={clearFilters}
+                showResponsavelFilter={isGestorOrAdmin}
+              />
             </div>
 
             <div className="flex flex-col lg:flex-row gap-6">
 
               {/* Main content */}
               <div className="flex-1 min-w-0">
-                {/* Mobile filters only (sort header moved below for all devices) */}
-                <div className="mb-4 lg:hidden">
-                  <APTFilters
-                    profiles={profiles}
-                    setores={setores}
-                    filters={filters}
-                    onFiltersChange={setFilters}
-                    onClearFilters={clearFilters}
-                    showResponsavelFilter={isGestorOrAdmin}
-                  />
-                </div>
 
                 {/* Sort header - shown for all devices when there are demandas */}
                 {!isLoading && demandas.length > 0 && (

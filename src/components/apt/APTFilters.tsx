@@ -40,6 +40,8 @@ export interface MultiFilters {
   statusGestor: string[];
   repeticoes: string[];
   busca: string;
+  urgente: boolean;
+  prioridade: boolean;
 }
 
 interface APTFiltersProps {
