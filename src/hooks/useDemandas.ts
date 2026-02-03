@@ -2,11 +2,24 @@ import { useState, useEffect, useCallback, useMemo } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
-import { MultiFilters } from "@/components/apt/APTFilters";
 import { SortConfig, SortDirection } from "@/components/apt/DemandaSortHeader";
 import { checkAndCreateWeekNotification } from "@/lib/notificationUtils";
 
 type StatusBolinha = "pendente" | "executado" | "nao_realizado";
+
+export interface MultiFilters {
+  responsaveis: string[];
+  setores: string[];
+  meses: string[];
+  anos: string[];
+  semanas: string[];
+  statusResponsavel: string[];
+  statusGestor: string[];
+  repeticoes: string[];
+  busca: string;
+  urgente: boolean;
+  prioridade: boolean;
+}
 
 interface Demanda {
   id: string;
@@ -57,6 +70,8 @@ export function useDemandas() {
     statusGestor: [],
     repeticoes: [],
     busca: "",
+    urgente: false,
+    prioridade: false,
   });
   const [sortConfig, setSortConfig] = useState<SortConfig>({
     setor: null,
@@ -134,6 +149,16 @@ export function useDemandas() {
         filteredData = filteredData.filter((d) =>
           repeticaoNumbers.includes(d.semanas_repeticao)
         );
+      }
+      
+      // Filter by urgente (muito_urgente)
+      if (filters.urgente) {
+        filteredData = filteredData.filter((d) => d.muito_urgente);
+      }
+      
+      // Filter by prioridade (prioritaria)
+      if (filters.prioridade) {
+        filteredData = filteredData.filter((d) => d.prioritaria);
       }
       
       setDemandas(filteredData);
@@ -307,6 +332,8 @@ export function useDemandas() {
       statusGestor: [],
       repeticoes: [],
       busca: "",
+      urgente: false,
+      prioridade: false,
     });
   };
 

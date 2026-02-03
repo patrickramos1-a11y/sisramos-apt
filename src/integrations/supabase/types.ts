@@ -554,6 +554,39 @@ export type Database = {
           },
         ]
       }
+      momento_apt_settings: {
+        Row: {
+          ano: number
+          bloqueado: boolean
+          bloqueado_em: string | null
+          bloqueado_por: string | null
+          created_at: string
+          id: string
+          mes: number
+          updated_at: string
+        }
+        Insert: {
+          ano: number
+          bloqueado?: boolean
+          bloqueado_em?: string | null
+          bloqueado_por?: string | null
+          created_at?: string
+          id?: string
+          mes: number
+          updated_at?: string
+        }
+        Update: {
+          ano?: number
+          bloqueado?: boolean
+          bloqueado_em?: string | null
+          bloqueado_por?: string | null
+          created_at?: string
+          id?: string
+          mes?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
       month_settings: {
         Row: {
           ano: number

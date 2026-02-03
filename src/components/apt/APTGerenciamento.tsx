@@ -929,45 +929,17 @@ export default function APTGerenciamento({
         </div>
       </section>
 
-      {/* Consolidated Demands */}
-      <section>
-        <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
-          <ClipboardList className="h-5 w-5" />
-          Demandas Consolidadas
-          <Badge variant="outline" className="ml-2">
-            {consolidatedDemands.length} únicas
-          </Badge>
-        </h2>
-        
-        <Card>
-          <div className="overflow-auto max-h-[60vh]">
-            <Table>
-              <TableHeader className="sticky top-0 bg-card z-10">
-                <TableRow>
-                  <TableHead>Descrição</TableHead>
-                  <TableHead>Responsável</TableHead>
-                  <TableHead>Setor</TableHead>
-                  <TableHead className="text-center">Repetições</TableHead>
-                  <TableHead className="w-20">Ações</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {consolidatedDemands.length === 0 ? (
-                  <TableRow>
-                    <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
-                      Nenhuma demanda encontrada
-                    </TableCell>
-                  </TableRow>
-                ) : (
-                  consolidatedDemands.map((demand, idx) => (
-                    <ConsolidatedDemandRow key={demand.grupo_id || idx} demand={demand} />
-                  ))
-                )}
-              </TableBody>
-            </Table>
-          </div>
-        </Card>
-      </section>
+      {/* Summary Stats */}
+      <div className="flex flex-wrap gap-4 text-sm text-muted-foreground">
+        <span className="flex items-center gap-1">
+          <ClipboardList className="h-4 w-4" />
+          <strong>{consolidatedDemands.length}</strong> demandas únicas
+        </span>
+        <span className="flex items-center gap-1">
+          <Users className="h-4 w-4" />
+          <strong>{allDemandas.length}</strong> instâncias totais
+        </span>
+      </div>
 
       {/* Demand Siblings Dialog */}
       <Dialog open={!!selectedDemand} onOpenChange={() => setSelectedDemand(null)}>
