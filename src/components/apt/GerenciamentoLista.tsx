@@ -298,11 +298,16 @@ export default function GerenciamentoLista({
   }, [allDemandas, filters]);
 
   // Consolidate demands
+  // Groups by grupo_id when available, otherwise by descricao+responsavel+mes+ano
   const consolidatedDemands = useMemo(() => {
     const groupMap = new Map<string, ConsolidatedDemand>();
     
     filteredDemandas.forEach((d) => {
-      const key = d.grupo_id || d.id;
+      // Use grupo_id if available, otherwise create a composite key
+      // This handles cases where rollover didn't preserve grupo_id
+      const key = d.grupo_id 
+        ? d.grupo_id 
+        : `${d.descricao.toLowerCase().trim()}|${d.responsavel_id}|${d.mes}|${d.ano}`;
       
       if (groupMap.has(key)) {
         const existing = groupMap.get(key)!;
