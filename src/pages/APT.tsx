@@ -4,6 +4,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useDemandas } from "@/hooks/useDemandas";
 import { useMonthSettings } from "@/hooks/useMonthSettings";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { useMomentoAPT } from "@/hooks/useMomentoAPT";
 import AppLayout from "@/components/layout/AppLayout";
 import APTHorizontalFilters from "@/components/apt/APTHorizontalFilters";
 import APTFilters from "@/components/apt/APTFilters";
@@ -40,7 +41,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Card, CardContent } from "@/components/ui/card";
-import { Loader2, AlertCircle, CheckCircle2, Trash2, Check, ThumbsUp, Copy, Filter, ChevronDown, ClipboardList, BarChart3, PanelLeft, List } from "lucide-react";
+import { Loader2, AlertCircle, CheckCircle2, Trash2, Check, ThumbsUp, Copy, Filter, ChevronDown, ClipboardList, BarChart3, PanelLeft, List, Lock, Unlock } from "lucide-react";
 import DuplicarDemandasEmMassaDialog from "@/components/apt/DuplicarDemandasEmMassaDialog";
 
 interface Demanda {
@@ -94,6 +95,8 @@ export default function APT() {
     toggleMonthStatus,
   } = useMonthSettings();
 
+  const { isAPTBloqueado, toggleBloqueio } = useMomentoAPT();
+
   // Get tab/subtab from URL params (defaults to execucao for everyone)
   const urlTab = searchParams.get("tab") || "execucao";
   const urlSubTab = searchParams.get("subtab") || "painel";
@@ -124,10 +127,16 @@ export default function APT() {
     : undefined;
   const isCurrentMonthStatusActive = currentMonthSetting?.status_ativo === true;
 
+  // Momento APT bloqueado
+  const isMomentoAPTBloqueado = viewedMes !== null && viewedAno !== null
+    ? isAPTBloqueado(viewedMes, viewedAno)
+    : false;
+
   // Determine if status updates are allowed for the current view
+  // For collaborators, also check if Momento APT is bloqueado
   const canUpdateStatus = viewedMes !== null && viewedAno !== null 
-    ? isStatusUpdateAllowed(viewedMes, viewedAno)
-    : true; // Allow if viewing multiple months
+    ? isStatusUpdateAllowed(viewedMes, viewedAno) && (!isColaborador || !isMomentoAPTBloqueado)
+    : !isColaborador || !isMomentoAPTBloqueado;
 
   // Dialog states
   const [editingDemanda, setEditingDemanda] = useState<Demanda | null>(null);
@@ -275,6 +284,27 @@ export default function APT() {
 
                 {isGestorOrAdmin && (
                   <>
+                    {/* Momento APT Lock Button */}
+                    {viewedMes !== null && viewedAno !== null && (
+                      <Button
+                        variant={isMomentoAPTBloqueado ? "destructive" : "outline"}
+                        size="sm"
+                        className="gap-2"
+                        onClick={() => toggleBloqueio(viewedMes, viewedAno)}
+                      >
+                        {isMomentoAPTBloqueado ? (
+                          <>
+                            <Lock className="h-4 w-4" />
+                            <span className="hidden sm:inline">Momento APT Ativo</span>
+                          </>
+                        ) : (
+                          <>
+                            <Unlock className="h-4 w-4" />
+                            <span className="hidden sm:inline">Iniciar Momento APT</span>
+                          </>
+                        )}
+                      </Button>
+                    )}
                     <RolloverDemandasDialog onRolloverComplete={fetchDemandas} />
                     <NovaDemandaDialog
                       profiles={profiles}
@@ -302,6 +332,16 @@ export default function APT() {
                   isStatusActive={isCurrentMonthStatusActive}
                   isCollaborator={!isGestorOrAdmin}
                 />
+              </div>
+            )}
+
+            {/* Momento APT warning for collaborators */}
+            {isMomentoAPTBloqueado && isColaborador && (
+              <div className="mb-4 p-3 bg-destructive/10 border border-destructive/30 rounded-lg flex items-center gap-2">
+                <Lock className="h-4 w-4 text-destructive" />
+                <span className="text-sm text-destructive font-medium">
+                  Momento APT em andamento - Alterações de status estão bloqueadas
+                </span>
               </div>
             )}
 
@@ -368,7 +408,9 @@ export default function APT() {
                       const demandaEditAllowed = isEditAllowed(demanda.mes, demanda.ano, isGestorOrAdmin);
                       
                       // Status permissions: only the responsible user can edit "Feito"
-                      const canEditResponsavel = demandaStatusAllowed && user?.id === demanda.responsavel_id;
+                      // Block if Momento APT is active for collaborators
+                      const momentoAPTBlocking = isColaborador && isMomentoAPTBloqueado;
+                      const canEditResponsavel = demandaStatusAllowed && user?.id === demanda.responsavel_id && !momentoAPTBlocking;
                       const canEditGestor = demandaStatusAllowed && isGestorOrAdmin;
                       
                       // Edit/delete permissions: past months only allow gestor/admin
@@ -533,7 +575,9 @@ export default function APT() {
                             const demandaEditAllowed = isEditAllowed(demanda.mes, demanda.ano, isGestorOrAdmin);
                             
                             // Status permissions: only the responsible user can edit "Feito"
-                            const canEditResponsavel = demandaStatusAllowed && user?.id === demanda.responsavel_id;
+                            // Block if Momento APT is active for collaborators
+                            const momentoAPTBlocking = isColaborador && isMomentoAPTBloqueado;
+                            const canEditResponsavel = demandaStatusAllowed && user?.id === demanda.responsavel_id && !momentoAPTBlocking;
                             const canEditGestor = demandaStatusAllowed && isGestorOrAdmin;
                             
                             // Edit/delete permissions: past months only allow gestor/admin

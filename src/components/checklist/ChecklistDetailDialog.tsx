@@ -8,25 +8,27 @@ import {
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
-import { Checkbox } from "@/components/ui/checkbox";
 import { Progress } from "@/components/ui/progress";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Pencil, Trash2, Check, X, Calendar, CheckCircle2, Link as LinkIcon, ExternalLink } from "lucide-react";
+import { Pencil, Trash2, Check, X, Calendar, CheckCircle2, Link as LinkIcon, ExternalLink, Circle, XCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
 import UserAssignmentPopover from "./UserAssignmentPopover";
+import type { ChecklistStatus } from "@/hooks/useChecklist";
 
 interface Profile {
   id: string;
   user_id: string;
   nome: string;
   email: string;
+  cor?: string | null;
 }
 
 interface ChecklistItem {
   id: string;
   texto: string;
   concluido: boolean;
+  status?: ChecklistStatus;
   link?: string | null;
   assignees?: string[];
 }
@@ -41,7 +43,7 @@ interface ChecklistDetailDialogProps {
   currentUserId?: string;
   isGestorOrAdmin: boolean;
   profiles: Profile[];
-  onUpdateItem: (id: string, updates: Partial<{ texto: string; concluido: boolean; link: string | null }>) => Promise<void>;
+  onUpdateItem: (id: string, updates: Partial<{ texto: string; concluido: boolean; link: string | null; status: ChecklistStatus }>) => Promise<void>;
   onDeleteItem: (id: string) => Promise<void>;
   onUpdateAssignees: (itemId: string, userIds: string[]) => Promise<void>;
 }
@@ -87,12 +89,33 @@ export default function ChecklistDetailDialog({
     setEditingLink("");
   };
 
-  const completedCount = items.filter((i) => i.concluido).length;
+  const completedCount = items.filter((i) => i.status === "concluido" || i.concluido).length;
+  const notDoneCount = items.filter((i) => i.status === "nao_realizado").length;
   const totalCount = items.length;
   const progress = totalCount > 0 ? (completedCount / totalCount) * 100 : 0;
   const allCompleted = totalCount > 0 && completedCount === totalCount;
 
   const canModify = canEdit && !isLocked;
+  
+  // Cycle through statuses: pendente -> concluido -> nao_realizado -> pendente
+  const cycleStatus = (currentStatus: ChecklistStatus | undefined): ChecklistStatus => {
+    const status = currentStatus || "pendente";
+    if (status === "pendente") return "concluido";
+    if (status === "concluido") return "nao_realizado";
+    return "pendente";
+  };
+  
+  const getStatusIcon = (status: ChecklistStatus | undefined) => {
+    const effectiveStatus = status || "pendente";
+    switch (effectiveStatus) {
+      case "concluido":
+        return <CheckCircle2 className="h-5 w-5 text-primary" />;
+      case "nao_realizado":
+        return <XCircle className="h-5 w-5 text-destructive" />;
+      default:
+        return <Circle className="h-5 w-5 text-muted-foreground" />;
+    }
+  };
 
   const weekColors: Record<number, { bg: string; icon: string }> = {
     1: { bg: "from-emerald-500/20 to-emerald-500/5", icon: "bg-emerald-500/30 text-emerald-700 dark:text-emerald-400" },
@@ -178,19 +201,27 @@ export default function ChecklistDetailDialog({
                     key={item.id}
                     className={cn(
                       "group flex items-start gap-3 p-3 rounded-lg border transition-all duration-150",
-                      item.concluido 
+                      item.status === "concluido" || item.concluido
                         ? "bg-muted/30 border-muted" 
+                        : item.status === "nao_realizado"
+                        ? "bg-destructive/10 border-destructive/30"
                         : "border-transparent hover:bg-muted/20 hover:border-border"
                     )}
                   >
-                    <Checkbox
-                      checked={item.concluido}
-                      onCheckedChange={(checked) =>
-                        onUpdateItem(item.id, { concluido: !!checked })
-                      }
-                      className="mt-0.5 shrink-0"
+                    {/* 3-state status button */}
+                    <button
+                      type="button"
+                      onClick={() => onUpdateItem(item.id, { status: cycleStatus(item.status) })}
+                      className="mt-0.5 shrink-0 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 rounded-full disabled:opacity-50 disabled:cursor-not-allowed"
                       disabled={!canCompleteItem || (isLocked && !canEdit)}
-                    />
+                      title={
+                        item.status === "concluido" ? "Concluído (clique para marcar como não realizado)"
+                        : item.status === "nao_realizado" ? "Não realizado (clique para marcar como pendente)"
+                        : "Pendente (clique para marcar como concluído)"
+                      }
+                    >
+                      {getStatusIcon(item.status)}
+                    </button>
                     
                     {editingId === item.id ? (
                       <div className="flex-1 space-y-2">
@@ -237,7 +268,8 @@ export default function ChecklistDetailDialog({
                           <span
                             className={cn(
                               "block text-sm leading-relaxed break-words",
-                              item.concluido && "line-through text-muted-foreground"
+                              (item.status === "concluido" || item.concluido) && "line-through text-muted-foreground",
+                              item.status === "nao_realizado" && "text-destructive"
                             )}
                           >
                             {item.texto}
