@@ -5,6 +5,7 @@ import { cn } from "@/lib/utils";
 export type SortDirection = "asc" | "desc" | null;
 
 export interface SortConfig {
+  numero: SortDirection;
   setor: SortDirection;
   responsavel: SortDirection;
   descricao: SortDirection;
@@ -54,6 +55,11 @@ export default function DemandaSortHeader({
   return (
     <div className="flex items-center gap-2 flex-wrap mb-2 p-2 bg-muted/50 rounded-lg">
       <span className="text-xs text-muted-foreground font-medium">Ordenar por:</span>
+      <SortButton
+        label="Nº"
+        direction={sortConfig.numero}
+        onClick={() => onSortChange("numero")}
+      />
       <SortButton
         label="Setor"
         direction={sortConfig.setor}

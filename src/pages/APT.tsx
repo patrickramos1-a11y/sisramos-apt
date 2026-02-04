@@ -41,8 +41,16 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Card, CardContent } from "@/components/ui/card";
-import { Loader2, AlertCircle, CheckCircle2, Trash2, Check, ThumbsUp, Copy, Filter, ChevronDown, ClipboardList, BarChart3, PanelLeft, List, Lock, Unlock } from "lucide-react";
+import { Loader2, AlertCircle, CheckCircle2, Trash2, Check, ThumbsUp, Copy, Filter, ChevronDown, ClipboardList, BarChart3, PanelLeft, List, Lock, Unlock, Eye, EyeOff, Settings2 } from "lucide-react";
 import DuplicarDemandasEmMassaDialog from "@/components/apt/DuplicarDemandasEmMassaDialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+  DropdownMenuSeparator,
+  DropdownMenuLabel,
+} from "@/components/ui/dropdown-menu";
 
 interface Demanda {
   id: string;
@@ -151,6 +159,9 @@ export default function APT() {
   const [showBulkDeleteDialog, setShowBulkDeleteDialog] = useState(false);
   const [showBulkStatusDialog, setShowBulkStatusDialog] = useState<"responsavel" | "gestor" | null>(null);
   const [showBulkDuplicateDialog, setShowBulkDuplicateDialog] = useState(false);
+  
+  // Column visibility state (for admin/gestor)
+  const [hideResponsavelColumn, setHideResponsavelColumn] = useState(false);
   
   // Filters active count for badge
   const hasActiveFilters =
@@ -284,6 +295,31 @@ export default function APT() {
 
                 {isGestorOrAdmin && (
                   <>
+                    {/* Column visibility settings */}
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button variant="outline" size="sm" className="gap-2">
+                          <Settings2 className="h-4 w-4" />
+                          <span className="hidden sm:inline">Colunas</span>
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        <DropdownMenuLabel>Visibilidade</DropdownMenuLabel>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem
+                          onClick={() => setHideResponsavelColumn(!hideResponsavelColumn)}
+                          className="gap-2"
+                        >
+                          {hideResponsavelColumn ? (
+                            <EyeOff className="h-4 w-4" />
+                          ) : (
+                            <Eye className="h-4 w-4" />
+                          )}
+                          {hideResponsavelColumn ? "Mostrar" : "Ocultar"} coluna "Feito"
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+
                     {/* Momento APT Lock Button */}
                     {viewedMes !== null && viewedAno !== null && (
                       <Button
@@ -546,9 +582,11 @@ export default function APT() {
                             <TableHead className="w-28 text-primary-foreground font-semibold">Setor</TableHead>
                             <TableHead className="w-36 text-primary-foreground font-semibold">Responsável</TableHead>
                             <TableHead className="text-primary-foreground font-semibold">Descrição</TableHead>
-                            <TableHead className="text-center w-20 text-primary-foreground font-semibold">
-                              Feito?
-                            </TableHead>
+                            {!hideResponsavelColumn && (
+                              <TableHead className="text-center w-20 text-primary-foreground font-semibold">
+                                Feito?
+                              </TableHead>
+                            )}
                             {isGestorOrAdmin && (
                               <TableHead className="text-center w-20 text-primary-foreground font-semibold">
                                 Aprovado?
@@ -602,6 +640,7 @@ export default function APT() {
                                 canEditGestor={canEditGestor}
                                 canEditDemanda={canEditDemanda}
                                 showGestorColumn={isGestorOrAdmin}
+                                showResponsavelColumn={!hideResponsavelColumn}
                                 isAlternateRow={index % 2 === 1}
                                 isSelected={selectedIds.has(demanda.id)}
                                 showCheckbox={true}
