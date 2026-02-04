@@ -74,6 +74,7 @@ export function useDemandas() {
     prioridade: false,
   });
   const [sortConfig, setSortConfig] = useState<SortConfig>({
+    numero: null,
     setor: null,
     responsavel: null,
     descricao: null,
@@ -360,6 +361,7 @@ export function useDemandas() {
 
   const resetSort = () => {
     setSortConfig({
+      numero: null,
       setor: null,
       responsavel: null,
       descricao: null,
@@ -376,7 +378,12 @@ export function useDemandas() {
     }
 
     return [...demandas].sort((a, b) => {
-      // Apply sorts in order: setor, responsavel, descricao, semana
+      // Apply sorts in order: numero, setor, responsavel, descricao, semana
+      if (sortConfig.numero) {
+        const cmp = a.numero - b.numero;
+        if (cmp !== 0) return sortConfig.numero === "asc" ? cmp : -cmp;
+      }
+
       if (sortConfig.setor) {
         const setorA = getSetorById(a.setor_id)?.nome || "";
         const setorB = getSetorById(b.setor_id)?.nome || "";
