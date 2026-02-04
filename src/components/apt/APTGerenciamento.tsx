@@ -668,118 +668,202 @@ export default function APTGerenciamento({
   return (
     <div className="space-y-6">
       {/* Filters */}
-      <div className="flex flex-wrap items-end gap-3">
-        <Sheet>
-          <SheetTrigger asChild>
-            <Button variant="outline" size="sm" className="gap-2">
-              <Filter className="h-4 w-4" />
-              Filtros
-              {hasActiveFilters && (
-                <span className="ml-1 rounded-full bg-primary px-2 py-0.5 text-xs text-primary-foreground">
-                  !
-                </span>
-              )}
-            </Button>
-          </SheetTrigger>
-          <SheetContent side="left" className="w-72 flex flex-col">
-            <SheetHeader>
-              <SheetTitle className="flex items-center gap-2">
-                <Filter className="h-4 w-4" />
-                Filtros
-              </SheetTitle>
-            </SheetHeader>
-            <ScrollArea className="flex-1 mt-4 -mx-6 px-6">
-              <div className="space-y-4 pb-6">
-                <MultiSelectDropdown
-                  label="Setores"
-                  options={setorOptions}
-                  selected={filters.setores}
-                  onChange={(v) => setFilters(prev => ({ ...prev, setores: v }))}
-                  placeholder="Todos"
+      <div className="space-y-3">
+        {/* Desktop: horizontal + always visible */}
+        <Card className="hidden lg:block p-4">
+          <div className="flex flex-wrap items-end gap-4">
+            <div className="w-[200px]">
+              <MultiSelectDropdown
+                label="Setores"
+                options={setorOptions}
+                selected={filters.setores}
+                onChange={(v) => setFilters((prev) => ({ ...prev, setores: v }))}
+                placeholder="Todos"
+              />
+            </div>
+
+            <div className="w-[200px]">
+              <MultiSelectDropdown
+                label="Responsáveis"
+                options={responsavelOptions}
+                selected={filters.responsaveis}
+                onChange={(v) => setFilters((prev) => ({ ...prev, responsaveis: v }))}
+                placeholder="Todos"
+              />
+            </div>
+
+            <div className="w-[180px]">
+              <MultiSelectDropdown
+                label="Meses"
+                options={meses}
+                selected={filters.meses}
+                onChange={(v) => setFilters((prev) => ({ ...prev, meses: v }))}
+                placeholder="Todos"
+              />
+            </div>
+
+            <div className="w-[180px]">
+              <MultiSelectDropdown
+                label="Semanas"
+                options={semanaOptions}
+                selected={filters.semanas}
+                onChange={(v) => setFilters((prev) => ({ ...prev, semanas: v }))}
+                placeholder="Todas"
+              />
+            </div>
+
+            <div className="space-y-1.5">
+              <Label className="text-xs">Prioridade (cards com estrela)</Label>
+              <div className="flex items-center gap-2 h-8">
+                <Checkbox
+                  id="prioridade"
+                  checked={filters.prioridade}
+                  onCheckedChange={(checked) =>
+                    setFilters((prev) => ({ ...prev, prioridade: checked as boolean }))
+                  }
                 />
-
-                <MultiSelectDropdown
-                  label="Responsáveis"
-                  options={responsavelOptions}
-                  selected={filters.responsaveis}
-                  onChange={(v) => setFilters(prev => ({ ...prev, responsaveis: v }))}
-                  placeholder="Todos"
-                />
-
-                <MultiSelectDropdown
-                  label="Meses"
-                  options={meses}
-                  selected={filters.meses}
-                  onChange={(v) => setFilters(prev => ({ ...prev, meses: v }))}
-                  placeholder="Todos"
-                />
-
-                <MultiSelectDropdown
-                  label="Semanas"
-                  options={semanaOptions}
-                  selected={filters.semanas}
-                  onChange={(v) => setFilters(prev => ({ ...prev, semanas: v }))}
-                  placeholder="Todas"
-                />
-
-                <div className="space-y-2">
-                  <Label className="text-xs">Prioridade (cards com estrela)</Label>
-                  <div className="flex items-center gap-2">
-                    <Checkbox
-                      id="prioridade"
-                      checked={filters.prioridade}
-                      onCheckedChange={(checked) => 
-                        setFilters(prev => ({ ...prev, prioridade: checked as boolean }))
-                      }
-                    />
-                    <Label htmlFor="prioridade" className="text-xs cursor-pointer flex items-center gap-1">
-                      <Star className="h-3 w-3 text-destructive fill-destructive" />
-                      Apenas prioritários
-                    </Label>
-                  </div>
-                </div>
-
-                <Button
-                  variant="destructive"
-                  size="sm"
-                  className="w-full"
-                  onClick={clearFilters}
-                  disabled={!hasActiveFilters}
+                <Label
+                  htmlFor="prioridade"
+                  className="text-xs cursor-pointer flex items-center gap-1"
                 >
-                  <X className="mr-2 h-4 w-4" />
-                  Limpar Filtros
-                </Button>
+                  <Star className="h-3 w-3 text-destructive fill-destructive" />
+                  Apenas prioritários
+                </Label>
               </div>
-            </ScrollArea>
-          </SheetContent>
-        </Sheet>
+            </div>
 
-        {/* Active filter badges */}
-        {hasActiveFilters && (
-          <div className="flex flex-wrap gap-1">
-            {filters.meses.length > 0 && (
-              <Badge variant="secondary" className="text-xs">
-                {filters.meses.length} mês(es)
-              </Badge>
-            )}
-            {filters.setores.length > 0 && (
-              <Badge variant="secondary" className="text-xs">
-                {filters.setores.length} setor(es)
-              </Badge>
-            )}
-            {filters.responsaveis.length > 0 && (
-              <Badge variant="secondary" className="text-xs">
-                {filters.responsaveis.length} resp.
-              </Badge>
-            )}
-            {filters.prioridade && (
-              <Badge variant="secondary" className="text-xs flex items-center gap-1">
-                <Star className="h-3 w-3 fill-destructive text-destructive" />
-                Prioritários
-              </Badge>
+            {hasActiveFilters && (
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-8 gap-1 text-destructive hover:text-destructive"
+                onClick={clearFilters}
+              >
+                <X className="h-4 w-4" />
+                Limpar
+              </Button>
             )}
           </div>
-        )}
+        </Card>
+
+        {/* Mobile: drawer */}
+        <div className="flex flex-wrap items-end gap-3 lg:hidden">
+          <Sheet>
+            <SheetTrigger asChild>
+              <Button variant="outline" size="sm" className="gap-2">
+                <Filter className="h-4 w-4" />
+                Filtros
+                {hasActiveFilters && (
+                  <span className="ml-1 rounded-full bg-primary px-2 py-0.5 text-xs text-primary-foreground">
+                    !
+                  </span>
+                )}
+              </Button>
+            </SheetTrigger>
+            <SheetContent side="left" className="w-72 flex flex-col">
+              <SheetHeader>
+                <SheetTitle className="flex items-center gap-2">
+                  <Filter className="h-4 w-4" />
+                  Filtros
+                </SheetTitle>
+              </SheetHeader>
+              <ScrollArea className="flex-1 mt-4 -mx-6 px-6">
+                <div className="space-y-4 pb-6">
+                  <MultiSelectDropdown
+                    label="Setores"
+                    options={setorOptions}
+                    selected={filters.setores}
+                    onChange={(v) => setFilters((prev) => ({ ...prev, setores: v }))}
+                    placeholder="Todos"
+                  />
+
+                  <MultiSelectDropdown
+                    label="Responsáveis"
+                    options={responsavelOptions}
+                    selected={filters.responsaveis}
+                    onChange={(v) => setFilters((prev) => ({ ...prev, responsaveis: v }))}
+                    placeholder="Todos"
+                  />
+
+                  <MultiSelectDropdown
+                    label="Meses"
+                    options={meses}
+                    selected={filters.meses}
+                    onChange={(v) => setFilters((prev) => ({ ...prev, meses: v }))}
+                    placeholder="Todos"
+                  />
+
+                  <MultiSelectDropdown
+                    label="Semanas"
+                    options={semanaOptions}
+                    selected={filters.semanas}
+                    onChange={(v) => setFilters((prev) => ({ ...prev, semanas: v }))}
+                    placeholder="Todas"
+                  />
+
+                  <div className="space-y-2">
+                    <Label className="text-xs">Prioridade (cards com estrela)</Label>
+                    <div className="flex items-center gap-2">
+                      <Checkbox
+                        id="prioridade"
+                        checked={filters.prioridade}
+                        onCheckedChange={(checked) =>
+                          setFilters((prev) => ({ ...prev, prioridade: checked as boolean }))
+                        }
+                      />
+                      <Label
+                        htmlFor="prioridade"
+                        className="text-xs cursor-pointer flex items-center gap-1"
+                      >
+                        <Star className="h-3 w-3 text-destructive fill-destructive" />
+                        Apenas prioritários
+                      </Label>
+                    </div>
+                  </div>
+
+                  <Button
+                    variant="destructive"
+                    size="sm"
+                    className="w-full"
+                    onClick={clearFilters}
+                    disabled={!hasActiveFilters}
+                  >
+                    <X className="mr-2 h-4 w-4" />
+                    Limpar Filtros
+                  </Button>
+                </div>
+              </ScrollArea>
+            </SheetContent>
+          </Sheet>
+ 
+          {/* Active filter badges (mobile) */}
+          {hasActiveFilters && (
+            <div className="flex flex-wrap gap-1">
+              {filters.meses.length > 0 && (
+                <Badge variant="secondary" className="text-xs">
+                  {filters.meses.length} mês(es)
+                </Badge>
+              )}
+              {filters.setores.length > 0 && (
+                <Badge variant="secondary" className="text-xs">
+                  {filters.setores.length} setor(es)
+                </Badge>
+              )}
+              {filters.responsaveis.length > 0 && (
+                <Badge variant="secondary" className="text-xs">
+                  {filters.responsaveis.length} resp.
+                </Badge>
+              )}
+              {filters.prioridade && (
+                <Badge variant="secondary" className="text-xs flex items-center gap-1">
+                  <Star className="h-3 w-3 fill-destructive text-destructive" />
+                  Prioritários
+                </Badge>
+              )}
+            </div>
+          )}
+        </div>
+
       </div>
 
       {/* Sector Cards */}

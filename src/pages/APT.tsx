@@ -24,7 +24,7 @@ import GerenciamentoLista from "@/components/apt/GerenciamentoLista";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Tabs, TabsContent } from "@/components/ui/tabs";
 import {
   Sheet,
   SheetContent,
@@ -41,7 +41,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Card, CardContent } from "@/components/ui/card";
-import { Loader2, AlertCircle, CheckCircle2, Trash2, Check, ThumbsUp, Copy, Filter, ChevronDown, ClipboardList, BarChart3, PanelLeft, List, Lock, Unlock, Eye, EyeOff, Settings2 } from "lucide-react";
+import { Loader2, AlertCircle, CheckCircle2, Trash2, Check, ThumbsUp, Copy, Filter, ChevronDown, ClipboardList, BarChart3, Lock, Unlock, Eye, EyeOff, Settings2 } from "lucide-react";
 import DuplicarDemandasEmMassaDialog from "@/components/apt/DuplicarDemandasEmMassaDialog";
 import {
   DropdownMenu,
@@ -113,6 +113,13 @@ export default function APT() {
   const [activeTab, setActiveTab] = useState<string>(urlTab);
   // Sub-tab within gerenciamento: "painel" or "lista"
   const [gerenciamentoSubTab, setGerenciamentoSubTab] = useState<string>(urlSubTab);
+
+  // Navigation is controlled by the menu (URL params). Keep local state in sync.
+  useEffect(() => {
+    setActiveTab(urlTab);
+    setGerenciamentoSubTab(urlSubTab);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [urlTab, urlSubTab]);
   
   // Sync URL with tab state
   useEffect(() => {
@@ -240,18 +247,8 @@ export default function APT() {
           </div>
         </div>
 
-        {/* Tabs */}
+        {/* Content (navigation via main menu / URL) */}
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="mb-4">
-            <TabsTrigger value="execucao" className="gap-2">
-              <ClipboardList className="h-4 w-4" />
-              Execução
-            </TabsTrigger>
-            <TabsTrigger value="gerenciamento" className="gap-2">
-              <BarChart3 className="h-4 w-4" />
-              Gerenciamento
-            </TabsTrigger>
-          </TabsList>
 
           {/* Tab: Execução (Demandas) */}
           <TabsContent value="execucao" className="mt-0">
@@ -683,18 +680,8 @@ export default function APT() {
 
           {/* Tab: Gerenciamento */}
           <TabsContent value="gerenciamento" className="mt-0">
-            {/* Sub-tabs within Gerenciamento */}
+            {/* Sub-content (navigation via main menu / URL) */}
             <Tabs value={gerenciamentoSubTab} onValueChange={setGerenciamentoSubTab} className="w-full">
-              <TabsList className="mb-4">
-                <TabsTrigger value="painel" className="gap-2">
-                  <PanelLeft className="h-4 w-4" />
-                  Painel
-                </TabsTrigger>
-                <TabsTrigger value="lista" className="gap-2">
-                  <List className="h-4 w-4" />
-                  Lista
-                </TabsTrigger>
-              </TabsList>
 
               {/* Sub-tab: Painel (existing APTGerenciamento component) */}
               <TabsContent value="painel" className="mt-0">
