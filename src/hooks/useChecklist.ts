@@ -8,11 +8,14 @@ export interface ChecklistItemAssignee {
   user_id: string;
 }
 
+export type ChecklistStatus = "pendente" | "concluido" | "nao_realizado";
+
 export interface ChecklistItem {
   id: string;
   semana: number;
   texto: string;
   concluido: boolean;
+  status: ChecklistStatus;
   ordem: number;
   mes: number;
   ano: number;
@@ -198,7 +201,7 @@ export function useChecklist({ meses, anos, semanas, searchTerm }: UseChecklistO
     }
   };
 
-  const updateItem = async (id: string, updates: Partial<Pick<ChecklistItem, "texto" | "concluido" | "link">>) => {
+  const updateItem = async (id: string, updates: Partial<Pick<ChecklistItem, "texto" | "concluido" | "link" | "status">>) => {
     try {
       // Optimistically update local state immediately to prevent visual refresh
       setItems((prev) =>
@@ -207,9 +210,19 @@ export function useChecklist({ meses, anos, semanas, searchTerm }: UseChecklistO
         )
       );
 
+      // If status is being updated, sync concluido for backwards compatibility
+      const dbUpdates: Record<string, unknown> = { ...updates };
+      if (updates.status !== undefined) {
+        dbUpdates.concluido = updates.status === "concluido";
+      }
+      // If only concluido is being updated (legacy), sync status
+      if (updates.concluido !== undefined && updates.status === undefined) {
+        dbUpdates.status = updates.concluido ? "concluido" : "pendente";
+      }
+
       const { error } = await supabase
         .from("checklist_items")
-        .update(updates)
+        .update(dbUpdates)
         .eq("id", id);
 
       if (error) throw error;

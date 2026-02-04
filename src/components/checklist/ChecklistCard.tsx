@@ -2,12 +2,12 @@ import { useState } from "react";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { Checkbox } from "@/components/ui/checkbox";
 import { Progress } from "@/components/ui/progress";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { Pencil, Trash2, Check, X, Calendar, CheckCircle2 } from "lucide-react";
+import { Pencil, Trash2, Check, X, Calendar, CheckCircle2, Circle, XCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
 import UserAssignmentPopover from "./UserAssignmentPopover";
+import type { ChecklistStatus } from "@/hooks/useChecklist";
 
 interface Profile {
   id: string;
@@ -21,6 +21,7 @@ interface ChecklistItem {
   id: string;
   texto: string;
   concluido: boolean;
+  status?: ChecklistStatus;
   assignees?: string[];
 }
 
@@ -32,7 +33,7 @@ interface ChecklistCardProps {
   currentUserId?: string;
   isGestorOrAdmin: boolean;
   profiles: Profile[];
-  onUpdateItem: (id: string, updates: Partial<{ texto: string; concluido: boolean }>) => Promise<void>;
+  onUpdateItem: (id: string, updates: Partial<{ texto: string; concluido: boolean; status: ChecklistStatus }>) => Promise<void>;
   onDeleteItem: (id: string) => Promise<void>;
   onUpdateAssignees: (itemId: string, userIds: string[]) => Promise<void>;
 }
@@ -69,12 +70,32 @@ export default function ChecklistCard({
     setEditingText("");
   };
 
-  const completedCount = items.filter((i) => i.concluido).length;
+  const completedCount = items.filter((i) => i.status === "concluido" || i.concluido).length;
   const totalCount = items.length;
   const progress = totalCount > 0 ? (completedCount / totalCount) * 100 : 0;
   const allCompleted = totalCount > 0 && completedCount === totalCount;
 
   const canModify = canEdit && !isLocked;
+  
+  // Cycle through statuses
+  const cycleStatus = (currentStatus: ChecklistStatus | undefined): ChecklistStatus => {
+    const status = currentStatus || "pendente";
+    if (status === "pendente") return "concluido";
+    if (status === "concluido") return "nao_realizado";
+    return "pendente";
+  };
+  
+  const getStatusIcon = (status: ChecklistStatus | undefined) => {
+    const effectiveStatus = status || "pendente";
+    switch (effectiveStatus) {
+      case "concluido":
+        return <CheckCircle2 className="h-4 w-4 text-primary" />;
+      case "nao_realizado":
+        return <XCircle className="h-4 w-4 text-destructive" />;
+      default:
+        return <Circle className="h-4 w-4 text-muted-foreground" />;
+    }
+  };
 
   // Different colors for each week
   const weekColors: Record<number, { bg: string; icon: string; badge: string }> = {
@@ -168,19 +189,22 @@ export default function ChecklistCard({
                   key={item.id}
                   className={cn(
                     "group flex items-start gap-2 p-2.5 rounded-lg border transition-all duration-150",
-                    item.concluido 
+                    item.status === "concluido" || item.concluido
                       ? "bg-muted/30 border-muted" 
+                      : item.status === "nao_realizado"
+                      ? "bg-destructive/10 border-destructive/30"
                       : "border-transparent hover:bg-muted/20 hover:border-border"
                   )}
                 >
-                  <Checkbox
-                    checked={item.concluido}
-                    onCheckedChange={(checked) =>
-                      onUpdateItem(item.id, { concluido: !!checked })
-                    }
-                    className="mt-0.5 shrink-0"
+                  {/* 3-state status button */}
+                  <button
+                    type="button"
+                    onClick={() => onUpdateItem(item.id, { status: cycleStatus(item.status) })}
+                    className="mt-0.5 shrink-0 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-1 rounded-full disabled:opacity-50 disabled:cursor-not-allowed"
                     disabled={!canCompleteItem || (isLocked && !canEdit)}
-                  />
+                  >
+                    {getStatusIcon(item.status)}
+                  </button>
                   {editingId === item.id ? (
                     <div className="flex-1 flex flex-col gap-2">
                       <Textarea
@@ -223,7 +247,8 @@ export default function ChecklistCard({
                         <span
                           className={cn(
                             "block text-xs sm:text-sm leading-relaxed break-words",
-                            item.concluido && "line-through text-muted-foreground"
+                            (item.status === "concluido" || item.concluido) && "line-through text-muted-foreground",
+                            item.status === "nao_realizado" && "text-destructive"
                           )}
                         >
                           {item.texto}

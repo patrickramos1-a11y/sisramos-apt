@@ -454,6 +454,7 @@ export type Database = {
           mes: number
           ordem: number
           semana: number
+          status: string
           texto: string
           updated_at: string
         }
@@ -466,6 +467,7 @@ export type Database = {
           mes?: number
           ordem?: number
           semana: number
+          status?: string
           texto: string
           updated_at?: string
         }
@@ -478,6 +480,7 @@ export type Database = {
           mes?: number
           ordem?: number
           semana?: number
+          status?: string
           texto?: string
           updated_at?: string
         }
