@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Link, useLocation } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -11,7 +11,6 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { ClipboardList, ChevronDown, LayoutList, BarChart3, PanelLeft, List } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { useAuth } from "@/contexts/AuthContext";
 
 interface APTDropdownMenuProps {
   isMobile?: boolean;
@@ -20,26 +19,26 @@ interface APTDropdownMenuProps {
 
 export default function APTDropdownMenu({ isMobile = false, onItemClick }: APTDropdownMenuProps) {
   const location = useLocation();
-  const { isGestorOrAdmin } = useAuth();
+  const navigate = useNavigate();
   const [open, setOpen] = useState(false);
   
   const isAPTActive = location.pathname === "/apt";
   const currentTab = new URLSearchParams(location.search).get("tab");
   const currentSubTab = new URLSearchParams(location.search).get("subtab");
 
-  const handleItemClick = (path: string) => {
+  const handleNavigation = (path: string) => {
     setOpen(false);
+    navigate(path);
     onItemClick?.();
   };
 
   if (isMobile) {
     return (
       <div className="space-y-1">
-        <Link
-          to="/apt?tab=execucao"
-          onClick={() => handleItemClick("/apt?tab=execucao")}
+        <button
+          onClick={() => handleNavigation("/apt?tab=execucao")}
           className={cn(
-            "flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-all ml-4",
+            "flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-all ml-4 w-full text-left",
             isAPTActive && currentTab === "execucao"
               ? "bg-primary text-primary-foreground shadow-sm"
               : "text-muted-foreground hover:bg-muted hover:text-foreground"
@@ -47,12 +46,11 @@ export default function APTDropdownMenu({ isMobile = false, onItemClick }: APTDr
         >
           <LayoutList className="h-5 w-5" />
           APT - Execução
-        </Link>
-        <Link
-          to="/apt?tab=gerenciamento&subtab=painel"
-          onClick={() => handleItemClick("/apt?tab=gerenciamento&subtab=painel")}
+        </button>
+        <button
+          onClick={() => handleNavigation("/apt?tab=gerenciamento&subtab=painel")}
           className={cn(
-            "flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-all ml-4",
+            "flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-all ml-4 w-full text-left",
             isAPTActive && currentTab === "gerenciamento" && currentSubTab === "painel"
               ? "bg-primary text-primary-foreground shadow-sm"
               : "text-muted-foreground hover:bg-muted hover:text-foreground"
@@ -60,12 +58,11 @@ export default function APTDropdownMenu({ isMobile = false, onItemClick }: APTDr
         >
           <PanelLeft className="h-5 w-5" />
           Gerenciamento - Painel
-        </Link>
-        <Link
-          to="/apt?tab=gerenciamento&subtab=lista"
-          onClick={() => handleItemClick("/apt?tab=gerenciamento&subtab=lista")}
+        </button>
+        <button
+          onClick={() => handleNavigation("/apt?tab=gerenciamento&subtab=lista")}
           className={cn(
-            "flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-all ml-4",
+            "flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-all ml-4 w-full text-left",
             isAPTActive && currentTab === "gerenciamento" && currentSubTab === "lista"
               ? "bg-primary text-primary-foreground shadow-sm"
               : "text-muted-foreground hover:bg-muted hover:text-foreground"
@@ -73,7 +70,7 @@ export default function APTDropdownMenu({ isMobile = false, onItemClick }: APTDr
         >
           <List className="h-5 w-5" />
           Gerenciamento - Lista
-        </Link>
+        </button>
       </div>
     );
   }
@@ -95,15 +92,12 @@ export default function APTDropdownMenu({ isMobile = false, onItemClick }: APTDr
         </button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="start" className="w-48">
-        <DropdownMenuItem asChild>
-          <Link
-            to="/apt?tab=execucao"
-            onClick={() => handleItemClick("/apt?tab=execucao")}
-            className="flex items-center gap-2 cursor-pointer"
-          >
-            <LayoutList className="h-4 w-4" />
-            Execução
-          </Link>
+        <DropdownMenuItem 
+          onClick={() => handleNavigation("/apt?tab=execucao")}
+          className="flex items-center gap-2 cursor-pointer"
+        >
+          <LayoutList className="h-4 w-4" />
+          Execução
         </DropdownMenuItem>
         
         <DropdownMenuSub>
@@ -112,25 +106,19 @@ export default function APTDropdownMenu({ isMobile = false, onItemClick }: APTDr
             Gerenciamento
           </DropdownMenuSubTrigger>
           <DropdownMenuSubContent>
-            <DropdownMenuItem asChild>
-              <Link
-                to="/apt?tab=gerenciamento&subtab=painel"
-                onClick={() => handleItemClick("/apt?tab=gerenciamento&subtab=painel")}
-                className="flex items-center gap-2 cursor-pointer"
-              >
-                <PanelLeft className="h-4 w-4" />
-                Painel
-              </Link>
+            <DropdownMenuItem 
+              onClick={() => handleNavigation("/apt?tab=gerenciamento&subtab=painel")}
+              className="flex items-center gap-2 cursor-pointer"
+            >
+              <PanelLeft className="h-4 w-4" />
+              Painel
             </DropdownMenuItem>
-            <DropdownMenuItem asChild>
-              <Link
-                to="/apt?tab=gerenciamento&subtab=lista"
-                onClick={() => handleItemClick("/apt?tab=gerenciamento&subtab=lista")}
-                className="flex items-center gap-2 cursor-pointer"
-              >
-                <List className="h-4 w-4" />
-                Lista
-              </Link>
+            <DropdownMenuItem 
+              onClick={() => handleNavigation("/apt?tab=gerenciamento&subtab=lista")}
+              className="flex items-center gap-2 cursor-pointer"
+            >
+              <List className="h-4 w-4" />
+              Lista
             </DropdownMenuItem>
           </DropdownMenuSubContent>
         </DropdownMenuSub>
