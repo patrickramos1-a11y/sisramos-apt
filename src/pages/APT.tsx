@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo } from "react";
 import { useSearchParams } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { useDemandas } from "@/hooks/useDemandas";
@@ -24,7 +24,7 @@ import GerenciamentoLista from "@/components/apt/GerenciamentoLista";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Tabs, TabsContent } from "@/components/ui/tabs";
+// Navegação do APT é controlada exclusivamente via parâmetros de URL (menu do header)
 import {
   Sheet,
   SheetContent,
@@ -70,7 +70,7 @@ interface Demanda {
 }
 
 export default function APT() {
-  const [searchParams, setSearchParams] = useSearchParams();
+  const [searchParams] = useSearchParams();
   const { user, isGestorOrAdmin, role } = useAuth();
   const isColaborador = role === "colaborador";
   const isMobile = useIsMobile();
@@ -105,31 +105,10 @@ export default function APT() {
 
   const { isAPTBloqueado, toggleBloqueio } = useMomentoAPT();
 
-  // Get tab/subtab from URL params (defaults to execucao for everyone)
+  // Get tab/subtab from URL params (defaults to execucao/painel)
+  // Obs: não escrevemos de volta na URL aqui para evitar loops e travamentos.
   const urlTab = searchParams.get("tab") || "execucao";
   const urlSubTab = searchParams.get("subtab") || "painel";
-  
-  // Main tab: "execucao" or "gerenciamento"
-  const [activeTab, setActiveTab] = useState<string>(urlTab);
-  // Sub-tab within gerenciamento: "painel" or "lista"
-  const [gerenciamentoSubTab, setGerenciamentoSubTab] = useState<string>(urlSubTab);
-
-  // Navigation is controlled by the menu (URL params). Keep local state in sync.
-  useEffect(() => {
-    setActiveTab(urlTab);
-    setGerenciamentoSubTab(urlSubTab);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [urlTab, urlSubTab]);
-  
-  // Sync URL with tab state
-  useEffect(() => {
-    const params = new URLSearchParams();
-    params.set("tab", activeTab);
-    if (activeTab === "gerenciamento") {
-      params.set("subtab", gerenciamentoSubTab);
-    }
-    setSearchParams(params, { replace: true });
-  }, [activeTab, gerenciamentoSubTab, setSearchParams]);
 
   // Determine the currently viewed month/year from filters
   const viewedMes = filters.meses.length === 1 ? parseInt(filters.meses[0]) : null;
@@ -247,11 +226,9 @@ export default function APT() {
           </div>
         </div>
 
-        {/* Content (navigation via main menu / URL) */}
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-
-          {/* Tab: Execução (Demandas) */}
-          <TabsContent value="execucao" className="mt-0">
+        {/* Content (navegação via menu / URL) */}
+        {urlTab === "execucao" && (
+          <div className="mt-0">
             {/* Status badges and actions */}
             <div className="mb-4 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
               {/* Status badges - mobile visible */}
@@ -676,33 +653,26 @@ export default function APT() {
                 )}
               </div>
             </div>
-          </TabsContent>
+          </div>
+        )}
 
-          {/* Tab: Gerenciamento */}
-          <TabsContent value="gerenciamento" className="mt-0">
-            {/* Sub-content (navigation via main menu / URL) */}
-            <Tabs value={gerenciamentoSubTab} onValueChange={setGerenciamentoSubTab} className="w-full">
-
-              {/* Sub-tab: Painel (existing APTGerenciamento component) */}
-              <TabsContent value="painel" className="mt-0">
-                <APTGerenciamento 
-                  profiles={profiles}
-                  setores={setores}
-                  onDemandaChange={fetchDemandas}
-                />
-              </TabsContent>
-
-              {/* Sub-tab: Lista (new component with fixed filters) */}
-              <TabsContent value="lista" className="mt-0">
-                <GerenciamentoLista
-                  profiles={profiles}
-                  setores={setores}
-                  onDemandaChange={fetchDemandas}
-                />
-              </TabsContent>
-            </Tabs>
-          </TabsContent>
-        </Tabs>
+        {urlTab === "gerenciamento" && (
+          <div className="mt-0">
+            {urlSubTab === "lista" ? (
+              <GerenciamentoLista
+                profiles={profiles}
+                setores={setores}
+                onDemandaChange={fetchDemandas}
+              />
+            ) : (
+              <APTGerenciamento 
+                profiles={profiles}
+                setores={setores}
+                onDemandaChange={fetchDemandas}
+              />
+            )}
+          </div>
+        )}
       </div>
 
       {/* Dialogs */}
