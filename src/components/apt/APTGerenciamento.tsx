@@ -332,12 +332,16 @@ export default function APTGerenciamento({
     fetchAllDemandas();
   }, [fetchAllDemandas]);
 
-  // Consolidate demands - group by grupo_id or individual id
+  // Consolidate demands
+  // Groups by grupo_id when available; otherwise by descricao+responsavel+mes+ano.
+  // This handles rollover-created demandas where grupo_id wasn't preserved.
   const consolidatedDemands = useMemo(() => {
     const groupMap = new Map<string, ConsolidatedDemand>();
     
     allDemandas.forEach((d) => {
-      const key = d.grupo_id || d.id;
+      const key = d.grupo_id
+        ? d.grupo_id
+        : `${d.descricao.toLowerCase().trim()}|${d.responsavel_id}|${d.mes}|${d.ano}`;
       
       if (groupMap.has(key)) {
         const existing = groupMap.get(key)!;
@@ -423,7 +427,9 @@ export default function APTGerenciamento({
     const groupMap = new Map<string, ConsolidatedDemand>();
     
     sectorDemandas.forEach((d) => {
-      const key = d.grupo_id || d.id;
+      const key = d.grupo_id
+        ? d.grupo_id
+        : `${d.descricao.toLowerCase().trim()}|${d.responsavel_id}|${d.mes}|${d.ano}`;
       
       if (groupMap.has(key)) {
         const existing = groupMap.get(key)!;
