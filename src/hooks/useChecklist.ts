@@ -309,7 +309,7 @@ export function useChecklist({ meses, anos, semanas, searchTerm }: UseChecklistO
         return;
       }
 
-      // Copy items to next month with concluido = false
+      // Copy items to next month with status reset, but preserving link
       const itemsToInsert = sourceItems.map((item) => ({
         semana: item.semana,
         texto: item.texto,
@@ -317,15 +317,48 @@ export function useChecklist({ meses, anos, semanas, searchTerm }: UseChecklistO
         mes: nextMes,
         ano: nextAno,
         concluido: false,
+        status: "pendente",
+        link: item.link || null, // Preserve link
       }));
 
-      const { error } = await (supabase.from("checklist_items") as any).insert(itemsToInsert);
+      const { data: insertedItems, error } = await (supabase.from("checklist_items") as any)
+        .insert(itemsToInsert)
+        .select();
 
       if (error) throw error;
 
+      // Now copy assignees for each item
+      if (insertedItems && insertedItems.length > 0) {
+        // Build a map from source item order/semana to new item id
+        const assigneesToInsert: { checklist_item_id: string; user_id: string }[] = [];
+        
+        for (let i = 0; i < sourceItems.length; i++) {
+          const sourceItem = sourceItems[i];
+          const newItem = insertedItems[i];
+          const sourceAssignees = sourceItem.assignees || [];
+          
+          for (const userId of sourceAssignees) {
+            assigneesToInsert.push({
+              checklist_item_id: newItem.id,
+              user_id: userId,
+            });
+          }
+        }
+        
+        if (assigneesToInsert.length > 0) {
+          const { error: assigneeError } = await (supabase
+            .from("checklist_item_assignees") as any)
+            .insert(assigneesToInsert);
+          
+          if (assigneeError) {
+            console.error("Error copying assignees:", assigneeError);
+          }
+        }
+      }
+
       toast({
         title: "Rollover concluído",
-        description: `${itemsToInsert.length} itens copiados para ${nextMes}/${nextAno}`,
+        description: `${itemsToInsert.length} itens copiados para ${nextMes}/${nextAno} (com responsáveis e links preservados)`,
       });
     } catch (error: any) {
       console.error("Error during rollover:", error);
@@ -390,6 +423,53 @@ export function useChecklist({ meses, anos, semanas, searchTerm }: UseChecklistO
     }
   };
 
+  const reorderItems = async (itemId: string, newOrder: number, semana: number, mes: number, ano: number) => {
+    try {
+      // Get all items for this week/month/year
+      const weekItems = items
+        .filter((i) => i.semana === semana && i.mes === mes && i.ano === ano)
+        .sort((a, b) => a.ordem - b.ordem);
+      
+      const oldIndex = weekItems.findIndex((i) => i.id === itemId);
+      if (oldIndex === -1) return;
+      
+      // Remove item from old position and insert at new position
+      const reorderedItems = [...weekItems];
+      const [movedItem] = reorderedItems.splice(oldIndex, 1);
+      reorderedItems.splice(newOrder, 0, movedItem);
+      
+      // Update ordem for all affected items
+      const updates = reorderedItems.map((item, index) => ({
+        id: item.id,
+        ordem: index,
+      }));
+      
+      // Optimistic update
+      setItems((prev) =>
+        prev.map((item) => {
+          const update = updates.find((u) => u.id === item.id);
+          return update ? { ...item, ordem: update.ordem } : item;
+        })
+      );
+      
+      // Update in database
+      for (const update of updates) {
+        await supabase
+          .from("checklist_items")
+          .update({ ordem: update.ordem })
+          .eq("id", update.id);
+      }
+    } catch (error: any) {
+      console.error("Error reordering items:", error);
+      fetchItems(); // Revert on error
+      toast({
+        variant: "destructive",
+        title: "Erro ao reordenar",
+        description: error.message,
+      });
+    }
+  };
+
   return {
     items,
     isLoading,
@@ -399,6 +479,7 @@ export function useChecklist({ meses, anos, semanas, searchTerm }: UseChecklistO
     getItemsByWeek,
     rolloverToNextMonth,
     updateAssignees,
+    reorderItems,
     refetch: fetchItems,
   };
 }

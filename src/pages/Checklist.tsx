@@ -113,7 +113,7 @@ export default function Checklist() {
   const anosNum = useMemo(() => filters.anos.map((a) => parseInt(a, 10)), [filters.anos]);
   const semanasNum = useMemo(() => filters.semanas.map((s) => parseInt(s, 10)), [filters.semanas]);
 
-  const { isLoading, getItemsByWeek, addItem, updateItem, deleteItem, rolloverToNextMonth, updateAssignees, items } = useChecklist({
+  const { isLoading, getItemsByWeek, addItem, updateItem, deleteItem, rolloverToNextMonth, updateAssignees, reorderItems, items } = useChecklist({
     meses: mesesNum,
     anos: anosNum,
     semanas: semanasNum,
@@ -458,6 +458,8 @@ export default function Checklist() {
           open={selectedWeek !== null}
           onOpenChange={(open) => !open && setSelectedWeek(null)}
           semana={selectedWeek || 1}
+          mes={viewedMes ?? undefined}
+          ano={viewedAno ?? undefined}
           items={selectedWeekItems}
           canEdit={isGestorOrAdmin}
           isLocked={isLocked ?? false}
@@ -467,6 +469,7 @@ export default function Checklist() {
           onUpdateItem={updateItem}
           onDeleteItem={deleteItem}
           onUpdateAssignees={updateAssignees}
+          onReorderItems={reorderItems}
         />
       </div>
     </AppLayout>

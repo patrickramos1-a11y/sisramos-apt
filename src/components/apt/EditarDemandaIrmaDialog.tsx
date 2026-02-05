@@ -69,6 +69,7 @@ export default function EditarDemandaIrmaDialog({
 }: EditarDemandaIrmaDialogProps) {
   const [isLoading, setIsLoading] = useState(false);
   const [editScope, setEditScope] = useState<"single" | "all">("single");
+  const [actualSiblingCount, setActualSiblingCount] = useState(siblingCount);
   const { toast } = useToast();
 
   const [formData, setFormData] = useState({
@@ -81,6 +82,28 @@ export default function EditarDemandaIrmaDialog({
     prioritaria: false,
     muito_urgente: false,
   });
+
+  // Fetch actual sibling count from database when dialog opens (ignoring filters)
+  useEffect(() => {
+    if (open && demanda?.grupo_id) {
+      const fetchActualSiblingCount = async () => {
+        const { data, error } = await supabase
+          .from("demandas")
+          .select("id")
+          .eq("grupo_id", demanda.grupo_id)
+          .eq("ativa", true);
+        
+        if (!error && data) {
+          setActualSiblingCount(data.length);
+        } else {
+          setActualSiblingCount(siblingCount);
+        }
+      };
+      fetchActualSiblingCount();
+    } else if (open) {
+      setActualSiblingCount(siblingCount);
+    }
+  }, [open, demanda?.grupo_id, siblingCount]);
 
   useEffect(() => {
     if (demanda) {
@@ -317,7 +340,7 @@ export default function EditarDemandaIrmaDialog({
 
   const semanas = [1, 2, 3, 4, 5];
 
-  const hasSiblings = demanda?.grupo_id && siblingCount > 1;
+  const hasSiblings = demanda?.grupo_id && actualSiblingCount > 1;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -343,7 +366,7 @@ export default function EditarDemandaIrmaDialog({
                 <div className="flex items-center space-x-2">
                   <RadioGroupItem value="all" id="all" />
                   <Label htmlFor="all" className="font-normal cursor-pointer">
-                    Todas as {siblingCount} demandas do grupo
+                    Todas as {actualSiblingCount} demandas do grupo
                   </Label>
                 </div>
               </RadioGroup>
