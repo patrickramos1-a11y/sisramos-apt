@@ -72,6 +72,7 @@ interface Demanda {
 export default function APT() {
   const [searchParams] = useSearchParams();
   const { user, isGestorOrAdmin, role } = useAuth();
+  const isAdmin = role === "admin";
   const isColaborador = role === "colaborador";
   const isMobile = useIsMobile();
   const {
@@ -417,19 +418,23 @@ export default function APT() {
                       const demandaStatusAllowed = isStatusUpdateAllowed(demanda.mes, demanda.ano);
                       const demandaEditAllowed = isEditAllowed(demanda.mes, demanda.ano, isGestorOrAdmin);
                       
-                      // Status permissions: only the responsible user can edit "Feito"
+                      // Status permissions for "Feito" column:
+                      // - Admin: can mark any demand as done
+                      // - Gestor/Colaborador: can only mark their own demands
                       // Block if Momento APT is active for collaborators
                       const momentoAPTBlocking = isColaborador && isMomentoAPTBloqueado;
-                      const canEditResponsavel = demandaStatusAllowed && user?.id === demanda.responsavel_id && !momentoAPTBlocking;
+                      const canEditResponsavel = demandaStatusAllowed && 
+                        (isAdmin || user?.id === demanda.responsavel_id) && 
+                        !momentoAPTBlocking;
                       const canEditGestor = demandaStatusAllowed && isGestorOrAdmin;
                       
                       // Edit/delete permissions: past months only allow gestor/admin
                       const canEditDemanda = demandaEditAllowed;
 
                       return (
-                        <DemandaCard
+                      <DemandaCard
                           key={demanda.id}
-                          numero={index + 1}
+                          numero={demanda.numero}
                           setor={setor?.nome || "Sem setor"}
                           setorCor={setor?.cor || "#E5E7EB"}
                           responsavel={profile?.nome || "Desconhecido"}
@@ -586,20 +591,25 @@ export default function APT() {
                             const demandaStatusAllowed = isStatusUpdateAllowed(demanda.mes, demanda.ano);
                             const demandaEditAllowed = isEditAllowed(demanda.mes, demanda.ano, isGestorOrAdmin);
                             
-                            // Status permissions: only the responsible user can edit "Feito"
+                            // Status permissions for "Feito" column:
+                            // - Admin: can mark any demand as done
+                            // - Gestor/Colaborador: can only mark their own demands
                             // Block if Momento APT is active for collaborators
                             const momentoAPTBlocking = isColaborador && isMomentoAPTBloqueado;
-                            const canEditResponsavel = demandaStatusAllowed && user?.id === demanda.responsavel_id && !momentoAPTBlocking;
+                            const isAdmin = role === "admin";
+                            const canEditResponsavel = demandaStatusAllowed && 
+                              (isAdmin || user?.id === demanda.responsavel_id) && 
+                              !momentoAPTBlocking;
                             const canEditGestor = demandaStatusAllowed && isGestorOrAdmin;
                             
                             // Edit/delete permissions: past months only allow gestor/admin
                             const canEditDemanda = demandaEditAllowed;
 
                             return (
-                              <DemandaTableRow
+                          <DemandaTableRow
                                 key={demanda.id}
                                 id={demanda.id}
-                                numero={index + 1}
+                                numero={demanda.numero}
                                 setor={setor?.nome || "Sem setor"}
                                 setorCor={setor?.cor || "#E5E7EB"}
                                 responsavel={profile?.nome || "Desconhecido"}
