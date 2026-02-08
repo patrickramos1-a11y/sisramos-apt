@@ -508,88 +508,120 @@ export default function Configuracoes() {
                     : "Nenhum usuário encontrado com os filtros aplicados"}
                 </p>
               ) : (
-                <div className="overflow-x-auto">
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Nome</TableHead>
-                        <TableHead>E-mail</TableHead>
-                        <TableHead>Perfil</TableHead>
-                        <TableHead className="w-[150px]">Alterar Perfil</TableHead>
-                        <TableHead className="w-[80px]">Cor</TableHead>
-                        <TableHead className="w-[140px] text-center">Ações</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {filteredAndSortedUsers.map((u) => (
-                        <TableRow key={u.id}>
-                          <TableCell className="font-medium">{u.nome}</TableCell>
-                          <TableCell>{u.email}</TableCell>
-                          <TableCell>{getRoleBadge(u.role)}</TableCell>
-                          <TableCell>
+                <>
+                  {/* Mobile: User cards */}
+                  <div className="md:hidden space-y-3">
+                    {filteredAndSortedUsers.map((u) => (
+                      <div key={u.id} className="border rounded-lg p-4 space-y-3">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-3 min-w-0 flex-1">
+                            <UserColorPicker
+                              color={u.cor || "#6B7280"}
+                              onChange={(color) => handleUpdateUserColor(u.user_id, color)}
+                            />
+                            <div className="min-w-0 flex-1">
+                              <p className="font-medium text-sm truncate">{u.nome}</p>
+                              <p className="text-xs text-muted-foreground truncate">{u.email}</p>
+                            </div>
+                          </div>
+                          {getRoleBadge(u.role)}
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <div className="flex-1">
                             {updatingRoleFor === u.user_id ? (
                               <Loader2 className="h-4 w-4 animate-spin" />
                             ) : (
                               <Select
                                 value={u.role}
-                                onValueChange={(value: AppRole) =>
-                                  handleUpdateRole(u.user_id, value)
-                                }
+                                onValueChange={(value: AppRole) => handleUpdateRole(u.user_id, value)}
                               >
-                                <SelectTrigger className="w-[130px]">
+                                <SelectTrigger className="h-10 w-full">
                                   <SelectValue />
                                 </SelectTrigger>
                                 <SelectContent>
-                                  <SelectItem value="colaborador">
-                                    Colaborador
-                                  </SelectItem>
+                                  <SelectItem value="colaborador">Colaborador</SelectItem>
                                   <SelectItem value="gestor">Gestor</SelectItem>
                                   <SelectItem value="admin">Admin</SelectItem>
                                 </SelectContent>
                               </Select>
                             )}
-                          </TableCell>
-                          <TableCell>
-                            <UserColorPicker
-                              color={u.cor || "#6B7280"}
-                              onChange={(color) => handleUpdateUserColor(u.user_id, color)}
-                            />
-                          </TableCell>
-                          <TableCell>
-                            <div className="flex items-center justify-center gap-1">
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                onClick={() => setEditingUser(u)}
-                                title="Editar usuário"
-                              >
-                                <Pencil className="h-4 w-4" />
-                              </Button>
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                onClick={() => setChangingPasswordUser(u)}
-                                title="Alterar senha"
-                              >
-                                <Key className="h-4 w-4" />
-                              </Button>
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                onClick={() => setDeletingUser(u)}
-                                disabled={u.user_id === profile?.user_id}
-                                title="Excluir usuário"
-                                className="text-destructive hover:text-destructive"
-                              >
-                                <Trash2 className="h-4 w-4" />
-                              </Button>
-                            </div>
-                          </TableCell>
+                          </div>
+                          <div className="flex items-center gap-1">
+                            <Button variant="ghost" size="icon" className="h-10 w-10" onClick={() => setEditingUser(u)} title="Editar">
+                              <Pencil className="h-4 w-4" />
+                            </Button>
+                            <Button variant="ghost" size="icon" className="h-10 w-10" onClick={() => setChangingPasswordUser(u)} title="Senha">
+                              <Key className="h-4 w-4" />
+                            </Button>
+                            <Button variant="ghost" size="icon" className="h-10 w-10 text-destructive hover:text-destructive" onClick={() => setDeletingUser(u)} disabled={u.user_id === profile?.user_id} title="Excluir">
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Desktop: Table */}
+                  <div className="hidden md:block overflow-x-auto">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Nome</TableHead>
+                          <TableHead>E-mail</TableHead>
+                          <TableHead>Perfil</TableHead>
+                          <TableHead className="w-[150px]">Alterar Perfil</TableHead>
+                          <TableHead className="w-[80px]">Cor</TableHead>
+                          <TableHead className="w-[140px] text-center">Ações</TableHead>
                         </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                </div>
+                      </TableHeader>
+                      <TableBody>
+                        {filteredAndSortedUsers.map((u) => (
+                          <TableRow key={u.id}>
+                            <TableCell className="font-medium">{u.nome}</TableCell>
+                            <TableCell>{u.email}</TableCell>
+                            <TableCell>{getRoleBadge(u.role)}</TableCell>
+                            <TableCell>
+                              {updatingRoleFor === u.user_id ? (
+                                <Loader2 className="h-4 w-4 animate-spin" />
+                              ) : (
+                                <Select value={u.role} onValueChange={(value: AppRole) => handleUpdateRole(u.user_id, value)}>
+                                  <SelectTrigger className="w-[130px]">
+                                    <SelectValue />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    <SelectItem value="colaborador">Colaborador</SelectItem>
+                                    <SelectItem value="gestor">Gestor</SelectItem>
+                                    <SelectItem value="admin">Admin</SelectItem>
+                                  </SelectContent>
+                                </Select>
+                              )}
+                            </TableCell>
+                            <TableCell>
+                              <UserColorPicker
+                                color={u.cor || "#6B7280"}
+                                onChange={(color) => handleUpdateUserColor(u.user_id, color)}
+                              />
+                            </TableCell>
+                            <TableCell>
+                              <div className="flex items-center justify-center gap-1">
+                                <Button variant="ghost" size="icon" onClick={() => setEditingUser(u)} title="Editar usuário">
+                                  <Pencil className="h-4 w-4" />
+                                </Button>
+                                <Button variant="ghost" size="icon" onClick={() => setChangingPasswordUser(u)} title="Alterar senha">
+                                  <Key className="h-4 w-4" />
+                                </Button>
+                                <Button variant="ghost" size="icon" onClick={() => setDeletingUser(u)} disabled={u.user_id === profile?.user_id} title="Excluir usuário" className="text-destructive hover:text-destructive">
+                                  <Trash2 className="h-4 w-4" />
+                                </Button>
+                              </div>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+                </>
               )}
             </CardContent>
           </Card>

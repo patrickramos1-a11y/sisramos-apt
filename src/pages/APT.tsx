@@ -214,14 +214,14 @@ export default function APT() {
 
   return (
     <AppLayout>
-      <div className="p-4 lg:p-6 max-w-[1800px] mx-auto">
+      <div className="p-3 md:p-4 lg:p-6 max-w-[1800px] mx-auto">
         {/* Header */}
-        <div className="mb-4 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+        <div className="mb-3 md:mb-4 flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
           <div>
-            <h1 className="text-2xl font-bold tracking-tight">
+            <h1 className="text-lg md:text-2xl font-bold tracking-tight">
               APT
             </h1>
-            <p className="text-sm text-muted-foreground mt-1">
+            <p className="text-xs md:text-sm text-muted-foreground mt-0.5">
               Acompanhamento de Performance de Tarefas
             </p>
           </div>
@@ -231,8 +231,8 @@ export default function APT() {
         {urlTab === "execucao" && (
           <div className="mt-0">
             {/* Status badges and actions */}
-            <div className="mb-4 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-              {/* Status badges - mobile visible */}
+            <div className="mb-3 md:mb-4 flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+              {/* Status badges */}
               <div className="flex flex-wrap items-center gap-2">
                 {pendingCount > 0 && (
                   <Badge 
@@ -408,7 +408,7 @@ export default function APT() {
                   </Card>
                 ) : isMobile ? (
                   /* Mobile: Cards */
-                  <div className="space-y-3">
+                  <div className="space-y-2">
                     {demandas.map((demanda, index) => {
                       const profile = getProfileById(demanda.responsavel_id);
                       const setor = getSetorById(demanda.setor_id);
