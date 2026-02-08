@@ -13,8 +13,6 @@ import {
 } from "@/components/ui/dropdown-menu";
 import {
   ClipboardList,
-  Menu,
-  X,
   User,
   LogOut,
   Settings,
@@ -26,13 +24,13 @@ import { cn } from "@/lib/utils";
 import NotificationBell from "@/components/notifications/NotificationBell";
 import APTDropdownMenu from "./APTDropdownMenu";
 import BacklogDropdownMenu from "./BacklogDropdownMenu";
+import BottomNav from "./BottomNav";
 
 interface AppLayoutProps {
   children: React.ReactNode;
 }
 
 export default function AppLayout({ children }: AppLayoutProps) {
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const { profile, role, isGestorOrAdmin, signOut } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
@@ -91,13 +89,13 @@ export default function AppLayout({ children }: AppLayoutProps) {
     <div className="min-h-screen bg-background">
       {/* Header */}
       <header className="sticky top-0 z-50 border-b bg-card shadow-sm">
-        <div className="flex h-14 items-center justify-between px-4 lg:px-6">
+        <div className="flex h-12 md:h-14 items-center justify-between px-3 md:px-4 lg:px-6">
           {/* Logo and nav */}
-          <div className="flex items-center gap-8">
-            {/* Logo with diagonal accent */}
-            <Link to="/apt" className="flex items-center gap-3 group">
-              <div className="relative flex h-9 w-9 items-center justify-center rounded-lg bg-primary shadow-sm transition-transform group-hover:scale-105">
-                <ClipboardList className="h-5 w-5 text-primary-foreground" />
+          <div className="flex items-center gap-4 md:gap-8">
+            {/* Logo */}
+            <Link to="/apt" className="flex items-center gap-2 md:gap-3 group">
+              <div className="relative flex h-8 w-8 md:h-9 md:w-9 items-center justify-center rounded-lg bg-primary shadow-sm transition-transform group-hover:scale-105">
+                <ClipboardList className="h-4 w-4 md:h-5 md:w-5 text-primary-foreground" />
               </div>
               <div className="hidden sm:block">
                 <span className="font-bold text-lg tracking-tight">APT</span>
@@ -156,133 +154,74 @@ export default function AppLayout({ children }: AppLayoutProps) {
             </nav>
           </div>
 
-          {/* User menu */}
-          <div className="flex items-center gap-3">
-            {/* Notification bell */}
+          {/* Right side: notifications + user */}
+          <div className="flex items-center gap-2 md:gap-3">
             <NotificationBell />
             
-            <div className="hidden sm:block h-6 w-px bg-border" />
-            
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button 
-                  variant="ghost" 
-                  className="gap-2 px-2 sm:px-3 hover:bg-muted"
-                >
-                  <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary/10 text-primary">
-                    <User className="h-4 w-4" />
-                  </div>
-                  <div className="hidden sm:flex flex-col items-start">
-                    <span className="text-sm font-medium max-w-32 truncate">
-                      {profile?.nome || "Usuário"}
-                    </span>
-                  </div>
-                  <ChevronRight className="h-4 w-4 text-muted-foreground hidden sm:block" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-64">
-                <DropdownMenuLabel className="p-4">
-                  <div className="flex flex-col gap-2">
-                    <div className="flex items-center gap-3">
-                      <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10 text-primary">
-                        <User className="h-5 w-5" />
+            {/* Desktop user menu */}
+            <div className="hidden md:flex items-center gap-3">
+              <div className="h-6 w-px bg-border" />
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button 
+                    variant="ghost" 
+                    className="gap-2 px-3 hover:bg-muted"
+                  >
+                    <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary/10 text-primary">
+                      <User className="h-4 w-4" />
+                    </div>
+                    <div className="flex flex-col items-start">
+                      <span className="text-sm font-medium max-w-32 truncate">
+                        {profile?.nome || "Usuário"}
+                      </span>
+                    </div>
+                    <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-64">
+                  <DropdownMenuLabel className="p-4">
+                    <div className="flex flex-col gap-2">
+                      <div className="flex items-center gap-3">
+                        <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10 text-primary">
+                          <User className="h-5 w-5" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="font-medium truncate">{profile?.nome}</p>
+                          <p className="text-xs text-muted-foreground truncate">
+                            {profile?.email}
+                          </p>
+                        </div>
                       </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="font-medium truncate">{profile?.nome}</p>
-                        <p className="text-xs text-muted-foreground truncate">
-                          {profile?.email}
-                        </p>
+                      <div className="pt-2">
+                        {getRoleBadge()}
                       </div>
                     </div>
-                    <div className="pt-2">
-                      {getRoleBadge()}
-                    </div>
-                  </div>
-                </DropdownMenuLabel>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem 
-                  onClick={handleSignOut}
-                  className="cursor-pointer"
-                >
-                  <LogOut className="mr-2 h-4 w-4" />
-                  Trocar usuário
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
+                  </DropdownMenuLabel>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem 
+                    onClick={handleSignOut}
+                    className="cursor-pointer"
+                  >
+                    <LogOut className="mr-2 h-4 w-4" />
+                    Trocar usuário
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
 
-            {/* Mobile menu button */}
-            <Button
-              variant="ghost"
-              size="icon"
-              className="md:hidden"
-              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-            >
-              {mobileMenuOpen ? (
-                <X className="h-5 w-5" />
-              ) : (
-                <Menu className="h-5 w-5" />
-              )}
-            </Button>
+            {/* Mobile: show user name only */}
+            <span className="md:hidden text-xs font-medium text-muted-foreground truncate max-w-20">
+              {profile?.nome?.split(" ")[0]}
+            </span>
           </div>
         </div>
-
-        {/* Mobile nav */}
-        {mobileMenuOpen && (
-          <nav className="border-t bg-card/95 backdrop-blur-sm p-3 md:hidden animate-fade-in">
-            <div className="flex flex-col gap-1">
-              {navItems.slice(0, 2).map((item) => {
-                const isActive = location.pathname === item.href;
-                return (
-                  <Link
-                    key={item.href}
-                    to={item.href}
-                    onClick={() => setMobileMenuOpen(false)}
-                    className={cn(
-                      "flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-all",
-                      isActive
-                        ? "bg-primary text-primary-foreground shadow-sm"
-                        : "text-muted-foreground hover:bg-muted hover:text-foreground"
-                    )}
-                  >
-                    <item.icon className="h-5 w-5" />
-                    {item.name}
-                  </Link>
-                );
-              })}
-              
-              {/* APT Mobile Menu */}
-              <APTDropdownMenu isMobile onItemClick={() => setMobileMenuOpen(false)} />
-              
-              {/* Backlog Mobile Menu */}
-              <BacklogDropdownMenu isMobile onItemClick={() => setMobileMenuOpen(false)} />
-              
-              {/* Configurações */}
-              {navItems.slice(2).map((item) => {
-                const isActive = location.pathname === item.href;
-                return (
-                  <Link
-                    key={item.href}
-                    to={item.href}
-                    onClick={() => setMobileMenuOpen(false)}
-                    className={cn(
-                      "flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-all",
-                      isActive
-                        ? "bg-primary text-primary-foreground shadow-sm"
-                        : "text-muted-foreground hover:bg-muted hover:text-foreground"
-                    )}
-                  >
-                    <item.icon className="h-5 w-5" />
-                    {item.name}
-                  </Link>
-                );
-              })}
-            </div>
-          </nav>
-        )}
       </header>
 
-      {/* Main content */}
-      <main className="flex-1 animate-fade-in">{children}</main>
+      {/* Main content with bottom padding for mobile nav */}
+      <main className="flex-1 animate-fade-in pb-16 md:pb-0">{children}</main>
+
+      {/* Mobile Bottom Navigation */}
+      <BottomNav />
     </div>
   );
 }
