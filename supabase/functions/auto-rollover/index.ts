@@ -140,7 +140,8 @@ Deno.serve(async (req) => {
         ano: currentYear,
         status_responsavel: "pendente",
         status_gestor: "pendente",
-        grupo_id: null, // New demands are independent
+        // Generate new grupo_id for demands with multiple repetitions
+        grupo_id: d.semanas_repeticao > 1 ? crypto.randomUUID() : null,
       }));
 
     const skipped = sourceDemandas.length - newDemandas.length;

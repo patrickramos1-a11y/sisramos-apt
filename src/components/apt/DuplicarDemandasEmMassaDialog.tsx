@@ -117,7 +117,8 @@ export default function DuplicarDemandasEmMassaDialog({
           ano: parseInt(targetAno),
           status_responsavel: "pendente" as const,
           status_gestor: "pendente" as const,
-          grupo_id: null,
+          // Preserve grupo_id for demands with multiple repetitions
+          grupo_id: d.semanas_repeticao > 1 ? crypto.randomUUID() : null,
         }));
 
       if (newDemandas.length === 0) {

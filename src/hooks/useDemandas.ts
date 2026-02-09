@@ -415,10 +415,21 @@ export function useDemandas() {
     });
   }, [demandas, sortConfig, getSetorById, getProfileById]);
 
-  // Get sibling count for a demand
-  const getSiblingCount = useCallback((grupoId: string | null) => {
-    if (!grupoId) return 1;
-    return demandas.filter((d) => d.grupo_id === grupoId).length;
+  // Get sibling count for a demand - with heuristic fallback for null grupo_id
+  const getSiblingCount = useCallback((demanda: { grupo_id: string | null; semanas_repeticao: number; descricao: string; responsavel_id: string; mes: number; ano: number }) => {
+    if (demanda.grupo_id) {
+      return demandas.filter((d) => d.grupo_id === demanda.grupo_id).length;
+    }
+    // Heuristic fallback: if semanas_repeticao > 1 but no grupo_id, match by description+responsavel+mes+ano
+    if (demanda.semanas_repeticao > 1) {
+      return demandas.filter((d) =>
+        d.descricao === demanda.descricao &&
+        d.responsavel_id === demanda.responsavel_id &&
+        d.mes === demanda.mes &&
+        d.ano === demanda.ano
+      ).length;
+    }
+    return 1;
   }, [demandas]);
 
   const pendingCount = demandas.filter(
