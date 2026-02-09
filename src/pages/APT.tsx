@@ -164,25 +164,18 @@ export default function APT() {
     filters.urgente ||
     filters.prioridade;
 
-  // Calculate sibling count and list for editing/deleting
+  // Calculate sibling count for editing/deleting using the enhanced getSiblingCount
   const editingSiblingCount = editingDemanda
-    ? getSiblingCount(editingDemanda.grupo_id)
-    : 1;
-  const deletingSiblingCount = deletingDemanda
-    ? getSiblingCount(deletingDemanda.grupo_id)
+    ? getSiblingCount(editingDemanda)
     : 1;
   
-  // Get siblings list for delete preview
-  const deletingSiblings = deletingDemanda?.grupo_id
-    ? demandas
-        .filter((d) => d.grupo_id === deletingDemanda.grupo_id)
-        .map((d) => ({
-          id: d.id,
-          numero: d.numero,
-          descricao: d.descricao,
-          semana_limite: d.semana_limite,
-        }))
-    : [];
+  // For deleting, find the full demanda to pass heuristic data
+  const deletingFullDemanda = deletingDemanda
+    ? demandas.find(d => d.id === deletingDemanda.id)
+    : null;
+  const deletingSiblingCount = deletingFullDemanda
+    ? getSiblingCount(deletingFullDemanda)
+    : 1;
 
   const toggleSelection = (id: string, checked: boolean) => {
     setSelectedIds((prev) => {
@@ -703,8 +696,12 @@ export default function APT() {
         demandaNumero={deletingDemanda?.numero || null}
         grupoId={deletingDemanda?.grupo_id || null}
         siblingCount={deletingSiblingCount}
-        siblings={deletingSiblings}
         onDemandaExcluida={fetchDemandas}
+        demandaDescricao={deletingFullDemanda?.descricao}
+        demandaResponsavelId={deletingFullDemanda?.responsavel_id}
+        demandaMes={deletingFullDemanda?.mes}
+        demandaAno={deletingFullDemanda?.ano}
+        demandaSemanasRepeticao={deletingFullDemanda?.semanas_repeticao}
       />
 
       <ExcluirDemandasEmMassaDialog

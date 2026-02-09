@@ -118,8 +118,8 @@ Deno.serve(async (req) => {
         ano: targetAno,
         status_responsavel: "pendente",
         status_gestor: "pendente",
-        // Don't copy grupo_id - new demands are independent
-        grupo_id: null,
+        // Generate new grupo_id for demands with multiple repetitions
+        grupo_id: d.semanas_repeticao > 1 ? crypto.randomUUID() : null,
       }));
 
     if (newDemandas.length === 0) {

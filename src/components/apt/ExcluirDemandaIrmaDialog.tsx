@@ -31,6 +31,12 @@ interface ExcluirDemandaIrmaDialogProps {
   siblingCount: number;
   siblings?: SiblingDemanda[];
   onDemandaExcluida: () => void;
+  // Heuristic fields for fallback when grupo_id is null
+  demandaDescricao?: string;
+  demandaResponsavelId?: string;
+  demandaMes?: number;
+  demandaAno?: number;
+  demandaSemanasRepeticao?: number;
 }
 
 export default function ExcluirDemandaIrmaDialog({
@@ -42,38 +48,76 @@ export default function ExcluirDemandaIrmaDialog({
   siblingCount,
   siblings: passedSiblings = [],
   onDemandaExcluida,
+  demandaDescricao,
+  demandaResponsavelId,
+  demandaMes,
+  demandaAno,
+  demandaSemanasRepeticao,
 }: ExcluirDemandaIrmaDialogProps) {
   const [isLoading, setIsLoading] = useState(false);
   const [showPreview, setShowPreview] = useState(false);
   const [allSiblings, setAllSiblings] = useState<SiblingDemanda[]>([]);
   const [actualSiblingCount, setActualSiblingCount] = useState(siblingCount);
+  const [resolvedGrupoId, setResolvedGrupoId] = useState<string | null>(grupoId);
   const { toast } = useToast();
 
-  // Fetch all siblings from DB when dialog opens to ensure we have complete data
+  // Fetch all siblings from DB when dialog opens
   useEffect(() => {
-    if (open && grupoId) {
-      const fetchAllSiblings = async () => {
+    if (!open) return;
+
+    const fetchSiblings = async () => {
+      if (grupoId) {
+        // Primary path: fetch by grupo_id
         const { data, error } = await supabase
           .from("demandas")
           .select("id, numero, descricao, semana_limite")
           .eq("grupo_id", grupoId)
           .eq("ativa", true);
         
-        if (!error && data) {
+        if (!error && data && data.length > 1) {
           setAllSiblings(data);
           setActualSiblingCount(data.length);
-        } else {
-          // Fallback to passed siblings
-          setAllSiblings(passedSiblings);
-          setActualSiblingCount(siblingCount);
+          setResolvedGrupoId(grupoId);
+          return;
         }
-      };
-      fetchAllSiblings();
-    } else if (open) {
+      }
+
+      // Heuristic fallback: search by descricao + responsavel + mes + ano
+      if (demandaSemanasRepeticao && demandaSemanasRepeticao > 1 && demandaDescricao && demandaResponsavelId && demandaMes && demandaAno) {
+        const { data, error } = await supabase
+          .from("demandas")
+          .select("id, numero, descricao, semana_limite, grupo_id")
+          .eq("descricao", demandaDescricao)
+          .eq("responsavel_id", demandaResponsavelId)
+          .eq("mes", demandaMes)
+          .eq("ano", demandaAno)
+          .eq("ativa", true);
+
+        if (!error && data && data.length > 1) {
+          setAllSiblings(data.map(d => ({ id: d.id, numero: d.numero, descricao: d.descricao, semana_limite: d.semana_limite })));
+          setActualSiblingCount(data.length);
+
+          // Auto-fix: assign a shared grupo_id to all these orphan siblings
+          const newGrupoId = crypto.randomUUID();
+          const siblingIds = data.map(d => d.id);
+          await supabase
+            .from("demandas")
+            .update({ grupo_id: newGrupoId })
+            .in("id", siblingIds);
+          
+          setResolvedGrupoId(newGrupoId);
+          return;
+        }
+      }
+
+      // No siblings found
       setAllSiblings(passedSiblings);
       setActualSiblingCount(siblingCount);
-    }
-  }, [open, grupoId, passedSiblings, siblingCount]);
+      setResolvedGrupoId(grupoId);
+    };
+
+    fetchSiblings();
+  }, [open, grupoId, demandaDescricao, demandaResponsavelId, demandaMes, demandaAno, demandaSemanasRepeticao, passedSiblings, siblingCount]);
 
   // Reset state when dialog opens
   useEffect(() => {
@@ -83,7 +127,6 @@ export default function ExcluirDemandaIrmaDialog({
   }, [open]);
 
   const updateSiblingsRepetitions = async (grupoIdToUpdate: string) => {
-    // Get remaining siblings in the group
     const { data: remainingSiblings, error: fetchError } = await supabase
       .from("demandas")
       .select("id")
@@ -98,7 +141,6 @@ export default function ExcluirDemandaIrmaDialog({
     const remainingCount = remainingSiblings?.length || 0;
 
     if (remainingCount > 0) {
-      // Update semanas_repeticao for all remaining siblings
       const { error: updateError } = await supabase
         .from("demandas")
         .update({ semanas_repeticao: remainingCount })
@@ -116,7 +158,6 @@ export default function ExcluirDemandaIrmaDialog({
 
     setIsLoading(true);
 
-    // Hard delete - permanently remove from database
     const { error } = await supabase
       .from("demandas")
       .delete()
@@ -132,12 +173,10 @@ export default function ExcluirDemandaIrmaDialog({
       return;
     }
 
-    // Update siblings' repetitions if this is part of a group
-    if (grupoId) {
-      await updateSiblingsRepetitions(grupoId);
+    if (resolvedGrupoId) {
+      await updateSiblingsRepetitions(resolvedGrupoId);
     }
 
-    // Play delete sound
     playDeleteSound();
 
     toast({
@@ -148,22 +187,20 @@ export default function ExcluirDemandaIrmaDialog({
     onOpenChange(false);
     setIsLoading(false);
     
-    // Small delay to ensure DB update is complete before refresh
     setTimeout(() => {
       onDemandaExcluida();
     }, 100);
   };
 
   const handleDeleteAll = async () => {
-    if (!grupoId) return;
+    if (!resolvedGrupoId) return;
 
     setIsLoading(true);
 
-    // Hard delete - permanently remove all siblings from database
     const { error } = await supabase
       .from("demandas")
       .delete()
-      .eq("grupo_id", grupoId);
+      .eq("grupo_id", resolvedGrupoId);
 
     if (error) {
       toast({
@@ -175,7 +212,6 @@ export default function ExcluirDemandaIrmaDialog({
       return;
     }
 
-    // Play delete sound
     playDeleteSound();
 
     toast({
@@ -188,9 +224,8 @@ export default function ExcluirDemandaIrmaDialog({
     setIsLoading(false);
   };
 
-  const hasSiblings = grupoId && actualSiblingCount > 1;
+  const hasSiblings = resolvedGrupoId && actualSiblingCount > 1;
   
-  // Get other siblings (excluding current demand)
   const otherSiblings = allSiblings.filter(s => s.id !== demandaId);
 
   const getSemanaLabel = (semanas: number[]) => {

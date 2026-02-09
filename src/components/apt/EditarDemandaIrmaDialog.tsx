@@ -84,26 +84,59 @@ export default function EditarDemandaIrmaDialog({
   });
 
   // Fetch actual sibling count from database when dialog opens (ignoring filters)
+  // Uses heuristic fallback when grupo_id is null but semanas_repeticao > 1
   useEffect(() => {
-    if (open && demanda?.grupo_id) {
-      const fetchActualSiblingCount = async () => {
+    if (!open || !demanda) return;
+
+    const fetchActualSiblingCount = async () => {
+      // Primary: fetch by grupo_id
+      if (demanda.grupo_id) {
         const { data, error } = await supabase
           .from("demandas")
           .select("id")
           .eq("grupo_id", demanda.grupo_id)
           .eq("ativa", true);
         
-        if (!error && data) {
+        if (!error && data && data.length > 1) {
           setActualSiblingCount(data.length);
-        } else {
-          setActualSiblingCount(siblingCount);
+          return;
         }
-      };
-      fetchActualSiblingCount();
-    } else if (open) {
+      }
+
+      // Heuristic fallback for orphan siblings
+      if (demanda.semanas_repeticao > 1) {
+        const { data, error } = await supabase
+          .from("demandas")
+          .select("id, grupo_id")
+          .eq("descricao", demanda.descricao)
+          .eq("responsavel_id", demanda.responsavel_id)
+          .eq("mes", demanda.mes)
+          .eq("ano", demanda.ano)
+          .eq("ativa", true);
+
+        if (!error && data && data.length > 1) {
+          setActualSiblingCount(data.length);
+
+          // Auto-fix: assign grupo_id if missing
+          if (!demanda.grupo_id) {
+            const newGrupoId = crypto.randomUUID();
+            const siblingIds = data.map(d => d.id);
+            await supabase
+              .from("demandas")
+              .update({ grupo_id: newGrupoId })
+              .in("id", siblingIds);
+            // Update the demanda reference so "edit all" works
+            demanda.grupo_id = newGrupoId;
+          }
+          return;
+        }
+      }
+
       setActualSiblingCount(siblingCount);
-    }
-  }, [open, demanda?.grupo_id, siblingCount]);
+    };
+
+    fetchActualSiblingCount();
+  }, [open, demanda?.id, demanda?.grupo_id, siblingCount]);
 
   useEffect(() => {
     if (demanda) {
