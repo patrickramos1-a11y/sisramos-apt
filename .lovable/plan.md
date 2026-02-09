@@ -1,320 +1,99 @@
 
-# Plano de Implementação: Backlog de Produto
 
-## Visao Geral
+# Correção: Demandas Irmãs Não Reconhecidas (grupo_id NULL)
 
-Implementar um modulo completo de **Backlog de Produto** seguindo boas praticas de Scrum/Agile, com foco em planejamento estruturado, controle de evolucao, rastreabilidade completa e apoio a tomada de decisao.
+## Diagnóstico
 
----
+Investiguei o banco de dados e o código e encontrei a **causa raiz** do problema:
 
-## Estrutura de Navegacao
+**254 demandas ativas possuem `semanas_repeticao > 1` (ou seja, possuem irmãs) mas o campo `grupo_id` está NULL.**
 
-O Backlog sera acessivel atraves de um novo item no menu principal:
-- **Backlog** (novo item no header, ao lado de Checklist)
-  - Subpaginas internas: **Painel** (indicadores) e **Lista** (itens detalhados)
+Isso acontece porque essas demandas foram criadas por processos que não geraram o `grupo_id`:
+- **Rollover de demandas** (edge functions `rollover-demandas` e `auto-rollover`) -- define `grupo_id: null` intencionalmente
+- **Duplicação em massa** (`DuplicarDemandasEmMassaDialog`) -- também define `grupo_id: null`
+- **Demandas antigas** criadas antes do sistema de grupo_id ser implementado
 
----
+Como resultado:
+- A demanda **#654** tem `grupo_id` valido, irmãs sao detectadas corretamente
+- A demanda **#670** tem `grupo_id = NULL` -- o sistema nao consegue encontrar suas 4 irmãs (que tambem tem `grupo_id = NULL`)
 
-## Fase 1: Estrutura de Banco de Dados
+O codigo em `getSiblingCount()` e nos dialogs `ExcluirDemandaIrmaDialog` e `EditarDemandaIrmaDialog` depende 100% do `grupo_id` para encontrar irmãs. Quando ele e NULL, retorna 1 (nenhuma irmã).
 
-### Tabelas Principais
+## Solucao
 
-**1. backlog_projetos** - Cadastro de projetos/produtos
-```text
-- id (uuid, PK)
-- nome (text) - Ex: "Projeto A", "Sistema X"
-- descricao (text, nullable)
-- ativo (boolean, default true)
-- created_at, updated_at (timestamps)
-```
-
-**2. backlog_modulos** - Modulos por projeto
-```text
-- id (uuid, PK)
-- projeto_id (uuid, FK -> backlog_projetos)
-- nome (text) - Ex: "APT", "Checklist", "Dashboard"
-- created_at (timestamp)
-```
-
-**3. backlog_items** - Itens do backlog
-```text
-- id (uuid, PK)
-- numero (serial) - Identificacao sequencial
-- titulo (text) - Titulo curto e objetivo
-- projeto_id (uuid, FK -> backlog_projetos)
-- categoria (enum) - Nova Funcionalidade, Melhoria, Correcao, etc.
-- descricao_detalhada (text) - Rich Text/Markdown
-- status (enum) - Ideia, Em Analise, Refinado, etc.
-- prioridade (enum) - Alta, Media, Baixa
-- impacto_esperado (enum) - Baixo, Medio, Alto
-- estimativa_esforco (enum) - Pequeno, Medio, Grande
-- dependente_de_creditos (boolean)
-- responsavel_produto_id (uuid, FK -> profiles)
-- responsavel_tecnico_id (uuid, nullable)
-- data_inicio_implementacao (date, nullable)
-- data_conclusao (date, nullable)
-- data_lancamento (date, nullable)
-- created_at, updated_at (timestamps)
-```
-
-**4. backlog_item_modulos** - Relacao N:N entre items e modulos
-```text
-- id (uuid, PK)
-- backlog_item_id (uuid, FK)
-- modulo_id (uuid, FK)
-```
-
-**5. backlog_anexos** - Anexos permanentes
-```text
-- id (uuid, PK)
-- backlog_item_id (uuid, FK)
-- nome_arquivo (text)
-- url (text) - URL do storage
-- tipo_arquivo (text) - mime type
-- tamanho (integer) - bytes
-- uploaded_by (uuid, FK -> profiles)
-- created_at (timestamp)
-```
-
-**6. backlog_changelog** - Historico automatico imutavel
-```text
-- id (uuid, PK)
-- backlog_item_id (uuid, FK)
-- usuario_id (uuid, FK -> profiles)
-- acao (text) - Tipo de evento
-- dados_anteriores (jsonb, nullable)
-- dados_novos (jsonb, nullable)
-- observacao (text, nullable)
-- created_at (timestamp)
-```
-
-**7. backlog_registros_implementacao** - Registros de ajustes
-```text
-- id (uuid, PK)
-- backlog_item_id (uuid, FK)
-- descricao (text)
-- responsavel_id (uuid, FK -> profiles)
-- status (enum) - Executado, Nao executado
-- data (date)
-- created_at (timestamp)
-```
-
-**8. backlog_validacoes** - Confirmacao de entrega
-```text
-- id (uuid, PK)
-- backlog_item_id (uuid, FK)
-- validado (boolean)
-- tipo_validacao (enum) - Teste funcional, Visual, Tecnica, Regra de negocio
-- validado_por (uuid, FK -> profiles)
-- data_validacao (timestamp)
-- observacoes (text, nullable)
-- created_at (timestamp)
-```
-
-### ENUMs a Criar
-
-```sql
--- Categorias
-CREATE TYPE backlog_categoria AS ENUM (
-  'nova_funcionalidade',
-  'melhoria',
-  'correcao_bug',
-  'ajuste_tecnico',
-  'ux_ui',
-  'relatorios',
-  'seguranca',
-  'infraestrutura'
-);
-
--- Status do Pipeline
-CREATE TYPE backlog_status AS ENUM (
-  'ideia',
-  'em_analise',
-  'refinado',
-  'aguardando_recursos',
-  'em_implementacao',
-  'em_testes',
-  'implementado',
-  'lancado',
-  'validado',
-  'arquivado'
-);
-
--- Prioridade
-CREATE TYPE backlog_prioridade AS ENUM ('alta', 'media', 'baixa');
-
--- Impacto
-CREATE TYPE backlog_impacto AS ENUM ('baixo', 'medio', 'alto');
-
--- Esforco
-CREATE TYPE backlog_esforco AS ENUM ('pequeno', 'medio', 'grande');
-
--- Status de implementacao
-CREATE TYPE backlog_registro_status AS ENUM ('executado', 'nao_executado');
-
--- Tipo de validacao
-CREATE TYPE backlog_tipo_validacao AS ENUM (
-  'teste_funcional',
-  'validacao_visual',
-  'validacao_tecnica',
-  'regra_negocio'
-);
-```
-
-### Storage Bucket
-
-Criar bucket `backlog-anexos` para armazenar arquivos:
-- Imagens, PDFs, planilhas
-- Politicas RLS para usuarios autenticados
+A correção envolve duas frentes: **corrigir os dados existentes** e **corrigir o código** para nunca mais criar demandas irmãs sem `grupo_id`.
 
 ---
 
-## Fase 2: Componentes e Paginas
+### Parte 1: Corrigir dados existentes (migração SQL)
 
-### Arquivos a Criar
+Executar uma migração que agrupa demandas órfãs (`grupo_id IS NULL` com `semanas_repeticao > 1`) pela combinação de `descricao + responsavel_id + mes + ano`, atribuindo um novo UUID como `grupo_id` para cada grupo.
+
+Essa é a heurística de fallback já documentada na memória do projeto.
+
+---
+
+### Parte 2: Corrigir o código
+
+**2.1 - `getSiblingCount` em `useDemandas.ts` (linha 419-422)**
+
+Problema: conta irmãs apenas na lista filtrada `demandas`, não no banco.
+
+Solução: alterar para que, quando `grupo_id` não está presente mas `semanas_repeticao > 1`, use a heurística `descricao + responsavel_id + mes + ano` para contar irmãs na lista. Isso serve apenas como indicador visual -- a contagem real virá do banco nos dialogs.
+
+**2.2 - `ExcluirDemandaIrmaDialog.tsx` (useEffect linha 57-74)**
+
+Problema: o `useEffect` que busca irmãs no banco depende de `grupoId`. Se `grupoId` é null, não busca nada.
+
+Solução: quando `grupo_id` é null mas `semanas_repeticao > 1`, buscar irmãs no banco pela heurística (`descricao + responsavel_id + mes + ano`). Além disso, atribuir um `grupo_id` novo ao grupo encontrado (corrigir os dados na hora).
+
+**2.3 - `EditarDemandaIrmaDialog.tsx` (useEffect linha 87-106)**
+
+Mesma correção: quando `grupo_id` é null, usar heurística para encontrar e contar irmãs no banco.
+
+**2.4 - `APT.tsx` (linhas 167-185)**
+
+Problema: `deletingSiblings` é calculado a partir do array `demandas` (filtrado). Se filtros estão ativos, irmãs que não estão visíveis não aparecem.
+
+Solução: remover essa lógica local e deixar os dialogs buscarem os siblings diretamente do banco (que já fazem isso). Passar a demanda completa ao dialog para permitir a busca por heurística.
+
+**2.5 - Edge Functions de Rollover (`rollover-demandas` e `auto-rollover`)**
+
+Corrigir para gerar `grupo_id` quando há múltiplas semanas, em vez de sempre definir `null`.
+
+**2.6 - `DuplicarDemandasEmMassaDialog.tsx`**
+
+Corrigir para preservar ou gerar `grupo_id` quando duplicando demandas com repetições.
+
+---
+
+### Parte 3: Detalhes técnicos
+
+A heurística para encontrar irmãs quando `grupo_id` é NULL:
 
 ```text
-src/pages/
-  Backlog.tsx                    # Pagina principal com tabs Painel/Lista
-
-src/components/backlog/
-  BacklogPainel.tsx              # Dashboard com indicadores
-  BacklogLista.tsx               # Lista completa com filtros
-  BacklogFilters.tsx             # Filtros fixos
-  BacklogItemCard.tsx            # Card de item na lista
-  NovoBacklogItemDialog.tsx      # Criacao de novo item
-  BacklogItemDetailDialog.tsx    # Visualizacao/edicao completa
-  BacklogChangelogTimeline.tsx   # Timeline do historico
-  BacklogAnexosSection.tsx       # Upload e gestao de anexos
-  BacklogValidacaoSection.tsx    # Confirmacao de entrega
-  BacklogRegistrosSection.tsx    # Registros de implementacao
-  BacklogProjetosManagement.tsx  # CRUD de projetos
-  BacklogModulosManagement.tsx   # CRUD de modulos por projeto
-
-src/hooks/
-  useBacklog.ts                  # Hook principal para dados do backlog
-  useBacklogChangelog.ts         # Hook para historico automatico
+Buscar no banco WHERE:
+  descricao = demanda.descricao
+  AND responsavel_id = demanda.responsavel_id
+  AND mes = demanda.mes
+  AND ano = demanda.ano
+  AND ativa = true
 ```
 
-### Estrutura da Pagina Backlog
-
-**Painel (Dashboard)**
-- Cards de resumo: Total, Aguardando recursos, Em implementacao, Implementados, Lancados, Validados
-- Graficos de distribuicao por status, categoria e prioridade
-- Lista rapida de itens em destaque
-
-**Lista (Detalhada)**
-- Bloco de filtros FIXO no topo:
-  - Projeto
-  - Categoria
-  - Status
-  - Prioridade
-  - Dependente de creditos
-  - Busca por texto
-- Tabela com ordenacao
-- Acoes: Ver detalhes, Editar, Arquivar
-
-### Dialog de Novo Item
-
-Campos organizados em sections:
-1. **Identificacao**: Titulo, Projeto
-2. **Classificacao**: Categoria, Modulos impactados (multi-select)
-3. **Descricao**: FormattedTextarea com placeholder estruturado
-4. **Planejamento**: Prioridade, Impacto, Esforco, Depende de creditos
-5. **Responsabilidade**: Responsavel produto, Responsavel tecnico
-
-### Dialog de Detalhes
-
-Tabs internas:
-1. **Informacoes**: Todos os campos editaveis
-2. **Anexos**: Upload e listagem de arquivos
-3. **Implementacao**: Registros de ajustes
-4. **Validacao**: Confirmacao de entrega
-5. **Historico**: Timeline do changelog
+Quando encontrar irmãs por heurística, o sistema vai também **corrigir os dados na hora** (atribuir um `grupo_id` UUID compartilhado a todas as irmãs encontradas), para que futuras operações funcionem normalmente sem precisar da heurística novamente.
 
 ---
 
-## Fase 3: Logica de Negocios
+### Resumo de arquivos a alterar
 
-### Changelog Automatico
+| Arquivo | Alteração |
+|---|---|
+| Migração SQL | Atribuir `grupo_id` a 254+ demandas órfãs |
+| `src/hooks/useDemandas.ts` | `getSiblingCount` com fallback por heurística |
+| `src/components/apt/ExcluirDemandaIrmaDialog.tsx` | Buscar irmãs por heurística quando `grupo_id` é null |
+| `src/components/apt/EditarDemandaIrmaDialog.tsx` | Buscar irmãs por heurística quando `grupo_id` é null |
+| `src/pages/APT.tsx` | Passar info completa da demanda aos dialogs (descricao, mes, ano) |
+| `supabase/functions/rollover-demandas/index.ts` | Gerar `grupo_id` para grupos de demandas |
+| `supabase/functions/auto-rollover/index.ts` | Gerar `grupo_id` para grupos de demandas |
+| `src/components/apt/DuplicarDemandasEmMassaDialog.tsx` | Preservar/gerar `grupo_id` |
 
-Trigger de banco para registrar:
-- Criacao do item
-- Mudanca de status
-- Alteracao de prioridade
-- Adicao/remocao de anexos
-- Alteracao de datas
-- Validacao
-- Arquivamento
-
-Cada registro inclui: data/hora, usuario, acao, observacao
-
-### Regra de Encerramento
-
-Item so pode ter status "Validado" se:
-- Existe pelo menos 1 registro em `backlog_validacoes` com `validado = true`
-- Validacao front-end antes de permitir mudanca
-
-### Permissoes
-
-- **Admin/Gestor**: CRUD completo
-- **Colaborador**: Somente visualizacao (se implementado acesso)
-
----
-
-## Fase 4: Integracao na Navegacao
-
-### Atualizacoes no AppLayout
-
-Adicionar item "Backlog" no menu principal:
-- Dropdown com Painel e Lista
-- Seguir mesmo padrao do APTDropdownMenu
-
-### Rota no App.tsx
-
-```tsx
-<Route
-  path="/backlog"
-  element={
-    <ProtectedRoute>
-      <Backlog />
-    </ProtectedRoute>
-  }
-/>
-```
-
----
-
-## Resumo de Arquivos
-
-| Acao  | Arquivo |
-|-------|---------|
-| Criar | `src/pages/Backlog.tsx` |
-| Criar | `src/components/backlog/BacklogPainel.tsx` |
-| Criar | `src/components/backlog/BacklogLista.tsx` |
-| Criar | `src/components/backlog/BacklogFilters.tsx` |
-| Criar | `src/components/backlog/BacklogItemCard.tsx` |
-| Criar | `src/components/backlog/NovoBacklogItemDialog.tsx` |
-| Criar | `src/components/backlog/BacklogItemDetailDialog.tsx` |
-| Criar | `src/components/backlog/BacklogChangelogTimeline.tsx` |
-| Criar | `src/components/backlog/BacklogAnexosSection.tsx` |
-| Criar | `src/components/backlog/BacklogValidacaoSection.tsx` |
-| Criar | `src/components/backlog/BacklogRegistrosSection.tsx` |
-| Criar | `src/components/backlog/BacklogProjetosManagement.tsx` |
-| Criar | `src/components/backlog/BacklogModulosManagement.tsx` |
-| Criar | `src/hooks/useBacklog.ts` |
-| Criar | `src/hooks/useBacklogChangelog.ts` |
-| Editar | `src/App.tsx` - adicionar rota /backlog |
-| Editar | `src/components/layout/AppLayout.tsx` - adicionar menu Backlog |
-| Criar | Migracao SQL com 8 tabelas + ENUMs + RLS + Storage |
-
----
-
-## Estimativa de Complexidade
-
-- **Banco de dados**: 8 tabelas, 6 ENUMs, triggers para changelog
-- **Frontend**: ~15 novos componentes
-- **Hooks**: 2 hooks especializados
-- **Integracao**: Navegacao e rotas
-
-Esta funcionalidade sera reutilizavel em qualquer projeto, mantendo padrao, governanca e maturidade conforme especificado.
