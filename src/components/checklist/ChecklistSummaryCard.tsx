@@ -1,7 +1,7 @@
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
-import { Progress } from "@/components/ui/progress";
 import { Calendar, CheckCircle2, ListTodo } from "lucide-react";
 import { cn } from "@/lib/utils";
+import CircularProgress from "./CircularProgress";
 
 interface ChecklistSummaryCardProps {
   semana: number;
@@ -19,7 +19,6 @@ export default function ChecklistSummaryCard({
   const progress = totalItems > 0 ? (completedItems / totalItems) * 100 : 0;
   const allCompleted = totalItems > 0 && completedItems === totalItems;
 
-  // Different colors for each week
   const weekColors: Record<number, { bg: string; icon: string; badge: string }> = {
     1: { bg: "from-emerald-500/20 to-emerald-500/5", icon: "bg-emerald-500/30 text-emerald-700 dark:text-emerald-400", badge: "bg-emerald-500/20 text-emerald-700 dark:text-emerald-400" },
     2: { bg: "from-blue-500/20 to-blue-500/5", icon: "bg-blue-500/30 text-blue-700 dark:text-blue-400", badge: "bg-blue-500/20 text-blue-700 dark:text-blue-400" },
@@ -34,7 +33,7 @@ export default function ChecklistSummaryCard({
     <Card
       className={cn(
         "cursor-pointer transition-all duration-200 hover:shadow-lg hover:scale-[1.02]",
-        allCompleted && "ring-2 ring-primary/30 bg-primary/5"
+        allCompleted && "ring-2 ring-primary/30 bg-primary/5 animate-glow-pulse"
       )}
       onClick={onClick}
     >
@@ -52,15 +51,16 @@ export default function ChecklistSummaryCard({
                 allCompleted ? "bg-primary/20" : weekColor.icon
               )}>
                 {allCompleted ? (
-                  <CheckCircle2 className="h-4 w-4 text-primary" />
+                  <CheckCircle2 className="h-4 w-4 text-primary animate-check-bounce" />
                 ) : (
                   <Calendar className="h-4 w-4" />
                 )}
               </div>
               <h3 className="font-semibold text-sm sm:text-base">
-                {semana}ª Semana
+                {allCompleted ? "Semana Completa ✓" : `${semana}ª Semana`}
               </h3>
             </div>
+            <CircularProgress value={progress} size={32} strokeWidth={3} />
           </div>
         </div>
       </CardHeader>
@@ -81,7 +81,12 @@ export default function ChecklistSummaryCard({
           </span>
         </div>
         
-        <Progress value={progress} className="h-2" />
+        <div className="w-full bg-secondary rounded-full h-2 overflow-hidden">
+          <div
+            className="h-full bg-primary rounded-full transition-all duration-500 ease-out"
+            style={{ width: `${progress}%` }}
+          />
+        </div>
         
         <p className="text-xs text-muted-foreground mt-2 text-center">
           Clique para ver detalhes

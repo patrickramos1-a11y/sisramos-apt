@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useMemo } from "react";
 import {
   DndContext,
   closestCenter,
@@ -9,7 +9,6 @@ import {
   DragEndEvent,
 } from "@dnd-kit/core";
 import {
-  arrayMove,
   SortableContext,
   sortableKeyboardCoordinates,
   verticalListSortingStrategy,
@@ -20,11 +19,11 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Progress } from "@/components/ui/progress";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Calendar, CheckCircle2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import SortableChecklistItem from "./SortableChecklistItem";
+import CircularProgress from "./CircularProgress";
 import type { ChecklistStatus } from "@/hooks/useChecklist";
 
 interface Profile {
@@ -81,27 +80,21 @@ export default function ChecklistDetailDialog({
   onReorderItems,
 }: ChecklistDetailDialogProps) {
   const sensors = useSensors(
-    useSensor(PointerSensor, {
-      activationConstraint: {
-        distance: 8,
-      },
-    }),
-    useSensor(KeyboardSensor, {
-      coordinateGetter: sortableKeyboardCoordinates,
-    })
+    useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
   );
 
-  // Sort items by ordem
   const sortedItems = useMemo(() => 
     [...items].sort((a, b) => (a.ordem ?? 0) - (b.ordem ?? 0)),
     [items]
   );
 
   const completedCount = items.filter((i) => i.status === "concluido" || i.concluido).length;
+  const notDoneCount = items.filter((i) => i.status === "nao_realizado").length;
+  const pendingCount = items.length - completedCount - notDoneCount;
   const totalCount = items.length;
   const progress = totalCount > 0 ? (completedCount / totalCount) * 100 : 0;
   const allCompleted = totalCount > 0 && completedCount === totalCount;
-
   const canModify = canEdit && !isLocked;
 
   const weekColors: Record<number, { bg: string; icon: string }> = {
@@ -116,14 +109,9 @@ export default function ChecklistDetailDialog({
 
   const handleDragEnd = async (event: DragEndEvent) => {
     const { active, over } = event;
-    
-    if (!over || active.id === over.id || !onReorderItems || !mes || !ano) {
-      return;
-    }
-
+    if (!over || active.id === over.id || !onReorderItems || !mes || !ano) return;
     const oldIndex = sortedItems.findIndex((item) => item.id === active.id);
     const newIndex = sortedItems.findIndex((item) => item.id === over.id);
-    
     if (oldIndex !== -1 && newIndex !== -1) {
       await onReorderItems(active.id as string, newIndex, semana, mes, ano);
     }
@@ -131,38 +119,67 @@ export default function ChecklistDetailDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl max-h-[85vh] flex flex-col p-0">
+      <DialogContent className="max-w-3xl max-h-[85vh] flex flex-col p-0">
         {/* Header */}
         <div className={cn(
           "px-6 py-4 bg-gradient-to-r rounded-t-lg",
-          allCompleted 
-            ? "from-primary/20 to-primary/10" 
-            : weekColor.bg
+          allCompleted ? "from-primary/20 to-primary/10" : weekColor.bg
         )}>
           <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <div className={cn(
-                "p-1.5 rounded-md",
-                allCompleted ? "bg-primary/20" : weekColor.icon
-              )}>
-                {allCompleted ? (
-                  <CheckCircle2 className="h-5 w-5 text-primary" />
-                ) : (
-                  <Calendar className="h-5 w-5" />
-                )}
+            <DialogTitle className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <div className={cn(
+                  "p-1.5 rounded-md",
+                  allCompleted ? "bg-primary/20" : weekColor.icon
+                )}>
+                  {allCompleted ? (
+                    <CheckCircle2 className="h-5 w-5 text-primary animate-check-bounce" />
+                  ) : (
+                    <Calendar className="h-5 w-5" />
+                  )}
+                </div>
+                <span>{allCompleted ? "Semana Completa ✓" : `${semana}ª Semana`}</span>
               </div>
-              <span>{semana}ª Semana</span>
-              <span className="text-sm font-normal text-muted-foreground ml-2">
-                ({completedCount}/{totalCount} concluídas)
-              </span>
+              <div className="flex items-center gap-3">
+                {/* Status badges */}
+                <div className="hidden sm:flex items-center gap-2 text-xs">
+                  {pendingCount > 0 && (
+                    <span className="px-2 py-0.5 rounded-full bg-muted text-muted-foreground font-medium">
+                      {pendingCount} pendente{pendingCount > 1 ? "s" : ""}
+                    </span>
+                  )}
+                  {completedCount > 0 && (
+                    <span className="px-2 py-0.5 rounded-full bg-primary/15 text-primary font-medium">
+                      {completedCount} concluída{completedCount > 1 ? "s" : ""}
+                    </span>
+                  )}
+                  {notDoneCount > 0 && (
+                    <span className="px-2 py-0.5 rounded-full bg-destructive/15 text-destructive font-medium">
+                      {notDoneCount} não realizada{notDoneCount > 1 ? "s" : ""}
+                    </span>
+                  )}
+                </div>
+                <CircularProgress value={progress} size={44} strokeWidth={3.5} />
+              </div>
             </DialogTitle>
           </DialogHeader>
-          <Progress value={progress} className="h-2 mt-3" />
         </div>
+
+        {/* Table header - desktop only */}
+        {sortedItems.length > 0 && (
+          <div className="hidden md:grid grid-cols-[auto_auto_1fr_auto_auto_auto] gap-3 px-6 py-2 border-b bg-muted/30 text-xs font-medium text-muted-foreground uppercase tracking-wider">
+            {canModify && <span className="w-5" />}
+            <span className="w-5">Status</span>
+            <span>Tarefa</span>
+            <span>Responsáveis</span>
+            <span>Link</span>
+            {canModify && <span>Ações</span>}
+          </div>
+        )}
 
         {/* Content */}
         <ScrollArea className="flex-1 max-h-[60vh] overflow-auto">
-          <div className="space-y-2 px-6 py-4">
+          <div className="space-y-1 px-6 py-3">
             {sortedItems.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-12 text-center">
                 <div className="p-3 bg-muted/50 rounded-full mb-2">
@@ -173,16 +190,9 @@ export default function ChecklistDetailDialog({
                 </p>
               </div>
             ) : (
-              <DndContext
-                sensors={sensors}
-                collisionDetection={closestCenter}
-                onDragEnd={handleDragEnd}
-              >
-                <SortableContext
-                  items={sortedItems.map((item) => item.id)}
-                  strategy={verticalListSortingStrategy}
-                >
-                  {sortedItems.map((item) => {
+              <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+                <SortableContext items={sortedItems.map((item) => item.id)} strategy={verticalListSortingStrategy}>
+                  {sortedItems.map((item, index) => {
                     const itemAssignees = item.assignees || [];
                     const isAssignedToMe = currentUserId && itemAssignees.includes(currentUserId);
                     const canCompleteItem = isGestorOrAdmin || isAssignedToMe || itemAssignees.length === 0;
@@ -191,6 +201,7 @@ export default function ChecklistDetailDialog({
                       <SortableChecklistItem
                         key={item.id}
                         item={item}
+                        index={index}
                         canModify={canModify}
                         canCompleteItem={canCompleteItem}
                         isLocked={isLocked}
