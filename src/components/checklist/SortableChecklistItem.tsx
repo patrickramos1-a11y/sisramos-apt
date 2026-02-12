@@ -1,10 +1,11 @@
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip";
 import { Pencil, Trash2, Check, X, CheckCircle2, Link as LinkIcon, ExternalLink, Circle, XCircle, GripVertical } from "lucide-react";
 import { cn } from "@/lib/utils";
 import UserAssignmentPopover from "./UserAssignmentPopover";
@@ -34,6 +35,7 @@ interface SortableChecklistItemProps {
   isLocked: boolean;
   canEdit: boolean;
   profiles: Profile[];
+  index: number;
   onUpdateItem: (id: string, updates: Partial<{ texto: string; concluido: boolean; link: string | null; status: ChecklistStatus }>) => Promise<void>;
   onDeleteItem: (id: string) => Promise<void>;
   onUpdateAssignees: (itemId: string, userIds: string[]) => Promise<void>;
@@ -46,6 +48,7 @@ export default function SortableChecklistItem({
   isLocked,
   canEdit,
   profiles,
+  index,
   onUpdateItem,
   onDeleteItem,
   onUpdateAssignees,
@@ -53,6 +56,7 @@ export default function SortableChecklistItem({
   const [isEditing, setIsEditing] = useState(false);
   const [editingText, setEditingText] = useState("");
   const [editingLink, setEditingLink] = useState("");
+  const [justChanged, setJustChanged] = useState(false);
 
   const {
     attributes,
@@ -66,7 +70,6 @@ export default function SortableChecklistItem({
   const style = {
     transform: CSS.Transform.toString(transform),
     transition,
-    opacity: isDragging ? 0.5 : 1,
   };
 
   const handleStartEdit = () => {
@@ -97,13 +100,20 @@ export default function SortableChecklistItem({
     return "pendente";
   };
 
+  const handleStatusClick = useCallback(async () => {
+    const newStatus = cycleStatus(item.status);
+    setJustChanged(true);
+    await onUpdateItem(item.id, { status: newStatus });
+    setTimeout(() => setJustChanged(false), 500);
+  }, [item.id, item.status, onUpdateItem]);
+
   const getStatusIcon = (status: ChecklistStatus | undefined) => {
     const effectiveStatus = status || "pendente";
     switch (effectiveStatus) {
       case "concluido":
-        return <CheckCircle2 className="h-5 w-5 text-primary" />;
+        return <CheckCircle2 className={cn("h-5 w-5 text-primary", justChanged && "animate-check-bounce")} />;
       case "nao_realizado":
-        return <XCircle className="h-5 w-5 text-destructive" />;
+        return <XCircle className={cn("h-5 w-5 text-destructive", justChanged && "animate-check-bounce")} />;
       default:
         return <Circle className="h-5 w-5 text-muted-foreground" />;
     }
@@ -116,33 +126,24 @@ export default function SortableChecklistItem({
     return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
   };
 
-  const getAvatarColor = (nome: string) => {
-    const colors = [
-      "bg-blue-500", "bg-green-500", "bg-purple-500", "bg-orange-500",
-      "bg-pink-500", "bg-cyan-500", "bg-indigo-500", "bg-teal-500",
-    ];
-    let hash = 0;
-    for (let i = 0; i < nome.length; i++) {
-      hash = nome.charCodeAt(i) + ((hash << 5) - hash);
-    }
-    return colors[Math.abs(hash) % colors.length];
-  };
-
   const itemAssignees = item.assignees || [];
   const assignedProfiles = profiles.filter((p) => itemAssignees.includes(p.user_id));
+  const isCompleted = item.status === "concluido" || item.concluido;
+  const isNotDone = item.status === "nao_realizado";
+  const isZebra = index % 2 === 1;
 
   return (
     <div
       ref={setNodeRef}
       style={style}
       className={cn(
-        "group flex items-start gap-3 p-3 rounded-lg border transition-all duration-150",
-        item.status === "concluido" || item.concluido
-          ? "bg-muted/30 border-muted" 
-          : item.status === "nao_realizado"
-          ? "bg-destructive/10 border-destructive/30"
-          : "border-transparent hover:bg-muted/20 hover:border-border",
-        isDragging && "shadow-lg z-50"
+        "group flex items-center gap-3 p-3 rounded-lg border transition-all duration-200",
+        isZebra ? "bg-muted/20" : "bg-card",
+        isCompleted && "bg-primary/5 border-primary/20",
+        isNotDone && "bg-destructive/5 border-destructive/20",
+        !isCompleted && !isNotDone && "border-transparent hover:bg-muted/30 hover:border-border",
+        isDragging && "shadow-xl z-50 border-primary/50 opacity-80 scale-[1.02]",
+        justChanged && "animate-highlight-flash"
       )}
     >
       {/* Drag handle */}
@@ -150,21 +151,21 @@ export default function SortableChecklistItem({
         <button
           {...attributes}
           {...listeners}
-          className="mt-0.5 shrink-0 cursor-grab active:cursor-grabbing focus:outline-none text-muted-foreground hover:text-foreground"
+          className="shrink-0 cursor-grab active:cursor-grabbing focus:outline-none text-muted-foreground hover:text-foreground transition-colors"
         >
           <GripVertical className="h-5 w-5" />
         </button>
       )}
 
-      {/* 3-state status button */}
+      {/* Status button */}
       <button
         type="button"
-        onClick={() => onUpdateItem(item.id, { status: cycleStatus(item.status) })}
-        className="mt-0.5 shrink-0 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 rounded-full disabled:opacity-50 disabled:cursor-not-allowed"
+        onClick={handleStatusClick}
+        className="shrink-0 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 rounded-full disabled:opacity-50 disabled:cursor-not-allowed transition-transform hover:scale-110"
         disabled={!canCompleteItem || (isLocked && !canEdit)}
         title={
-          item.status === "concluido" ? "Concluído (clique para marcar como não realizado)"
-          : item.status === "nao_realizado" ? "Não realizado (clique para marcar como pendente)"
+          isCompleted ? "Concluído (clique para marcar como não realizado)"
+          : isNotDone ? "Não realizado (clique para marcar como pendente)"
           : "Pendente (clique para marcar como concluído)"
         }
       >
@@ -190,21 +191,11 @@ export default function SortableChecklistItem({
             />
           </div>
           <div className="flex items-center gap-1 justify-end">
-            <Button
-              size="sm"
-              variant="ghost"
-              className="h-7 px-2 text-xs"
-              onClick={handleSaveEdit}
-            >
+            <Button size="sm" variant="ghost" className="h-7 px-2 text-xs" onClick={handleSaveEdit}>
               <Check className="h-3.5 w-3.5 text-primary mr-1" />
               Salvar
             </Button>
-            <Button
-              size="sm"
-              variant="ghost"
-              className="h-7 px-2 text-xs"
-              onClick={handleCancelEdit}
-            >
+            <Button size="sm" variant="ghost" className="h-7 px-2 text-xs" onClick={handleCancelEdit}>
               <X className="h-3.5 w-3.5 text-muted-foreground mr-1" />
               Cancelar
             </Button>
@@ -212,78 +203,80 @@ export default function SortableChecklistItem({
         </div>
       ) : (
         <>
+          {/* Task text - flex-1 */}
           <div className="flex-1 min-w-0">
             <span
               className={cn(
-                "block text-sm leading-relaxed break-words",
-                (item.status === "concluido" || item.concluido) && "line-through text-muted-foreground",
-                item.status === "nao_realizado" && "text-destructive"
+                "block text-sm leading-relaxed break-words transition-all duration-200",
+                isCompleted && "line-through text-muted-foreground animate-strike-through",
+                isNotDone && "text-destructive"
               )}
             >
               {item.texto}
             </span>
-            
-            {/* Link display */}
-            {item.link && (
-              <a
-                href={item.link}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center gap-1 text-xs text-primary hover:underline mt-1"
-                onClick={(e) => e.stopPropagation()}
-              >
-                <ExternalLink className="h-3 w-3" />
-                {(() => {
-                  try {
-                    return new URL(item.link).hostname;
-                  } catch {
-                    return item.link;
-                  }
-                })()}
-              </a>
-            )}
-            
-            {/* Assigned users */}
-            <div className="flex items-center gap-1 mt-1.5 flex-wrap">
-              {canModify ? (
-                <UserAssignmentPopover
-                  profiles={profiles}
-                  assignedUserIds={itemAssignees}
-                  onAssignmentChange={(userIds) => onUpdateAssignees(item.id, userIds)}
-                  disabled={isLocked && !canEdit}
-                  compact={false}
-                />
-              ) : assignedProfiles.length > 0 ? (
+          </div>
+
+          {/* Assignees */}
+          <div className="shrink-0 flex items-center">
+            {canModify ? (
+              <UserAssignmentPopover
+                profiles={profiles}
+                assignedUserIds={itemAssignees}
+                onAssignmentChange={(userIds) => onUpdateAssignees(item.id, userIds)}
+                disabled={isLocked && !canEdit}
+                compact={false}
+              />
+            ) : assignedProfiles.length > 0 ? (
+              <TooltipProvider>
                 <div className="flex items-center -space-x-1">
-                  {assignedProfiles.slice(0, 4).map((profile) => (
-                    <Avatar
-                      key={profile.user_id}
-                      className={cn("h-5 w-5 border-2 border-background", getAvatarColor(profile.nome))}
-                      title={profile.nome}
-                    >
-                      <AvatarFallback className="text-[8px] font-medium text-white bg-transparent">
-                        {getInitials(profile.nome)}
-                      </AvatarFallback>
-                    </Avatar>
+                  {assignedProfiles.slice(0, 3).map((profile) => (
+                    <Tooltip key={profile.user_id}>
+                      <TooltipTrigger asChild>
+                        <Avatar
+                          className="h-6 w-6 border-2 border-background cursor-default"
+                          style={profile.cor ? { backgroundColor: profile.cor } : undefined}
+                        >
+                          <AvatarFallback
+                            className="text-[9px] font-medium text-white bg-transparent"
+                            style={!profile.cor ? undefined : { backgroundColor: 'transparent' }}
+                          >
+                            {getInitials(profile.nome)}
+                          </AvatarFallback>
+                        </Avatar>
+                      </TooltipTrigger>
+                      <TooltipContent side="top">
+                        <p className="text-xs font-medium">{profile.nome}</p>
+                      </TooltipContent>
+                    </Tooltip>
                   ))}
-                  {assignedProfiles.length > 4 && (
-                    <div className="h-5 w-5 rounded-full bg-muted flex items-center justify-center text-[8px] font-medium border-2 border-background">
-                      +{assignedProfiles.length - 4}
+                  {assignedProfiles.length > 3 && (
+                    <div className="h-6 w-6 rounded-full bg-muted flex items-center justify-center text-[9px] font-medium border-2 border-background">
+                      +{assignedProfiles.length - 3}
                     </div>
                   )}
                 </div>
-              ) : null}
-            </div>
+              </TooltipProvider>
+            ) : null}
           </div>
+
+          {/* Link */}
+          {item.link && (
+            <a
+              href={item.link}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="shrink-0 inline-flex items-center gap-1 px-2 py-1 rounded-md bg-primary/10 text-primary hover:bg-primary/20 transition-colors text-xs"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <ExternalLink className="h-3.5 w-3.5" />
+              <span className="hidden sm:inline">Link</span>
+            </a>
+          )}
           
+          {/* Actions */}
           {canModify && (
             <div className="flex items-center gap-0.5 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity shrink-0">
-              <Button
-                size="icon"
-                variant="ghost"
-                className="h-7 w-7"
-                onClick={handleStartEdit}
-              >
+              <Button size="icon" variant="ghost" className="h-7 w-7" onClick={handleStartEdit}>
                 <Pencil className="h-3.5 w-3.5" />
               </Button>
               <Button
