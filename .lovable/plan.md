@@ -1,91 +1,46 @@
 
 
-# Melhorias de UX para o Checklist Semanal
+# Correção: Botão "Iniciar Momento APT" não atualiza
 
-## Resumo
+## Causa Raiz
 
-Refatorar a interface do Checklist para uma experiencia visual premium com tabela interativa no dialog de detalhes, microinteracoes, feedback de progresso animado e hierarquia visual aprimorada. Nenhuma regra de negocio sera alterada.
+O hook `useMomentoAPT.ts` depende exclusivamente da **subscription realtime** para atualizar o estado local (`settings`) após o PATCH no banco. Os logs mostram `CHANNEL_ERROR` no canal realtime, o que significa que após o clique:
 
-## Alteracoes por Componente
+1. O PATCH vai ao banco e retorna 204 (sucesso)
+2. Mas o realtime não dispara o callback de refetch
+3. O estado local `settings` continua com `bloqueado: false`
+4. A UI não muda -- o botão continua mostrando "Iniciar Momento APT"
+5. Cliques subsequentes enviam `bloqueado: true` novamente
 
-### 1. ChecklistDetailDialog.tsx - Transformacao em Tabela Interativa
+## Correção
 
-A visualizacao de detalhes da semana sera transformada de uma lista simples para uma **tabela interativa estilizada** (conforme imagem de referencia), com:
+Alterar o `useMomentoAPT.ts` para chamar `fetchSettings()` imediatamente após cada update/insert bem-sucedido, sem depender exclusivamente do realtime. O realtime continua funcionando como complemento (para sincronizar entre abas/usuários), mas a atualização local é garantida.
 
-- **Colunas**: Status (icone) | Tarefa (descricao) | Responsaveis (avatares) | Link (icone clicavel) | Acoes (editar/excluir)
-- **Zebra striping**: linhas com fundo alternado para facilitar leitura
-- **Bordas arredondadas** e sombra leve em cada linha
-- **Destaque visual por status**: fundo verde suave para concluido, vermelho suave para nao realizado, neutro para pendente
-- **Header sticky** da tabela com cores da semana
-- Manter drag-and-drop funcional com grip handle na primeira coluna
-- Barra de progresso circular animada no header do dialog (ao inves de apenas barra linear)
+### Arquivo: `src/hooks/useMomentoAPT.ts`
 
-### 2. SortableChecklistItem.tsx - Microinteracoes e Feedback Visual
+Na função `toggleBloqueio`:
+- Após o bloco `if (!error)` do update, adicionar `await fetchSettings()`
+- Após o bloco `if (!error)` do insert, adicionar `await fetchSettings()`
 
-- **Animacao ao marcar status**: efeito de "pulse" no icone ao clicar (escala + cor por 300ms)
-- **Hover aprimorado**: fundo escurece suavemente, acoes de edicao ficam visiveis com fade-in
-- **Linha risca com animacao**: ao marcar como concluido, texto recebe line-through com transicao CSS
-- **Drag feedback**: ao arrastar, a linha fica com sombra elevada e borda primary, e a posicao de destino mostra um indicador visual (linha colorida)
-- **Responsaveis com tooltip**: ao passar o mouse sobre avatares, exibir nome completo via Tooltip do Radix
-- **Link mais destacado**: icone de link com cor primary e badge visual ao inves de texto simples
+Isso garante que o estado local seja atualizado imediatamente após a ação, independentemente do status do canal realtime.
 
-### 3. ChecklistSummaryCard.tsx - Feedback de Progresso Aprimorado
+### Detalhes técnicos
 
-- **Indicador de progresso circular** (SVG) ao lado do titulo da semana, preenchendo conforme conclusao
-- **Animacao de conclusao total**: quando 100%, o card recebe um efeito de "glow" verde com animacao suave
-- **Texto "Semana Completa"** com icone de check animado quando todas as tarefas estao feitas
-- **Contador de status**: exibir mini-badges mostrando quantas pendentes, concluidas e nao realizadas
-
-### 4. ChecklistDetailDialog.tsx - Layout de Tabela (Desktop) vs Cards (Mobile)
-
-- **Desktop**: layout tabular com colunas alinhadas (conforme referencia)
-- **Mobile**: manter layout de cards empilhados (responsivo)
-- Transicao suave entre os dois layouts via media queries
-
-### 5. Microinteracoes Globais (CSS/Tailwind)
-
-- Adicionar keyframes para:
-  - `check-bounce`: animacao do icone ao marcar como feito
-  - `strike-through`: animacao do texto riscado
-  - `highlight-flash`: borda destacada por 500ms apos qualquer acao
-  - `drag-lift`: elevacao visual ao arrastar item
-- Transicoes suaves em todas as mudancas de estado (opacity, background, transform)
-
-### 6. Checklist.tsx - Filtros Aprimorados (visual apenas)
-
-- **Chips de filtros ativos** visiveis abaixo do header (ex: "Fev 2026", "1a Semana") com X para remover
-- Melhorar visual dos summary cards com sombras mais definidas
-- Header sticky no mobile com titulo + acoes
-
-## Detalhes Tecnicos
-
-### Arquivos a modificar:
-| Arquivo | Alteracao |
-|---|---|
-| `src/components/checklist/ChecklistDetailDialog.tsx` | Layout tabular, progress circular, header aprimorado |
-| `src/components/checklist/SortableChecklistItem.tsx` | Microinteracoes, tooltips, animacoes de status, zebra styling |
-| `src/components/checklist/ChecklistSummaryCard.tsx` | Progress circular SVG, badges de status, animacao de conclusao |
-| `src/pages/Checklist.tsx` | Chips de filtros ativos, layout aprimorado |
-| `src/index.css` | Keyframes para animacoes (check-bounce, strike-through, highlight-flash) |
-
-### Novas dependencias: Nenhuma
-
-### Animacoes CSS a adicionar:
-```text
-@keyframes check-bounce: scale(1) -> scale(1.3) -> scale(1)  (300ms)
-@keyframes strike-through: width 0 -> 100%  (200ms)
-@keyframes highlight-flash: border-color primary -> transparent  (500ms)
+Trecho atual (update):
+```
+if (error) { toast erro }
+else { toast sucesso }
 ```
 
-### Padrao responsivo:
-- Desktop (>768px): tabela com colunas | Status | Tarefa | Responsaveis | Link | Acoes |
-- Mobile (<768px): cards empilhados (layout atual melhorado)
+Trecho corrigido:
+```
+if (error) { toast erro }
+else {
+  await fetchSettings();
+  toast sucesso;
+}
+```
 
-### O que NAO muda:
-- Logica de drag-and-drop (dnd-kit)
-- Sistema de 3 estados (pendente/concluido/nao_realizado)
-- Regras de permissao (quem pode editar/concluir)
-- Estrutura de dados e queries do banco
-- Filtros e busca (funcionalidade identica, apenas visual aprimorado)
-- Sistema de responsaveis e atribuicao
+Mesma alteração para o bloco de insert.
 
+Total: **1 arquivo** modificado, **2 linhas** adicionadas.
