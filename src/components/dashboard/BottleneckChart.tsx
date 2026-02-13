@@ -26,7 +26,7 @@ interface BottleneckChartProps {
 }
 
 const chartConfig = {
-  pendencias: { label: "Pendências", color: "hsl(0 84% 60%)" },
+  pendencias: { label: "Pendências", color: "hsl(45 93% 47%)" },
 };
 
 export default function BottleneckChart({
