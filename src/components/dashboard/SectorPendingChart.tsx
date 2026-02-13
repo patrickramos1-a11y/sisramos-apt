@@ -72,13 +72,15 @@ export default function SectorPendingChart({
     );
   }
 
+  const chartHeight = Math.max(250, chartData.length * 40);
+
   return (
     <Card>
       <CardHeader className="pb-2">
         <CardTitle className="text-lg">Pendências por Setor</CardTitle>
       </CardHeader>
       <CardContent>
-        <ChartContainer config={chartConfig} className="h-[250px] w-full">
+        <ChartContainer config={chartConfig} className="w-full" style={{ height: chartHeight }}>
           <ResponsiveContainer width="100%" height="100%">
             <BarChart
               data={chartData}
