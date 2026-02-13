@@ -38,13 +38,8 @@ export default function CriticalDemandsList({
 
   // Filter critical demands
   const criticalDemandas = demandas.filter((d) => {
-    const isUrgent = d.muito_urgente;
-    const isPriority = d.prioritaria;
-    const isNotDone = d.status_responsavel === "nao_realizado";
-    const isPending = d.status_responsavel === "pendente";
-    
-    return isUrgent || isPriority || isNotDone || (isPending && currentWeek && d.semana_limite?.includes(currentWeek));
-  }).slice(0, 15); // Limit to 15 items
+    return d.muito_urgente || d.prioritaria;
+  }).slice(0, 15);
 
   const getProfile = (userId: string) => profiles.find((p) => p.user_id === userId);
 
