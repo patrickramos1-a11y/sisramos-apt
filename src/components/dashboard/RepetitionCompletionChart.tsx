@@ -51,12 +51,12 @@ export default function RepetitionCompletionChart({ demandas }: RepetitionComple
   }, [demandas]);
 
   return (
-    <Card>
+    <Card className="h-full flex flex-col">
       <CardHeader className="pb-2">
         <CardTitle className="text-lg">Repetições x Conclusão</CardTitle>
       </CardHeader>
-      <CardContent>
-        <ChartContainer config={chartConfig} className="h-[300px] w-full">
+      <CardContent className="flex-1 min-h-0">
+        <ChartContainer config={chartConfig} className="h-full w-full">
           <ResponsiveContainer width="100%" height="100%">
             <BarChart data={chartData} margin={{ left: 10, right: 10, bottom: 10 }}>
               <CartesianGrid strokeDasharray="3 3" vertical={false} />
