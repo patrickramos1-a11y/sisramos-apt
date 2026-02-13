@@ -91,6 +91,7 @@ export function useMomentoAPT() {
           description: error.message,
         });
       } else {
+        await fetchSettings();
         toast({
           title: newBloqueado ? "Momento APT iniciado" : "Momento APT encerrado",
           description: newBloqueado 
@@ -117,6 +118,7 @@ export function useMomentoAPT() {
           description: error.message,
         });
       } else {
+        await fetchSettings();
         toast({
           title: "Momento APT iniciado",
           description: "Colaboradores não podem mais alterar status",
