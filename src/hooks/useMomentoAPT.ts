@@ -33,26 +33,6 @@ export function useMomentoAPT() {
 
   useEffect(() => {
     fetchSettings();
-
-    // Subscribe to realtime changes
-    const channel = supabase
-      .channel("momento_apt_settings_changes")
-      .on(
-        "postgres_changes",
-        {
-          event: "*",
-          schema: "public",
-          table: "momento_apt_settings",
-        },
-        () => {
-          fetchSettings();
-        }
-      )
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
   }, [fetchSettings]);
 
   const isAPTBloqueado = useCallback((mes: number, ano: number): boolean => {

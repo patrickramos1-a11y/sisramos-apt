@@ -179,25 +179,6 @@ export default function Dashboard() {
     fetchData();
   }, [fetchData]);
 
-  // Realtime subscription
-  useEffect(() => {
-    if (!user) return;
-
-    const channel = supabase
-      .channel("dashboard-realtime")
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "demandas" },
-        () => {
-          fetchData();
-        }
-      )
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, [user, fetchData]);
 
   // Calculate KPIs
   const kpis = useMemo(() => {

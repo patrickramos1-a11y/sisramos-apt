@@ -39,43 +39,6 @@ export function useMonthSettings() {
     fetchMonthSettings();
   }, [fetchMonthSettings]);
 
-  // Subscribe to real-time changes
-  useEffect(() => {
-    if (!user) return;
-
-    const channel = supabase
-      .channel("month-settings-realtime")
-      .on(
-        "postgres_changes",
-        {
-          event: "*",
-          schema: "public",
-          table: "month_settings",
-        },
-        (payload) => {
-          if (payload.eventType === "INSERT") {
-            setMonthSettings((prev) => [payload.new as MonthSetting, ...prev]);
-          } else if (payload.eventType === "UPDATE") {
-            setMonthSettings((prev) =>
-              prev.map((ms) =>
-                ms.id === (payload.new as MonthSetting).id
-                  ? (payload.new as MonthSetting)
-                  : ms
-              )
-            );
-          } else if (payload.eventType === "DELETE") {
-            setMonthSettings((prev) =>
-              prev.filter((ms) => ms.id !== (payload.old as MonthSetting).id)
-            );
-          }
-        }
-      )
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, [user]);
 
   // Check if a specific month is a past month
   const isPastMonth = useCallback((mes: number, ano: number): boolean => {
