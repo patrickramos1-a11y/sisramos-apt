@@ -1,46 +1,36 @@
 
 
-# Correção: Botão "Iniciar Momento APT" não atualiza
+# Correção: Botão Momento APT não persiste alterações
 
 ## Causa Raiz
 
-O hook `useMomentoAPT.ts` depende exclusivamente da **subscription realtime** para atualizar o estado local (`settings`) após o PATCH no banco. Os logs mostram `CHANNEL_ERROR` no canal realtime, o que significa que após o clique:
+A política de segurança (RLS) da tabela `momento_apt_settings` exige autenticação real do banco (`auth.uid()`) para permitir atualizações. Como o sistema usa seleção de usuário via localStorage (sem login real no banco), `auth.uid()` é sempre nulo, e a política bloqueia silenciosamente o UPDATE -- o banco retorna "sucesso" (204) mas nenhuma linha é de fato alterada.
 
-1. O PATCH vai ao banco e retorna 204 (sucesso)
-2. Mas o realtime não dispara o callback de refetch
-3. O estado local `settings` continua com `bloqueado: false`
-4. A UI não muda -- o botão continua mostrando "Iniciar Momento APT"
-5. Cliques subsequentes enviam `bloqueado: true` novamente
+Isso explica por que o GET após o PATCH continua retornando `bloqueado: true`: a escrita nunca aconteceu.
 
-## Correção
+## Solução
 
-Alterar o `useMomentoAPT.ts` para chamar `fetchSettings()` imediatamente após cada update/insert bem-sucedido, sem depender exclusivamente do realtime. O realtime continua funcionando como complemento (para sincronizar entre abas/usuários), mas a atualização local é garantida.
+Alinhar a política RLS de `momento_apt_settings` com o mesmo padrão usado nas demais tabelas do sistema (como `demandas`), que permitem operações públicas.
 
-### Arquivo: `src/hooks/useMomentoAPT.ts`
+### Alteração no banco de dados
 
-Na função `toggleBloqueio`:
-- Após o bloco `if (!error)` do update, adicionar `await fetchSettings()`
-- Após o bloco `if (!error)` do insert, adicionar `await fetchSettings()`
+Remover a política restritiva atual e criar políticas permissivas para INSERT, UPDATE e DELETE, seguindo o padrão já existente:
 
-Isso garante que o estado local seja atualizado imediatamente após a ação, independentemente do status do canal realtime.
+- **Remover**: política "Gestors and admins can manage momento_apt_settings"
+- **Criar**: 3 novas políticas com `true` (inserção, atualização e exclusão públicas)
+
+A política de leitura ("Everyone can read") já está correta e permanece inalterada.
+
+A validação de permissão (apenas gestores podem alterar) continua sendo feita no código frontend pelo hook `useMomentoAPT.ts`, que já verifica `isGestorOrAdmin` antes de executar qualquer operação.
 
 ### Detalhes técnicos
 
-Trecho atual (update):
-```
-if (error) { toast erro }
-else { toast sucesso }
-```
-
-Trecho corrigido:
-```
-if (error) { toast erro }
-else {
-  await fetchSettings();
-  toast sucesso;
-}
+```sql
+DROP POLICY "Gestors and admins can manage momento_apt_settings" ON momento_apt_settings;
+CREATE POLICY "Inserção pública" ON momento_apt_settings FOR INSERT WITH CHECK (true);
+CREATE POLICY "Atualização pública" ON momento_apt_settings FOR UPDATE USING (true);
+CREATE POLICY "Exclusão pública" ON momento_apt_settings FOR DELETE USING (true);
 ```
 
-Mesma alteração para o bloco de insert.
+Nenhuma alteração de código é necessária -- apenas a correção da política no banco.
 
-Total: **1 arquivo** modificado, **2 linhas** adicionadas.
