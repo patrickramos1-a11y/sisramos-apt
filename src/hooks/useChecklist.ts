@@ -114,43 +114,6 @@ export function useChecklist({ meses, anos, semanas, searchTerm }: UseChecklistO
 
   useEffect(() => {
     fetchItems();
-
-    // Subscribe to realtime changes for checklist_items
-    const itemsChannel = supabase
-      .channel("checklist_items_changes")
-      .on(
-        "postgres_changes",
-        {
-          event: "*",
-          schema: "public",
-          table: "checklist_items",
-        },
-        () => {
-          fetchItems();
-        }
-      )
-      .subscribe();
-
-    // Subscribe to realtime changes for assignees
-    const assigneesChannel = supabase
-      .channel("checklist_assignees_changes")
-      .on(
-        "postgres_changes",
-        {
-          event: "*",
-          schema: "public",
-          table: "checklist_item_assignees",
-        },
-        () => {
-          fetchItems();
-        }
-      )
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(itemsChannel);
-      supabase.removeChannel(assigneesChannel);
-    };
   }, [fetchItems]);
 
   const addItem = async (semanaNum: number, texto: string, mes: number, ano: number, assignees?: string[]) => {
