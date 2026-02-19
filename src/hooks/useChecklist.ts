@@ -154,6 +154,7 @@ export function useChecklist({ meses, anos, semanas, searchTerm }: UseChecklistO
         title: "Item adicionado",
         description: "O item foi adicionado ao checklist",
       });
+      await fetchItems();
     } catch (error: any) {
       console.error("Error adding item:", error);
       toast({
@@ -210,12 +211,15 @@ export function useChecklist({ meses, anos, semanas, searchTerm }: UseChecklistO
 
       if (error) throw error;
 
+      // Optimistic remove from local state
+      setItems((prev) => prev.filter((item) => item.id !== id));
       toast({
         title: "Item removido",
         description: "O item foi removido do checklist",
       });
     } catch (error: any) {
       console.error("Error deleting item:", error);
+      fetchItems();
       toast({
         variant: "destructive",
         title: "Erro ao remover",
