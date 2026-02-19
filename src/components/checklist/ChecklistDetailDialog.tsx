@@ -167,14 +167,14 @@ export default function ChecklistDetailDialog({
 
         {/* Table header - desktop only */}
         {sortedItems.length > 0 && (
-          <div className="hidden md:grid grid-cols-[auto_auto_1fr_auto_auto_auto] gap-3 px-6 py-2 border-b bg-muted/30 text-xs font-medium text-muted-foreground uppercase tracking-wider">
-            {canModify && <span className="w-5" />}
-            <span className="w-5">Status</span>
-            <span>Tarefa</span>
-            <span>Responsáveis</span>
-            <span>Link</span>
-            {canModify && <span>Ações</span>}
-          </div>
+        <div className="hidden md:flex items-center gap-3 px-6 py-2 border-b bg-muted/30 text-xs font-medium text-muted-foreground uppercase tracking-wider">
+          {canModify && <span className="w-5 shrink-0" />}
+          <span className="w-5 shrink-0">Status</span>
+          <span className="flex-1">Tarefa</span>
+          <span className="w-24 text-center">Responsáveis</span>
+          <span className="w-10 text-center">Link</span>
+          {canModify && <span className="w-16 text-center">Ações</span>}
+        </div>
         )}
 
         {/* Content */}
