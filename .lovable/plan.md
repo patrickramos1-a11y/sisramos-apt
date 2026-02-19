@@ -1,38 +1,38 @@
 
-## Problema
 
-O cabeçalho da tabela foi removido como "solução" para o problema de sobreposição, mas isso foi incorreto. O problema real era que as colunas do cabeçalho não tinham as mesmas larguras que os elementos correspondentes dentro de cada linha `SortableChecklistItem`.
+# Remover Sincronização em Tempo Real (Realtime)
 
-## Causa Raiz
+## O que muda
 
-A estrutura de cada linha (`SortableChecklistItem`) usa `flex` com os seguintes elementos em sequência:
-1. **Drag handle** (GripVertical) — `shrink-0`, apenas quando `canModify`
-2. **Botão de status** — `shrink-0` (ícone 20x20px)
-3. **Texto da tarefa** — `flex-1 min-w-0`
-4. **Responsáveis** — `shrink-0 flex items-center`
-5. **Link** — `shrink-0` (condicional)
-6. **Ações** — `shrink-0 flex` (apenas quando `canModify`)
+Todas as assinaturas de canais Realtime do Supabase serão removidas. A interface deixará de receber atualizações automáticas de outros usuários. Os dados serão carregados apenas quando o usuário abrir/navegar para a página ou realizar uma ação (criar, editar, excluir).
 
-O cabeçalho anterior usava larguras fixas como `w-5`, `w-24` e `flex-1` que não correspondiam precisamente aos elementos reais da linha. Em telas menores, isso causava desalinhamento e sobreposição.
+## Arquivos afetados
 
-## Solução
+### 1. `src/hooks/useDemandas.ts`
+- Remover o `useEffect` inteiro que cria o canal `demandas-realtime` (linhas ~194-249)
+- Remover os `console.log` de realtime
 
-Restaurar o cabeçalho no `ChecklistDetailDialog.tsx` com larguras que **espelham exatamente** a estrutura do `SortableChecklistItem`:
+### 2. `src/hooks/useChecklist.ts`
+- Remover as assinaturas dos canais `checklist_items_changes` e `checklist_assignees_changes` (linhas ~118-153)
+- Manter apenas a chamada `fetchItems()` no `useEffect`
 
-- **Coluna drag** (se `canModify`): `w-5 shrink-0` — alinhada ao `GripVertical`
-- **Coluna status**: `w-5 shrink-0` — alinhada ao botão de status (ícone `h-5 w-5`)
-- **Coluna tarefa**: `flex-1 min-w-0` — mesma propriedade do `div` de texto
-- **Coluna responsáveis**: `shrink-0 w-[72px]` — largura fixa correspondendo aos avatares empilhados
-- **Coluna ações** (se `canModify`): `shrink-0 w-[60px]` — correspondendo aos dois botões `h-7 w-7`
+### 3. `src/hooks/useMonthSettings.ts`
+- Remover o `useEffect` inteiro do canal `month-settings-realtime` (linhas ~43-78)
 
-O `gap-3` do contêiner do cabeçalho deve ser idêntico ao `gap-3` de cada linha para garantir alinhamento perfeito.
+### 4. `src/hooks/useMomentoAPT.ts`
+- Remover a assinatura do canal `momento_apt_settings_changes` (linhas ~37-55)
+- Manter apenas a chamada `fetchSettings()` no `useEffect`
 
-## Arquivo a Alterar
+### 5. `src/pages/Dashboard.tsx`
+- Remover o `useEffect` inteiro do canal `dashboard-realtime` (linhas ~182-200)
 
-**`src/components/checklist/ChecklistDetailDialog.tsx`** — Reintroduzir o bloco do cabeçalho entre a linha 167 e o `ScrollArea`, com classes corretamente espelhadas à estrutura de linha do `SortableChecklistItem`.
+## Comportamento após a mudança
 
-## Resultado Esperado
+- Os dados são carregados ao montar o componente (como já acontece)
+- Após cada ação do próprio usuário (marcar status, criar demanda, etc.), a interface continua atualizando normalmente via estado local ou refetch manual
+- Para ver alterações feitas por outros usuários, basta recarregar a página ou navegar entre telas
 
-- Cabeçalhos alinhados precisamente acima de cada coluna correspondente
-- Nenhuma sobreposição de texto
-- Funciona corretamente em desktop e mobile (o cabeçalho será `hidden md:flex` para não poluir telas pequenas onde o layout já é mais compacto)
+## Detalhes técnicos
+
+Nenhuma alteração no banco de dados é necessária. Apenas remoção de código JavaScript nos 5 arquivos listados acima. As importações do `supabase` permanecem pois são usadas para as queries normais (SELECT, INSERT, UPDATE, DELETE).
+
