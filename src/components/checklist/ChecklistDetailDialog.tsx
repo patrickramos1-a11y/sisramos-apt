@@ -119,7 +119,7 @@ export default function ChecklistDetailDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-3xl max-h-[85vh] flex flex-col p-0">
+      <DialogContent className="max-w-5xl w-[95vw] max-h-[85vh] flex flex-col p-0">
         {/* Header */}
         <div className={cn(
           "px-6 py-4 bg-gradient-to-r rounded-t-lg",

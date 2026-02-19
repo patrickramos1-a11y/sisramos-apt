@@ -93,18 +93,16 @@ export default function SortableChecklistItem({
     setEditingLink("");
   };
 
-  const cycleStatus = (currentStatus: ChecklistStatus | undefined): ChecklistStatus => {
-    const status = currentStatus || "pendente";
-    if (status === "pendente") return "concluido";
-    if (status === "concluido") return "nao_realizado";
-    return "pendente";
-  };
 
   const handleStatusClick = useCallback(async () => {
-    const newStatus = cycleStatus(item.status);
+    const currentStatus: ChecklistStatus = item.status || "pendente";
+    let newStatus: ChecklistStatus;
+    if (currentStatus === "pendente") newStatus = "concluido";
+    else if (currentStatus === "concluido") newStatus = "nao_realizado";
+    else newStatus = "pendente";
     setJustChanged(true);
-    await onUpdateItem(item.id, { status: newStatus });
-    setTimeout(() => setJustChanged(false), 500);
+    await onUpdateItem(item.id, { status: newStatus, concluido: newStatus === "concluido" });
+    setTimeout(() => setJustChanged(false), 600);
   }, [item.id, item.status, onUpdateItem]);
 
   const getStatusIcon = (status: ChecklistStatus | undefined) => {
