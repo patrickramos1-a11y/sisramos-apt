@@ -165,8 +165,16 @@ export default function ChecklistDetailDialog({
           </DialogHeader>
         </div>
 
-
-
+        {/* Table header — hidden on mobile, visible on md+ */}
+        {sortedItems.length > 0 && (
+          <div className="hidden md:flex items-center gap-3 px-9 py-1.5 border-b bg-muted/30 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+            {canModify && <span className="w-5 shrink-0" />}
+            <span className="w-5 shrink-0">Status</span>
+            <span className="flex-1 min-w-0">Tarefa</span>
+            <span className="shrink-0 w-[72px] text-center">Responsáveis</span>
+            {canModify && <span className="shrink-0 w-[60px] text-right">Ações</span>}
+          </div>
+        )}
 
         {/* Content */}
         <ScrollArea className="flex-1 max-h-[60vh] overflow-auto">
