@@ -20,7 +20,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Calendar, CheckCircle2 } from "lucide-react";
+import { AlertCircle, Calendar, CheckCircle2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import SortableChecklistItem from "./SortableChecklistItem";
 import CircularProgress from "./CircularProgress";
@@ -95,6 +95,7 @@ export default function ChecklistDetailDialog({
   const totalCount = items.length;
   const progress = totalCount > 0 ? (completedCount / totalCount) * 100 : 0;
   const allCompleted = totalCount > 0 && completedCount === totalCount;
+  const allProcessed = totalCount > 0 && !allCompleted && (completedCount + notDoneCount === totalCount) && notDoneCount > 0;
   const canModify = canEdit && !isLocked;
 
   const weekColors: Record<number, { bg: string; icon: string }> = {
@@ -123,22 +124,28 @@ export default function ChecklistDetailDialog({
         {/* Header */}
         <div className={cn(
           "px-6 py-4 bg-gradient-to-r rounded-t-lg",
-          allCompleted ? "from-primary/20 to-primary/10" : weekColor.bg
+          allCompleted ? "from-primary/20 to-primary/10" 
+            : allProcessed ? "from-amber-500/20 to-amber-500/10"
+            : weekColor.bg
         )}>
           <DialogHeader>
             <DialogTitle className="flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <div className={cn(
                   "p-1.5 rounded-md",
-                  allCompleted ? "bg-primary/20" : weekColor.icon
+                  allCompleted ? "bg-primary/20" 
+                    : allProcessed ? "bg-amber-500/20"
+                    : weekColor.icon
                 )}>
                   {allCompleted ? (
                     <CheckCircle2 className="h-5 w-5 text-primary animate-check-bounce" />
+                  ) : allProcessed ? (
+                    <AlertCircle className="h-5 w-5 text-amber-600 dark:text-amber-400 animate-check-bounce" />
                   ) : (
                     <Calendar className="h-5 w-5" />
                   )}
                 </div>
-                <span>{allCompleted ? "Semana Completa ✓" : `${semana}ª Semana`}</span>
+                <span>{allCompleted ? "Semana Completa ✓" : allProcessed ? "Semana Finalizada ⚠" : `${semana}ª Semana`}</span>
               </div>
               <div className="flex items-center gap-3">
                 {/* Status badges */}

@@ -1,5 +1,5 @@
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
-import { Calendar, CheckCircle2, ListTodo } from "lucide-react";
+import { AlertCircle, Calendar, CheckCircle2, ListTodo } from "lucide-react";
 import { cn } from "@/lib/utils";
 import CircularProgress from "./CircularProgress";
 
@@ -20,6 +20,7 @@ export default function ChecklistSummaryCard({
 }: ChecklistSummaryCardProps) {
   const progress = totalItems > 0 ? (completedItems / totalItems) * 100 : 0;
   const allCompleted = totalItems > 0 && completedItems === totalItems;
+  const allProcessed = totalItems > 0 && !allCompleted && (completedItems + notDoneItems === totalItems) && notDoneItems > 0;
 
   const weekColors: Record<number, { bg: string; icon: string; badge: string }> = {
     1: { bg: "from-emerald-500/20 to-emerald-500/5", icon: "bg-emerald-500/30 text-emerald-700 dark:text-emerald-400", badge: "bg-emerald-500/20 text-emerald-700 dark:text-emerald-400" },
@@ -31,36 +32,53 @@ export default function ChecklistSummaryCard({
 
   const weekColor = weekColors[semana] || weekColors[1];
 
+  const headerGradient = allCompleted
+    ? "from-primary/20 to-primary/10"
+    : allProcessed
+      ? "from-amber-500/20 to-amber-500/10"
+      : weekColor.bg;
+
+  const iconClass = allCompleted
+    ? "bg-primary/20"
+    : allProcessed
+      ? "bg-amber-500/20"
+      : weekColor.icon;
+
+  const badgeClass = allCompleted
+    ? "bg-primary/20 text-primary"
+    : allProcessed
+      ? "bg-amber-500/20 text-amber-600 dark:text-amber-400"
+      : weekColor.badge;
+
+  const title = allCompleted
+    ? "Semana Completa ✓"
+    : allProcessed
+      ? "Semana Finalizada ⚠"
+      : `${semana}ª Semana`;
+
   return (
     <Card
       className={cn(
         "cursor-pointer transition-all duration-200 hover:shadow-lg hover:scale-[1.02]",
-        allCompleted && "ring-2 ring-primary/30 bg-primary/5 animate-glow-pulse"
+        allCompleted && "ring-2 ring-primary/30 bg-primary/5 animate-glow-pulse",
+        allProcessed && "ring-2 ring-amber-500/30 bg-amber-500/5 animate-glow-pulse-amber"
       )}
       onClick={onClick}
     >
       <CardHeader className="p-0">
-        <div className={cn(
-          "px-4 py-3 bg-gradient-to-r rounded-t-lg",
-          allCompleted 
-            ? "from-primary/20 to-primary/10" 
-            : weekColor.bg
-        )}>
+        <div className={cn("px-4 py-3 bg-gradient-to-r rounded-t-lg", headerGradient)}>
           <div className="flex items-center justify-between gap-2">
             <div className="flex items-center gap-2">
-              <div className={cn(
-                "p-1.5 rounded-md",
-                allCompleted ? "bg-primary/20" : weekColor.icon
-              )}>
+              <div className={cn("p-1.5 rounded-md", iconClass)}>
                 {allCompleted ? (
                   <CheckCircle2 className="h-4 w-4 text-primary animate-check-bounce" />
+                ) : allProcessed ? (
+                  <AlertCircle className="h-4 w-4 text-amber-600 dark:text-amber-400 animate-check-bounce" />
                 ) : (
                   <Calendar className="h-4 w-4" />
                 )}
               </div>
-              <h3 className="font-semibold text-sm sm:text-base">
-                {allCompleted ? "Semana Completa ✓" : `${semana}ª Semana`}
-              </h3>
+              <h3 className="font-semibold text-sm sm:text-base">{title}</h3>
             </div>
             <CircularProgress value={progress} size={32} strokeWidth={3} completedCount={completedItems} notDoneCount={notDoneItems} totalCount={totalItems} />
           </div>
@@ -73,12 +91,7 @@ export default function ChecklistSummaryCard({
             <ListTodo className="h-4 w-4" />
             <span className="text-sm">{totalItems} tarefas</span>
           </div>
-          <span className={cn(
-            "text-xs font-medium px-2 py-0.5 rounded-full",
-            allCompleted 
-              ? "bg-primary/20 text-primary" 
-              : weekColor.badge
-          )}>
+          <span className={cn("text-xs font-medium px-2 py-0.5 rounded-full", badgeClass)}>
             {completedItems}/{totalItems}
           </span>
         </div>
