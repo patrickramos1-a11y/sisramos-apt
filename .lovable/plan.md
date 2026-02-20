@@ -1,38 +1,47 @@
 
+# Feedback visual para semanas finalizadas com itens "Nao Realizado"
 
-# Remover Sincronização em Tempo Real (Realtime)
+## Contexto
+Atualmente, quando **todos os itens** de uma semana sao concluidos (status `concluido`), o card exibe um efeito de brilho verde pulsante (`animate-glow-pulse`) com ring verde e icone de sucesso. Porem, quando a semana esta **totalmente processada** (nenhum item pendente) mas possui itens marcados como `nao_realizado`, nao ha nenhum feedback visual diferenciado.
 
-## O que muda
+## O que sera feito
 
-Todas as assinaturas de canais Realtime do Supabase serão removidas. A interface deixará de receber atualizações automáticas de outros usuários. Os dados serão carregados apenas quando o usuário abrir/navegar para a página ou realizar uma ação (criar, editar, excluir).
+Adicionar um estado intermediario: **"Semana Finalizada"** -- quando todos os itens foram processados (completados + nao realizados = total), mas existem itens `nao_realizado`. Esse estado tera uma estetica que transmite "quase conseguimos", com tom amarelo/ambar pulsante.
 
-## Arquivos afetados
+### Logica de estados do card
 
-### 1. `src/hooks/useDemandas.ts`
-- Remover o `useEffect` inteiro que cria o canal `demandas-realtime` (linhas ~194-249)
-- Remover os `console.log` de realtime
+```text
++------------------------------------------+
+| totalItems == 0         -> Estado normal  |
+| completedItems == total -> Vitoria (verde)|
+| completed + notDone == total              |
+|   && notDone > 0        -> "Quase la"    |
+| otherwise               -> Em progresso  |
++------------------------------------------+
+```
 
-### 2. `src/hooks/useChecklist.ts`
-- Remover as assinaturas dos canais `checklist_items_changes` e `checklist_assignees_changes` (linhas ~118-153)
-- Manter apenas a chamada `fetchItems()` no `useEffect`
+### Mudancas visuais do estado "Quase la"
 
-### 3. `src/hooks/useMonthSettings.ts`
-- Remover o `useEffect` inteiro do canal `month-settings-realtime` (linhas ~43-78)
+| Elemento | Vitoria (atual) | "Quase la" (novo) |
+|---|---|---|
+| Ring do card | `ring-primary/30` (verde) | `ring-amber-500/30` (amarelo) |
+| Background | `bg-primary/5` | `bg-amber-500/5` |
+| Animacao | `animate-glow-pulse` (verde) | `animate-glow-pulse-amber` (amarelo) |
+| Header gradient | `from-primary/20 to-primary/10` | `from-amber-500/20 to-amber-500/10` |
+| Icone | CheckCircle2 verde | AlertCircle amarelo com bounce |
+| Titulo | "Semana Completa" | "Semana Finalizada" |
+| Badge | `bg-primary/20 text-primary` | `bg-amber-500/20 text-amber-600` |
 
-### 4. `src/hooks/useMomentoAPT.ts`
-- Remover a assinatura do canal `momento_apt_settings_changes` (linhas ~37-55)
-- Manter apenas a chamada `fetchSettings()` no `useEffect`
+## Detalhes tecnicos
 
-### 5. `src/pages/Dashboard.tsx`
-- Remover o `useEffect` inteiro do canal `dashboard-realtime` (linhas ~182-200)
+### 1. `src/index.css` - Nova animacao amber
+Adicionar um `@keyframes glowPulseAmber` identico ao `glowPulse` mas usando a cor amber em vez de primary, e a classe `.animate-glow-pulse-amber`.
 
-## Comportamento após a mudança
+### 2. `src/components/checklist/ChecklistSummaryCard.tsx`
+- Criar uma variavel `allProcessed` que verifica se `completedItems + notDoneItems === totalItems && totalItems > 0 && notDoneItems > 0`.
+- Usar `allProcessed` para aplicar as classes amber no card, header, icone, titulo e badge.
+- Usar o icone `AlertCircle` do lucide-react para o estado "quase la".
+- Manter a logica de `allCompleted` inalterada para o estado de vitoria.
 
-- Os dados são carregados ao montar o componente (como já acontece)
-- Após cada ação do próprio usuário (marcar status, criar demanda, etc.), a interface continua atualizando normalmente via estado local ou refetch manual
-- Para ver alterações feitas por outros usuários, basta recarregar a página ou navegar entre telas
-
-## Detalhes técnicos
-
-Nenhuma alteração no banco de dados é necessária. Apenas remoção de código JavaScript nos 5 arquivos listados acima. As importações do `supabase` permanecem pois são usadas para as queries normais (SELECT, INSERT, UPDATE, DELETE).
-
+### 3. `src/components/checklist/ChecklistDetailDialog.tsx`
+- Aplicar a mesma logica de `allProcessed` no cabecalho do dialogo de detalhes para consistencia visual entre card e dialogo.
