@@ -83,11 +83,17 @@ export default function ChecklistSummaryCard({
           </span>
         </div>
         
-        <div className="w-full bg-secondary rounded-full h-2 overflow-hidden">
+        <div className="w-full bg-secondary rounded-full h-2 overflow-hidden flex">
           <div
-            className="h-full bg-primary rounded-full transition-all duration-500 ease-out"
+            className="h-full bg-primary rounded-l-full transition-all duration-500 ease-out"
             style={{ width: `${progress}%` }}
           />
+          {notDoneItems > 0 && totalItems > 0 && (
+            <div
+              className="h-full bg-destructive transition-all duration-500 ease-out"
+              style={{ width: `${(notDoneItems / totalItems) * 100}%` }}
+            />
+          )}
         </div>
         
         <p className="text-xs text-muted-foreground mt-2 text-center">
