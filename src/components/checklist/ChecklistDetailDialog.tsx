@@ -159,7 +159,7 @@ export default function ChecklistDetailDialog({
                     </span>
                   )}
                 </div>
-                <CircularProgress value={progress} size={44} strokeWidth={3.5} />
+                <CircularProgress value={progress} size={44} strokeWidth={3.5} completedCount={completedCount} notDoneCount={notDoneCount} totalCount={totalCount} />
               </div>
             </DialogTitle>
           </DialogHeader>

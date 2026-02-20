@@ -187,12 +187,13 @@ export default function Checklist() {
 
   // Stats per week
   const weekStats = useMemo(() => {
-    const stats: Record<number, { total: number; completed: number }> = {};
+    const stats: Record<number, { total: number; completed: number; notDone: number }> = {};
     semanasToShow.forEach((sem) => {
       const weekItems = getItemsByWeek(sem, viewedMes ?? undefined, viewedAno ?? undefined);
       stats[sem] = {
         total: weekItems.length,
-        completed: weekItems.filter((i) => i.concluido).length,
+        completed: weekItems.filter((i) => i.status === "concluido" || i.concluido).length,
+        notDone: weekItems.filter((i) => i.status === "nao_realizado").length,
       };
     });
     return stats;
@@ -447,6 +448,7 @@ export default function Checklist() {
                 semana={sem}
                 totalItems={weekStats[sem]?.total || 0}
                 completedItems={weekStats[sem]?.completed || 0}
+                notDoneItems={weekStats[sem]?.notDone || 0}
                 onClick={() => setSelectedWeek(sem)}
               />
             ))}

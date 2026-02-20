@@ -7,6 +7,7 @@ interface ChecklistSummaryCardProps {
   semana: number;
   totalItems: number;
   completedItems: number;
+  notDoneItems?: number;
   onClick: () => void;
 }
 
@@ -14,6 +15,7 @@ export default function ChecklistSummaryCard({
   semana,
   totalItems,
   completedItems,
+  notDoneItems = 0,
   onClick,
 }: ChecklistSummaryCardProps) {
   const progress = totalItems > 0 ? (completedItems / totalItems) * 100 : 0;
@@ -60,7 +62,7 @@ export default function ChecklistSummaryCard({
                 {allCompleted ? "Semana Completa ✓" : `${semana}ª Semana`}
               </h3>
             </div>
-            <CircularProgress value={progress} size={32} strokeWidth={3} />
+            <CircularProgress value={progress} size={32} strokeWidth={3} completedCount={completedItems} notDoneCount={notDoneItems} totalCount={totalItems} />
           </div>
         </div>
       </CardHeader>
