@@ -1,14 +1,13 @@
 import { useState, useMemo, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
-import { useChecklist } from "@/hooks/useChecklist";
+import { useChecklistV2, type TipoItem } from "@/hooks/useChecklistV2";
 import { useMonthSettings } from "@/hooks/useMonthSettings";
 import { supabase } from "@/integrations/supabase/client";
 import AppLayout from "@/components/layout/AppLayout";
 import ChecklistSummaryCard from "@/components/checklist/ChecklistSummaryCard";
-import ChecklistDetailDialog from "@/components/checklist/ChecklistDetailDialog";
+import ChecklistWeekTable from "@/components/checklist/ChecklistWeekTable";
 import NovoItemChecklistDialog from "@/components/checklist/NovoItemChecklistDialog";
-import { MultiSelectDropdown } from "@/components/ui/multi-select-dropdown";
-import { Loader2, Info, Copy, Lock, Unlock, Filter, X } from "lucide-react";
+import { Loader2, Info, Copy, Lock, Unlock, Filter, X, ChevronLeft, ChevronRight, CalendarDays } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -31,6 +30,11 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import {
   Sheet,
   SheetContent,
   SheetHeader,
@@ -38,37 +42,24 @@ import {
   SheetTrigger,
 } from "@/components/ui/sheet";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { MultiSelectDropdown } from "@/components/ui/multi-select-dropdown";
 
 interface Profile {
   id: string;
   user_id: string;
   nome: string;
   email: string;
-}
-
-interface ChecklistMultiFilters {
-  meses: string[];
-  anos: string[];
-  semanas: string[];
-  searchTerm: string;
+  cor?: string | null;
 }
 
 const SEMANAS = [1, 2, 3, 4, 5];
 
-const MESES = [
-  { value: "1", label: "Janeiro" },
-  { value: "2", label: "Fevereiro" },
-  { value: "3", label: "Março" },
-  { value: "4", label: "Abril" },
-  { value: "5", label: "Maio" },
-  { value: "6", label: "Junho" },
-  { value: "7", label: "Julho" },
-  { value: "8", label: "Agosto" },
-  { value: "9", label: "Setembro" },
-  { value: "10", label: "Outubro" },
-  { value: "11", label: "Novembro" },
-  { value: "12", label: "Dezembro" },
+const MONTH_NAMES = [
+  "Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho",
+  "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro",
 ];
+
+const MONTH_SHORT = ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez"];
 
 const SEMANAS_OPTIONS = [
   { value: "1", label: "1ª Semana" },
@@ -78,19 +69,18 @@ const SEMANAS_OPTIONS = [
   { value: "5", label: "5ª Semana" },
 ];
 
-const currentYear = new Date().getFullYear();
-const ANOS = Array.from({ length: 5 }, (_, i) => ({
-  value: String(currentYear - 2 + i),
-  label: String(currentYear - 2 + i),
-}));
-
 export default function Checklist() {
   const { isGestorOrAdmin, user } = useAuth();
   const now = new Date();
 
-  // Profiles for user assignment
   const [profiles, setProfiles] = useState<Profile[]>([]);
   const [selectedWeek, setSelectedWeek] = useState<number | null>(null);
+  const [currentMes, setCurrentMes] = useState(now.getMonth() + 1);
+  const [currentAno, setCurrentAno] = useState(now.getFullYear());
+  const [weekFilter, setWeekFilter] = useState<string[]>([]);
+  const [infoDismissed, setInfoDismissed] = useState(() => {
+    return localStorage.getItem("checklist-info-dismissed") === "true";
+  });
 
   useEffect(() => {
     const fetchProfiles = async () => {
@@ -100,300 +90,199 @@ export default function Checklist() {
     fetchProfiles();
   }, []);
 
-  // Filters state
-  const [filters, setFilters] = useState<ChecklistMultiFilters>({
-    meses: [String(now.getMonth() + 1)],
-    anos: [String(now.getFullYear())],
-    semanas: [],
-    searchTerm: "",
-  });
-
-  // Convert string arrays to number arrays
-  const mesesNum = useMemo(() => filters.meses.map((m) => parseInt(m, 10)), [filters.meses]);
-  const anosNum = useMemo(() => filters.anos.map((a) => parseInt(a, 10)), [filters.anos]);
-  const semanasNum = useMemo(() => filters.semanas.map((s) => parseInt(s, 10)), [filters.semanas]);
-
-  const { isLoading, getItemsByWeek, addItem, updateItem, deleteItem, rolloverToNextMonth, updateAssignees, reorderItems, items } = useChecklist({
-    meses: mesesNum,
-    anos: anosNum,
-    semanas: semanasNum,
-    searchTerm: filters.searchTerm,
-  });
+  const {
+    instances,
+    isLoading,
+    getInstancesByWeek,
+    getWeekStats,
+    updateInstanceStatus,
+    updateInstance,
+    deleteInstance,
+    addItem,
+    reorderItem,
+    updateAssignees,
+    rolloverToNextMonth,
+    addSubItem,
+    refetch,
+  } = useChecklistV2({ mes: currentMes, ano: currentAno });
 
   const { getMonthSetting, toggleMonthStatus } = useMonthSettings();
 
-  // For rollover
-  const [rolloverMes, setRolloverMes] = useState(now.getMonth() + 1);
-  const [rolloverAno, setRolloverAno] = useState(now.getFullYear());
+  const isCurrentMonth = currentMes === now.getMonth() + 1 && currentAno === now.getFullYear();
+  const isPastMonth = currentAno < now.getFullYear() || (currentAno === now.getFullYear() && currentMes < now.getMonth() + 1);
+  const monthSettings = getMonthSetting(currentMes, currentAno);
+  const isLocked = isPastMonth && !monthSettings?.status_ativo;
 
-  // Single month view detection
-  const isSingleMonthView = filters.meses.length === 1 && filters.anos.length === 1;
-  const viewedMes = isSingleMonthView ? parseInt(filters.meses[0]) : null;
-  const viewedAno = isSingleMonthView ? parseInt(filters.anos[0]) : null;
-  
-  const monthSettings = viewedMes && viewedAno ? getMonthSetting(viewedMes, viewedAno) : null;
-  const isCurrentMonth = viewedMes === now.getMonth() + 1 && viewedAno === now.getFullYear();
-  const isPastMonth = viewedMes && viewedAno && (viewedAno < now.getFullYear() || (viewedAno === now.getFullYear() && viewedMes < now.getMonth() + 1));
-  const isLocked = isSingleMonthView && isPastMonth && !monthSettings?.status_ativo;
+  // Month navigation
+  const goToPrevMonth = () => {
+    setSelectedWeek(null);
+    if (currentMes === 1) { setCurrentMes(12); setCurrentAno(currentAno - 1); }
+    else setCurrentMes(currentMes - 1);
+  };
 
-  // Which weeks to show
-  const semanasToShow = semanasNum.length > 0 ? semanasNum : SEMANAS;
+  const goToNextMonth = () => {
+    setSelectedWeek(null);
+    if (currentMes === 12) { setCurrentMes(1); setCurrentAno(currentAno + 1); }
+    else setCurrentMes(currentMes + 1);
+  };
 
-  // Calculate next month label
-  const nextMonthLabel = useMemo(() => {
-    let nextMes = rolloverMes + 1;
-    let nextAno = rolloverAno;
-    if (nextMes > 12) {
-      nextMes = 1;
-      nextAno = rolloverAno + 1;
-    }
-    const monthNames = ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez"];
-    return `${monthNames[nextMes - 1]}/${nextAno}`;
-  }, [rolloverMes, rolloverAno]);
-
-  const rolloverItemsCount = items.filter((i) => i.mes === rolloverMes && i.ano === rolloverAno).length;
+  const goToToday = () => {
+    setSelectedWeek(null);
+    setCurrentMes(now.getMonth() + 1);
+    setCurrentAno(now.getFullYear());
+  };
 
   const handleToggleLock = () => {
-    if (viewedMes && viewedAno) {
-      toggleMonthStatus(viewedMes, viewedAno);
-    }
+    toggleMonthStatus(currentMes, currentAno);
   };
 
-  const handleAddItemFromDialog = async (texto: string, semana: number, mes: number, ano: number, assignees?: string[]) => {
-    await addItem(semana, texto, mes, ano, assignees);
+  const handleAddItem = async (params: {
+    descricao: string;
+    tipo_item: TipoItem;
+    semanas: number[];
+    meses: number[];
+    anos: number[];
+    link?: string;
+    assignees?: string[];
+  }) => {
+    await addItem(params);
   };
 
-  const handleClearFilters = () => {
-    setFilters({
-      meses: [String(now.getMonth() + 1)],
-      anos: [String(now.getFullYear())],
-      semanas: [],
-      searchTerm: "",
-    });
+  const handleDismissInfo = () => {
+    setInfoDismissed(true);
+    localStorage.setItem("checklist-info-dismissed", "true");
   };
 
-  const hasActiveFilters =
-    filters.semanas.length > 0 ||
-    filters.searchTerm.trim() !== "" ||
-    filters.meses.length !== 1 ||
-    filters.anos.length !== 1 ||
-    (filters.meses.length === 1 && filters.meses[0] !== String(now.getMonth() + 1)) ||
-    (filters.anos.length === 1 && filters.anos[0] !== String(now.getFullYear()));
+  // Week filter
+  const semanasToShow = weekFilter.length > 0
+    ? weekFilter.map((s) => parseInt(s))
+    : SEMANAS;
 
-  // Items for selected week dialog
-  const selectedWeekItems = selectedWeek 
-    ? getItemsByWeek(selectedWeek, viewedMes ?? undefined, viewedAno ?? undefined)
-    : [];
-
-  // Stats per week
+  // Week stats
   const weekStats = useMemo(() => {
     const stats: Record<number, { total: number; completed: number; notDone: number }> = {};
     semanasToShow.forEach((sem) => {
-      const weekItems = getItemsByWeek(sem, viewedMes ?? undefined, viewedAno ?? undefined);
-      stats[sem] = {
-        total: weekItems.length,
-        completed: weekItems.filter((i) => i.status === "concluido" || i.concluido).length,
-        notDone: weekItems.filter((i) => i.status === "nao_realizado").length,
-      };
+      stats[sem] = getWeekStats(sem);
     });
     return stats;
-  }, [semanasToShow, items, viewedMes, viewedAno, getItemsByWeek]);
+  }, [semanasToShow, getWeekStats, instances]);
 
-  const mesesOptions = [
-    { value: 1, label: "Janeiro" },
-    { value: 2, label: "Fevereiro" },
-    { value: 3, label: "Março" },
-    { value: 4, label: "Abril" },
-    { value: 5, label: "Maio" },
-    { value: 6, label: "Junho" },
-    { value: 7, label: "Julho" },
-    { value: 8, label: "Agosto" },
-    { value: 9, label: "Setembro" },
-    { value: 10, label: "Outubro" },
-    { value: 11, label: "Novembro" },
-    { value: 12, label: "Dezembro" },
-  ];
+  // Rollover
+  const rolloverItemsCount = instances.filter((i) => i.tipo_item === "recorrente" && !i.parent_id).length;
+  const nextMonthLabel = useMemo(() => {
+    let nm = currentMes;
+    let na = currentAno;
+    if (nm === 12) { nm = 1; na++; } else nm++;
+    return `${MONTH_SHORT[nm - 1]}/${na}`;
+  }, [currentMes, currentAno]);
 
-  const anosOptions = Array.from({ length: 5 }, (_, i) => currentYear - 2 + i);
-
-  // Filter content for Sheet
-  const filterContent = (
-    <div className="space-y-4">
-      <div className="space-y-2">
-        <label className="text-sm font-medium">Ano</label>
-        <MultiSelectDropdown
-          options={ANOS}
-          selected={filters.anos}
-          onChange={(value) => setFilters({ ...filters, anos: value })}
-          placeholder="Selecionar ano"
-        />
-      </div>
-      
-      <div className="space-y-2">
-        <label className="text-sm font-medium">Mês</label>
-        <MultiSelectDropdown
-          options={MESES}
-          selected={filters.meses}
-          onChange={(value) => setFilters({ ...filters, meses: value })}
-          placeholder="Selecionar mês"
-        />
-      </div>
-      
-      <div className="space-y-2">
-        <label className="text-sm font-medium">Semana</label>
-        <MultiSelectDropdown
-          options={SEMANAS_OPTIONS}
-          selected={filters.semanas}
-          onChange={(value) => setFilters({ ...filters, semanas: value })}
-          placeholder="Todas as semanas"
-        />
-      </div>
-      
-      <div className="space-y-2">
-        <label className="text-sm font-medium">Buscar</label>
-        <Input
-          placeholder="Buscar tarefas..."
-          value={filters.searchTerm}
-          onChange={(e) => setFilters({ ...filters, searchTerm: e.target.value })}
-        />
-      </div>
-      
-      <Button
-        variant="destructive"
-        className="w-full"
-        onClick={handleClearFilters}
-        disabled={!hasActiveFilters}
-      >
-        <X className="mr-2 h-4 w-4" />
-        Limpar Filtros
-      </Button>
-    </div>
-  );
+  // Selected week items
+  const selectedWeekItems = selectedWeek ? getInstancesByWeek(selectedWeek) : [];
 
   return (
     <AppLayout>
-      <div className="p-4 lg:p-6 max-w-[1400px] mx-auto space-y-4 sm:space-y-6">
-        {/* Header */}
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-          <div>
-            <h1 className="text-xl sm:text-2xl font-bold tracking-tight">Checklist Semanal</h1>
-            <p className="text-sm sm:text-base text-muted-foreground">
-              Acompanhe as tarefas de cada semana do mês
-            </p>
+      <div className="p-4 lg:p-6 max-w-[1400px] mx-auto space-y-3">
+        {/* Compact Header */}
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+          <div className="flex items-center gap-3">
+            <h1 className="text-lg font-bold tracking-tight">Checklist</h1>
+
+            {/* Info popover */}
+            {!infoDismissed && (
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground">
+                    <Info className="h-4 w-4" />
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-80" align="start">
+                  <div className="space-y-2">
+                    <p className="text-sm font-medium">Como funciona</p>
+                    <p className="text-xs text-muted-foreground">
+                      Esta área contém o checklist padrão a ser cumprido antes de iniciar um momento APT.
+                      Itens recorrentes aparecem em todas as semanas. Itens avulsos existem apenas na semana selecionada.
+                    </p>
+                    <Button size="sm" variant="ghost" className="text-xs h-7" onClick={handleDismissInfo}>
+                      Não mostrar novamente
+                    </Button>
+                  </div>
+                </PopoverContent>
+              </Popover>
+            )}
           </div>
 
           <div className="flex items-center gap-2 flex-wrap">
-            {/* Filter button */}
-            <Sheet>
-              <SheetTrigger asChild>
-                <Button variant="outline" size="sm" className="gap-2">
-                  <Filter className="h-4 w-4" />
-                  Filtros
-                  {hasActiveFilters && (
-                    <span className="ml-1 rounded-full bg-primary px-2 py-0.5 text-xs text-primary-foreground">
-                      !
-                    </span>
-                  )}
-                </Button>
-              </SheetTrigger>
-              <SheetContent side="left" className="w-80 flex flex-col">
-                <SheetHeader>
-                  <SheetTitle className="flex items-center gap-2">
-                    <Filter className="h-4 w-4" />
-                    Filtros
-                  </SheetTitle>
-                </SheetHeader>
-                <ScrollArea className="flex-1 mt-6 -mx-6 px-6">
-                  <div className="pb-6">
-                    {filterContent}
-                  </div>
-                </ScrollArea>
-              </SheetContent>
-            </Sheet>
+            {/* Month navigation */}
+            <div className="flex items-center gap-1 bg-muted/50 rounded-lg p-0.5">
+              <Button variant="ghost" size="icon" className="h-7 w-7" onClick={goToPrevMonth}>
+                <ChevronLeft className="h-4 w-4" />
+              </Button>
+              <span className="text-sm font-medium px-2 min-w-[120px] text-center">
+                {MONTH_NAMES[currentMes - 1]} {currentAno}
+              </span>
+              <Button variant="ghost" size="icon" className="h-7 w-7" onClick={goToNextMonth}>
+                <ChevronRight className="h-4 w-4" />
+              </Button>
+            </div>
 
-            {/* Toggle lock for past months */}
-            {isGestorOrAdmin && isSingleMonthView && isPastMonth && (
+            {!isCurrentMonth && (
+              <Button variant="outline" size="sm" className="h-7 gap-1 text-xs" onClick={goToToday}>
+                <CalendarDays className="h-3.5 w-3.5" />
+                Hoje
+              </Button>
+            )}
+
+            {/* Week filter */}
+            <div className="w-[130px]">
+              <MultiSelectDropdown
+                options={SEMANAS_OPTIONS}
+                selected={weekFilter}
+                onChange={setWeekFilter}
+                placeholder="Semanas"
+              />
+            </div>
+
+            {/* Lock toggle */}
+            {isGestorOrAdmin && isPastMonth && (
               <Button
                 variant={isLocked ? "outline" : "secondary"}
                 size="sm"
+                className="h-7 gap-1 text-xs"
                 onClick={handleToggleLock}
-                className="gap-2"
               >
-                {isLocked ? (
-                  <>
-                    <Lock className="h-4 w-4" />
-                    <span className="hidden sm:inline">Desbloquear</span>
-                  </>
-                ) : (
-                  <>
-                    <Unlock className="h-4 w-4" />
-                    <span className="hidden sm:inline">Bloquear</span>
-                  </>
-                )}
+                {isLocked ? <Lock className="h-3.5 w-3.5" /> : <Unlock className="h-3.5 w-3.5" />}
+                <span className="hidden sm:inline">{isLocked ? "Desbloquear" : "Bloquear"}</span>
               </Button>
             )}
 
             {isGestorOrAdmin && (
               <>
                 <NovoItemChecklistDialog
-                  onAddItem={handleAddItemFromDialog}
-                  defaultMes={viewedMes ?? now.getMonth() + 1}
-                  defaultAno={viewedAno ?? now.getFullYear()}
-                  defaultSemana={1}
+                  onAddItem={handleAddItem}
+                  defaultMes={currentMes}
+                  defaultAno={currentAno}
+                  defaultSemana={selectedWeek || 1}
                 />
 
-                {/* Rollover button */}
+                {/* Rollover */}
                 <AlertDialog>
                   <AlertDialogTrigger asChild>
-                    <Button variant="outline" size="sm" className="gap-2">
-                      <Copy className="h-4 w-4" />
+                    <Button variant="outline" size="sm" className="h-7 gap-1 text-xs">
+                      <Copy className="h-3.5 w-3.5" />
                       <span className="hidden sm:inline">Copiar mês</span>
                     </Button>
                   </AlertDialogTrigger>
                   <AlertDialogContent>
                     <AlertDialogHeader>
-                      <AlertDialogTitle>Copiar checklist para o próximo mês</AlertDialogTitle>
-                      <AlertDialogDescription className="space-y-4">
-                        <p>Selecione o mês de origem para copiar os itens:</p>
-                        <div className="flex gap-2">
-                          <Select 
-                            value={String(rolloverAno)} 
-                            onValueChange={(v) => setRolloverAno(Number(v))}
-                          >
-                            <SelectTrigger className="w-24">
-                              <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {anosOptions.map((a) => (
-                                <SelectItem key={a} value={String(a)}>{a}</SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                          <Select 
-                            value={String(rolloverMes)} 
-                            onValueChange={(v) => setRolloverMes(Number(v))}
-                          >
-                            <SelectTrigger className="w-32">
-                              <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {mesesOptions.map((m) => (
-                                <SelectItem key={m.value} value={String(m.value)}>{m.label}</SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        </div>
-                        <p>
-                          Isso irá copiar {rolloverItemsCount > 0 ? `todos os ${rolloverItemsCount} itens` : "os itens"} do checklist 
-                          de <strong>{mesesOptions.find(m => m.value === rolloverMes)?.label}/{rolloverAno}</strong> para{" "}
-                          <strong>{nextMonthLabel}</strong>. Os itens serão copiados com status "não concluído".
-                        </p>
+                      <AlertDialogTitle>Copiar checklist para {nextMonthLabel}</AlertDialogTitle>
+                      <AlertDialogDescription>
+                        Serão copiados apenas os <strong>{rolloverItemsCount} itens recorrentes</strong> de {MONTH_NAMES[currentMes - 1]}/{currentAno} para {nextMonthLabel}. Itens avulsos não serão copiados.
                       </AlertDialogDescription>
                     </AlertDialogHeader>
                     <AlertDialogFooter>
                       <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                      <AlertDialogAction 
-                        onClick={() => rolloverToNextMonth(rolloverMes, rolloverAno)}
+                      <AlertDialogAction
+                        onClick={() => rolloverToNextMonth(currentMes, currentAno)}
                         disabled={rolloverItemsCount === 0}
                       >
                         Confirmar cópia
@@ -406,29 +295,21 @@ export default function Checklist() {
           </div>
         </div>
 
-        {/* Observation alert */}
-        <Alert className="bg-muted/50 border-primary/20">
-          <Info className="h-4 w-4 text-primary" />
-          <AlertDescription className="text-sm">
-            <strong>Observação:</strong> Esta área contém o checklist padrão a ser cumprido antes de iniciar um momento APT.
-          </AlertDescription>
-        </Alert>
-
-        {/* Lock indicator */}
-        {isSingleMonthView && isPastMonth && (
-          <Alert variant={isLocked ? "default" : "destructive"} className={isLocked ? "bg-amber-500/10 border-amber-500/30" : ""}>
+        {/* Lock indicator (compact) */}
+        {isPastMonth && (
+          <Alert variant={isLocked ? "default" : "destructive"} className={isLocked ? "bg-amber-500/10 border-amber-500/30 py-2" : "py-2"}>
             {isLocked ? (
               <>
-                <Lock className="h-4 w-4 text-amber-600" />
-                <AlertDescription className="text-sm text-amber-700 dark:text-amber-400">
-                  Este mês está <strong>bloqueado</strong> para edição.
+                <Lock className="h-3.5 w-3.5 text-amber-600" />
+                <AlertDescription className="text-xs text-amber-700 dark:text-amber-400">
+                  Mês <strong>bloqueado</strong> para edição.
                 </AlertDescription>
               </>
             ) : (
               <>
-                <Unlock className="h-4 w-4" />
-                <AlertDescription className="text-sm">
-                  Este mês está <strong>desbloqueado</strong> temporariamente para edição.
+                <Unlock className="h-3.5 w-3.5" />
+                <AlertDescription className="text-xs">
+                  Mês <strong>desbloqueado</strong> temporariamente.
                 </AlertDescription>
               </>
             )}
@@ -441,38 +322,43 @@ export default function Checklist() {
             <Loader2 className="h-8 w-8 animate-spin text-primary" />
           </div>
         ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4">
-            {semanasToShow.map((sem) => (
-              <ChecklistSummaryCard
-                key={sem}
-                semana={sem}
-                totalItems={weekStats[sem]?.total || 0}
-                completedItems={weekStats[sem]?.completed || 0}
-                notDoneItems={weekStats[sem]?.notDone || 0}
-                onClick={() => setSelectedWeek(sem)}
-              />
-            ))}
-          </div>
-        )}
+          <>
+            {/* Summary Cards */}
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
+              {semanasToShow.map((sem) => (
+                <ChecklistSummaryCard
+                  key={sem}
+                  semana={sem}
+                  totalItems={weekStats[sem]?.total || 0}
+                  completedItems={weekStats[sem]?.completed || 0}
+                  notDoneItems={weekStats[sem]?.notDone || 0}
+                  onClick={() => setSelectedWeek(selectedWeek === sem ? null : sem)}
+                  isSelected={selectedWeek === sem}
+                />
+              ))}
+            </div>
 
-        {/* Detail Dialog */}
-        <ChecklistDetailDialog
-          open={selectedWeek !== null}
-          onOpenChange={(open) => !open && setSelectedWeek(null)}
-          semana={selectedWeek || 1}
-          mes={viewedMes ?? undefined}
-          ano={viewedAno ?? undefined}
-          items={selectedWeekItems}
-          canEdit={isGestorOrAdmin}
-          isLocked={isLocked ?? false}
-          currentUserId={user?.id}
-          isGestorOrAdmin={isGestorOrAdmin}
-          profiles={profiles}
-          onUpdateItem={updateItem}
-          onDeleteItem={deleteItem}
-          onUpdateAssignees={updateAssignees}
-          onReorderItems={reorderItems}
-        />
+            {/* Inline Week Table (expansion below cards) */}
+            {selectedWeek && (
+              <ChecklistWeekTable
+                semana={selectedWeek}
+                items={selectedWeekItems}
+                canModify={isGestorOrAdmin && !isLocked}
+                isLocked={isLocked ?? false}
+                currentUserId={user?.id}
+                isGestorOrAdmin={isGestorOrAdmin}
+                profiles={profiles}
+                onUpdateStatus={updateInstanceStatus}
+                onUpdateInstance={updateInstance}
+                onDeleteInstance={deleteInstance}
+                onUpdateAssignees={updateAssignees}
+                onReorder={reorderItem}
+                onClose={() => setSelectedWeek(null)}
+                onAddSubItem={addSubItem}
+              />
+            )}
+          </>
+        )}
       </div>
     </AppLayout>
   );

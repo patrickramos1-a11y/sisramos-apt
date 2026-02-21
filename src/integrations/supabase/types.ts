@@ -377,6 +377,101 @@ export type Database = {
           },
         ]
       }
+      checklist_instance_assignees: {
+        Row: {
+          created_at: string
+          id: string
+          instance_id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          instance_id: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          instance_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "checklist_instance_assignees_instance_id_fkey"
+            columns: ["instance_id"]
+            isOneToOne: false
+            referencedRelation: "checklist_instances"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      checklist_instances: {
+        Row: {
+          ano: number
+          created_at: string
+          descricao_override: string | null
+          id: string
+          is_group: boolean
+          link_override: string | null
+          mes: number
+          ordem_override: number | null
+          parent_id: string | null
+          semana: number
+          status: string
+          template_id: string | null
+          tipo_item: string
+          updated_at: string
+        }
+        Insert: {
+          ano: number
+          created_at?: string
+          descricao_override?: string | null
+          id?: string
+          is_group?: boolean
+          link_override?: string | null
+          mes: number
+          ordem_override?: number | null
+          parent_id?: string | null
+          semana: number
+          status?: string
+          template_id?: string | null
+          tipo_item?: string
+          updated_at?: string
+        }
+        Update: {
+          ano?: number
+          created_at?: string
+          descricao_override?: string | null
+          id?: string
+          is_group?: boolean
+          link_override?: string | null
+          mes?: number
+          ordem_override?: number | null
+          parent_id?: string | null
+          semana?: number
+          status?: string
+          template_id?: string | null
+          tipo_item?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "checklist_instances_parent_id_fkey"
+            columns: ["parent_id"]
+            isOneToOne: false
+            referencedRelation: "checklist_instances"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "checklist_instances_template_id_fkey"
+            columns: ["template_id"]
+            isOneToOne: false
+            referencedRelation: "checklist_templates"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       checklist_item_assignees: {
         Row: {
           checklist_item_id: string
@@ -482,6 +577,68 @@ export type Database = {
           semana?: number
           status?: string
           texto?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      checklist_template_assignees: {
+        Row: {
+          created_at: string
+          id: string
+          template_id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          template_id: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          template_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "checklist_template_assignees_template_id_fkey"
+            columns: ["template_id"]
+            isOneToOne: false
+            referencedRelation: "checklist_templates"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      checklist_templates: {
+        Row: {
+          ativo: boolean
+          created_at: string
+          descricao: string
+          id: string
+          link_default: string | null
+          ordem_global: number
+          semanas_aplicaveis: number[]
+          updated_at: string
+        }
+        Insert: {
+          ativo?: boolean
+          created_at?: string
+          descricao: string
+          id?: string
+          link_default?: string | null
+          ordem_global?: number
+          semanas_aplicaveis?: number[]
+          updated_at?: string
+        }
+        Update: {
+          ativo?: boolean
+          created_at?: string
+          descricao?: string
+          id?: string
+          link_default?: string | null
+          ordem_global?: number
+          semanas_aplicaveis?: number[]
           updated_at?: string
         }
         Relationships: []
