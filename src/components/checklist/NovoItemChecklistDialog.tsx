@@ -11,9 +11,17 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { MultiSelectDropdown } from "@/components/ui/multi-select-dropdown";
 import { Plus } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import type { TipoItem } from "@/hooks/useChecklistV2";
 
 interface Profile {
   id: string;
@@ -22,7 +30,15 @@ interface Profile {
 }
 
 interface NovoItemChecklistDialogProps {
-  onAddItem: (texto: string, semana: number, mes: number, ano: number, assignees?: string[]) => Promise<void>;
+  onAddItem: (params: {
+    descricao: string;
+    tipo_item: TipoItem;
+    semanas: number[];
+    meses: number[];
+    anos: number[];
+    link?: string;
+    assignees?: string[];
+  }) => Promise<void>;
   defaultMes?: number;
   defaultAno?: number;
   defaultSemana?: number;
@@ -66,6 +82,7 @@ export default function NovoItemChecklistDialog({
   const now = new Date();
   const [open, setOpen] = useState(false);
   const [texto, setTexto] = useState("");
+  const [tipoItem, setTipoItem] = useState<TipoItem>("recorrente");
   const [meses, setMeses] = useState<string[]>([String(defaultMes ?? now.getMonth() + 1)]);
   const [anos, setAnos] = useState<string[]>([String(defaultAno ?? now.getFullYear())]);
   const [semanas, setSemanas] = useState<string[]>([String(defaultSemana ?? 1)]);
@@ -73,7 +90,6 @@ export default function NovoItemChecklistDialog({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [profiles, setProfiles] = useState<Profile[]>([]);
 
-  // Fetch profiles on mount
   useEffect(() => {
     const fetchProfiles = async () => {
       const { data } = await supabase.from("profiles").select("id, user_id, nome");
@@ -82,7 +98,6 @@ export default function NovoItemChecklistDialog({
     fetchProfiles();
   }, []);
 
-  // Calculate total items that will be created
   const totalItems = anos.length * meses.length * semanas.length;
 
   const responsavelOptions = profiles.map(p => ({
@@ -92,23 +107,17 @@ export default function NovoItemChecklistDialog({
 
   const handleSubmit = async () => {
     if (!texto.trim() || anos.length === 0 || meses.length === 0 || semanas.length === 0) return;
-    
+
     setIsSubmitting(true);
     try {
-      // Create an item for each combination of year, month, and week
-      for (const ano of anos) {
-        for (const mes of meses) {
-          for (const semana of semanas) {
-            await onAddItem(
-              texto.trim(), 
-              parseInt(semana), 
-              parseInt(mes), 
-              parseInt(ano),
-              selectedResponsaveis.length > 0 ? selectedResponsaveis : undefined
-            );
-          }
-        }
-      }
+      await onAddItem({
+        descricao: texto.trim(),
+        tipo_item: tipoItem,
+        semanas: semanas.map(Number),
+        meses: meses.map(Number),
+        anos: anos.map(Number),
+        assignees: selectedResponsaveis.length > 0 ? selectedResponsaveis : undefined,
+      });
       setTexto("");
       setSelectedResponsaveis([]);
       setOpen(false);
@@ -120,21 +129,22 @@ export default function NovoItemChecklistDialog({
   const handleOpenChange = (newOpen: boolean) => {
     setOpen(newOpen);
     if (newOpen) {
-      // Reset to defaults when opening
       setTexto("");
+      setTipoItem("recorrente");
       setMeses([String(defaultMes ?? now.getMonth() + 1)]);
       setAnos([String(defaultAno ?? now.getFullYear())]);
       setSemanas([String(defaultSemana ?? 1)]);
       setSelectedResponsaveis([]);
     }
   };
+
   const isValid = texto.trim() && anos.length > 0 && meses.length > 0 && semanas.length > 0;
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogTrigger asChild>
-        <Button variant="default" size="sm" className="gap-2">
-          <Plus className="h-4 w-4" />
+        <Button variant="default" size="sm" className="h-7 gap-1 text-xs">
+          <Plus className="h-3.5 w-3.5" />
           <span className="hidden sm:inline">Novo Item</span>
           <span className="sm:hidden">Novo</span>
         </Button>
@@ -143,12 +153,36 @@ export default function NovoItemChecklistDialog({
         <DialogHeader>
           <DialogTitle>Novo Item do Checklist</DialogTitle>
           <DialogDescription>
-            Adicione um novo item ao checklist. Selecione os períodos desejados (pode selecionar múltiplos).
+            Selecione o tipo e os períodos desejados.
           </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-4 py-4">
-          {/* Period selection - multi-select */}
+          {/* Type selection */}
+          <div className="space-y-2">
+            <Label>Tipo do Item</Label>
+            <Select value={tipoItem} onValueChange={(v) => setTipoItem(v as TipoItem)}>
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="recorrente">
+                  <div>
+                    <span className="font-medium">Recorrente</span>
+                    <span className="text-xs text-muted-foreground ml-2">— Persiste entre meses</span>
+                  </div>
+                </SelectItem>
+                <SelectItem value="avulso_semana">
+                  <div>
+                    <span className="font-medium">Avulso da Semana</span>
+                    <span className="text-xs text-muted-foreground ml-2">— Não copia</span>
+                  </div>
+                </SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          {/* Period selection */}
           <div className="grid grid-cols-3 gap-3">
             <div className="space-y-2">
               <Label>Ano</Label>
@@ -159,7 +193,6 @@ export default function NovoItemChecklistDialog({
                 placeholder="Ano"
               />
             </div>
-
             <div className="space-y-2">
               <Label>Mês</Label>
               <MultiSelectDropdown
@@ -169,7 +202,6 @@ export default function NovoItemChecklistDialog({
                 placeholder="Mês"
               />
             </div>
-
             <div className="space-y-2">
               <Label>Semana</Label>
               <MultiSelectDropdown
@@ -181,7 +213,7 @@ export default function NovoItemChecklistDialog({
             </div>
           </div>
 
-          {/* Responsáveis selection */}
+          {/* Responsáveis */}
           <div className="space-y-2">
             <Label>Responsáveis (opcional)</Label>
             <MultiSelectDropdown
@@ -190,46 +222,40 @@ export default function NovoItemChecklistDialog({
               onChange={setSelectedResponsaveis}
               placeholder="Selecionar responsáveis..."
             />
-            {selectedResponsaveis.length > 0 && (
-              <p className="text-xs text-muted-foreground">
-                {selectedResponsaveis.length} responsável(is) selecionado(s)
-              </p>
-            )}
           </div>
 
-          {/* Info about how many items will be created */}
+          {/* Info */}
           {totalItems > 1 && (
             <p className="text-sm text-muted-foreground bg-muted/50 p-2 rounded-md">
-              Serão criados <strong>{totalItems} itens</strong> (1 para cada combinação de ano/mês/semana selecionada)
+              Serão criados <strong>{totalItems} itens</strong> (1 para cada combinação)
             </p>
           )}
 
-          {/* Text input */}
+          {tipoItem === "avulso_semana" && (
+            <p className="text-xs text-amber-600 dark:text-amber-400 bg-amber-500/10 p-2 rounded-md">
+              ⚠ Itens avulsos da semana <strong>não serão copiados</strong> ao usar "Copiar mês".
+            </p>
+          )}
+
+          {/* Text */}
           <div className="space-y-2">
-            <Label htmlFor="texto">Descrição do Item</Label>
+            <Label htmlFor="texto">Descrição</Label>
             <Textarea
               id="texto"
-              placeholder="Digite a descrição do item do checklist..."
+              placeholder="Digite a descrição do item..."
               value={texto}
               onChange={(e) => setTexto(e.target.value)}
-              className="min-h-[100px] resize-none"
+              className="min-h-[80px] resize-none"
               autoFocus
             />
           </div>
         </div>
 
         <DialogFooter>
-          <Button
-            variant="outline"
-            onClick={() => setOpen(false)}
-            disabled={isSubmitting}
-          >
+          <Button variant="outline" onClick={() => setOpen(false)} disabled={isSubmitting}>
             Cancelar
           </Button>
-          <Button
-            onClick={handleSubmit}
-            disabled={!isValid || isSubmitting}
-          >
+          <Button onClick={handleSubmit} disabled={!isValid || isSubmitting}>
             {isSubmitting ? "Adicionando..." : totalItems > 1 ? `Adicionar ${totalItems} itens` : "Adicionar"}
           </Button>
         </DialogFooter>

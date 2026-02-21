@@ -9,6 +9,7 @@ interface ChecklistSummaryCardProps {
   completedItems: number;
   notDoneItems?: number;
   onClick: () => void;
+  isSelected?: boolean;
 }
 
 export default function ChecklistSummaryCard({
@@ -17,6 +18,7 @@ export default function ChecklistSummaryCard({
   completedItems,
   notDoneItems = 0,
   onClick,
+  isSelected = false,
 }: ChecklistSummaryCardProps) {
   const progress = totalItems > 0 ? (completedItems / totalItems) * 100 : 0;
   const allCompleted = totalItems > 0 && completedItems === totalItems;
@@ -51,9 +53,9 @@ export default function ChecklistSummaryCard({
       : weekColor.badge;
 
   const title = allCompleted
-    ? "Semana Completa ✓"
+    ? "Completa ✓"
     : allProcessed
-      ? "Semana Finalizada ⚠"
+      ? "Finalizada ⚠"
       : `${semana}ª Semana`;
 
   return (
@@ -61,42 +63,43 @@ export default function ChecklistSummaryCard({
       className={cn(
         "cursor-pointer transition-all duration-200 hover:shadow-lg hover:scale-[1.02]",
         allCompleted && "ring-2 ring-primary/30 bg-primary/5 animate-glow-pulse",
-        allProcessed && "ring-2 ring-amber-500/30 bg-amber-500/5 animate-glow-pulse-amber"
+        allProcessed && "ring-2 ring-amber-500/30 bg-amber-500/5 animate-glow-pulse-amber",
+        isSelected && !allCompleted && !allProcessed && "ring-2 ring-ring"
       )}
       onClick={onClick}
     >
       <CardHeader className="p-0">
-        <div className={cn("px-4 py-3 bg-gradient-to-r rounded-t-lg", headerGradient)}>
-          <div className="flex items-center justify-between gap-2">
-            <div className="flex items-center gap-2">
-              <div className={cn("p-1.5 rounded-md", iconClass)}>
+        <div className={cn("px-3 py-2 bg-gradient-to-r rounded-t-lg", headerGradient)}>
+          <div className="flex items-center justify-between gap-1">
+            <div className="flex items-center gap-1.5">
+              <div className={cn("p-1 rounded-md", iconClass)}>
                 {allCompleted ? (
-                  <CheckCircle2 className="h-4 w-4 text-primary animate-check-bounce" />
+                  <CheckCircle2 className="h-3.5 w-3.5 text-primary animate-check-bounce" />
                 ) : allProcessed ? (
-                  <AlertCircle className="h-4 w-4 text-amber-600 dark:text-amber-400 animate-check-bounce" />
+                  <AlertCircle className="h-3.5 w-3.5 text-amber-600 dark:text-amber-400 animate-check-bounce" />
                 ) : (
-                  <Calendar className="h-4 w-4" />
+                  <Calendar className="h-3.5 w-3.5" />
                 )}
               </div>
-              <h3 className="font-semibold text-sm sm:text-base">{title}</h3>
+              <h3 className="font-semibold text-xs sm:text-sm">{title}</h3>
             </div>
-            <CircularProgress value={progress} size={32} strokeWidth={3} completedCount={completedItems} notDoneCount={notDoneItems} totalCount={totalItems} />
+            <CircularProgress value={progress} size={28} strokeWidth={2.5} completedCount={completedItems} notDoneCount={notDoneItems} totalCount={totalItems} />
           </div>
         </div>
       </CardHeader>
 
-      <CardContent className="p-4">
-        <div className="flex items-center justify-between mb-3">
-          <div className="flex items-center gap-2 text-muted-foreground">
-            <ListTodo className="h-4 w-4" />
-            <span className="text-sm">{totalItems} tarefas</span>
+      <CardContent className="p-3 pt-2">
+        <div className="flex items-center justify-between mb-2">
+          <div className="flex items-center gap-1.5 text-muted-foreground">
+            <ListTodo className="h-3.5 w-3.5" />
+            <span className="text-xs">{totalItems}</span>
           </div>
-          <span className={cn("text-xs font-medium px-2 py-0.5 rounded-full", badgeClass)}>
+          <span className={cn("text-[10px] font-medium px-1.5 py-0.5 rounded-full", badgeClass)}>
             {completedItems}/{totalItems}
           </span>
         </div>
-        
-        <div className="w-full bg-secondary rounded-full h-2 overflow-hidden flex">
+
+        <div className="w-full bg-secondary rounded-full h-1.5 overflow-hidden flex">
           <div
             className="h-full bg-primary rounded-l-full transition-all duration-500 ease-out"
             style={{ width: `${progress}%` }}
@@ -108,10 +111,6 @@ export default function ChecklistSummaryCard({
             />
           )}
         </div>
-        
-        <p className="text-xs text-muted-foreground mt-2 text-center">
-          Clique para ver detalhes
-        </p>
       </CardContent>
     </Card>
   );
