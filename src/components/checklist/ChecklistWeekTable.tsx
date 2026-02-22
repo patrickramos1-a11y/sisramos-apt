@@ -15,8 +15,6 @@ import {
 } from "@dnd-kit/sortable";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   Select,
   SelectContent,
@@ -24,7 +22,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Calendar, CheckCircle2, AlertCircle, Search, ChevronUp, Plus } from "lucide-react";
+import { Calendar, CheckCircle2, AlertCircle, Search, ChevronUp, Plus, ListTree } from "lucide-react";
+import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 import CircularProgress from "./CircularProgress";
 import SortableChecklistItem from "./SortableChecklistItem";
@@ -236,16 +235,6 @@ export default function ChecklistWeekTable({
             <SelectItem value="nao_realizado">Não realizado</SelectItem>
           </SelectContent>
         </Select>
-        <Select value={filterTipo} onValueChange={setFilterTipo}>
-          <SelectTrigger className="h-8 w-[130px] text-xs">
-            <SelectValue placeholder="Tipo" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">Todos</SelectItem>
-            <SelectItem value="recorrente">Recorrente</SelectItem>
-            <SelectItem value="avulso_semana">Avulso</SelectItem>
-          </SelectContent>
-        </Select>
       </div>
 
       {/* Table header - desktop only */}
@@ -254,10 +243,9 @@ export default function ChecklistWeekTable({
           {canModify && <span className="w-5 shrink-0" />}
           <span className="w-5 shrink-0">Status</span>
           <span className="flex-1">Tarefa</span>
-          <span className="w-16 text-center">Tipo</span>
           <span className="w-24 text-center">Responsáveis</span>
           <span className="w-10 text-center">Link</span>
-          {canModify && <span className="w-16 text-center">Ações</span>}
+          {canModify && <span className="w-20 text-center">Ações</span>}
         </div>
       )}
 
@@ -281,49 +269,68 @@ export default function ChecklistWeekTable({
                   const isAssignedToMe = currentUserId && itemAssignees.includes(currentUserId);
                   const canCompleteItem = isGestorOrAdmin || isAssignedToMe || itemAssignees.length === 0;
 
-                  return (
-                    <div key={item.id}>
-                      <div className="flex items-center gap-1">
-                        {/* Group expand button */}
-                        {item.is_group && (
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-6 w-6 shrink-0"
-                            onClick={() => toggleGroup(item.id)}
-                          >
-                            <ChevronUp className={cn("h-3.5 w-3.5 transition-transform", !expandedGroups.has(item.id) && "rotate-180")} />
-                          </Button>
-                        )}
-                        <div className="flex-1">
-                          <SortableChecklistItem
-                            item={item}
-                            index={index}
-                            canModify={canModify && !item.is_group}
-                            canCompleteItem={canCompleteItem && !item.is_group}
-                            isLocked={isLocked}
-                            canEdit={isGestorOrAdmin}
-                            profiles={profiles}
-                            onUpdateItem={handleUpdateItem}
-                            onDeleteItem={onDeleteInstance}
-                            onUpdateAssignees={onUpdateAssignees}
-                          />
-                        </div>
-                        {/* Type badge */}
-                        <Badge
-                          variant="outline"
-                          className={cn(
-                            "hidden md:inline-flex shrink-0 text-[10px] h-5",
-                            item.tipo_item === "recorrente" ? "border-primary/30 text-primary" : "border-amber-500/30 text-amber-600"
+                    return (
+                      <div key={item.id}>
+                        <div className="flex items-center gap-1">
+                          {/* Group expand button */}
+                          {item.is_group && (
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-6 w-6 shrink-0"
+                              onClick={() => toggleGroup(item.id)}
+                            >
+                              <ChevronUp className={cn("h-3.5 w-3.5 transition-transform", !expandedGroups.has(item.id) && "rotate-180")} />
+                            </Button>
                           )}
-                        >
-                          {item.tipo_item === "recorrente" ? "Recorrente" : "Avulsa"}
-                        </Badge>
-                      </div>
+                          <div className="flex-1">
+                            <SortableChecklistItem
+                              item={item}
+                              index={index}
+                              canModify={canModify && !item.is_group}
+                              canCompleteItem={canCompleteItem && !item.is_group}
+                              isLocked={isLocked}
+                              canEdit={isGestorOrAdmin}
+                              profiles={profiles}
+                              onUpdateItem={handleUpdateItem}
+                              onDeleteItem={onDeleteInstance}
+                              onUpdateAssignees={onUpdateAssignees}
+                            />
+                          </div>
+                          {/* Convert to group / add subtask button */}
+                          {canModify && onAddSubItem && !item.parent_id && (
+                            <TooltipProvider>
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className="h-7 w-7 shrink-0 text-muted-foreground hover:text-foreground"
+                                    onClick={() => {
+                                      // Just expand/toggle - the inline add input will be there
+                                      const willExpand = !expandedGroups.has(item.id);
+                                      if (willExpand) {
+                                        setExpandedGroups((prev) => new Set(prev).add(item.id));
+                                      } else {
+                                        toggleGroup(item.id);
+                                      }
+                                    }}
+                                  >
+                                    <ListTree className="h-3.5 w-3.5" />
+                                  </Button>
+                                </TooltipTrigger>
+                                <TooltipContent side="top">
+                                  <p className="text-xs">{item.is_group ? "Gerenciar subtarefas" : "Adicionar subtarefa"}</p>
+                                </TooltipContent>
+                              </Tooltip>
+                            </TooltipProvider>
+                          )}
+                        </div>
                       {/* Children of group */}
-                      {item.is_group && expandedGroups.has(item.id) && item.children && (
+                      {/* Children / subtask area - show for ANY expanded item */}
+                      {expandedGroups.has(item.id) && (
                         <div className="ml-8 border-l-2 border-muted pl-3 space-y-0.5 mt-1 mb-2">
-                          {item.children.map((child, childIdx) => {
+                          {item.is_group && item.children && item.children.map((child, childIdx) => {
                             const childAssignees = child.assignees || [];
                             const childIsAssigned = currentUserId && childAssignees.includes(currentUserId);
                             const childCanComplete = isGestorOrAdmin || childIsAssigned || childAssignees.length === 0;
@@ -351,6 +358,11 @@ export default function ChecklistWeekTable({
                               />
                             );
                           })}
+                          {!item.is_group && !item.children?.length && (
+                            <p className="text-xs text-muted-foreground py-2">
+                              Nenhuma subtarefa ainda. Adicione abaixo:
+                            </p>
+                          )}
                           {canModify && onAddSubItem && (
                             <AddSubItemInline parentId={item.id} semana={semana} onAdd={onAddSubItem} />
                           )}

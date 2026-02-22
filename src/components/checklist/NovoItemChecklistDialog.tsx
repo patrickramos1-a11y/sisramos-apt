@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
+import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
   Dialog,
@@ -82,6 +83,7 @@ export default function NovoItemChecklistDialog({
   const now = new Date();
   const [open, setOpen] = useState(false);
   const [texto, setTexto] = useState("");
+  const [link, setLink] = useState("");
   const [tipoItem, setTipoItem] = useState<TipoItem>("recorrente");
   const [meses, setMeses] = useState<string[]>([String(defaultMes ?? now.getMonth() + 1)]);
   const [anos, setAnos] = useState<string[]>([String(defaultAno ?? now.getFullYear())]);
@@ -116,9 +118,11 @@ export default function NovoItemChecklistDialog({
         semanas: semanas.map(Number),
         meses: meses.map(Number),
         anos: anos.map(Number),
+        link: link.trim() || undefined,
         assignees: selectedResponsaveis.length > 0 ? selectedResponsaveis : undefined,
       });
       setTexto("");
+      setLink("");
       setSelectedResponsaveis([]);
       setOpen(false);
     } finally {
@@ -130,6 +134,7 @@ export default function NovoItemChecklistDialog({
     setOpen(newOpen);
     if (newOpen) {
       setTexto("");
+      setLink("");
       setTipoItem("recorrente");
       setMeses([String(defaultMes ?? now.getMonth() + 1)]);
       setAnos([String(defaultAno ?? now.getFullYear())]);
@@ -247,6 +252,17 @@ export default function NovoItemChecklistDialog({
               onChange={(e) => setTexto(e.target.value)}
               className="min-h-[80px] resize-none"
               autoFocus
+            />
+          </div>
+
+          {/* Link */}
+          <div className="space-y-2">
+            <Label htmlFor="link">Link de referência (opcional)</Label>
+            <Input
+              id="link"
+              placeholder="https://link-de-referencia.com"
+              value={link}
+              onChange={(e) => setLink(e.target.value)}
             />
           </div>
         </div>
