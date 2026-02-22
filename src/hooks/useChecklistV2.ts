@@ -90,7 +90,7 @@ export function useChecklistV2({ mes, ano }: UseChecklistV2Options) {
   }, []);
 
   // Fetch instances for a specific month
-  const fetchInstances = useCallback(async (targetMes: number, targetAno: number, loadedTemplates?: ChecklistTemplate[]) => {
+  const fetchInstances = useCallback(async (targetMes: number, targetAno: number, loadedTemplates: ChecklistTemplate[]) => {
     const { data, error } = await (supabase
       .from("checklist_instances")
       .select("*") as any)
@@ -120,7 +120,7 @@ export function useChecklistV2({ mes, ano }: UseChecklistV2Options) {
       });
     }
 
-    const tpls = loadedTemplates || templates;
+    const tpls = loadedTemplates;
 
     // Resolve descriptions, links, and ordem from templates
     const resolvedInstances: ChecklistInstance[] = (data || []).map((inst: any) => {
@@ -136,7 +136,7 @@ export function useChecklistV2({ mes, ano }: UseChecklistV2Options) {
 
     setInstances(resolvedInstances);
     return resolvedInstances;
-  }, [templates]);
+  }, []);
 
   // Load data
   const loadData = useCallback(async () => {
@@ -148,6 +148,8 @@ export function useChecklistV2({ mes, ano }: UseChecklistV2Options) {
       setIsLoading(false);
     }
   }, [mes, ano, fetchTemplates, fetchInstances]);
+
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- loadData is stable now
 
   useEffect(() => {
     loadData();
