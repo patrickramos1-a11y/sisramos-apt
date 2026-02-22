@@ -262,7 +262,7 @@ export default function ChecklistWeekTable({
       )}
 
       {/* Items */}
-      <ScrollArea className="max-h-[50vh]">
+      <div className="max-h-[50vh] overflow-y-auto">
         <div className="space-y-0.5 p-3">
           {adaptedItems.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-8 text-center">
@@ -363,7 +363,7 @@ export default function ChecklistWeekTable({
             </DndContext>
           )}
         </div>
-      </ScrollArea>
+      </div>
 
       {canModify && adaptedItems.length > 1 && (
         <div className="px-4 py-2 border-t bg-muted/20">
