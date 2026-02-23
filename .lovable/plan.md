@@ -1,47 +1,40 @@
 
-# Feedback visual para semanas finalizadas com itens "Nao Realizado"
 
-## Contexto
-Atualmente, quando **todos os itens** de uma semana sao concluidos (status `concluido`), o card exibe um efeito de brilho verde pulsante (`animate-glow-pulse`) com ring verde e icone de sucesso. Porem, quando a semana esta **totalmente processada** (nenhum item pendente) mas possui itens marcados como `nao_realizado`, nao ha nenhum feedback visual diferenciado.
+## Funcionalidade: Itens Avulsos no Checklist
 
-## O que sera feito
+### Objetivo
+Tornar os itens "Avulso" visualmente distintos na lista de tarefas da semana, com uma forma rapida de adiciona-los inline (sem precisar abrir o dialog). Subtarefas continuam sendo subtarefas e nao sao avulsos.
 
-Adicionar um estado intermediario: **"Semana Finalizada"** -- quando todos os itens foram processados (completados + nao realizados = total), mas existem itens `nao_realizado`. Esse estado tera uma estetica que transmite "quase conseguimos", com tom amarelo/ambar pulsante.
+### O que muda
 
-### Logica de estados do card
+**1. Badge visual "Avulso" no item da tabela**
+- No componente `SortableChecklistItem`, quando o item tiver `tipo_item === "avulso_semana"`, exibir um badge pequeno "Avulso" ao lado do texto da tarefa (cor amarela/amber para diferenciar).
+- Itens recorrentes nao mostram badge nenhum (sao o padrao).
 
-```text
-+------------------------------------------+
-| totalItems == 0         -> Estado normal  |
-| completedItems == total -> Vitoria (verde)|
-| completed + notDone == total              |
-|   && notDone > 0        -> "Quase la"    |
-| otherwise               -> Em progresso  |
-+------------------------------------------+
-```
+**2. Separacao visual na lista da semana**
+- No `ChecklistWeekTable`, agrupar os itens em duas secoes:
+  - **Tarefas recorrentes** (listadas primeiro, como ja funciona)
+  - **Avulso** (separados por um divisor com label "Avulso", listados abaixo)
+- Isso facilita a visualizacao sem misturar os dois tipos.
 
-### Mudancas visuais do estado "Quase la"
+**3. Botao "Adicionar Avulso" inline na tabela**
+- No rodape da secao "Avulso" do `ChecklistWeekTable`, adicionar um input inline (similar ao `AddSubItemInline` que ja existe) para criar rapidamente um item avulso direto na semana atual, sem abrir o dialog completo.
+- O item criado tera `tipo_item: "avulso_semana"`, vinculado ao mes/ano/semana corrente.
 
-| Elemento | Vitoria (atual) | "Quase la" (novo) |
-|---|---|---|
-| Ring do card | `ring-primary/30` (verde) | `ring-amber-500/30` (amarelo) |
-| Background | `bg-primary/5` | `bg-amber-500/5` |
-| Animacao | `animate-glow-pulse` (verde) | `animate-glow-pulse-amber` (amarelo) |
-| Header gradient | `from-primary/20 to-primary/10` | `from-amber-500/20 to-amber-500/10` |
-| Icone | CheckCircle2 verde | AlertCircle amarelo com bounce |
-| Titulo | "Semana Completa" | "Semana Finalizada" |
-| Badge | `bg-primary/20 text-primary` | `bg-amber-500/20 text-amber-600` |
+**4. Filtro de tipo na barra de filtros**
+- Restaurar o dropdown de filtro por tipo (Todos / Recorrente / Avulso) na barra de filtros da tabela semanal, permitindo ver apenas um tipo.
 
-## Detalhes tecnicos
+### Detalhes tecnicos
 
-### 1. `src/index.css` - Nova animacao amber
-Adicionar um `@keyframes glowPulseAmber` identico ao `glowPulse` mas usando a cor amber em vez de primary, e a classe `.animate-glow-pulse-amber`.
+**Arquivos modificados:**
 
-### 2. `src/components/checklist/ChecklistSummaryCard.tsx`
-- Criar uma variavel `allProcessed` que verifica se `completedItems + notDoneItems === totalItems && totalItems > 0 && notDoneItems > 0`.
-- Usar `allProcessed` para aplicar as classes amber no card, header, icone, titulo e badge.
-- Usar o icone `AlertCircle` do lucide-react para o estado "quase la".
-- Manter a logica de `allCompleted` inalterada para o estado de vitoria.
+| Arquivo | Alteracao |
+|---|---|
+| `src/components/checklist/SortableChecklistItem.tsx` | Aceitar prop `tipo_item`, renderizar badge "Avulso" quando aplicavel |
+| `src/components/checklist/ChecklistWeekTable.tsx` | Separar itens em duas secoes (recorrente + avulso), adicionar input inline para avulso, restaurar filtro de tipo |
+| `src/hooks/useChecklistV2.ts` | Adicionar funcao `addQuickAvulso(descricao, semana)` que cria um item avulso rapidamente com parametros minimos |
 
-### 3. `src/components/checklist/ChecklistDetailDialog.tsx`
-- Aplicar a mesma logica de `allProcessed` no cabecalho do dialogo de detalhes para consistencia visual entre card e dialogo.
+**Logica de rollover:** Ja esta implementada corretamente -- a funcao `rolloverToNextMonth` no hook so copia itens com `tipo_item === "recorrente"`, entao avulsos ficam no mes de origem.
+
+**Subtarefas:** Subtarefas continuam usando `parent_id` e nao tem relacao com o tipo avulso. Um item avulso pode ter subtarefas, e um item recorrente tambem.
+
