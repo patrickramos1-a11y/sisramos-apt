@@ -89,17 +89,17 @@ export default function ChecklistSummaryCard({
       </CardHeader>
 
       <CardContent className="p-3 pt-2">
-        <div className="flex items-center justify-between mb-2">
+        <div className="flex items-center justify-between mb-1.5">
           <div className="flex items-center gap-1.5 text-muted-foreground">
             <ListTodo className="h-3.5 w-3.5" />
-            <span className="text-xs">{totalItems}</span>
+            <span className="text-xs">{totalItems} tarefas</span>
           </div>
           <span className={cn("text-[10px] font-medium px-1.5 py-0.5 rounded-full", badgeClass)}>
             {completedItems}/{totalItems}
           </span>
         </div>
 
-        <div className="w-full bg-secondary rounded-full h-1.5 overflow-hidden flex">
+        <div className="w-full bg-secondary rounded-full h-1.5 overflow-hidden flex mb-2">
           <div
             className="h-full bg-primary rounded-l-full transition-all duration-500 ease-out"
             style={{ width: `${progress}%` }}
@@ -111,6 +111,10 @@ export default function ChecklistSummaryCard({
             />
           )}
         </div>
+
+        <p className="text-[11px] text-muted-foreground text-center">
+          Clique para ver detalhes
+        </p>
       </CardContent>
     </Card>
   );
