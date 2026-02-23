@@ -103,6 +103,7 @@ export default function Checklist() {
     updateAssignees,
     rolloverToNextMonth,
     addSubItem,
+    addQuickAvulso,
     refetch,
   } = useChecklistV2({ mes: currentMes, ano: currentAno });
 
@@ -355,6 +356,7 @@ export default function Checklist() {
                 onReorder={reorderItem}
                 onClose={() => setSelectedWeek(null)}
                 onAddSubItem={addSubItem}
+                onAddQuickAvulso={addQuickAvulso}
               />
             )}
           </>

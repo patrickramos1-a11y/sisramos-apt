@@ -26,6 +26,7 @@ interface ChecklistItem {
   status?: ChecklistStatus;
   link?: string | null;
   assignees?: string[];
+  tipo_item?: string;
 }
 
 interface SortableChecklistItemProps {
@@ -203,15 +204,22 @@ export default function SortableChecklistItem({
         <>
           {/* Task text - flex-1 */}
           <div className="flex-1 min-w-0">
-            <span
-              className={cn(
-                "block text-sm leading-relaxed break-words transition-all duration-200",
-                isCompleted && "line-through text-muted-foreground animate-strike-through",
-                isNotDone && "text-destructive"
+            <div className="flex items-center gap-1.5">
+              <span
+                className={cn(
+                  "text-sm leading-relaxed break-words transition-all duration-200",
+                  isCompleted && "line-through text-muted-foreground animate-strike-through",
+                  isNotDone && "text-destructive"
+                )}
+              >
+                {item.texto}
+              </span>
+              {item.tipo_item === "avulso_semana" && (
+                <span className="shrink-0 text-[10px] font-medium px-1.5 py-0.5 rounded-full bg-amber-500/15 text-amber-700 dark:text-amber-400 border border-amber-500/20">
+                  Avulso
+                </span>
               )}
-            >
-              {item.texto}
-            </span>
+            </div>
           </div>
 
           {/* Assignees */}
