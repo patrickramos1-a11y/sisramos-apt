@@ -22,7 +22,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Calendar, CheckCircle2, AlertCircle, Search, ChevronUp, Plus, ListTree } from "lucide-react";
+import { Calendar, CheckCircle2, AlertCircle, Search, ChevronUp, Plus, ListTree, Zap } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 import CircularProgress from "./CircularProgress";
@@ -52,6 +52,7 @@ interface ChecklistWeekTableProps {
   onReorder: (instanceId: string, newIndex: number, semana: number) => Promise<void>;
   onClose: () => void;
   onAddSubItem?: (parentId: string, descricao: string, semana: number) => Promise<void>;
+  onAddQuickAvulso?: (descricao: string, semana: number) => Promise<void>;
 }
 
 export default function ChecklistWeekTable({
@@ -69,6 +70,7 @@ export default function ChecklistWeekTable({
   onReorder,
   onClose,
   onAddSubItem,
+  onAddQuickAvulso,
 }: ChecklistWeekTableProps) {
   const [searchTerm, setSearchTerm] = useState("");
   const [filterStatus, setFilterStatus] = useState<string>("all");
@@ -162,6 +164,116 @@ export default function ChecklistWeekTable({
     }));
   }, [filteredItems]);
 
+  // Separate into recorrente and avulso
+  const recorrenteItems = useMemo(() => adaptedItems.filter((i) => i.tipo_item !== "avulso_semana"), [adaptedItems]);
+  const avulsoItems = useMemo(() => adaptedItems.filter((i) => i.tipo_item === "avulso_semana"), [adaptedItems]);
+
+  const showRecorrente = filterTipo === "all" || filterTipo === "recorrente";
+  const showAvulso = filterTipo === "all" || filterTipo === "avulso_semana";
+
+  // Helper to render a section of items
+  const renderItemSection = (sectionItems: typeof adaptedItems, allAdapted: typeof adaptedItems) => (
+    <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+      <SortableContext items={sectionItems.map((i) => i.id)} strategy={verticalListSortingStrategy}>
+        {sectionItems.map((item) => {
+          const globalIndex = allAdapted.findIndex((a) => a.id === item.id);
+          const itemAssignees = item.assignees || [];
+          const isAssignedToMe = currentUserId && itemAssignees.includes(currentUserId);
+          const canCompleteItem = isGestorOrAdmin || isAssignedToMe || itemAssignees.length === 0;
+
+          return (
+            <div key={item.id}>
+              <div className="flex items-center gap-1">
+                {item.is_group && (
+                  <Button variant="ghost" size="icon" className="h-6 w-6 shrink-0" onClick={() => toggleGroup(item.id)}>
+                    <ChevronUp className={cn("h-3.5 w-3.5 transition-transform", !expandedGroups.has(item.id) && "rotate-180")} />
+                  </Button>
+                )}
+                <div className="flex-1">
+                  <SortableChecklistItem
+                    item={item}
+                    index={globalIndex}
+                    canModify={canModify && !item.is_group}
+                    canCompleteItem={canCompleteItem && !item.is_group}
+                    isLocked={isLocked}
+                    canEdit={isGestorOrAdmin}
+                    profiles={profiles}
+                    onUpdateItem={handleUpdateItem}
+                    onDeleteItem={onDeleteInstance}
+                    onUpdateAssignees={onUpdateAssignees}
+                  />
+                </div>
+                {canModify && onAddSubItem && !item.parent_id && (
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-7 w-7 shrink-0 text-muted-foreground hover:text-foreground"
+                          onClick={() => {
+                            const willExpand = !expandedGroups.has(item.id);
+                            if (willExpand) {
+                              setExpandedGroups((prev) => new Set(prev).add(item.id));
+                            } else {
+                              toggleGroup(item.id);
+                            }
+                          }}
+                        >
+                          <ListTree className="h-3.5 w-3.5" />
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent side="top">
+                        <p className="text-xs">{item.is_group ? "Gerenciar subtarefas" : "Adicionar subtarefa"}</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                )}
+              </div>
+              {expandedGroups.has(item.id) && (
+                <div className="ml-8 border-l-2 border-muted pl-3 space-y-0.5 mt-1 mb-2">
+                  {item.is_group && item.children && item.children.map((child, childIdx) => {
+                    const childAssignees = child.assignees || [];
+                    const childIsAssigned = currentUserId && childAssignees.includes(currentUserId);
+                    const childCanComplete = isGestorOrAdmin || childIsAssigned || childAssignees.length === 0;
+                    return (
+                      <SortableChecklistItem
+                        key={child.id}
+                        item={{
+                          id: child.id,
+                          texto: child.descricao,
+                          concluido: child.status === "concluido",
+                          status: child.status,
+                          link: child.link,
+                          assignees: child.assignees,
+                        }}
+                        index={childIdx}
+                        canModify={canModify}
+                        canCompleteItem={childCanComplete}
+                        isLocked={isLocked}
+                        canEdit={isGestorOrAdmin}
+                        profiles={profiles}
+                        onUpdateItem={handleUpdateItem}
+                        onDeleteItem={onDeleteInstance}
+                        onUpdateAssignees={onUpdateAssignees}
+                      />
+                    );
+                  })}
+                  {!item.is_group && !item.children?.length && (
+                    <p className="text-xs text-muted-foreground py-2">Nenhuma subtarefa ainda. Adicione abaixo:</p>
+                  )}
+                  {canModify && onAddSubItem && (
+                    <AddSubItemInline parentId={item.id} semana={semana} onAdd={onAddSubItem} />
+                  )}
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </SortableContext>
+    </DndContext>
+  );
+
   return (
     <div className="border rounded-lg bg-card shadow-sm animate-fade-in mt-4">
       {/* Header */}
@@ -235,6 +347,16 @@ export default function ChecklistWeekTable({
             <SelectItem value="nao_realizado">Não realizado</SelectItem>
           </SelectContent>
         </Select>
+        <Select value={filterTipo} onValueChange={setFilterTipo}>
+          <SelectTrigger className="h-8 w-[130px] text-xs">
+            <SelectValue placeholder="Tipo" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Todos</SelectItem>
+            <SelectItem value="recorrente">Recorrente</SelectItem>
+            <SelectItem value="avulso_semana">Avulso</SelectItem>
+          </SelectContent>
+        </Select>
       </div>
 
       {/* Table header - desktop only */}
@@ -262,117 +384,38 @@ export default function ChecklistWeekTable({
               </p>
             </div>
           ) : (
-            <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
-              <SortableContext items={adaptedItems.map((i) => i.id)} strategy={verticalListSortingStrategy}>
-                {adaptedItems.map((item, index) => {
-                  const itemAssignees = item.assignees || [];
-                  const isAssignedToMe = currentUserId && itemAssignees.includes(currentUserId);
-                  const canCompleteItem = isGestorOrAdmin || isAssignedToMe || itemAssignees.length === 0;
-
-                    return (
-                      <div key={item.id}>
-                        <div className="flex items-center gap-1">
-                          {/* Group expand button */}
-                          {item.is_group && (
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="h-6 w-6 shrink-0"
-                              onClick={() => toggleGroup(item.id)}
-                            >
-                              <ChevronUp className={cn("h-3.5 w-3.5 transition-transform", !expandedGroups.has(item.id) && "rotate-180")} />
-                            </Button>
-                          )}
-                          <div className="flex-1">
-                            <SortableChecklistItem
-                              item={item}
-                              index={index}
-                              canModify={canModify && !item.is_group}
-                              canCompleteItem={canCompleteItem && !item.is_group}
-                              isLocked={isLocked}
-                              canEdit={isGestorOrAdmin}
-                              profiles={profiles}
-                              onUpdateItem={handleUpdateItem}
-                              onDeleteItem={onDeleteInstance}
-                              onUpdateAssignees={onUpdateAssignees}
-                            />
-                          </div>
-                          {/* Convert to group / add subtask button */}
-                          {canModify && onAddSubItem && !item.parent_id && (
-                            <TooltipProvider>
-                              <Tooltip>
-                                <TooltipTrigger asChild>
-                                  <Button
-                                    variant="ghost"
-                                    size="icon"
-                                    className="h-7 w-7 shrink-0 text-muted-foreground hover:text-foreground"
-                                    onClick={() => {
-                                      // Just expand/toggle - the inline add input will be there
-                                      const willExpand = !expandedGroups.has(item.id);
-                                      if (willExpand) {
-                                        setExpandedGroups((prev) => new Set(prev).add(item.id));
-                                      } else {
-                                        toggleGroup(item.id);
-                                      }
-                                    }}
-                                  >
-                                    <ListTree className="h-3.5 w-3.5" />
-                                  </Button>
-                                </TooltipTrigger>
-                                <TooltipContent side="top">
-                                  <p className="text-xs">{item.is_group ? "Gerenciar subtarefas" : "Adicionar subtarefa"}</p>
-                                </TooltipContent>
-                              </Tooltip>
-                            </TooltipProvider>
-                          )}
-                        </div>
-                      {/* Children of group */}
-                      {/* Children / subtask area - show for ANY expanded item */}
-                      {expandedGroups.has(item.id) && (
-                        <div className="ml-8 border-l-2 border-muted pl-3 space-y-0.5 mt-1 mb-2">
-                          {item.is_group && item.children && item.children.map((child, childIdx) => {
-                            const childAssignees = child.assignees || [];
-                            const childIsAssigned = currentUserId && childAssignees.includes(currentUserId);
-                            const childCanComplete = isGestorOrAdmin || childIsAssigned || childAssignees.length === 0;
-
-                            return (
-                              <SortableChecklistItem
-                                key={child.id}
-                                item={{
-                                  id: child.id,
-                                  texto: child.descricao,
-                                  concluido: child.status === "concluido",
-                                  status: child.status,
-                                  link: child.link,
-                                  assignees: child.assignees,
-                                }}
-                                index={childIdx}
-                                canModify={canModify}
-                                canCompleteItem={childCanComplete}
-                                isLocked={isLocked}
-                                canEdit={isGestorOrAdmin}
-                                profiles={profiles}
-                                onUpdateItem={handleUpdateItem}
-                                onDeleteItem={onDeleteInstance}
-                                onUpdateAssignees={onUpdateAssignees}
-                              />
-                            );
-                          })}
-                          {!item.is_group && !item.children?.length && (
-                            <p className="text-xs text-muted-foreground py-2">
-                              Nenhuma subtarefa ainda. Adicione abaixo:
-                            </p>
-                          )}
-                          {canModify && onAddSubItem && (
-                            <AddSubItemInline parentId={item.id} semana={semana} onAdd={onAddSubItem} />
-                          )}
-                        </div>
-                      )}
+            <>
+              {/* Recorrente section */}
+              {showRecorrente && recorrenteItems.length > 0 && (
+                <div>
+                  {showAvulso && avulsoItems.length > 0 && (
+                    <div className="flex items-center gap-2 mb-2">
+                      <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Recorrentes</span>
+                      <div className="flex-1 h-px bg-border" />
                     </div>
-                  );
-                })}
-              </SortableContext>
-            </DndContext>
+                  )}
+                  {renderItemSection(recorrenteItems, adaptedItems)}
+                </div>
+              )}
+
+              {/* Avulso section */}
+              {showAvulso && (
+                <div className={cn(showRecorrente && recorrenteItems.length > 0 && "mt-4")}>
+                  <div className="flex items-center gap-2 mb-2">
+                    <Zap className="h-3 w-3 text-amber-500" />
+                    <span className="text-[10px] font-semibold uppercase tracking-wider text-amber-600 dark:text-amber-400">Avulso</span>
+                    <div className="flex-1 h-px bg-amber-500/20" />
+                  </div>
+                  {avulsoItems.length > 0 && renderItemSection(avulsoItems, adaptedItems)}
+                  {avulsoItems.length === 0 && !searchTerm && filterStatus === "all" && (
+                    <p className="text-xs text-muted-foreground py-2 pl-5">Nenhum item avulso nesta semana</p>
+                  )}
+                  {canModify && onAddQuickAvulso && (
+                    <AddAvulsoInline semana={semana} onAdd={onAddQuickAvulso} />
+                  )}
+                </div>
+              )}
+            </>
           )}
         </div>
       </div>
@@ -407,6 +450,36 @@ function AddSubItemInline({ parentId, semana, onAdd }: { parentId: string; seman
         value={text}
         onChange={(e) => setText(e.target.value)}
         placeholder="Adicionar sub-item..."
+        className="h-7 text-xs flex-1"
+        onKeyDown={(e) => e.key === "Enter" && handleAdd()}
+      />
+      <Button size="sm" variant="ghost" className="h-7 px-2" onClick={handleAdd} disabled={!text.trim() || adding}>
+        <Plus className="h-3.5 w-3.5" />
+      </Button>
+    </div>
+  );
+}
+
+// Inline avulso add
+function AddAvulsoInline({ semana, onAdd }: { semana: number; onAdd: (descricao: string, semana: number) => Promise<void> }) {
+  const [text, setText] = useState("");
+  const [adding, setAdding] = useState(false);
+
+  const handleAdd = async () => {
+    if (!text.trim()) return;
+    setAdding(true);
+    await onAdd(text.trim(), semana);
+    setText("");
+    setAdding(false);
+  };
+
+  return (
+    <div className="flex items-center gap-2 py-1 mt-1">
+      <Zap className="h-3.5 w-3.5 text-amber-500 shrink-0" />
+      <Input
+        value={text}
+        onChange={(e) => setText(e.target.value)}
+        placeholder="Adicionar item avulso..."
         className="h-7 text-xs flex-1"
         onKeyDown={(e) => e.key === "Enter" && handleAdd()}
       />

@@ -616,6 +616,29 @@ export function useChecklistV2({ mes, ano }: UseChecklistV2Options) {
     }
   }, [instances, mes, ano, loadData, toast]);
 
+  // Quick add avulso item
+  const addQuickAvulso = useCallback(async (descricao: string, semana: number) => {
+    try {
+      const { error } = await (supabase.from("checklist_instances") as any)
+        .insert({
+          template_id: null,
+          ano,
+          mes,
+          semana,
+          tipo_item: "avulso_semana",
+          descricao_override: descricao,
+          status: "pendente",
+        });
+
+      if (error) throw error;
+      toast({ title: "Avulso adicionado", description: "Item avulso criado com sucesso" });
+      await loadData();
+    } catch (error: any) {
+      console.error("Error adding quick avulso:", error);
+      toast({ variant: "destructive", title: "Erro ao adicionar avulso", description: error.message });
+    }
+  }, [ano, mes, loadData, toast]);
+
   return {
     templates,
     instances,
@@ -630,6 +653,7 @@ export function useChecklistV2({ mes, ano }: UseChecklistV2Options) {
     updateAssignees,
     rolloverToNextMonth,
     addSubItem,
+    addQuickAvulso,
     refetch: loadData,
   };
 }
