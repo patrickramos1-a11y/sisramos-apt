@@ -89,24 +89,24 @@ export default function Dashboard() {
       query = query.eq("responsavel_id", user.id);
     }
 
-    // Apply global filters
-    if (filters.ano !== "all") {
-      query = query.eq("ano", parseInt(filters.ano));
+    // Apply global filters via Supabase .in() for arrays
+    if (filters.anos.length > 0) {
+      query = query.in("ano", filters.anos.map(Number));
     }
-    if (filters.mes !== "all") {
-      query = query.eq("mes", parseInt(filters.mes));
+    if (filters.meses.length > 0) {
+      query = query.in("mes", filters.meses.map(Number));
     }
-    if (filters.responsavel !== "all") {
-      query = query.eq("responsavel_id", filters.responsavel);
+    if (filters.responsaveis.length > 0) {
+      query = query.in("responsavel_id", filters.responsaveis);
     }
-    if (filters.setor !== "all") {
-      query = query.eq("setor_id", filters.setor);
+    if (filters.setores.length > 0) {
+      query = query.in("setor_id", filters.setores);
     }
-    if (filters.statusFeito !== "all") {
-      query = query.eq("status_responsavel", filters.statusFeito as StatusBolinha);
+    if (filters.statusFeito.length > 0) {
+      query = query.in("status_responsavel", filters.statusFeito as StatusBolinha[]);
     }
-    if (filters.statusAprovado !== "all") {
-      query = query.eq("status_gestor", filters.statusAprovado as StatusBolinha);
+    if (filters.statusAprovado.length > 0) {
+      query = query.in("status_gestor", filters.statusAprovado as StatusBolinha[]);
     }
 
     const { data: demandasData } = await query;
@@ -114,13 +114,13 @@ export default function Dashboard() {
     let filteredData = demandasData || [];
     
     // Client-side filters
-    if (filters.semana !== "all") {
-      const semanaNum = parseInt(filters.semana);
-      filteredData = filteredData.filter((d) => d.semana_limite?.includes(semanaNum));
+    if (filters.semanas.length > 0) {
+      const semanaNums = filters.semanas.map(Number);
+      filteredData = filteredData.filter((d) => d.semana_limite?.some((s) => semanaNums.includes(s)));
     }
-    if (filters.repeticao !== "all") {
-      const repNum = parseInt(filters.repeticao);
-      filteredData = filteredData.filter((d) => d.semanas_repeticao === repNum);
+    if (filters.repeticoes.length > 0) {
+      const repNums = filters.repeticoes.map(Number);
+      filteredData = filteredData.filter((d) => repNums.includes(d.semanas_repeticao));
     }
     if (filters.urgente) {
       filteredData = filteredData.filter((d) => d.muito_urgente);
