@@ -8,53 +8,53 @@ import {
 import { PieChart, Pie, Cell, ResponsiveContainer } from "recharts";
 import { cn } from "@/lib/utils";
 
-interface StatusDonutChartProps {
+interface GestorStatusDonutChartProps {
   data: {
-    feito: number;
+    aprovado: number;
     pendente: number;
-    naoRealizado: number;
+    rejeitado: number;
   };
   onStatusClick?: (status: string) => void;
   activeStatus?: string | null;
 }
 
 const COLORS = {
-  feito: "hsl(142 76% 36%)",
+  aprovado: "hsl(221 83% 53%)",
   pendente: "hsl(38 92% 50%)",
-  naoRealizado: "hsl(0 84% 60%)",
+  rejeitado: "hsl(0 84% 60%)",
 };
 
 const LABELS = {
-  feito: "Feito",
+  aprovado: "Aprovado",
   pendente: "Pendente",
-  naoRealizado: "Não Realizado",
+  rejeitado: "Não Aprovado",
 };
 
-export default function StatusDonutChart({
+export default function GestorStatusDonutChart({
   data,
   onStatusClick,
   activeStatus,
-}: StatusDonutChartProps) {
+}: GestorStatusDonutChartProps) {
   const chartData = useMemo(() => {
     return [
-      { name: "feito", value: data.feito, label: LABELS.feito, color: COLORS.feito },
+      { name: "aprovado", value: data.aprovado, label: LABELS.aprovado, color: COLORS.aprovado },
       { name: "pendente", value: data.pendente, label: LABELS.pendente, color: COLORS.pendente },
-      { name: "naoRealizado", value: data.naoRealizado, label: LABELS.naoRealizado, color: COLORS.naoRealizado },
+      { name: "rejeitado", value: data.rejeitado, label: LABELS.rejeitado, color: COLORS.rejeitado },
     ].filter((d) => d.value > 0);
   }, [data]);
 
-  const total = data.feito + data.pendente + data.naoRealizado;
+  const total = data.aprovado + data.pendente + data.rejeitado;
 
   const chartConfig = {
-    feito: { label: "Feito", color: COLORS.feito },
+    aprovado: { label: "Aprovado", color: COLORS.aprovado },
     pendente: { label: "Pendente", color: COLORS.pendente },
-    naoRealizado: { label: "Não Realizado", color: COLORS.naoRealizado },
+    rejeitado: { label: "Não Aprovado", color: COLORS.rejeitado },
   };
 
   return (
     <Card>
       <CardHeader className="pb-2">
-        <CardTitle className="text-lg">Status Colaborador</CardTitle>
+        <CardTitle className="text-lg">Status Gestor/Admin</CardTitle>
       </CardHeader>
       <CardContent>
         <ChartContainer config={chartConfig} className="h-[280px] w-full">

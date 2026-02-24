@@ -10,6 +10,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import DashboardFilters from "@/components/dashboard/DashboardFilters";
 import KPICard from "@/components/dashboard/KPICard";
 import StatusDonutChart from "@/components/dashboard/StatusDonutChart";
+import GestorStatusDonutChart from "@/components/dashboard/GestorStatusDonutChart";
 import WeeklyStackedChart from "@/components/dashboard/WeeklyStackedChart";
 import BottleneckChart from "@/components/dashboard/BottleneckChart";
 import CriticalDemandsList from "@/components/dashboard/CriticalDemandsList";
@@ -189,7 +190,11 @@ export default function Dashboard() {
     const naoRealizado = demandas.filter((d) => d.status_responsavel === "nao_realizado").length;
     const urgente = demandas.filter((d) => d.muito_urgente).length;
 
-    return { total, feito, aprovado, pendente, naoRealizado, urgente };
+    // Gestor statuses
+    const gestorPendente = demandas.filter((d) => d.status_gestor === "pendente").length;
+    const gestorRejeitado = demandas.filter((d) => d.status_gestor === "nao_realizado").length;
+
+    return { total, feito, aprovado, pendente, naoRealizado, urgente, gestorPendente, gestorRejeitado };
   }, [demandas]);
 
   // Monthly evolution data for historical chart
@@ -372,14 +377,22 @@ export default function Dashboard() {
                 />
               </div>
 
-              {/* Charts Row */}
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+              {/* Charts Row - Status Donuts */}
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 <StatusDonutChart
                   data={{
                     feito: kpis.feito,
-                    aprovado: kpis.aprovado,
                     pendente: kpis.pendente,
                     naoRealizado: kpis.naoRealizado,
+                  }}
+                  onStatusClick={handleStatusClick}
+                  activeStatus={crossFilter?.type === "status" ? crossFilter.value : null}
+                />
+                <GestorStatusDonutChart
+                  data={{
+                    aprovado: kpis.aprovado,
+                    pendente: kpis.gestorPendente,
+                    rejeitado: kpis.gestorRejeitado,
                   }}
                   onStatusClick={handleStatusClick}
                   activeStatus={crossFilter?.type === "status" ? crossFilter.value : null}
