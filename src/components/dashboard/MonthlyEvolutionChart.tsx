@@ -86,7 +86,7 @@ export default function MonthlyEvolutionChart({ data }: MonthlyEvolutionChartPro
                 }
               />
               <Line
-                type="monotone"
+                type="linear"
                 dataKey="percentual"
                 stroke="var(--color-percentual)"
                 strokeWidth={2}
