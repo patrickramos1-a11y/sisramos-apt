@@ -278,9 +278,6 @@ export default function Dashboard() {
     );
   }
 
-  // Determine which dashboard to show based on role
-  const showCollaboratorView = !isGestorOrAdmin;
-
   return (
     <AppLayout>
       <div className="p-4 lg:p-6 space-y-4 max-w-[1800px] mx-auto">
@@ -306,44 +303,44 @@ export default function Dashboard() {
         />
 
         {/* Tabs for different dashboards */}
-        {isGestorOrAdmin ? (
-          <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
-            <TabsList className="grid w-full grid-cols-4 lg:w-auto lg:inline-grid">
-              <TabsTrigger value="executivo" className="gap-2">
-                <LayoutDashboard className="h-4 w-4 hidden sm:inline" />
-                Executivo
-              </TabsTrigger>
-              <TabsTrigger value="operacional" className="gap-2">
-                <Clock className="h-4 w-4 hidden sm:inline" />
-                Momento APT
-              </TabsTrigger>
-              <TabsTrigger value="individual" className="gap-2">
-                <Users className="h-4 w-4 hidden sm:inline" />
-                Individual
-              </TabsTrigger>
-              <TabsTrigger value="historico" className="gap-2">
-                <TrendingUp className="h-4 w-4 hidden sm:inline" />
-                Histórico
-              </TabsTrigger>
-            </TabsList>
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
+          <TabsList className="grid w-full grid-cols-4 lg:w-auto lg:inline-grid">
+            <TabsTrigger value="executivo" className="gap-2">
+              <LayoutDashboard className="h-4 w-4 hidden sm:inline" />
+              Executivo
+            </TabsTrigger>
+            <TabsTrigger value="operacional" className="gap-2">
+              <Clock className="h-4 w-4 hidden sm:inline" />
+              Momento APT
+            </TabsTrigger>
+            <TabsTrigger value="individual" className="gap-2">
+              <Users className="h-4 w-4 hidden sm:inline" />
+              Individual
+            </TabsTrigger>
+            <TabsTrigger value="historico" className="gap-2">
+              <TrendingUp className="h-4 w-4 hidden sm:inline" />
+              Histórico
+            </TabsTrigger>
+          </TabsList>
 
-            {/* DASHBOARD EXECUTIVO */}
-            <TabsContent value="executivo" className="space-y-4">
-              {/* KPI Cards */}
-              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
-                <KPICard
-                  title="Total"
-                  value={kpis.total}
-                  onClick={() => handleKPIClick("total")}
-                />
-                <KPICard
-                  title="Feito"
-                  value={kpis.feito}
-                  percentage={kpis.total > 0 ? Math.round((kpis.feito / kpis.total) * 100) : 0}
-                  color="green"
-                  onClick={() => handleKPIClick("feito")}
-                  isActive={crossFilter?.type === "status" && crossFilter.value === "feito"}
-                />
+          {/* DASHBOARD EXECUTIVO */}
+          <TabsContent value="executivo" className="space-y-4">
+            {/* KPI Cards */}
+            <div className={`grid grid-cols-2 md:grid-cols-3 ${isGestorOrAdmin ? 'lg:grid-cols-6' : 'lg:grid-cols-5'} gap-4`}>
+              <KPICard
+                title="Total"
+                value={kpis.total}
+                onClick={() => handleKPIClick("total")}
+              />
+              <KPICard
+                title="Feito"
+                value={kpis.feito}
+                percentage={kpis.total > 0 ? Math.round((kpis.feito / kpis.total) * 100) : 0}
+                color="green"
+                onClick={() => handleKPIClick("feito")}
+                isActive={crossFilter?.type === "status" && crossFilter.value === "feito"}
+              />
+              {isGestorOrAdmin && (
                 <KPICard
                   title="Aprovado"
                   value={kpis.aprovado}
@@ -352,42 +349,44 @@ export default function Dashboard() {
                   onClick={() => handleKPIClick("aprovado")}
                   isActive={crossFilter?.type === "status" && crossFilter.value === "aprovado"}
                 />
-                <KPICard
-                  title="Pendente"
-                  value={kpis.pendente}
-                  percentage={kpis.total > 0 ? Math.round((kpis.pendente / kpis.total) * 100) : 0}
-                  color="yellow"
-                  onClick={() => handleKPIClick("pendente")}
-                  isActive={crossFilter?.type === "status" && crossFilter.value === "pendente"}
-                />
-                <KPICard
-                  title="Não Realizado"
-                  value={kpis.naoRealizado}
-                  percentage={kpis.total > 0 ? Math.round((kpis.naoRealizado / kpis.total) * 100) : 0}
-                  color="red"
-                  onClick={() => handleKPIClick("naoRealizado")}
-                  isActive={crossFilter?.type === "status" && crossFilter.value === "naoRealizado"}
-                />
-                <KPICard
-                  title="Urgentes"
-                  value={kpis.urgente}
-                  color="red"
-                  onClick={() => updateFilter("urgente", !filters.urgente)}
-                  isActive={filters.urgente}
-                />
-              </div>
+              )}
+              <KPICard
+                title="Pendente"
+                value={kpis.pendente}
+                percentage={kpis.total > 0 ? Math.round((kpis.pendente / kpis.total) * 100) : 0}
+                color="yellow"
+                onClick={() => handleKPIClick("pendente")}
+                isActive={crossFilter?.type === "status" && crossFilter.value === "pendente"}
+              />
+              <KPICard
+                title="Não Realizado"
+                value={kpis.naoRealizado}
+                percentage={kpis.total > 0 ? Math.round((kpis.naoRealizado / kpis.total) * 100) : 0}
+                color="red"
+                onClick={() => handleKPIClick("naoRealizado")}
+                isActive={crossFilter?.type === "status" && crossFilter.value === "naoRealizado"}
+              />
+              <KPICard
+                title="Urgentes"
+                value={kpis.urgente}
+                color="red"
+                onClick={() => updateFilter("urgente", !filters.urgente)}
+                isActive={filters.urgente}
+              />
+            </div>
 
-              {/* Status Donuts - side by side */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <StatusDonutChart
-                  data={{
-                    feito: kpis.feito,
-                    pendente: kpis.pendente,
-                    naoRealizado: kpis.naoRealizado,
-                  }}
-                  onStatusClick={handleStatusClick}
-                  activeStatus={crossFilter?.type === "status" ? crossFilter.value : null}
-                />
+            {/* Status Donuts */}
+            <div className={`grid grid-cols-1 ${isGestorOrAdmin ? 'md:grid-cols-2' : ''} gap-4`}>
+              <StatusDonutChart
+                data={{
+                  feito: kpis.feito,
+                  pendente: kpis.pendente,
+                  naoRealizado: kpis.naoRealizado,
+                }}
+                onStatusClick={handleStatusClick}
+                activeStatus={crossFilter?.type === "status" ? crossFilter.value : null}
+              />
+              {isGestorOrAdmin && (
                 <GestorStatusDonutChart
                   data={{
                     aprovado: kpis.aprovado,
@@ -397,98 +396,74 @@ export default function Dashboard() {
                   onStatusClick={handleStatusClick}
                   activeStatus={crossFilter?.type === "status" ? crossFilter.value : null}
                 />
-              </div>
+              )}
+            </div>
 
-              {/* Weekly Stacked Chart */}
-              <WeeklyStackedChart
-                demandas={demandas}
-                onWeekClick={handleWeekClick}
-                activeWeek={crossFilter?.type === "semana" ? parseInt(crossFilter.value) : null}
-              />
+            {/* Weekly Stacked Chart */}
+            <WeeklyStackedChart
+              demandas={demandas}
+              onWeekClick={handleWeekClick}
+              activeWeek={crossFilter?.type === "semana" ? parseInt(crossFilter.value) : null}
+            />
 
-              {/* Bottleneck Chart */}
+            {/* Bottleneck Chart - only for managers */}
+            {isGestorOrAdmin && (
               <BottleneckChart
                 demandas={demandas}
                 profiles={profiles}
                 onResponsavelClick={handleResponsavelClick}
                 activeResponsavel={crossFilter?.type === "responsavel" ? crossFilter.value : null}
               />
-            </TabsContent>
+            )}
+          </TabsContent>
 
-            {/* DASHBOARD OPERACIONAL - MOMENTO APT */}
-            <TabsContent value="operacional" className="space-y-4">
-              <WeeklyUserChart
-                demandas={demandas}
-                profiles={profiles}
-                currentWeek={currentWeek}
-              />
-              <CriticalDemandsList
-                demandas={demandas}
-                profiles={profiles}
-                currentWeek={currentWeek}
-              />
-            </TabsContent>
-
-            {/* DASHBOARD INDIVIDUAL (for managers viewing individual) */}
-            <TabsContent value="individual" className="space-y-4">
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-                <IndividualProgress
-                  totalDemandas={kpis.total}
-                  completedDemandas={kpis.feito}
-                  userName={profile?.nome || "Usuário"}
-                />
-                <WeeklyStackedChart
-                  demandas={demandas}
-                  onWeekClick={handleWeekClick}
-                />
-              </div>
-              <CriticalDemandsList
-                demandas={demandas}
-                profiles={profiles}
-                currentWeek={currentWeek}
-              />
-            </TabsContent>
-
-            {/* DASHBOARD HISTÓRICO / GESTÃO */}
-            <TabsContent value="historico" className="space-y-4">
-              <MonthlyEvolutionChart data={monthlyEvolutionData} />
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-                <RepetitionCompletionChart demandas={allDemandas} />
-                <SectorPendingChart
-                  demandas={demandas}
-                  setores={setores}
-                  onSetorClick={handleSetorClick}
-                />
-              </div>
-            </TabsContent>
-          </Tabs>
-        ) : (
-          /* COLABORADOR VIEW */
-          <div className="space-y-4">
-            {/* Individual Progress */}
-            <IndividualProgress
-              totalDemandas={kpis.total}
-              completedDemandas={kpis.feito}
-              userName={profile?.nome || "Colaborador"}
+          {/* DASHBOARD OPERACIONAL - MOMENTO APT */}
+          <TabsContent value="operacional" className="space-y-4">
+            <WeeklyUserChart
+              demandas={demandas}
+              profiles={profiles}
+              currentWeek={currentWeek}
             />
+            <CriticalDemandsList
+              demandas={demandas}
+              profiles={profiles}
+              currentWeek={currentWeek}
+            />
+          </TabsContent>
 
-            {/* Charts */}
+          {/* DASHBOARD INDIVIDUAL */}
+          <TabsContent value="individual" className="space-y-4">
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+              <IndividualProgress
+                totalDemandas={kpis.total}
+                completedDemandas={kpis.feito}
+                userName={profile?.nome || "Usuário"}
+              />
               <WeeklyStackedChart
                 demandas={demandas}
                 onWeekClick={handleWeekClick}
               />
-              <CriticalDemandsList
+            </div>
+            <CriticalDemandsList
+              demandas={demandas}
+              profiles={profiles}
+              currentWeek={currentWeek}
+            />
+          </TabsContent>
+
+          {/* DASHBOARD HISTÓRICO / GESTÃO */}
+          <TabsContent value="historico" className="space-y-4">
+            <MonthlyEvolutionChart data={monthlyEvolutionData} />
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+              <RepetitionCompletionChart demandas={allDemandas} />
+              <SectorPendingChart
                 demandas={demandas}
-                profiles={profiles}
-                currentWeek={currentWeek}
+                setores={setores}
+                onSetorClick={handleSetorClick}
               />
             </div>
-
-            {/* Monthly Evolution for personal tracking */}
-            <MonthlyEvolutionChart data={monthlyEvolutionData} />
-          </div>
-        )}
+          </TabsContent>
+        </Tabs>
       </div>
     </AppLayout>
   );
