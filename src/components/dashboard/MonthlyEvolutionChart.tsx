@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   ChartContainer,
@@ -6,6 +6,8 @@ import {
   ChartTooltipContent,
 } from "@/components/ui/chart";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, ResponsiveContainer } from "recharts";
+import { Button } from "@/components/ui/button";
+import { Calendar, BarChart3 } from "lucide-react";
 
 interface MonthlyData {
   mes: number;
@@ -20,26 +22,60 @@ interface MonthlyEvolutionChartProps {
 
 const mesesAbrev = ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez"];
 
+type PeriodFilter = "3m" | "6m" | "12m" | "ano";
+
 const chartConfig = {
   percentual: { label: "% Conclusão", color: "hsl(var(--primary))" },
 };
 
 export default function MonthlyEvolutionChart({ data }: MonthlyEvolutionChartProps) {
-  const chartData = useMemo(() => {
-    return data
-      .sort((a, b) => {
-        if (a.ano !== b.ano) return a.ano - b.ano;
-        return a.mes - b.mes;
-      })
-      .map((d) => ({
-        label: `${mesesAbrev[d.mes - 1]}/${String(d.ano).slice(2)}`,
-        percentual: d.total > 0 ? Math.round((d.concluidas / d.total) * 100) : 0,
-        total: d.total,
-        concluidas: d.concluidas,
-      }));
+  const [period, setPeriod] = useState<PeriodFilter>("12m");
+
+  const sortedData = useMemo(() => {
+    return [...data].sort((a, b) => {
+      if (a.ano !== b.ano) return a.ano - b.ano;
+      return a.mes - b.mes;
+    });
   }, [data]);
 
-  if (chartData.length === 0) {
+  // Get available years for "ano" view
+  const availableYears = useMemo(() => {
+    const years = [...new Set(sortedData.map((d) => d.ano))].sort();
+    return years;
+  }, [sortedData]);
+
+  const chartData = useMemo(() => {
+    if (period === "ano") {
+      // Group by year
+      const yearData: Record<number, { total: number; concluidas: number }> = {};
+      sortedData.forEach((d) => {
+        if (!yearData[d.ano]) yearData[d.ano] = { total: 0, concluidas: 0 };
+        yearData[d.ano].total += d.total;
+        yearData[d.ano].concluidas += d.concluidas;
+      });
+      return Object.entries(yearData)
+        .sort(([a], [b]) => Number(a) - Number(b))
+        .map(([ano, d]) => ({
+          label: ano,
+          percentual: d.total > 0 ? Math.round((d.concluidas / d.total) * 100) : 0,
+          total: d.total,
+          concluidas: d.concluidas,
+        }));
+    }
+
+    // Monthly view with period slicing
+    const sliceCount = period === "3m" ? 3 : period === "6m" ? 6 : 12;
+    const sliced = sortedData.slice(-sliceCount);
+
+    return sliced.map((d) => ({
+      label: `${mesesAbrev[d.mes - 1]}/${String(d.ano).slice(2)}`,
+      percentual: d.total > 0 ? Math.round((d.concluidas / d.total) * 100) : 0,
+      total: d.total,
+      concluidas: d.concluidas,
+    }));
+  }, [sortedData, period]);
+
+  if (sortedData.length === 0) {
     return (
       <Card>
         <CardHeader className="pb-2">
@@ -54,10 +90,33 @@ export default function MonthlyEvolutionChart({ data }: MonthlyEvolutionChartPro
     );
   }
 
+  const periodButtons: { value: PeriodFilter; label: string }[] = [
+    { value: "3m", label: "3M" },
+    { value: "6m", label: "6M" },
+    { value: "12m", label: "12M" },
+    { value: "ano", label: "Ano" },
+  ];
+
   return (
     <Card>
       <CardHeader className="pb-2">
-        <CardTitle className="text-lg">Evolução Mensal de Conclusão</CardTitle>
+        <div className="flex items-center justify-between flex-wrap gap-2">
+          <CardTitle className="text-lg">Evolução {period === "ano" ? "Anual" : "Mensal"} de Conclusão</CardTitle>
+          <div className="flex items-center gap-1 bg-muted rounded-lg p-0.5">
+            {periodButtons.map((btn) => (
+              <Button
+                key={btn.value}
+                variant={period === btn.value ? "default" : "ghost"}
+                size="sm"
+                className="h-7 px-3 text-xs"
+                onClick={() => setPeriod(btn.value)}
+              >
+                {btn.value === "ano" && <BarChart3 className="h-3 w-3 mr-1" />}
+                {btn.label}
+              </Button>
+            ))}
+          </div>
+        </div>
       </CardHeader>
       <CardContent>
         <ChartContainer config={chartConfig} className="h-[250px] w-full">
