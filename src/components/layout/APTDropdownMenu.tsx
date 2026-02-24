@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
+import { useAuth } from "@/contexts/AuthContext";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -9,7 +10,7 @@ import {
   DropdownMenuSubContent,
   DropdownMenuSubTrigger,
 } from "@/components/ui/dropdown-menu";
-import { ClipboardList, ChevronDown, LayoutList, BarChart3, PanelLeft, List } from "lucide-react";
+import { ClipboardList, ChevronDown, LayoutList, BarChart3, PanelLeft, List, Trash2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface APTDropdownMenuProps {
@@ -20,6 +21,7 @@ interface APTDropdownMenuProps {
 export default function APTDropdownMenu({ isMobile = false, onItemClick }: APTDropdownMenuProps) {
   const location = useLocation();
   const navigate = useNavigate();
+  const { isGestorOrAdmin } = useAuth();
   const [open, setOpen] = useState(false);
   
   const isAPTActive = location.pathname === "/apt";
@@ -71,6 +73,20 @@ export default function APTDropdownMenu({ isMobile = false, onItemClick }: APTDr
           <List className="h-5 w-5" />
           Gerenciamento - Lista
         </button>
+        {isGestorOrAdmin && (
+          <button
+            onClick={() => handleNavigation("/apt?tab=gerenciamento&subtab=exclusoes")}
+            className={cn(
+              "flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-all ml-4 w-full text-left",
+              isAPTActive && currentTab === "gerenciamento" && currentSubTab === "exclusoes"
+                ? "bg-primary text-primary-foreground shadow-sm"
+                : "text-muted-foreground hover:bg-muted hover:text-foreground"
+            )}
+          >
+            <Trash2 className="h-5 w-5" />
+            Solicitações de Exclusão
+          </button>
+        )}
       </div>
     );
   }
@@ -120,6 +136,15 @@ export default function APTDropdownMenu({ isMobile = false, onItemClick }: APTDr
               <List className="h-4 w-4" />
               Lista
             </DropdownMenuItem>
+            {isGestorOrAdmin && (
+              <DropdownMenuItem 
+                onClick={() => handleNavigation("/apt?tab=gerenciamento&subtab=exclusoes")}
+                className="flex items-center gap-2 cursor-pointer"
+              >
+                <Trash2 className="h-4 w-4" />
+                Exclusões
+              </DropdownMenuItem>
+            )}
           </DropdownMenuSubContent>
         </DropdownMenuSub>
       </DropdownMenuContent>

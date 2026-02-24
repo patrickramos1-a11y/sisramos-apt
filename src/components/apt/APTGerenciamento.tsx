@@ -54,6 +54,8 @@ import StatusBolinha from "@/components/apt/StatusBolinha";
 import NovaDemandaDialog from "@/components/apt/NovaDemandaDialog";
 import EditarDemandaIrmaDialog from "@/components/apt/EditarDemandaIrmaDialog";
 import ExcluirDemandaIrmaDialog from "@/components/apt/ExcluirDemandaIrmaDialog";
+import SolicitarExclusaoDialog from "@/components/apt/SolicitarExclusaoDialog";
+import { useSolicitacoesExclusao } from "@/hooks/useSolicitacoesExclusao";
 import { cn } from "@/lib/utils";
 
 interface Profile {
@@ -261,6 +263,13 @@ export default function APTGerenciamento({
     numero: number;
     grupo_id: string | null;
   } | null>(null);
+  const [solicitandoExclusao, setSolicitandoExclusao] = useState<{
+    id: string;
+    numero: number;
+    grupo_id: string | null;
+  } | null>(null);
+
+  const { pendingDemandaIds, refetchSolicitacoes } = useSolicitacoesExclusao();
 
   // Save starred sectors to localStorage
   useEffect(() => {
@@ -499,6 +508,15 @@ export default function APTGerenciamento({
   const handleDemandaChange = () => {
     fetchAllDemandas();
     onDemandaChange();
+    refetchSolicitacoes();
+  };
+
+  const handleDeleteClick = (demanda: { id: string; numero: number; grupo_id: string | null }) => {
+    if (isGestorOrAdmin) {
+      setDeletingDemanda(demanda);
+    } else {
+      setSolicitandoExclusao(demanda);
+    }
   };
 
   const clearFilters = () => {
@@ -560,7 +578,8 @@ export default function APTGerenciamento({
     const firstSibling = demand.siblings[0];
     
     // Colaboradores não podem editar/excluir
-    const canShowActions = showActions && isGestorOrAdmin;
+    const canShowActions = true; // All users can now see actions
+    const hasPendingExclusao = demand.siblings.some(s => pendingDemandaIds.has(s.id));
     
     return (
       <TableRow 
@@ -572,7 +591,14 @@ export default function APTGerenciamento({
         onClick={() => setSelectedDemand(demand)}
       >
         <TableCell className="max-w-[300px]">
-          <p className="whitespace-normal break-words">{demand.descricao}</p>
+          <div className="flex items-center gap-2 flex-wrap">
+            <p className="whitespace-normal break-words">{demand.descricao}</p>
+            {hasPendingExclusao && (
+              <span className="inline-flex items-center rounded-full bg-warning/20 text-warning border border-warning/30 px-2 py-0.5 text-[10px] font-medium whitespace-nowrap">
+                Aguardando exclusão
+              </span>
+            )}
+          </div>
         </TableCell>
         <TableCell>
           <div className="flex items-center gap-2">
@@ -631,7 +657,7 @@ export default function APTGerenciamento({
                   <DropdownMenuItem
                     onClick={(e) => {
                       e.stopPropagation();
-                      setDeletingDemanda({
+                      handleDeleteClick({
                         id: firstSibling.id,
                         numero: firstSibling.numero,
                         grupo_id: demand.grupo_id,
@@ -1086,7 +1112,7 @@ export default function APTGerenciamento({
                             <StatusBolinha status={sibling.status_gestor} />
                           </div>
                         )}
-                        {isGestorOrAdmin && (
+                        {true && (
                           <DropdownMenu>
                             <DropdownMenuTrigger asChild>
                               <Button variant="ghost" size="icon" className="h-7 w-7">
@@ -1106,17 +1132,17 @@ export default function APTGerenciamento({
                                 <Pencil className="mr-2 h-4 w-4" />
                                 Editar
                               </DropdownMenuItem>
-                              <DropdownMenuItem
-                                onClick={() => {
-                                  setSelectedDemand(null);
-                                  setDeletingDemanda({
-                                    id: sibling.id,
-                                    numero: sibling.numero,
-                                    grupo_id: selectedDemand.grupo_id,
-                                  });
-                                }}
-                                className="text-destructive"
-                              >
+                  <DropdownMenuItem
+                    onClick={() => {
+                      setSelectedDemand(null);
+                      handleDeleteClick({
+                        id: sibling.id,
+                        numero: sibling.numero,
+                        grupo_id: selectedDemand.grupo_id,
+                      });
+                    }}
+                    className="text-destructive"
+                  >
                                 <Trash2 className="mr-2 h-4 w-4" />
                                 Excluir
                               </DropdownMenuItem>
@@ -1145,7 +1171,7 @@ export default function APTGerenciamento({
                 />
                 {selectedSetor?.nome || "Sem Setor"}
               </div>
-              {isGestorOrAdmin && (
+              {true && (
                 <NovaDemandaDialog
                   profiles={profiles}
                   setores={setores}
@@ -1207,6 +1233,19 @@ export default function APTGerenciamento({
         siblings={deletingSiblings}
         onDemandaExcluida={handleDemandaChange}
       />
+
+      {/* Solicitar Exclusão Dialog (colaborador) */}
+      {solicitandoExclusao && (
+        <SolicitarExclusaoDialog
+          open={!!solicitandoExclusao}
+          onOpenChange={(open) => !open && setSolicitandoExclusao(null)}
+          demandaId={solicitandoExclusao.id}
+          demandaNumero={solicitandoExclusao.numero}
+          grupoId={solicitandoExclusao.grupo_id}
+          siblingCount={getSiblingCount(solicitandoExclusao.grupo_id)}
+          onSolicitacaoEnviada={handleDemandaChange}
+        />
+      )}
     </div>
   );
 }

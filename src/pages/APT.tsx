@@ -11,6 +11,8 @@ import APTFilters from "@/components/apt/APTFilters";
 import NovaDemandaDialog from "@/components/apt/NovaDemandaDialog";
 import EditarDemandaIrmaDialog from "@/components/apt/EditarDemandaIrmaDialog";
 import ExcluirDemandaIrmaDialog from "@/components/apt/ExcluirDemandaIrmaDialog";
+import SolicitarExclusaoDialog from "@/components/apt/SolicitarExclusaoDialog";
+import SolicitacoesExclusaoLista from "@/components/apt/SolicitacoesExclusaoLista";
 import ExcluirDemandasEmMassaDialog from "@/components/apt/ExcluirDemandasEmMassaDialog";
 import AtualizarStatusEmMassaDialog from "@/components/apt/AtualizarStatusEmMassaDialog";
 import ExportDemandasButton from "@/components/apt/ExportDemandasButton";
@@ -43,6 +45,7 @@ import {
 import { Card, CardContent } from "@/components/ui/card";
 import { Loader2, AlertCircle, CheckCircle2, Trash2, Check, ThumbsUp, Copy, Filter, ChevronDown, ClipboardList, BarChart3, Lock, Unlock, Eye, EyeOff, Settings2 } from "lucide-react";
 import DuplicarDemandasEmMassaDialog from "@/components/apt/DuplicarDemandasEmMassaDialog";
+import { useSolicitacoesExclusao } from "@/hooks/useSolicitacoesExclusao";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -105,6 +108,7 @@ export default function APT() {
   } = useMonthSettings();
 
   const { isAPTBloqueado, toggleBloqueio } = useMomentoAPT();
+  const { pendingDemandaIds, pendingExclusaoCount, getSolicitacaoByDemandaId, refetchSolicitacoes } = useSolicitacoesExclusao();
 
   // Get tab/subtab from URL params (defaults to execucao/painel)
   // Obs: não escrevemos de volta na URL aqui para evitar loops e travamentos.
@@ -136,6 +140,11 @@ export default function APT() {
   // Dialog states
   const [editingDemanda, setEditingDemanda] = useState<Demanda | null>(null);
   const [deletingDemanda, setDeletingDemanda] = useState<{
+    id: string;
+    numero: number;
+    grupo_id: string | null;
+  } | null>(null);
+  const [solicitandoExclusao, setSolicitandoExclusao] = useState<{
     id: string;
     numero: number;
     grupo_id: string | null;
@@ -203,6 +212,16 @@ export default function APT() {
   const handleBulkOperationComplete = () => {
     setSelectedIds(new Set());
     fetchDemandas();
+    refetchSolicitacoes();
+  };
+
+  // Helper: route delete action based on role
+  const handleDeleteClick = (demanda: { id: string; numero: number; grupo_id: string | null }) => {
+    if (isGestorOrAdmin) {
+      setDeletingDemanda(demanda);
+    } else {
+      setSolicitandoExclusao(demanda);
+    }
   };
 
   return (
@@ -257,14 +276,15 @@ export default function APT() {
                   }}
                 />
 
+                {/* Nova Demanda - visible for all users */}
+                <NovaDemandaDialog
+                  profiles={profiles}
+                  setores={setores}
+                  onDemandaCriada={fetchDemandas}
+                />
+
                 {isGestorOrAdmin && (
                   <>
-                    {/* Nova Demanda - always visible */}
-                    <NovaDemandaDialog
-                      profiles={profiles}
-                      setores={setores}
-                      onDemandaCriada={fetchDemandas}
-                    />
 
                     {/* More actions - grouped in dropdown on mobile */}
                     <div className="hidden sm:flex items-center gap-2">
@@ -454,8 +474,8 @@ export default function APT() {
                         !momentoAPTBlocking;
                       const canEditGestor = demandaStatusAllowed && isGestorOrAdmin;
                       
-                      // Edit/delete permissions: past months only allow gestor/admin
-                      const canEditDemanda = demandaEditAllowed;
+                      // Edit/delete permissions: collaborators can now edit/delete too
+                      const canEditDemanda = true;
 
                       return (
                       <DemandaCard
@@ -475,6 +495,7 @@ export default function APT() {
                           canEditGestor={canEditGestor}
                           canEditDemanda={canEditDemanda}
                           showGestorStatus={isGestorOrAdmin}
+                          pendingExclusao={pendingDemandaIds.has(demanda.id)}
                           onStatusResponsavelChange={() =>
                             updateStatusResponsavel(
                               demanda.id,
@@ -486,7 +507,7 @@ export default function APT() {
                           }
                           onEdit={() => setEditingDemanda(demanda as Demanda)}
                           onDelete={() =>
-                            setDeletingDemanda({
+                            handleDeleteClick({
                               id: demanda.id,
                               numero: demanda.numero,
                               grupo_id: demanda.grupo_id,
@@ -601,11 +622,9 @@ export default function APT() {
                             <TableHead className="text-center w-20 text-primary-foreground font-semibold">
                               Semana
                             </TableHead>
-                            {isGestorOrAdmin && (
-                              <TableHead className="text-center w-24 text-primary-foreground font-semibold">
+                            <TableHead className="text-center w-24 text-primary-foreground font-semibold">
                                 Ações
                               </TableHead>
-                            )}
                           </TableRow>
                         </TableHeader>
                         <TableBody>
@@ -628,8 +647,8 @@ export default function APT() {
                               !momentoAPTBlocking;
                             const canEditGestor = demandaStatusAllowed && isGestorOrAdmin;
                             
-                            // Edit/delete permissions: past months only allow gestor/admin
-                            const canEditDemanda = demandaEditAllowed;
+                            // Edit/delete permissions: collaborators can now edit/delete too
+                            const canEditDemanda = true;
 
                             return (
                           <DemandaTableRow
@@ -654,6 +673,7 @@ export default function APT() {
                                 isAlternateRow={index % 2 === 1}
                                 isSelected={selectedIds.has(demanda.id)}
                                 showCheckbox={true}
+                                pendingExclusao={pendingDemandaIds.has(demanda.id)}
                                 onStatusResponsavelChange={() =>
                                   updateStatusResponsavel(
                                     demanda.id,
@@ -670,7 +690,7 @@ export default function APT() {
                                   setEditingDemanda(demanda as Demanda)
                                 }
                                 onDelete={() =>
-                                  setDeletingDemanda({
+                                  handleDeleteClick({
                                     id: demanda.id,
                                     numero: demanda.numero,
                                     grupo_id: demanda.grupo_id,
@@ -694,7 +714,13 @@ export default function APT() {
 
         {urlTab === "gerenciamento" && (
           <div className="mt-0">
-            {urlSubTab === "lista" ? (
+            {urlSubTab === "exclusoes" ? (
+              <SolicitacoesExclusaoLista
+                profiles={profiles}
+                setores={setores}
+                onDemandaChange={() => { fetchDemandas(); refetchSolicitacoes(); }}
+              />
+            ) : urlSubTab === "lista" ? (
               <GerenciamentoLista
                 profiles={profiles}
                 setores={setores}
@@ -735,6 +761,23 @@ export default function APT() {
         demandaMes={deletingFullDemanda?.mes}
         demandaAno={deletingFullDemanda?.ano}
         demandaSemanasRepeticao={deletingFullDemanda?.semanas_repeticao}
+      />
+
+      <SolicitarExclusaoDialog
+        open={!!solicitandoExclusao}
+        onOpenChange={(open) => !open && setSolicitandoExclusao(null)}
+        demandaId={solicitandoExclusao?.id || null}
+        demandaNumero={solicitandoExclusao?.numero || null}
+        grupoId={solicitandoExclusao?.grupo_id || null}
+        siblingCount={
+          solicitandoExclusao
+            ? (() => {
+                const d = demandas.find((x) => x.id === solicitandoExclusao.id);
+                return d ? getSiblingCount(d) : 1;
+              })()
+            : 1
+        }
+        onSolicitacaoEnviada={() => { fetchDemandas(); refetchSolicitacoes(); }}
       />
 
       <ExcluirDemandasEmMassaDialog

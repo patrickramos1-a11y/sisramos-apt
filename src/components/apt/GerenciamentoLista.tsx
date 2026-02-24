@@ -47,6 +47,8 @@ import {
 import StatusBolinha from "@/components/apt/StatusBolinha";
 import EditarDemandaIrmaDialog from "@/components/apt/EditarDemandaIrmaDialog";
 import ExcluirDemandaIrmaDialog from "@/components/apt/ExcluirDemandaIrmaDialog";
+import SolicitarExclusaoDialog from "@/components/apt/SolicitarExclusaoDialog";
+import { useSolicitacoesExclusao } from "@/hooks/useSolicitacoesExclusao";
 import { cn } from "@/lib/utils";
 
 interface Profile {
@@ -252,6 +254,13 @@ export default function GerenciamentoLista({
     numero: number;
     grupo_id: string | null;
   } | null>(null);
+  const [solicitandoExclusao, setSolicitandoExclusao] = useState<{
+    id: string;
+    numero: number;
+    grupo_id: string | null;
+  } | null>(null);
+
+  const { pendingDemandaIds, refetchSolicitacoes } = useSolicitacoesExclusao();
 
   // Fetch all demands
   const fetchAllDemandas = useCallback(async () => {
@@ -424,6 +433,16 @@ export default function GerenciamentoLista({
   const handleDemandaChange = () => {
     fetchAllDemandas();
     onDemandaChange();
+    refetchSolicitacoes();
+  };
+
+  // Helper: route delete action based on role
+  const handleDeleteClick = (demanda: { id: string; numero: number; grupo_id: string | null }) => {
+    if (isGestorOrAdmin) {
+      setDeletingDemanda(demanda);
+    } else {
+      setSolicitandoExclusao(demanda);
+    }
   };
 
   const clearFilters = () => {
@@ -481,7 +500,8 @@ export default function GerenciamentoLista({
     const profile = getProfileById(demand.responsavel_id);
     const setor = getSetorById(demand.setor_id);
     const firstSibling = demand.siblings[0];
-    const showActions = isGestorOrAdmin;
+    const showActions = true; // All users can now see actions
+    const hasPendingExclusao = demand.siblings.some(s => pendingDemandaIds.has(s.id));
     
     return (
       <TableRow 
@@ -493,7 +513,14 @@ export default function GerenciamentoLista({
         onClick={() => setSelectedDemand(demand)}
       >
         <TableCell className="max-w-[300px]">
-          <p className="whitespace-normal break-words">{demand.descricao}</p>
+          <div className="flex items-center gap-2 flex-wrap">
+            <p className="whitespace-normal break-words">{demand.descricao}</p>
+            {hasPendingExclusao && (
+              <span className="inline-flex items-center rounded-full bg-warning/20 text-warning border border-warning/30 px-2 py-0.5 text-[10px] font-medium whitespace-nowrap">
+                Aguardando exclusão
+              </span>
+            )}
+          </div>
         </TableCell>
         <TableCell>
           <div className="flex items-center gap-2">
@@ -555,7 +582,7 @@ export default function GerenciamentoLista({
                   <DropdownMenuItem
                     onClick={(e) => {
                       e.stopPropagation();
-                      setDeletingDemanda({
+                      handleDeleteClick({
                         id: firstSibling.id,
                         numero: firstSibling.numero,
                         grupo_id: demand.grupo_id,
@@ -701,13 +728,13 @@ export default function GerenciamentoLista({
                       {sortColumn === "repeticao" ? (sortDirection === "asc" ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />) : <ArrowUpDown className="h-3 w-3 opacity-30" />}
                     </div>
                   </TableHead>
-                  {isGestorOrAdmin && <TableHead className="w-20">Ações</TableHead>}
+                  <TableHead className="w-20">Ações</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {sortedDemands.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={isGestorOrAdmin ? 5 : 4} className="text-center py-8 text-muted-foreground">
+                    <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
                       Nenhuma demanda encontrada
                     </TableCell>
                   </TableRow>
@@ -803,6 +830,19 @@ export default function GerenciamentoLista({
           siblingCount={deletingSiblingCount}
           siblings={deletingSiblings}
           onDemandaExcluida={handleDemandaChange}
+        />
+      )}
+
+      {/* Solicitar Exclusão Dialog (colaborador) */}
+      {solicitandoExclusao && (
+        <SolicitarExclusaoDialog
+          open={!!solicitandoExclusao}
+          onOpenChange={(open) => !open && setSolicitandoExclusao(null)}
+          demandaId={solicitandoExclusao.id}
+          demandaNumero={solicitandoExclusao.numero}
+          grupoId={solicitandoExclusao.grupo_id}
+          siblingCount={getSiblingCount(solicitandoExclusao.grupo_id)}
+          onSolicitacaoEnviada={handleDemandaChange}
         />
       )}
     </div>
