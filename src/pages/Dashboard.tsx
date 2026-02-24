@@ -417,18 +417,16 @@ export default function Dashboard() {
 
             {/* DASHBOARD OPERACIONAL - MOMENTO APT */}
             <TabsContent value="operacional" className="space-y-4">
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-                <WeeklyUserChart
-                  demandas={demandas}
-                  profiles={profiles}
-                  currentWeek={currentWeek}
-                />
-                <CriticalDemandsList
-                  demandas={demandas}
-                  profiles={profiles}
-                  currentWeek={currentWeek}
-                />
-              </div>
+              <WeeklyUserChart
+                demandas={demandas}
+                profiles={profiles}
+                currentWeek={currentWeek}
+              />
+              <CriticalDemandsList
+                demandas={demandas}
+                profiles={profiles}
+                currentWeek={currentWeek}
+              />
             </TabsContent>
 
             {/* DASHBOARD INDIVIDUAL (for managers viewing individual) */}
