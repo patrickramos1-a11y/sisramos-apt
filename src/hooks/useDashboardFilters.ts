@@ -1,14 +1,14 @@
 import { useState, useCallback, useMemo } from "react";
 
 export interface DashboardFilters {
-  ano: string;
-  mes: string;
-  semana: string;
-  responsavel: string;
-  setor: string;
-  statusFeito: string;
-  statusAprovado: string;
-  repeticao: string;
+  anos: string[];
+  meses: string[];
+  semanas: string[];
+  responsaveis: string[];
+  setores: string[];
+  statusFeito: string[];
+  statusAprovado: string[];
+  repeticoes: string[];
   urgente: boolean;
   prioridade: boolean;
 }
@@ -18,15 +18,18 @@ export interface CrossFilter {
   value: string;
 }
 
+const currentYear = new Date().getFullYear();
+const currentMonth = new Date().getMonth() + 1;
+
 const defaultFilters: DashboardFilters = {
-  ano: new Date().getFullYear().toString(),
-  mes: (new Date().getMonth() + 1).toString(),
-  semana: "all",
-  responsavel: "all",
-  setor: "all",
-  statusFeito: "all",
-  statusAprovado: "all",
-  repeticao: "all",
+  anos: [String(currentYear)],
+  meses: [String(currentMonth)],
+  semanas: [],
+  responsaveis: [],
+  setores: [],
+  statusFeito: [],
+  statusAprovado: [],
+  repeticoes: [],
   urgente: false,
   prioridade: false,
 };
@@ -40,7 +43,6 @@ export function useDashboardFilters() {
     value: DashboardFilters[K]
   ) => {
     setFilters((prev) => ({ ...prev, [key]: value }));
-    // Clear cross-filter when global filter changes
     setCrossFilter(null);
   }, []);
 
@@ -55,14 +57,14 @@ export function useDashboardFilters() {
 
   const hasActiveFilters = useMemo(() => {
     return (
-      filters.ano !== defaultFilters.ano ||
-      filters.mes !== defaultFilters.mes ||
-      filters.semana !== "all" ||
-      filters.responsavel !== "all" ||
-      filters.setor !== "all" ||
-      filters.statusFeito !== "all" ||
-      filters.statusAprovado !== "all" ||
-      filters.repeticao !== "all" ||
+      JSON.stringify(filters.anos) !== JSON.stringify(defaultFilters.anos) ||
+      JSON.stringify(filters.meses) !== JSON.stringify(defaultFilters.meses) ||
+      filters.semanas.length > 0 ||
+      filters.responsaveis.length > 0 ||
+      filters.setores.length > 0 ||
+      filters.statusFeito.length > 0 ||
+      filters.statusAprovado.length > 0 ||
+      filters.repeticoes.length > 0 ||
       filters.urgente ||
       filters.prioridade ||
       crossFilter !== null
