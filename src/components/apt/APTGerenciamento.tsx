@@ -1019,17 +1019,6 @@ export default function APTGerenciamento({
         </div>
       </section>
 
-      {/* Summary Stats */}
-      <div className="flex flex-wrap gap-4 text-sm text-muted-foreground">
-        <span className="flex items-center gap-1">
-          <ClipboardList className="h-4 w-4" />
-          <strong>{consolidatedDemands.length}</strong> demandas únicas
-        </span>
-        <span className="flex items-center gap-1">
-          <Users className="h-4 w-4" />
-          <strong>{allDemandas.length}</strong> instâncias totais
-        </span>
-      </div>
 
       {/* Demand Siblings Dialog */}
       <Dialog open={!!selectedDemand} onOpenChange={() => setSelectedDemand(null)}>
