@@ -1146,7 +1146,7 @@ export default function APTGerenciamento({
 
       {/* Sector Details Dialog */}
       <Dialog open={!!selectedSetor} onOpenChange={() => setSelectedSetor(null)}>
-        <DialogContent className="max-w-3xl max-h-[85vh] flex flex-col">
+        <DialogContent className="max-w-3xl max-h-[85vh] flex flex-col min-h-0">
           <DialogHeader>
             <DialogTitle className="flex items-center justify-between">
               <div className="flex items-center gap-2">
@@ -1167,7 +1167,7 @@ export default function APTGerenciamento({
             </DialogTitle>
           </DialogHeader>
           
-          <ScrollArea className="flex-1">
+          <ScrollArea className="flex-1 min-h-0 overflow-y-auto">
             <Table>
               <TableHeader>
                 <TableRow>
