@@ -184,9 +184,10 @@ export default function Checklist() {
     <AppLayout>
       <div className="p-4 lg:p-6 max-w-[1400px] mx-auto space-y-3">
         {/* Compact Header */}
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-          <div className="flex items-center gap-3">
-            <h1 className="text-lg font-bold tracking-tight">Checklist</h1>
+        <div className="flex flex-col gap-3">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <h1 className="text-lg font-bold tracking-tight">Checklist</h1>
 
             {/* Info popover */}
             {!infoDismissed && (
@@ -210,29 +211,31 @@ export default function Checklist() {
                 </PopoverContent>
               </Popover>
             )}
-          </div>
+            </div>
 
-          <div className="flex items-center gap-2 flex-wrap">
-            {/* Month navigation */}
+            {/* Month navigation - always visible */}
             <div className="flex items-center gap-1 bg-muted/50 rounded-lg p-0.5">
-              <Button variant="ghost" size="icon" className="h-7 w-7" onClick={goToPrevMonth}>
+              <Button variant="ghost" size="icon" className="h-8 w-8 min-w-[32px]" onClick={goToPrevMonth}>
                 <ChevronLeft className="h-4 w-4" />
               </Button>
-              <span className="text-sm font-medium px-2 min-w-[120px] text-center">
+              <span className="text-xs sm:text-sm font-medium px-1.5 sm:px-2 min-w-[100px] sm:min-w-[120px] text-center">
                 {MONTH_NAMES[currentMes - 1]} {currentAno}
               </span>
-              <Button variant="ghost" size="icon" className="h-7 w-7" onClick={goToNextMonth}>
+              <Button variant="ghost" size="icon" className="h-8 w-8 min-w-[32px]" onClick={goToNextMonth}>
                 <ChevronRight className="h-4 w-4" />
               </Button>
             </div>
 
             {!isCurrentMonth && (
-              <Button variant="outline" size="sm" className="h-7 gap-1 text-xs" onClick={goToToday}>
+              <Button variant="outline" size="sm" className="h-8 gap-1 text-xs" onClick={goToToday}>
                 <CalendarDays className="h-3.5 w-3.5" />
-                Hoje
+                <span className="hidden sm:inline">Hoje</span>
               </Button>
             )}
+          </div>
 
+          {/* Second row: week filter + actions */}
+          <div className="flex items-center gap-2 flex-wrap">
             {/* Week filter */}
             <div className="w-[130px]">
               <MultiSelectDropdown
@@ -248,7 +251,7 @@ export default function Checklist() {
               <Button
                 variant={isLocked ? "outline" : "secondary"}
                 size="sm"
-                className="h-7 gap-1 text-xs"
+                className="h-8 gap-1 text-xs"
                 onClick={handleToggleLock}
               >
                 {isLocked ? <Lock className="h-3.5 w-3.5" /> : <Unlock className="h-3.5 w-3.5" />}
@@ -268,7 +271,7 @@ export default function Checklist() {
                 {/* Rollover */}
                 <AlertDialog>
                   <AlertDialogTrigger asChild>
-                    <Button variant="outline" size="sm" className="h-7 gap-1 text-xs">
+                    <Button variant="outline" size="sm" className="h-8 gap-1 text-xs">
                       <Copy className="h-3.5 w-3.5" />
                       <span className="hidden sm:inline">Copiar mês</span>
                     </Button>

@@ -58,15 +58,15 @@ export default function StatusDonutChart({
         <CardTitle className="text-base font-semibold">Status Colaborador</CardTitle>
       </CardHeader>
       <CardContent>
-        <ChartContainer config={chartConfig} className="h-[260px] w-full">
+        <ChartContainer config={chartConfig} className="h-[200px] sm:h-[260px] w-full">
           <ResponsiveContainer width="100%" height="100%">
             <PieChart>
               <Pie
                 data={chartData}
                 cx="50%"
                 cy="50%"
-                innerRadius={65}
-                outerRadius={100}
+                innerRadius="40%"
+                outerRadius="65%"
                 paddingAngle={3}
                 dataKey="value"
                 onClick={(entry) => onStatusClick?.(entry.name)}

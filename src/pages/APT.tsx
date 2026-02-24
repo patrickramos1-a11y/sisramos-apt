@@ -248,7 +248,7 @@ export default function APT() {
               </div>
 
               <div className="flex flex-wrap items-center gap-2">
-                {/* Export button */}
+                {/* Export button - icon only on mobile */}
                 <ExportDemandasButton
                   demandas={demandas}
                   profiles={profiles}
@@ -263,58 +263,95 @@ export default function APT() {
 
                 {isGestorOrAdmin && (
                   <>
-                    {/* Column visibility settings */}
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button variant="outline" size="sm" className="gap-2">
-                          <Settings2 className="h-4 w-4" />
-                          <span className="hidden sm:inline">Colunas</span>
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                        <DropdownMenuLabel>Visibilidade</DropdownMenuLabel>
-                        <DropdownMenuSeparator />
-                        <DropdownMenuItem
-                          onClick={() => setHideResponsavelColumn(!hideResponsavelColumn)}
-                          className="gap-2"
-                        >
-                          {hideResponsavelColumn ? (
-                            <EyeOff className="h-4 w-4" />
-                          ) : (
-                            <Eye className="h-4 w-4" />
-                          )}
-                          {hideResponsavelColumn ? "Mostrar" : "Ocultar"} coluna "Feito"
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-
-                    {/* Momento APT Lock Button */}
-                    {viewedMes !== null && viewedAno !== null && (
-                      <Button
-                        variant={isMomentoAPTBloqueado ? "destructive" : "outline"}
-                        size="sm"
-                        className="gap-2"
-                        onClick={() => toggleBloqueio(viewedMes, viewedAno)}
-                      >
-                        {isMomentoAPTBloqueado ? (
-                          <>
-                            <Lock className="h-4 w-4" />
-                            <span className="hidden sm:inline">Momento APT Ativo</span>
-                          </>
-                        ) : (
-                          <>
-                            <Unlock className="h-4 w-4" />
-                            <span className="hidden sm:inline">Iniciar Momento APT</span>
-                          </>
-                        )}
-                      </Button>
-                    )}
-                    <RolloverDemandasDialog onRolloverComplete={fetchDemandas} />
+                    {/* Nova Demanda - always visible */}
                     <NovaDemandaDialog
                       profiles={profiles}
                       setores={setores}
                       onDemandaCriada={fetchDemandas}
                     />
+
+                    {/* More actions - grouped in dropdown on mobile */}
+                    <div className="hidden sm:flex items-center gap-2">
+                      {/* Column visibility settings */}
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="outline" size="sm" className="gap-2">
+                            <Settings2 className="h-4 w-4" />
+                            <span className="hidden md:inline">Colunas</span>
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuLabel>Visibilidade</DropdownMenuLabel>
+                          <DropdownMenuSeparator />
+                          <DropdownMenuItem
+                            onClick={() => setHideResponsavelColumn(!hideResponsavelColumn)}
+                            className="gap-2"
+                          >
+                            {hideResponsavelColumn ? (
+                              <EyeOff className="h-4 w-4" />
+                            ) : (
+                              <Eye className="h-4 w-4" />
+                            )}
+                            {hideResponsavelColumn ? "Mostrar" : "Ocultar"} coluna "Feito"
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+
+                      {/* Momento APT Lock Button */}
+                      {viewedMes !== null && viewedAno !== null && (
+                        <Button
+                          variant={isMomentoAPTBloqueado ? "destructive" : "outline"}
+                          size="sm"
+                          className="gap-2"
+                          onClick={() => toggleBloqueio(viewedMes, viewedAno)}
+                        >
+                          {isMomentoAPTBloqueado ? (
+                            <>
+                              <Lock className="h-4 w-4" />
+                              <span className="hidden md:inline">Momento APT Ativo</span>
+                            </>
+                          ) : (
+                            <>
+                              <Unlock className="h-4 w-4" />
+                              <span className="hidden md:inline">Iniciar Momento APT</span>
+                            </>
+                          )}
+                        </Button>
+                      )}
+                      <RolloverDemandasDialog onRolloverComplete={fetchDemandas} />
+                    </div>
+
+                    {/* Mobile: grouped actions */}
+                    <div className="sm:hidden">
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="outline" size="sm" className="gap-1.5 h-9 min-w-[44px]">
+                            <Settings2 className="h-4 w-4" />
+                            <span className="text-xs">Mais</span>
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end" className="w-56">
+                          <DropdownMenuLabel>Ações</DropdownMenuLabel>
+                          <DropdownMenuSeparator />
+                          <DropdownMenuItem
+                            onClick={() => setHideResponsavelColumn(!hideResponsavelColumn)}
+                            className="gap-2"
+                          >
+                            {hideResponsavelColumn ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                            {hideResponsavelColumn ? "Mostrar" : "Ocultar"} col. "Feito"
+                          </DropdownMenuItem>
+                          {viewedMes !== null && viewedAno !== null && (
+                            <DropdownMenuItem
+                              onClick={() => toggleBloqueio(viewedMes, viewedAno)}
+                              className="gap-2"
+                            >
+                              {isMomentoAPTBloqueado ? <Lock className="h-4 w-4" /> : <Unlock className="h-4 w-4" />}
+                              {isMomentoAPTBloqueado ? "APT Ativo" : "Iniciar APT"}
+                            </DropdownMenuItem>
+                          )}
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </div>
                   </>
                 )}
               </div>
@@ -469,7 +506,7 @@ export default function APT() {
 
                     {/* Bulk action controls */}
                     {selectedIds.size > 0 && (
-                      <div className="flex flex-wrap items-center gap-2 mb-2 p-2 bg-muted rounded-lg">
+                      <div className="flex flex-col sm:flex-row flex-wrap items-stretch sm:items-center gap-2 mb-2 p-2 bg-muted rounded-lg">
                         <span className="text-sm font-medium">
                           {selectedIds.size} selecionada(s)
                         </span>
