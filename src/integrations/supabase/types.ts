@@ -774,103 +774,6 @@ export type Database = {
         }
         Relationships: []
       }
-      notification_dismissals: {
-        Row: {
-          dismissed_at: string
-          id: string
-          notification_id: string
-          user_id: string
-        }
-        Insert: {
-          dismissed_at?: string
-          id?: string
-          notification_id: string
-          user_id: string
-        }
-        Update: {
-          dismissed_at?: string
-          id?: string
-          notification_id?: string
-          user_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "notification_dismissals_notification_id_fkey"
-            columns: ["notification_id"]
-            isOneToOne: false
-            referencedRelation: "notifications"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      notification_reads: {
-        Row: {
-          id: string
-          notification_id: string
-          read_at: string
-          user_id: string
-        }
-        Insert: {
-          id?: string
-          notification_id: string
-          read_at?: string
-          user_id: string
-        }
-        Update: {
-          id?: string
-          notification_id?: string
-          read_at?: string
-          user_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "notification_reads_notification_id_fkey"
-            columns: ["notification_id"]
-            isOneToOne: false
-            referencedRelation: "notifications"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      notifications: {
-        Row: {
-          ano: number
-          created_at: string
-          gestor_id: string
-          gestor_nome: string
-          id: string
-          mensagem: string
-          mes: number
-          responsavel_id: string
-          semana: number
-          tipo: string
-        }
-        Insert: {
-          ano: number
-          created_at?: string
-          gestor_id: string
-          gestor_nome: string
-          id?: string
-          mensagem: string
-          mes: number
-          responsavel_id: string
-          semana: number
-          tipo?: string
-        }
-        Update: {
-          ano?: number
-          created_at?: string
-          gestor_id?: string
-          gestor_nome?: string
-          id?: string
-          mensagem?: string
-          mes?: number
-          responsavel_id?: string
-          semana?: number
-          tipo?: string
-        }
-        Relationships: []
-      }
       profiles: {
         Row: {
           cor: string | null
@@ -945,7 +848,6 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      cleanup_old_notifications: { Args: never; Returns: undefined }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
