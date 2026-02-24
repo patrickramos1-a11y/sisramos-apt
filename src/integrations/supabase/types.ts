@@ -825,6 +825,56 @@ export type Database = {
         }
         Relationships: []
       }
+      solicitacoes_exclusao: {
+        Row: {
+          created_at: string
+          decided_at: string | null
+          decisor_id: string | null
+          demanda_id: string
+          grupo_id: string | null
+          id: string
+          justificativa: string
+          justificativa_recusa: string | null
+          solicitante_id: string
+          status: string
+          tipo_exclusao: string
+        }
+        Insert: {
+          created_at?: string
+          decided_at?: string | null
+          decisor_id?: string | null
+          demanda_id: string
+          grupo_id?: string | null
+          id?: string
+          justificativa: string
+          justificativa_recusa?: string | null
+          solicitante_id: string
+          status?: string
+          tipo_exclusao?: string
+        }
+        Update: {
+          created_at?: string
+          decided_at?: string | null
+          decisor_id?: string | null
+          demanda_id?: string
+          grupo_id?: string | null
+          id?: string
+          justificativa?: string
+          justificativa_recusa?: string | null
+          solicitante_id?: string
+          status?: string
+          tipo_exclusao?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "solicitacoes_exclusao_demanda_id_fkey"
+            columns: ["demanda_id"]
+            isOneToOne: false
+            referencedRelation: "demandas"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       user_roles: {
         Row: {
           id: string

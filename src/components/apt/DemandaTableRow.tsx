@@ -34,6 +34,7 @@ interface DemandaTableRowProps {
   isAlternateRow?: boolean;
   isSelected?: boolean;
   showCheckbox?: boolean;
+  pendingExclusao?: boolean;
   onStatusResponsavelChange: () => void;
   onStatusGestorChange: () => void;
   onClick?: () => void;
@@ -63,6 +64,7 @@ export default function DemandaTableRow({
   isAlternateRow,
   isSelected,
   showCheckbox,
+  pendingExclusao,
   onStatusResponsavelChange,
   onStatusGestorChange,
   onClick,
@@ -103,7 +105,16 @@ export default function DemandaTableRow({
         </span>
       </TableCell>
       <TableCell className="w-32 truncate">{responsavel}</TableCell>
-      <TableCell className="whitespace-normal break-words">{descricao}</TableCell>
+      <TableCell className="whitespace-normal break-words">
+        <div className="flex items-center gap-2 flex-wrap">
+          <span>{descricao}</span>
+          {pendingExclusao && (
+            <span className="inline-flex items-center rounded-full bg-warning/20 text-warning border border-warning/30 px-2 py-0.5 text-[10px] font-medium whitespace-nowrap">
+              Aguardando exclusão
+            </span>
+          )}
+        </div>
+      </TableCell>
       {showResponsavelColumn && (
         <TableCell className="text-center w-20" onClick={(e) => e.stopPropagation()}>
           <div className="flex justify-center">

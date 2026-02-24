@@ -23,6 +23,7 @@ interface DemandaCardProps {
   canEditGestor: boolean;
   canEditDemanda?: boolean;
   showGestorStatus?: boolean;
+  pendingExclusao?: boolean;
   onStatusResponsavelChange: () => void;
   onStatusGestorChange: () => void;
   onEdit?: () => void;
@@ -45,6 +46,7 @@ export default function DemandaCard({
   canEditGestor,
   canEditDemanda,
   showGestorStatus = true,
+  pendingExclusao,
   onStatusResponsavelChange,
   onStatusGestorChange,
   onEdit,
@@ -98,6 +100,11 @@ export default function DemandaCard({
           <p className="text-sm font-medium leading-relaxed whitespace-normal break-words">
             {descricao}
           </p>
+          {pendingExclusao && (
+            <span className="inline-flex items-center rounded-full bg-warning/20 text-warning border border-warning/30 px-2 py-0.5 text-[10px] font-medium mt-1">
+              Aguardando exclusão
+            </span>
+          )}
         </div>
 
         {/* Metadados organizados em grid */}
