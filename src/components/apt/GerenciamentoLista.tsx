@@ -41,7 +41,8 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { 
   Loader2, ClipboardList, Users, ChevronRight, 
-  MoreVertical, Pencil, Trash2, ChevronDown, X, Search
+  MoreVertical, Pencil, Trash2, ChevronDown, X, Search,
+  ArrowUpDown, ArrowUp, ArrowDown
 } from "lucide-react";
 import StatusBolinha from "@/components/apt/StatusBolinha";
 import EditarDemandaIrmaDialog from "@/components/apt/EditarDemandaIrmaDialog";
@@ -230,6 +231,20 @@ export default function GerenciamentoLista({
     meses: [String(new Date().getMonth() + 1)],
   });
 
+  // Sorting
+  const [sortColumn, setSortColumn] = useState<"descricao" | "responsavel" | "setor" | "repeticao" | null>(null);
+  const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc");
+
+  const handleSort = (column: typeof sortColumn) => {
+    if (sortColumn === column) {
+      if (sortDirection === "asc") setSortDirection("desc");
+      else { setSortColumn(null); setSortDirection("asc"); }
+    } else {
+      setSortColumn(column);
+      setSortDirection("asc");
+    }
+  };
+
   // Edit/Delete states
   const [editingDemanda, setEditingDemanda] = useState<Demanda | null>(null);
   const [deletingDemanda, setDeletingDemanda] = useState<{
@@ -366,6 +381,36 @@ export default function GerenciamentoLista({
     if (!setorId) return null;
     return setores.find((s) => s.id === setorId);
   }, [setores]);
+
+  // Apply sorting
+  const sortedDemands = useMemo(() => {
+    if (!sortColumn) return consolidatedDemands;
+    const sorted = [...consolidatedDemands].sort((a, b) => {
+      let cmp = 0;
+      switch (sortColumn) {
+        case "descricao":
+          cmp = a.descricao.localeCompare(b.descricao, "pt-BR");
+          break;
+        case "responsavel": {
+          const na = getProfileById(a.responsavel_id)?.nome || "";
+          const nb = getProfileById(b.responsavel_id)?.nome || "";
+          cmp = na.localeCompare(nb, "pt-BR");
+          break;
+        }
+        case "setor": {
+          const sa = getSetorById(a.setor_id)?.nome || "";
+          const sb = getSetorById(b.setor_id)?.nome || "";
+          cmp = sa.localeCompare(sb, "pt-BR");
+          break;
+        }
+        case "repeticao":
+          cmp = a.siblings.length - b.siblings.length;
+          break;
+      }
+      return sortDirection === "asc" ? cmp : -cmp;
+    });
+    return sorted;
+  }, [consolidatedDemands, sortColumn, sortDirection, getProfileById, getSetorById]);
 
   const getDemandaById = useCallback((id: string) => {
     return allDemandas.find((d) => d.id === id);
@@ -632,22 +677,42 @@ export default function GerenciamentoLista({
             <Table>
               <TableHeader className="sticky top-0 bg-card z-10">
                 <TableRow>
-                  <TableHead>Descrição</TableHead>
-                  <TableHead>Responsável</TableHead>
-                  <TableHead>Setor</TableHead>
-                  <TableHead className="text-center w-24">Repetição</TableHead>
+                  <TableHead className="cursor-pointer select-none" onClick={() => handleSort("descricao")}>
+                    <div className="flex items-center gap-1">
+                      Descrição
+                      {sortColumn === "descricao" ? (sortDirection === "asc" ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />) : <ArrowUpDown className="h-3 w-3 opacity-30" />}
+                    </div>
+                  </TableHead>
+                  <TableHead className="cursor-pointer select-none" onClick={() => handleSort("responsavel")}>
+                    <div className="flex items-center gap-1">
+                      Responsável
+                      {sortColumn === "responsavel" ? (sortDirection === "asc" ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />) : <ArrowUpDown className="h-3 w-3 opacity-30" />}
+                    </div>
+                  </TableHead>
+                  <TableHead className="cursor-pointer select-none" onClick={() => handleSort("setor")}>
+                    <div className="flex items-center gap-1">
+                      Setor
+                      {sortColumn === "setor" ? (sortDirection === "asc" ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />) : <ArrowUpDown className="h-3 w-3 opacity-30" />}
+                    </div>
+                  </TableHead>
+                  <TableHead className="text-center w-24 cursor-pointer select-none" onClick={() => handleSort("repeticao")}>
+                    <div className="flex items-center justify-center gap-1">
+                      Repetição
+                      {sortColumn === "repeticao" ? (sortDirection === "asc" ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />) : <ArrowUpDown className="h-3 w-3 opacity-30" />}
+                    </div>
+                  </TableHead>
                   {isGestorOrAdmin && <TableHead className="w-20">Ações</TableHead>}
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {consolidatedDemands.length === 0 ? (
+                {sortedDemands.length === 0 ? (
                   <TableRow>
                     <TableCell colSpan={isGestorOrAdmin ? 5 : 4} className="text-center py-8 text-muted-foreground">
                       Nenhuma demanda encontrada
                     </TableCell>
                   </TableRow>
                 ) : (
-                  consolidatedDemands.map((demand) => (
+                  sortedDemands.map((demand) => (
                     <ConsolidatedDemandRow key={demand.grupo_id || demand.siblings[0].id} demand={demand} />
                   ))
                 )}
