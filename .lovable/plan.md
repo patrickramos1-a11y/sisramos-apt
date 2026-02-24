@@ -1,148 +1,123 @@
 
+# Refatoramento Completo de Responsividade Mobile/Tablet
 
-# Refatoramento Completo de UX, Design e Responsividade - SISRAMOS
-
-Este plano abrange a reformulacao visual completa da plataforma, baseada nas cores extraidas da logo SISRAMOS (verde claro #6FAE2E e verde escuro #2D4A22), integracao das logos fornecidas e melhorias de UX/responsividade em todas as paginas.
-
----
-
-## Fase 1 -- Fundacao Visual (Logo, Cores, Favicon)
-
-### 1.1 Copiar as logos para o projeto
-- Copiar `LOGO-FUNDO-TRANSPA.png` para `src/assets/logo-full.png` (logo completa para tema claro)
-- Copiar `LOGO-NEG2-FUNDO-TRANSPA.png` para `src/assets/logo-full-white.png` (logo completa para tema escuro)
-- Copiar `SIMBOLO-VERDE2-FUNDO-TRANSPA.png` para `src/assets/logo-icon.png` (icone verde claro para tema claro)
-- Copiar `SIMBOLO-VERDE1-FUNDO-TRANSPA.png` para `src/assets/logo-icon-dark.png` (icone verde escuro para tema escuro)
-- Copiar `SIMBOLO-VERDE2-FUNDO-TRANSPA.png` para `public/favicon.png` (favicon)
-
-### 1.2 Atualizar a paleta de cores em `src/index.css`
-Cores extraidas da logo SISRAMOS:
-- Verde claro (SIS): ~HSL 90 58% 43% (#6FAE2E)
-- Verde escuro (RAMOS): ~HSL 120 35% 21% (#2D4A22)
-
-**Tema claro (:root):**
-- `--primary`: 90 58% 43% (verde vivo da logo)
-- `--primary-foreground`: 0 0% 100%
-- `--background`: 100 5% 97%
-- `--card`: 0 0% 100%
-- `--accent`: 90 30% 92%
-- `--accent-foreground`: 120 35% 21%
-- Manter as outras variaveis com ajustes de harmonia
-
-**Tema escuro (.dark):**
-- `--primary`: 90 55% 48% (verde claro mais luminoso)
-- `--primary-foreground`: 120 30% 8%
-- `--background`: 120 10% 7%
-- `--card`: 120 10% 11%
-- Ajustar accent, muted, border para harmonia com os verdes
-
-### 1.3 Atualizar favicon e meta tags em `index.html`
-- Trocar favicon para `/favicon.png`
-- Atualizar title para "SISRAMOS"
-- Atualizar meta descriptions e og:title
+Revisao completa de todas as paginas e componentes para garantir uma experiencia de qualidade em celulares e tablets, mantendo a experiencia desktop intacta.
 
 ---
 
-## Fase 2 -- Header e Navegacao
+## Problemas Identificados
 
-### 2.1 Redesenhar `AppLayout.tsx` (Header Desktop)
-- Substituir o icone ClipboardList por `<img>` da logo SISRAMOS:
-  - Tema claro: `logo-full.png` (logo colorida)
-  - Tema escuro: `logo-full-white.png` (logo branca)
-- Reduzir altura: manter `h-14` mas com melhor aproveitamento
-- Adicionar uma linha sutil de gradiente verde na parte inferior do header
-- Melhorar espacamento dos items de navegacao com hover suave
-- Usar pilulas arredondadas (`rounded-full`) para os itens de nav ativos
-- Melhorar o menu do usuario com avatar mais estilizado
-
-### 2.2 Redesenhar `BottomNav.tsx` (Mobile)
-- Adicionar efeito de indicador ativo (bolinha ou barra acima do icone ativo)
-- Melhorar contraste e tamanho dos icones
-- Usar backdrop-blur mais forte para visual de vidro
-- Ajustar padding para safe-area
+1. **Dashboard**: Titulo e filtros ocupam muito espaco em mobile. KPIs em grid 2 colunas funcionam, mas tabs com 4 itens ficam apertadas. Graficos de donut e barras nao se adaptam bem a telas pequenas.
+2. **APT**: Toolbar de acoes (Export, Colunas, Momento APT, Rollover, Nova Demanda) transborda horizontalmente em mobile. Botoes de acao em massa nao se adaptam.
+3. **Backlog Lista**: Tabela com 8 colunas nao e visivel em mobile -- nao tem versao em cards como a APT.
+4. **Backlog Painel**: Grid de 6 cards summary e graficos lado a lado nao se adaptam a telas menores que 768px.
+5. **Checklist**: Header com muitos botoes inline (navegacao de mes, filtro de semana, lock, novo item, copiar mes) transborda em telas pequenas.
+6. **Configuracoes**: Cards de usuario mobile ja existem, mas a secao de dados pessoais e de aparencia poderiam ter melhor espacamento.
+7. **Login**: Ja esta responsivo (grid adapta de 2 a 5 colunas). Apenas ajustes menores.
 
 ---
 
-## Fase 3 -- Tela de Login
+## Fase 1 -- Dashboard Mobile
 
-### 3.1 Redesenhar `Login.tsx`
-- Centralizar a logo SISRAMOS completa no topo (usando tema claro/escuro)
-- Adicionar um fundo com gradiente sutil dos dois verdes da marca
-- Redesenhar os cards de usuario:
-  - Bordas mais arredondadas (`rounded-2xl`)
-  - Sombra mais suave e elevacao no hover
-  - Efeito de escala mais sutil (1.03 em vez de 1.05)
-- Adicionar texto "Selecione seu perfil" com tipografia mais refinada
-- Rodape com versao e creditos sutis
+### 1.1 `src/pages/Dashboard.tsx`
+- Titulo `text-2xl` para `text-lg md:text-2xl`
+- Subtitulo com `line-clamp-2` em mobile
+- TabsList: reduzir tamanho de fonte em mobile, esconder icones em telas menores
 
----
+### 1.2 `src/components/dashboard/DashboardFilters.tsx`
+- Botao de filtros mobile: garantir altura minima de 44px (touch target)
+- Sheet de filtros: ajustar padding e scroll
 
-## Fase 4 -- Dashboard
-
-### 4.1 Melhorar KPICards (`KPICard.tsx`)
-- Adicionar icones padroes por tipo (Total, Feito, Pendente, etc.)
-- Bordas laterais coloridas em vez de fundo colorido inteiro
-- Transicoes mais suaves
-- Tipografia maior para o valor principal
-
-### 4.2 Melhorar Graficos de Donut (`StatusDonutChart.tsx`, `GestorStatusDonutChart.tsx`)
-- Centralizar valor total/percentual dentro do donut
-- Legendas mais estilizadas com chips coloridos
-
-### 4.3 Layout geral do Dashboard (`Dashboard.tsx`)
-- Melhorar espacamento entre secoes
-- Adicionar subtitulos mais descritivos nas tabs
-- Cards com bordas mais suaves e sombras uniformes
+### 1.3 Graficos (donuts, barras)
+- `StatusDonutChart.tsx` e `GestorStatusDonutChart.tsx`: reduzir `innerRadius`/`outerRadius` em mobile, esconder legendas longas
+- Graficos de barras: reduzir altura em mobile de 300px para 250px
 
 ---
 
-## Fase 5 -- Componentes Globais e Responsividade
+## Fase 2 -- APT Mobile
 
-### 5.1 Cards e Tabelas
-- Arredondar todos os cards para `rounded-xl`
-- Melhorar as bordas de tabelas com cantos arredondados
-- Zebra striping mais sutil
+### 2.1 `src/pages/APT.tsx`
+- Toolbar de acoes: agrupar botoes secundarios em um DropdownMenu "Mais acoes" em mobile, mostrando apenas os botoes essenciais (Nova Demanda, Filtros)
+- Bulk actions bar: layout vertical em mobile com botoes de largura total
+- Esconder texto dos botoes em mobile, manter apenas icones
 
-### 5.2 Botoes
-- Atualizar o `buttonVariants` em `button.tsx` para usar `rounded-lg` em vez de `rounded-md`
-- Melhorar transicoes de hover
+### 2.2 `src/components/apt/DemandaCard.tsx`
+- Ajustar padding interno para `p-2.5` em telas muito pequenas
+- Garantir que badges nao quebrem o layout (flex-wrap ja existe)
 
-### 5.3 Inputs
-- Atualizar `input.tsx` para `rounded-lg`
-- Melhorar focus ring com a nova cor primaria
+---
 
-### 5.4 Responsividade geral
-- Revisar breakpoints em paginas criticas (APT, Dashboard, Checklist)
-- Garantir que cards e KPIs empilham corretamente em mobile (1 coluna)
+## Fase 3 -- Backlog Mobile
+
+### 3.1 `src/components/backlog/BacklogLista.tsx`
+- Criar versao mobile com cards em vez de tabela (similar ao padrao APT)
+- Card mostra: numero, titulo, status badge, prioridade badge, projeto
+- Manter tabela apenas para `md:` e acima
+
+### 3.2 `src/components/backlog/BacklogPainel.tsx`
+- Summary cards: `grid-cols-2` em mobile (em vez de comecar em `md:grid-cols-2`)
+- Graficos: empilhar verticalmente em mobile (`grid-cols-1` sempre em mobile)
+- Itens urgentes: ajustar layout flex para wrap em telas pequenas
+
+---
+
+## Fase 4 -- Checklist Mobile
+
+### 4.1 `src/pages/Checklist.tsx`
+- Header: separar controles em duas linhas em mobile
+  - Linha 1: titulo + navegacao de mes
+  - Linha 2: filtro de semana + botoes de acao (agrupados em menu)
+- Botoes "Copiar mes" e "Lock": colocar dentro de um DropdownMenu em mobile
+- Summary cards: manter `grid-cols-2` em mobile (ja funciona)
+
+### 4.2 `src/components/checklist/ChecklistWeekTable.tsx`
+- Filtros do topo (busca, status, tipo): empilhar em mobile
+- Itens da lista: garantir que o texto nao transborde
+
+---
+
+## Fase 5 -- Configuracoes Mobile
+
+### 5.1 `src/pages/Configuracoes.tsx`
+- Titulo: `text-lg md:text-2xl`
+- Cards de dados pessoais: ajustar padding em mobile
+- Secao de aparencia: ja funciona bem, apenas garantir touch targets
+
+---
+
+## Fase 6 -- Melhorias Globais de Responsividade
+
+### 6.1 `src/components/ui/dialog.tsx` e modais
+- Garantir que dialogs usem `max-h-[85vh]` em mobile com scroll interno
+- Dialogs em mobile: largura `w-[95vw]` em vez de tamanhos fixos
+
+### 6.2 Touch targets
+- Revisar todos os botoes `size="icon"` para garantir min 44x44px em mobile
+- Inputs e selects: `h-10` minimo (ja esta na maioria)
+
+### 6.3 Overflow e scroll
+- Adicionar `overflow-x-hidden` no container principal para evitar scroll horizontal
+- Tabelas que nao tem versao card: adicionar `overflow-x-auto` com wrapper
 
 ---
 
 ## Detalhes Tecnicos
 
-### Arquivos que serao modificados:
-1. `index.html` -- favicon e meta tags
-2. `src/index.css` -- paleta de cores completa (light + dark)
-3. `src/components/layout/AppLayout.tsx` -- header com logo
-4. `src/components/layout/BottomNav.tsx` -- navegacao mobile
-5. `src/pages/Login.tsx` -- tela de login redesenhada
-6. `src/pages/Dashboard.tsx` -- ajustes de layout
-7. `src/components/dashboard/KPICard.tsx` -- visual dos cards
-8. `src/components/dashboard/StatusDonutChart.tsx` -- valor central no donut
-9. `src/components/dashboard/GestorStatusDonutChart.tsx` -- valor central no donut
-10. `src/components/ui/button.tsx` -- arredondamento
-11. `src/components/ui/input.tsx` -- arredondamento
-12. `src/App.css` -- limpar estilos nao utilizados
+### Arquivos a modificar:
+1. `src/pages/Dashboard.tsx` -- titulos e tabs responsivos
+2. `src/pages/APT.tsx` -- toolbar de acoes agrupada em mobile
+3. `src/pages/Checklist.tsx` -- header reorganizado em mobile
+4. `src/pages/Configuracoes.tsx` -- ajustes menores de titulo
+5. `src/components/backlog/BacklogLista.tsx` -- versao card mobile
+6. `src/components/backlog/BacklogPainel.tsx` -- grid e graficos responsivos
+7. `src/components/dashboard/StatusDonutChart.tsx` -- tamanho responsivo
+8. `src/components/dashboard/GestorStatusDonutChart.tsx` -- tamanho responsivo
+9. `src/components/checklist/ChecklistWeekTable.tsx` -- filtros empilhados
 
-### Arquivos novos:
-- `src/assets/logo-full.png`
-- `src/assets/logo-full-white.png`
-- `src/assets/logo-icon.png`
-- `src/assets/logo-icon-dark.png`
-- `public/favicon.png`
-
-### Impacto:
-- Zero alteracoes de logica/dados
-- Apenas visual e UX
-- Compatibilidade total com tema claro e escuro
-- Sem novas dependencias
-
+### Principios:
+- Zero alteracoes de logica ou dados
+- Usar breakpoints existentes: `sm:` (640px), `md:` (768px), `lg:` (1024px)
+- Touch targets minimos de 44px
+- Textos truncados com `truncate` ou `line-clamp`
+- Botoes secundarios agrupados em DropdownMenu/Sheet em mobile
+- Tabelas convertidas para cards abaixo de `md:`
