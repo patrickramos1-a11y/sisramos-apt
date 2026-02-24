@@ -87,16 +87,16 @@ export default function WeeklyUserChart({
       <CardContent>
         <ChartContainer config={chartConfig} className="h-[300px] w-full">
           <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={chartData} margin={{ left: 20, right: 20, bottom: 10 }}>
+            <BarChart data={chartData} margin={{ left: 20, right: 20, bottom: 10 }} barSize={chartData.length <= 2 ? 60 : undefined}>
               <CartesianGrid strokeDasharray="3 3" vertical={false} />
               <XAxis
                 dataKey="nome"
                 tick={{ fontSize: 11 }}
                 tickLine={false}
                 interval={0}
-                angle={-45}
-                textAnchor="end"
-                height={70}
+                angle={chartData.length > 3 ? -45 : 0}
+                textAnchor={chartData.length > 3 ? "end" : "middle"}
+                height={chartData.length > 3 ? 70 : 40}
               />
               <YAxis tick={{ fontSize: 11 }} tickLine={false} />
               <ChartTooltip content={<ChartTooltipContent />} />
