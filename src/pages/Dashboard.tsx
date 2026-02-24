@@ -375,8 +375,8 @@ export default function Dashboard() {
               />
             </div>
 
-            {/* Status Donuts */}
-            <div className={`grid grid-cols-1 ${isGestorOrAdmin ? 'md:grid-cols-2' : ''} gap-4`}>
+            {/* Status Donuts - side by side */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <StatusDonutChart
                 data={{
                   feito: kpis.feito,
@@ -386,17 +386,15 @@ export default function Dashboard() {
                 onStatusClick={handleStatusClick}
                 activeStatus={crossFilter?.type === "status" ? crossFilter.value : null}
               />
-              {isGestorOrAdmin && (
-                <GestorStatusDonutChart
-                  data={{
-                    aprovado: kpis.aprovado,
-                    pendente: kpis.gestorPendente,
-                    rejeitado: kpis.gestorRejeitado,
-                  }}
-                  onStatusClick={handleStatusClick}
-                  activeStatus={crossFilter?.type === "status" ? crossFilter.value : null}
-                />
-              )}
+              <GestorStatusDonutChart
+                data={{
+                  aprovado: kpis.aprovado,
+                  pendente: kpis.gestorPendente,
+                  rejeitado: kpis.gestorRejeitado,
+                }}
+                onStatusClick={handleStatusClick}
+                activeStatus={crossFilter?.type === "status" ? crossFilter.value : null}
+              />
             </div>
 
             {/* Weekly Stacked Chart */}
