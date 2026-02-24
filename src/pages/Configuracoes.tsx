@@ -327,7 +327,7 @@ export default function Configuracoes() {
     <AppLayout>
       <div className="p-4 lg:p-6 max-w-5xl mx-auto space-y-6">
         <div className="mb-6">
-          <h1 className="text-2xl font-bold tracking-tight">Configurações</h1>
+          <h1 className="text-lg md:text-2xl font-bold tracking-tight">Configurações</h1>
           <p className="text-sm text-muted-foreground mt-1">
             Gerencie suas informações pessoais
             {isGestorOrAdmin && " e os usuários do sistema"}

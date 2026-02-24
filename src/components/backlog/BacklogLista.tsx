@@ -83,76 +83,112 @@ export default function BacklogLista() {
           ))}
         </div>
       ) : items && items.length > 0 ? (
-        <div className="border rounded-lg overflow-hidden">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead className="w-16">#</TableHead>
-                <TableHead>Título</TableHead>
-                <TableHead className="w-32">Projeto</TableHead>
-                <TableHead className="w-40">Categoria</TableHead>
-                <TableHead className="w-36">Status</TableHead>
-                <TableHead className="w-24">Prioridade</TableHead>
-                <TableHead className="w-32">Criado em</TableHead>
-                <TableHead className="w-24 text-right">Ações</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {items.map((item) => (
-                <TableRow 
-                  key={item.id} 
-                  className="cursor-pointer hover:bg-muted/50"
-                  onClick={() => handleViewItem(item)}
-                >
-                  <TableCell className="font-mono text-muted-foreground">
-                    {item.numero}
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex flex-col">
-                      <span className="font-medium">{item.titulo}</span>
-                      {item.dependente_de_creditos && (
-                        <span className="text-xs text-yellow-600 dark:text-yellow-400">
-                          ⚠️ Depende de créditos
-                        </span>
-                      )}
-                    </div>
-                  </TableCell>
-                  <TableCell className="text-sm text-muted-foreground">
-                    {item.projeto?.nome || "-"}
-                  </TableCell>
-                  <TableCell>
-                    <span className="text-sm">{CATEGORIAS_LABELS[item.categoria]}</span>
-                  </TableCell>
-                  <TableCell>
-                    <Badge variant="secondary" className={STATUS_COLORS[item.status]}>
+        <>
+          {/* Mobile: Cards */}
+          <div className="space-y-2 md:hidden">
+            {items.map((item) => (
+              <div
+                key={item.id}
+                className="border rounded-xl p-3 bg-card cursor-pointer hover:shadow-md transition-shadow active:scale-[0.99]"
+                onClick={() => handleViewItem(item)}
+              >
+                <div className="flex items-start justify-between gap-2 mb-2">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="font-mono text-xs text-muted-foreground">#{item.numero}</span>
+                    <Badge variant="secondary" className={STATUS_COLORS[item.status] + " text-[10px] px-1.5 py-0"}>
                       {STATUS_LABELS[item.status]}
                     </Badge>
-                  </TableCell>
-                  <TableCell>
-                    <Badge variant="secondary" className={PRIORIDADE_COLORS[item.prioridade]}>
+                    <Badge variant="secondary" className={PRIORIDADE_COLORS[item.prioridade] + " text-[10px] px-1.5 py-0"}>
                       {PRIORIDADE_LABELS[item.prioridade]}
                     </Badge>
-                  </TableCell>
-                  <TableCell className="text-sm text-muted-foreground">
-                    {format(new Date(item.created_at), "dd/MM/yyyy", { locale: ptBR })}
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleViewItem(item);
-                      }}
-                    >
-                      <Eye className="h-4 w-4" />
-                    </Button>
-                  </TableCell>
+                  </div>
+                </div>
+                <p className="text-sm font-medium mb-1.5">{item.titulo}</p>
+                <div className="flex items-center justify-between text-xs text-muted-foreground">
+                  <span>{item.projeto?.nome || "Sem projeto"}</span>
+                  <span>{format(new Date(item.created_at), "dd/MM/yy", { locale: ptBR })}</span>
+                </div>
+                {item.dependente_de_creditos && (
+                  <span className="text-[10px] text-yellow-600 dark:text-yellow-400 mt-1 block">
+                    ⚠️ Depende de créditos
+                  </span>
+                )}
+              </div>
+            ))}
+          </div>
+
+          {/* Desktop: Table */}
+          <div className="border rounded-lg overflow-hidden hidden md:block">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="w-16">#</TableHead>
+                  <TableHead>Título</TableHead>
+                  <TableHead className="w-32">Projeto</TableHead>
+                  <TableHead className="w-40">Categoria</TableHead>
+                  <TableHead className="w-36">Status</TableHead>
+                  <TableHead className="w-24">Prioridade</TableHead>
+                  <TableHead className="w-32">Criado em</TableHead>
+                  <TableHead className="w-24 text-right">Ações</TableHead>
                 </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </div>
+              </TableHeader>
+              <TableBody>
+                {items.map((item) => (
+                  <TableRow 
+                    key={item.id} 
+                    className="cursor-pointer hover:bg-muted/50"
+                    onClick={() => handleViewItem(item)}
+                  >
+                    <TableCell className="font-mono text-muted-foreground">
+                      {item.numero}
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex flex-col">
+                        <span className="font-medium">{item.titulo}</span>
+                        {item.dependente_de_creditos && (
+                          <span className="text-xs text-yellow-600 dark:text-yellow-400">
+                            ⚠️ Depende de créditos
+                          </span>
+                        )}
+                      </div>
+                    </TableCell>
+                    <TableCell className="text-sm text-muted-foreground">
+                      {item.projeto?.nome || "-"}
+                    </TableCell>
+                    <TableCell>
+                      <span className="text-sm">{CATEGORIAS_LABELS[item.categoria]}</span>
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant="secondary" className={STATUS_COLORS[item.status]}>
+                        {STATUS_LABELS[item.status]}
+                      </Badge>
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant="secondary" className={PRIORIDADE_COLORS[item.prioridade]}>
+                        {PRIORIDADE_LABELS[item.prioridade]}
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="text-sm text-muted-foreground">
+                      {format(new Date(item.created_at), "dd/MM/yyyy", { locale: ptBR })}
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleViewItem(item);
+                        }}
+                      >
+                        <Eye className="h-4 w-4" />
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+        </>
       ) : (
         <div className="flex flex-col items-center justify-center py-12 text-center text-muted-foreground">
           <Archive className="h-12 w-12 mb-4 opacity-50" />

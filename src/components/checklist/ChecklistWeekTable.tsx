@@ -326,8 +326,8 @@ export default function ChecklistWeekTable({
       </div>
 
       {/* Filters bar */}
-      <div className="px-4 py-2 border-b bg-muted/20 flex flex-wrap items-center gap-2">
-        <div className="relative flex-1 min-w-[150px] max-w-xs">
+      <div className="px-3 sm:px-4 py-2 border-b bg-muted/20 flex flex-col sm:flex-row sm:flex-wrap items-stretch sm:items-center gap-2">
+        <div className="relative flex-1 min-w-0 sm:min-w-[150px] sm:max-w-xs">
           <Search className="absolute left-2.5 top-2 h-3.5 w-3.5 text-muted-foreground" />
           <Input
             placeholder="Buscar..."
@@ -336,27 +336,29 @@ export default function ChecklistWeekTable({
             className="h-8 pl-8 text-xs"
           />
         </div>
-        <Select value={filterStatus} onValueChange={setFilterStatus}>
-          <SelectTrigger className="h-8 w-[130px] text-xs">
-            <SelectValue placeholder="Status" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">Todos</SelectItem>
-            <SelectItem value="pendente">Pendente</SelectItem>
-            <SelectItem value="concluido">Concluído</SelectItem>
-            <SelectItem value="nao_realizado">Não realizado</SelectItem>
-          </SelectContent>
-        </Select>
-        <Select value={filterTipo} onValueChange={setFilterTipo}>
-          <SelectTrigger className="h-8 w-[130px] text-xs">
-            <SelectValue placeholder="Tipo" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">Todos</SelectItem>
-            <SelectItem value="recorrente">Recorrente</SelectItem>
-            <SelectItem value="avulso_semana">Avulso</SelectItem>
-          </SelectContent>
-        </Select>
+        <div className="flex gap-2">
+          <Select value={filterStatus} onValueChange={setFilterStatus}>
+            <SelectTrigger className="h-8 flex-1 sm:w-[130px] text-xs">
+              <SelectValue placeholder="Status" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Todos</SelectItem>
+              <SelectItem value="pendente">Pendente</SelectItem>
+              <SelectItem value="concluido">Concluído</SelectItem>
+              <SelectItem value="nao_realizado">Não realizado</SelectItem>
+            </SelectContent>
+          </Select>
+          <Select value={filterTipo} onValueChange={setFilterTipo}>
+            <SelectTrigger className="h-8 flex-1 sm:w-[130px] text-xs">
+              <SelectValue placeholder="Tipo" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Todos</SelectItem>
+              <SelectItem value="recorrente">Recorrente</SelectItem>
+              <SelectItem value="avulso_semana">Avulso</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
       </div>
 
       {/* Table header - desktop only */}

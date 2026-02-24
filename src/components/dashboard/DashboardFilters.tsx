@@ -303,7 +303,7 @@ export default function DashboardFilters(props: DashboardFiltersProps) {
     return (
       <Sheet>
         <SheetTrigger asChild>
-          <Button variant="outline" size="sm" className="gap-2 h-10">
+          <Button variant="outline" size="sm" className="gap-2 h-11 min-w-[44px]">
             <SlidersHorizontal className="h-4 w-4" />
             Filtros
             {hasActiveFilters && (

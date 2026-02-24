@@ -99,7 +99,7 @@ export default function BacklogPainel() {
   return (
     <div className="space-y-6">
       {/* Summary Cards */}
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-3 xl:grid-cols-6 sm:gap-4">
         {summaryCards.map((card, index) => (
           <Card key={index}>
             <CardHeader className="flex flex-row items-center justify-between pb-2">
@@ -132,7 +132,7 @@ export default function BacklogPainel() {
         </Card>
       )}
 
-      <div className="grid gap-6 lg:grid-cols-2">
+      <div className="grid gap-4 sm:gap-6 grid-cols-1 lg:grid-cols-2">
         {/* Pie Chart */}
         <Card>
           <CardHeader>
@@ -212,11 +212,11 @@ export default function BacklogPainel() {
               {urgentItems.map(item => (
                 <div 
                   key={item.id} 
-                  className="flex items-center justify-between p-3 rounded-lg bg-muted/50 hover:bg-muted transition-colors"
+                  className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 p-3 rounded-lg bg-muted/50 hover:bg-muted transition-colors"
                 >
-                  <div className="flex items-center gap-3">
-                    <span className="text-sm font-mono text-muted-foreground">#{item.numero}</span>
-                    <span className="font-medium">{item.titulo}</span>
+                  <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+                    <span className="text-xs sm:text-sm font-mono text-muted-foreground shrink-0">#{item.numero}</span>
+                    <span className="font-medium text-sm truncate">{item.titulo}</span>
                   </div>
                   <div className="flex items-center gap-2">
                     <span 
