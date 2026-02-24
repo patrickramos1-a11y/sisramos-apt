@@ -3,7 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import { SortConfig, SortDirection } from "@/components/apt/DemandaSortHeader";
-import { checkAndCreateWeekNotification } from "@/lib/notificationUtils";
+
 
 type StatusBolinha = "pendente" | "executado" | "nao_realizado";
 
@@ -245,24 +245,6 @@ export function useDemandas() {
         )
       );
 
-      // Verificar se deve criar notificação de semana concluída
-      const demanda = demandas.find((d) => d.id === demandaId);
-      if (demanda) {
-        for (const semana of demanda.semana_limite) {
-          try {
-            await checkAndCreateWeekNotification({
-              responsavelId: demanda.responsavel_id,
-              semana,
-              mes: demanda.mes,
-              ano: demanda.ano,
-              gestorId: user.id,
-              gestorNome: profile.nome,
-            });
-          } catch (err) {
-            console.error("Erro ao verificar notificação:", err);
-          }
-        }
-      }
     }
   };
 

@@ -19,7 +19,7 @@ import {
   CheckSquare,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import NotificationBell from "@/components/notifications/NotificationBell";
+
 import APTDropdownMenu from "./APTDropdownMenu";
 import BacklogDropdownMenu from "./BacklogDropdownMenu";
 import BottomNav from "./BottomNav";
@@ -131,7 +131,7 @@ export default function AppLayout({ children }: AppLayoutProps) {
 
           {/* Right side */}
           <div className="flex items-center gap-2 md:gap-3">
-            <NotificationBell />
+            
             
             {/* Desktop user menu */}
             <div className="hidden md:flex items-center gap-3">

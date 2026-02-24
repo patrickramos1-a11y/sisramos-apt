@@ -2,7 +2,7 @@ import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
-import { checkBulkWeekNotifications } from "@/lib/notificationUtils";
+
 import {
   Dialog,
   DialogContent,
@@ -57,15 +57,6 @@ export default function AtualizarStatusEmMassaDialog({
         description: "Erro ao atualizar status das demandas",
       });
     } else {
-      // Se for atualização de status do gestor, verificar se deve criar notificações
-      if (type === "gestor" && user && profile) {
-        try {
-          await checkBulkWeekNotifications(demandaIds, user.id, profile.nome);
-        } catch (notifError) {
-          console.error("Erro ao criar notificações:", notifError);
-        }
-      }
-
       toast({
         title: "Sucesso",
         description: `${demandaIds.length} demanda(s) atualizada(s) para "${getStatusLabel(newStatus)}"`,
