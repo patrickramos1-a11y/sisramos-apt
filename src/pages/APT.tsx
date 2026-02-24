@@ -228,22 +228,18 @@ export default function APT() {
               {/* Status badges */}
               <div className="flex flex-wrap items-center gap-2">
                 {pendingCount > 0 && (
-                  <Badge 
-                    variant="outline" 
-                    className="gap-1.5 bg-warning/10 text-warning border-warning/30"
-                  >
-                    <AlertCircle className="h-3 w-3" />
-                    {pendingCount} pendentes
-                  </Badge>
+                  <div className="flex items-center gap-2.5 rounded-xl border border-warning/40 bg-warning/10 px-4 py-2 shadow-sm">
+                    <AlertCircle className="h-4 w-4 text-warning" />
+                    <span className="text-xl font-bold text-warning">{pendingCount}</span>
+                    <span className="text-xs font-medium text-warning/80 uppercase tracking-wide">Pendentes</span>
+                  </div>
                 )}
                 {pendingApprovalCount > 0 && (
-                  <Badge 
-                    variant="outline"
-                    className="gap-1.5 bg-primary/10 text-primary border-primary/30"
-                  >
-                    <CheckCircle2 className="h-3 w-3" />
-                    {pendingApprovalCount} aguardando
-                  </Badge>
+                  <div className="flex items-center gap-2.5 rounded-xl border border-primary/40 bg-primary/10 px-4 py-2 shadow-sm">
+                    <CheckCircle2 className="h-4 w-4 text-primary" />
+                    <span className="text-xl font-bold text-primary">{pendingApprovalCount}</span>
+                    <span className="text-xs font-medium text-primary/80 uppercase tracking-wide">Aguardando</span>
+                  </div>
                 )}
               </div>
 
