@@ -572,7 +572,7 @@ export default function APTGerenciamento({
         onClick={() => setSelectedDemand(demand)}
       >
         <TableCell className="max-w-[300px]">
-          <p className="truncate">{demand.descricao}</p>
+          <p className="whitespace-normal break-words">{demand.descricao}</p>
         </TableCell>
         <TableCell>
           <div className="flex items-center gap-2">
