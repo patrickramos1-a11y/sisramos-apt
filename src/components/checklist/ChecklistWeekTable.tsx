@@ -193,7 +193,7 @@ export default function ChecklistWeekTable({
                   <SortableChecklistItem
                     item={item}
                     index={globalIndex}
-                    canModify={canModify && !item.is_group}
+                    canModify={canModify}
                     canCompleteItem={canCompleteItem && !item.is_group}
                     isLocked={isLocked}
                     canEdit={isGestorOrAdmin}
