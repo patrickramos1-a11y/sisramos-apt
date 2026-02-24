@@ -4,6 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 interface SolicitacaoPendente {
   id: string;
   demanda_id: string;
+  grupo_id: string | null;
   solicitante_id: string;
   justificativa: string;
   created_at: string;
@@ -18,7 +19,7 @@ export function useSolicitacoesExclusao() {
   const fetchPendentes = useCallback(async () => {
     const { data, error } = await supabase
       .from("solicitacoes_exclusao" as any)
-      .select("id, demanda_id, solicitante_id, justificativa, created_at, tipo_exclusao")
+      .select("id, demanda_id, grupo_id, solicitante_id, justificativa, created_at, tipo_exclusao")
       .eq("status", "pendente");
 
     if (error) {
@@ -28,7 +29,28 @@ export function useSolicitacoesExclusao() {
 
     const items = (data as unknown as SolicitacaoPendente[]) || [];
     setSolicitacoesPendentes(items);
-    setPendingDemandaIds(new Set(items.map((s) => s.demanda_id)));
+
+    // Collect grupo_ids from "todas" requests to fetch sibling demandas
+    const grupoIds = items
+      .filter((s) => s.tipo_exclusao === "todas" && s.grupo_id)
+      .map((s) => s.grupo_id as string);
+
+    const directIds = new Set(items.map((s) => s.demanda_id));
+
+    if (grupoIds.length > 0) {
+      const { data: siblings } = await supabase
+        .from("demandas")
+        .select("id")
+        .in("grupo_id", grupoIds);
+
+      if (siblings) {
+        for (const s of siblings) {
+          directIds.add(s.id);
+        }
+      }
+    }
+
+    setPendingDemandaIds(directIds);
     setPendingCount(items.length);
   }, []);
 
