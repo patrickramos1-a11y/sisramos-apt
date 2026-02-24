@@ -25,9 +25,10 @@ interface WeeklyStackedChartProps {
 
 const chartConfig = {
   feito: { label: "Feito", color: "hsl(142 76% 36%)" },
-  aprovado: { label: "Aprovado", color: "hsl(221 83% 53%)" },
   pendente: { label: "Pendente", color: "hsl(38 92% 50%)" },
   nao_realizado: { label: "Não Realizado", color: "hsl(0 84% 60%)" },
+  aprovado: { label: "Aprovado", color: "hsl(221 83% 53%)" },
+  rejeitado: { label: "Rejeitado", color: "hsl(0 65% 48%)" },
 };
 
 export default function WeeklyStackedChart({
@@ -45,10 +46,13 @@ export default function WeeklyStackedChart({
       return {
         semana: `${week}ª`,
         weekNumber: week,
+        // Collaborator stack
         feito: weekDemandas.filter((d) => d.status_responsavel === "executado").length,
-        aprovado: weekDemandas.filter((d) => d.status_gestor === "executado").length,
         pendente: weekDemandas.filter((d) => d.status_responsavel === "pendente").length,
         nao_realizado: weekDemandas.filter((d) => d.status_responsavel === "nao_realizado").length,
+        // Gestor stack
+        aprovado: weekDemandas.filter((d) => d.status_gestor === "executado").length,
+        rejeitado: weekDemandas.filter((d) => d.status_gestor === "nao_realizado").length,
       };
     });
 
@@ -81,9 +85,10 @@ export default function WeeklyStackedChart({
               <YAxis tick={{ fontSize: 12 }} tickLine={false} />
               <ChartTooltip content={<ChartTooltipContent />} />
               <ChartLegend content={<ChartLegendContent />} />
+              {/* Collaborator stack */}
               <Bar
                 dataKey="feito"
-                stackId="a"
+                stackId="colaborador"
                 fill="var(--color-feito)"
                 radius={[0, 0, 0, 0]}
                 cursor={onBarClick || onWeekClick ? "pointer" : "default"}
@@ -91,16 +96,8 @@ export default function WeeklyStackedChart({
                 opacity={activeWeek !== null && activeWeek !== undefined ? 0.5 : 1}
               />
               <Bar
-                dataKey="aprovado"
-                stackId="a"
-                fill="var(--color-aprovado)"
-                cursor={onBarClick || onWeekClick ? "pointer" : "default"}
-                onClick={(data) => handleBarClick(data, "aprovado")}
-                opacity={activeWeek !== null && activeWeek !== undefined ? 0.5 : 1}
-              />
-              <Bar
                 dataKey="pendente"
-                stackId="a"
+                stackId="colaborador"
                 fill="var(--color-pendente)"
                 cursor={onBarClick || onWeekClick ? "pointer" : "default"}
                 onClick={(data) => handleBarClick(data, "pendente")}
@@ -108,11 +105,30 @@ export default function WeeklyStackedChart({
               />
               <Bar
                 dataKey="nao_realizado"
-                stackId="a"
+                stackId="colaborador"
                 fill="var(--color-nao_realizado)"
                 radius={[4, 4, 0, 0]}
                 cursor={onBarClick || onWeekClick ? "pointer" : "default"}
                 onClick={(data) => handleBarClick(data, "nao_realizado")}
+                opacity={activeWeek !== null && activeWeek !== undefined ? 0.5 : 1}
+              />
+              {/* Gestor stack */}
+              <Bar
+                dataKey="aprovado"
+                stackId="gestor"
+                fill="var(--color-aprovado)"
+                radius={[0, 0, 0, 0]}
+                cursor={onBarClick || onWeekClick ? "pointer" : "default"}
+                onClick={(data) => handleBarClick(data, "aprovado")}
+                opacity={activeWeek !== null && activeWeek !== undefined ? 0.5 : 1}
+              />
+              <Bar
+                dataKey="rejeitado"
+                stackId="gestor"
+                fill="var(--color-rejeitado)"
+                radius={[4, 4, 0, 0]}
+                cursor={onBarClick || onWeekClick ? "pointer" : "default"}
+                onClick={(data) => handleBarClick(data, "rejeitado")}
                 opacity={activeWeek !== null && activeWeek !== undefined ? 0.5 : 1}
               />
             </BarChart>
