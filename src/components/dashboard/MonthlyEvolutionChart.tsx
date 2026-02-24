@@ -5,7 +5,7 @@ import {
   ChartTooltip,
   ChartTooltipContent,
 } from "@/components/ui/chart";
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, ResponsiveContainer } from "recharts";
+import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, ResponsiveContainer } from "recharts";
 import { Button } from "@/components/ui/button";
 import { Calendar, BarChart3 } from "lucide-react";
 
@@ -121,38 +121,48 @@ export default function MonthlyEvolutionChart({ data }: MonthlyEvolutionChartPro
       <CardContent>
         <ChartContainer config={chartConfig} className="h-[250px] w-full">
           <ResponsiveContainer width="100%" height="100%">
-            <LineChart data={chartData} margin={{ left: 10, right: 10, bottom: 10 }}>
-              <CartesianGrid strokeDasharray="3 3" vertical={false} />
-              <XAxis
-                dataKey="label"
-                tick={{ fontSize: 11 }}
-                tickLine={false}
-              />
-              <YAxis
-                tick={{ fontSize: 11 }}
-                tickLine={false}
-                domain={[0, 100]}
-                tickFormatter={(v) => `${v}%`}
-              />
-              <ChartTooltip
-                content={
-                  <ChartTooltipContent
-                    formatter={(value, name, item) => [
-                      `${value}% (${item.payload.concluidas}/${item.payload.total})`,
-                      "Conclusão",
-                    ]}
-                  />
-                }
-              />
-              <Line
-                type="linear"
-                dataKey="percentual"
-                stroke="var(--color-percentual)"
-                strokeWidth={2}
-                dot={{ r: 4, fill: "var(--color-percentual)" }}
-                activeDot={{ r: 6 }}
-              />
-            </LineChart>
+            {period === "ano" ? (
+              <BarChart data={chartData} margin={{ left: 10, right: 10, bottom: 10 }} barSize={chartData.length <= 2 ? 60 : undefined}>
+                <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                <XAxis dataKey="label" tick={{ fontSize: 11 }} tickLine={false} />
+                <YAxis tick={{ fontSize: 11 }} tickLine={false} domain={[0, 100]} tickFormatter={(v) => `${v}%`} />
+                <ChartTooltip
+                  content={
+                    <ChartTooltipContent
+                      formatter={(value, name, item) => [
+                        `${value}% (${item.payload.concluidas}/${item.payload.total})`,
+                        "Conclusão",
+                      ]}
+                    />
+                  }
+                />
+                <Bar dataKey="percentual" fill="var(--color-percentual)" radius={[4, 4, 0, 0]} />
+              </BarChart>
+            ) : (
+              <LineChart data={chartData} margin={{ left: 10, right: 10, bottom: 10 }}>
+                <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                <XAxis dataKey="label" tick={{ fontSize: 11 }} tickLine={false} />
+                <YAxis tick={{ fontSize: 11 }} tickLine={false} domain={[0, 100]} tickFormatter={(v) => `${v}%`} />
+                <ChartTooltip
+                  content={
+                    <ChartTooltipContent
+                      formatter={(value, name, item) => [
+                        `${value}% (${item.payload.concluidas}/${item.payload.total})`,
+                        "Conclusão",
+                      ]}
+                    />
+                  }
+                />
+                <Line
+                  type="linear"
+                  dataKey="percentual"
+                  stroke="var(--color-percentual)"
+                  strokeWidth={2}
+                  dot={{ r: 4, fill: "var(--color-percentual)" }}
+                  activeDot={{ r: 6 }}
+                />
+              </LineChart>
+            )}
           </ResponsiveContainer>
         </ChartContainer>
       </CardContent>
