@@ -377,25 +377,27 @@ export default function Dashboard() {
                 />
               </div>
 
-              {/* Status Donuts - stacked vertically */}
-              <StatusDonutChart
-                data={{
-                  feito: kpis.feito,
-                  pendente: kpis.pendente,
-                  naoRealizado: kpis.naoRealizado,
-                }}
-                onStatusClick={handleStatusClick}
-                activeStatus={crossFilter?.type === "status" ? crossFilter.value : null}
-              />
-              <GestorStatusDonutChart
-                data={{
-                  aprovado: kpis.aprovado,
-                  pendente: kpis.gestorPendente,
-                  rejeitado: kpis.gestorRejeitado,
-                }}
-                onStatusClick={handleStatusClick}
-                activeStatus={crossFilter?.type === "status" ? crossFilter.value : null}
-              />
+              {/* Status Donuts - side by side */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <StatusDonutChart
+                  data={{
+                    feito: kpis.feito,
+                    pendente: kpis.pendente,
+                    naoRealizado: kpis.naoRealizado,
+                  }}
+                  onStatusClick={handleStatusClick}
+                  activeStatus={crossFilter?.type === "status" ? crossFilter.value : null}
+                />
+                <GestorStatusDonutChart
+                  data={{
+                    aprovado: kpis.aprovado,
+                    pendente: kpis.gestorPendente,
+                    rejeitado: kpis.gestorRejeitado,
+                  }}
+                  onStatusClick={handleStatusClick}
+                  activeStatus={crossFilter?.type === "status" ? crossFilter.value : null}
+                />
+              </div>
 
               {/* Weekly Stacked Chart */}
               <WeeklyStackedChart
