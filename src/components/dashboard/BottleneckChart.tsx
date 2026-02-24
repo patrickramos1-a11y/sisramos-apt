@@ -65,7 +65,7 @@ export default function BottleneckChart({
     return (
       <Card>
         <CardHeader className="pb-2">
-          <CardTitle className="text-lg">Gargalos por Responsável</CardTitle>
+          <CardTitle className="text-lg">Número de Pendências</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="h-[300px] flex items-center justify-center text-muted-foreground">
@@ -79,7 +79,7 @@ export default function BottleneckChart({
   return (
     <Card>
       <CardHeader className="pb-2">
-        <CardTitle className="text-lg">Gargalos por Responsável</CardTitle>
+        <CardTitle className="text-lg">Número de Pendências</CardTitle>
       </CardHeader>
       <CardContent>
         <ChartContainer config={chartConfig} className="h-[300px] w-full">
