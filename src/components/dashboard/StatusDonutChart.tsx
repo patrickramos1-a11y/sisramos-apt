@@ -5,7 +5,7 @@ import {
   ChartTooltip,
   ChartTooltipContent,
 } from "@/components/ui/chart";
-import { PieChart, Pie, Cell, ResponsiveContainer } from "recharts";
+import { PieChart, Pie, Cell, ResponsiveContainer, Label } from "recharts";
 import { cn } from "@/lib/utils";
 
 interface StatusDonutChartProps {
@@ -44,6 +44,7 @@ export default function StatusDonutChart({
   }, [data]);
 
   const total = data.feito + data.pendente + data.naoRealizado;
+  const percentFeito = total > 0 ? Math.round((data.feito / total) * 100) : 0;
 
   const chartConfig = {
     feito: { label: "Feito", color: COLORS.feito },
@@ -54,19 +55,19 @@ export default function StatusDonutChart({
   return (
     <Card>
       <CardHeader className="pb-2">
-        <CardTitle className="text-lg">Status Colaborador</CardTitle>
+        <CardTitle className="text-base font-semibold">Status Colaborador</CardTitle>
       </CardHeader>
       <CardContent>
-        <ChartContainer config={chartConfig} className="h-[280px] w-full">
+        <ChartContainer config={chartConfig} className="h-[260px] w-full">
           <ResponsiveContainer width="100%" height="100%">
             <PieChart>
               <Pie
                 data={chartData}
                 cx="50%"
                 cy="50%"
-                innerRadius={60}
+                innerRadius={65}
                 outerRadius={100}
-                paddingAngle={2}
+                paddingAngle={3}
                 dataKey="value"
                 onClick={(entry) => onStatusClick?.(entry.name)}
                 style={{ cursor: onStatusClick ? "pointer" : "default" }}
@@ -80,6 +81,22 @@ export default function StatusDonutChart({
                     strokeWidth={activeStatus === entry.name ? 3 : 0}
                   />
                 ))}
+                <Label
+                  content={({ viewBox }) => {
+                    if (viewBox && "cx" in viewBox && "cy" in viewBox) {
+                      return (
+                        <text x={viewBox.cx} y={viewBox.cy} textAnchor="middle" dominantBaseline="middle">
+                          <tspan x={viewBox.cx} y={(viewBox.cy || 0) - 8} className="fill-foreground text-2xl font-bold">
+                            {percentFeito}%
+                          </tspan>
+                          <tspan x={viewBox.cx} y={(viewBox.cy || 0) + 12} className="fill-muted-foreground text-xs">
+                            concluído
+                          </tspan>
+                        </text>
+                      );
+                    }
+                  }}
+                />
               </Pie>
               <ChartTooltip
                 content={
@@ -95,23 +112,19 @@ export default function StatusDonutChart({
           </ResponsiveContainer>
         </ChartContainer>
 
-        {/* Legend */}
-        <div className="flex flex-wrap justify-center gap-3 mt-2">
+        <div className="flex flex-wrap justify-center gap-2 mt-2">
           {chartData.map((entry) => (
             <button
               key={entry.name}
               className={cn(
-                "flex items-center gap-1.5 px-2 py-1 rounded text-xs transition-all",
-                onStatusClick && "hover:bg-muted cursor-pointer",
-                activeStatus === entry.name && "bg-muted ring-1 ring-primary"
+                "flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs transition-all",
+                onStatusClick && "hover:bg-accent cursor-pointer",
+                activeStatus === entry.name && "bg-accent ring-1 ring-primary"
               )}
               onClick={() => onStatusClick?.(entry.name)}
             >
-              <div
-                className="w-3 h-3 rounded-sm"
-                style={{ backgroundColor: entry.color }}
-              />
-              <span>{entry.label}</span>
+              <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: entry.color }} />
+              <span className="font-medium">{entry.label}</span>
               <span className="text-muted-foreground">({entry.value})</span>
             </button>
           ))}

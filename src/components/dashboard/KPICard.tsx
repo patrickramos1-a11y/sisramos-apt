@@ -1,4 +1,4 @@
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 import { LucideIcon } from "lucide-react";
 
@@ -12,20 +12,20 @@ interface KPICardProps {
   isActive?: boolean;
 }
 
-const colorClasses = {
+const borderColors = {
+  default: "border-l-muted-foreground/30",
+  green: "border-l-green-500",
+  blue: "border-l-blue-500",
+  yellow: "border-l-yellow-500",
+  red: "border-l-red-500",
+};
+
+const textColors = {
   default: "text-foreground",
   green: "text-green-600 dark:text-green-400",
   blue: "text-blue-600 dark:text-blue-400",
   yellow: "text-yellow-600 dark:text-yellow-400",
   red: "text-red-600 dark:text-red-400",
-};
-
-const bgClasses = {
-  default: "",
-  green: "bg-green-50 dark:bg-green-950/30",
-  blue: "bg-blue-50 dark:bg-blue-950/30",
-  yellow: "bg-yellow-50 dark:bg-yellow-950/30",
-  red: "bg-red-50 dark:bg-red-950/30",
 };
 
 export default function KPICard({
@@ -40,21 +40,21 @@ export default function KPICard({
   return (
     <Card
       className={cn(
-        "transition-all duration-200",
-        onClick && "cursor-pointer hover:shadow-md hover:scale-[1.02]",
-        isActive && "ring-2 ring-primary ring-offset-2",
-        bgClasses[color]
+        "transition-all duration-200 border-l-4 overflow-hidden",
+        borderColors[color],
+        onClick && "cursor-pointer hover:shadow-md hover:scale-[1.02] active:scale-[0.98]",
+        isActive && "ring-2 ring-primary ring-offset-2 ring-offset-background"
       )}
       onClick={onClick}
     >
-      <CardHeader className="pb-2 flex flex-row items-center justify-between space-y-0">
-        <CardTitle className="text-sm font-medium text-muted-foreground">
-          {title}
-        </CardTitle>
-        {Icon && <Icon className={cn("h-4 w-4", colorClasses[color])} />}
-      </CardHeader>
-      <CardContent>
-        <div className={cn("text-2xl font-bold", colorClasses[color])}>
+      <CardContent className="p-4">
+        <div className="flex items-center justify-between mb-1">
+          <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+            {title}
+          </span>
+          {Icon && <Icon className={cn("h-4 w-4", textColors[color])} />}
+        </div>
+        <div className={cn("text-3xl font-bold tracking-tight", textColors[color])}>
           {value.toLocaleString("pt-BR")}
         </div>
         {percentage !== undefined && (

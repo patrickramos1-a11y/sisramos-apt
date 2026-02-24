@@ -47,8 +47,8 @@ export default function BottomNav() {
   };
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 z-50 border-t bg-card/95 backdrop-blur-md md:hidden safe-area-bottom">
-      <div className="flex items-stretch justify-around h-14">
+    <nav className="fixed bottom-0 left-0 right-0 z-50 border-t bg-card/95 backdrop-blur-xl md:hidden safe-area-bottom">
+      <div className="flex items-stretch justify-around h-[60px]">
         {navItems.map((item) => {
           const isActive = location.pathname === item.matchPath;
           return (
@@ -56,12 +56,16 @@ export default function BottomNav() {
               key={item.name}
               onClick={() => navigate(item.href)}
               className={cn(
-                "flex flex-col items-center justify-center flex-1 gap-0.5 min-h-[44px] transition-colors",
+                "relative flex flex-col items-center justify-center flex-1 gap-0.5 min-h-[44px] transition-colors",
                 isActive
                   ? "text-primary"
                   : "text-muted-foreground active:text-foreground"
               )}
             >
+              {/* Active indicator bar */}
+              {isActive && (
+                <div className="absolute top-0 left-1/2 -translate-x-1/2 w-8 h-[3px] rounded-b-full bg-primary" />
+              )}
               <item.icon className={cn("h-5 w-5", isActive && "stroke-[2.5]")} />
               <span className={cn("text-[10px] leading-tight", isActive ? "font-semibold" : "font-normal")}>
                 {item.name}
@@ -70,17 +74,19 @@ export default function BottomNav() {
           );
         })}
 
-        {/* More button with Sheet */}
         <Sheet open={moreOpen} onOpenChange={setMoreOpen}>
           <SheetTrigger asChild>
             <button
               className={cn(
-                "flex flex-col items-center justify-center flex-1 gap-0.5 min-h-[44px] transition-colors",
+                "relative flex flex-col items-center justify-center flex-1 gap-0.5 min-h-[44px] transition-colors",
                 (location.pathname === "/configuracoes") 
                   ? "text-primary" 
                   : "text-muted-foreground active:text-foreground"
               )}
             >
+              {location.pathname === "/configuracoes" && (
+                <div className="absolute top-0 left-1/2 -translate-x-1/2 w-8 h-[3px] rounded-b-full bg-primary" />
+              )}
               <MoreHorizontal className="h-5 w-5" />
               <span className="text-[10px] leading-tight font-normal">Mais</span>
             </button>
@@ -91,9 +97,9 @@ export default function BottomNav() {
             </SheetHeader>
             <div className="space-y-1">
               {/* User info */}
-              <div className="flex items-center gap-3 p-3 rounded-lg bg-muted/50 mb-3">
-                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10 text-primary">
-                  <User className="h-5 w-5" />
+              <div className="flex items-center gap-3 p-3 rounded-xl bg-accent/50 mb-3">
+                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10 text-primary font-bold">
+                  {profile?.nome?.charAt(0)?.toUpperCase() || "U"}
                 </div>
                 <div className="flex-1 min-w-0">
                   <p className="font-medium text-sm truncate">{profile?.nome || "Usuário"}</p>
@@ -102,43 +108,32 @@ export default function BottomNav() {
                 {getRoleBadge()}
               </div>
 
-              {/* APT sub-navigation */}
               <div className="px-1">
                 <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-1 px-3">APT</p>
                 <APTDropdownMenu isMobile onItemClick={() => setMoreOpen(false)} />
               </div>
 
-              {/* Backlog sub-navigation */}
               <div className="px-1 mt-2">
                 <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-1 px-3">Backlog</p>
                 <BacklogDropdownMenu isMobile onItemClick={() => setMoreOpen(false)} />
               </div>
 
-              {/* Settings */}
               <button
-                onClick={() => {
-                  navigate("/configuracoes");
-                  setMoreOpen(false);
-                }}
+                onClick={() => { navigate("/configuracoes"); setMoreOpen(false); }}
                 className={cn(
-                  "flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-all w-full text-left mt-2",
+                  "flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all w-full text-left mt-2",
                   location.pathname === "/configuracoes"
                     ? "bg-primary text-primary-foreground shadow-sm"
-                    : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                    : "text-muted-foreground hover:bg-accent hover:text-foreground"
                 )}
               >
                 <Settings className="h-5 w-5" />
                 Configurações
               </button>
 
-              {/* Logout */}
               <button
-                onClick={() => {
-                  signOut();
-                  navigate("/login");
-                  setMoreOpen(false);
-                }}
-                className="flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-all w-full text-left text-destructive hover:bg-destructive/10"
+                onClick={() => { signOut(); navigate("/login"); setMoreOpen(false); }}
+                className="flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all w-full text-left text-destructive hover:bg-destructive/10"
               >
                 <LogOut className="h-5 w-5" />
                 Trocar usuário

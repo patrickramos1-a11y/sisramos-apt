@@ -1,46 +1,46 @@
-@import url("https://fonts.googleapis.com/css2?family=Work+Sans:wght@400;500;600;700&display=swap");
-@import url("https://fonts.googleapis.com/css2?family=Lora:wght@400;500;600;700&display=swap");
-@import url("https://fonts.googleapis.com/css2?family=Inconsolata:wght@400;700&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap");
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-/* Definition of the design system. All colors, gradients, fonts, etc should be defined here. 
-All colors MUST be HSL.
-SISRAMOS inspired color palette - forest green theme
+/* SISRAMOS Design System
+   Primary colors extracted from logo:
+   - Bright green (SIS): #6FAE2E → HSL 90 58% 43%
+   - Dark green (RAMOS): #2D4A22 → HSL 100 36% 21%
 */
 
 @layer base {
   :root {
-    --background: 120 5% 96%;
-    --foreground: 120 10% 10%;
+    --background: 90 10% 97%;
+    --foreground: 100 20% 10%;
 
     --card: 0 0% 100%;
-    --card-foreground: 120 10% 10%;
+    --card-foreground: 100 20% 10%;
 
     --popover: 0 0% 100%;
-    --popover-foreground: 120 10% 10%;
+    --popover-foreground: 100 20% 10%;
 
-    --primary: 130 45% 32%;
+    --primary: 90 58% 43%;
     --primary-foreground: 0 0% 100%;
 
-    --secondary: 120 8% 88%;
-    --secondary-foreground: 120 10% 20%;
+    --secondary: 90 12% 90%;
+    --secondary-foreground: 100 20% 18%;
 
-    --muted: 120 5% 92%;
-    --muted-foreground: 120 5% 40%;
+    --muted: 90 8% 93%;
+    --muted-foreground: 100 8% 45%;
 
-    --accent: 130 35% 94%;
-    --accent-foreground: 130 45% 25%;
+    --accent: 90 25% 93%;
+    --accent-foreground: 100 36% 21%;
 
     --destructive: 0 72% 50%;
     --destructive-foreground: 0 0% 100%;
 
-    --border: 120 8% 85%;
-    --input: 120 8% 85%;
-    --ring: 130 45% 32%;
+    --border: 90 10% 88%;
+    --input: 90 10% 88%;
+    --ring: 90 58% 43%;
 
-    --radius: 0.5rem;
+    --radius: 0.75rem;
 
     /* APT specific colors */
     --apt-pendente: 0 0% 95%;
@@ -48,38 +48,35 @@ SISRAMOS inspired color palette - forest green theme
     --apt-nao-realizado: 0 72% 50%;
     --apt-prioritaria: 48 100% 60%;
     --apt-muito-urgente: 0 85% 70%;
-    --apt-success: 130 45% 32%;
-    --apt-zebra: 120 5% 88%;
-    --apt-header: 130 45% 32%;
+    --apt-success: 90 58% 43%;
+    --apt-zebra: 90 8% 94%;
+    --apt-header: 100 36% 21%;
     
-    /* Warning color for past month controls */
     --warning: 38 92% 50%;
     --warning-foreground: 38 96% 14%;
 
-    /* Success color */
-    --success: 130 45% 32%;
+    --success: 90 58% 43%;
     --success-foreground: 0 0% 100%;
 
     --sidebar-background: 0 0% 100%;
-    --sidebar-foreground: 120 10% 10%;
-    --sidebar-primary: 130 45% 32%;
+    --sidebar-foreground: 100 20% 10%;
+    --sidebar-primary: 90 58% 43%;
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 130 35% 94%;
-    --sidebar-accent-foreground: 130 45% 25%;
-    --sidebar-border: 120 8% 85%;
-    --sidebar-ring: 130 45% 32%;
+    --sidebar-accent: 90 25% 93%;
+    --sidebar-accent-foreground: 100 36% 21%;
+    --sidebar-border: 90 10% 88%;
+    --sidebar-ring: 90 58% 43%;
 
-    /* Chart colors - harmonious greens */
-    --chart-1: 130 45% 32%;
+    --chart-1: 90 58% 43%;
     --chart-2: 145 50% 42%;
     --chart-3: 160 45% 50%;
     --chart-4: 38 92% 50%;
     --chart-5: 0 72% 50%;
 
     --sidebar: 0 0% 100%;
-    --font-sans: 'Work Sans', ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, 'Noto Sans', sans-serif;
-    --font-serif: 'Lora', ui-serif, Georgia, Cambria, 'Times New Roman', Times, serif;
-    --font-mono: 'Inconsolata', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace;
+    --font-sans: 'Plus Jakarta Sans', 'Inter', ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    --font-serif: Georgia, Cambria, 'Times New Roman', Times, serif;
+    --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
     --shadow-2xs: 0 1px 2px 0 hsl(0 0% 0% / 0.03);
     --shadow-xs: 0 1px 3px 0 hsl(0 0% 0% / 0.04);
     --shadow-sm: 0 2px 4px -1px hsl(0 0% 0% / 0.06), 0 1px 2px -1px hsl(0 0% 0% / 0.04);
@@ -93,33 +90,33 @@ SISRAMOS inspired color palette - forest green theme
   }
 
   .dark {
-    --background: 120 8% 8%;
-    --foreground: 0 0% 98%;
+    --background: 120 12% 6%;
+    --foreground: 90 10% 95%;
 
-    --card: 120 8% 12%;
-    --card-foreground: 0 0% 98%;
+    --card: 120 10% 10%;
+    --card-foreground: 90 10% 95%;
 
-    --popover: 120 8% 14%;
-    --popover-foreground: 0 0% 98%;
+    --popover: 120 10% 12%;
+    --popover-foreground: 90 10% 95%;
 
-    --primary: 135 50% 45%;
-    --primary-foreground: 120 8% 8%;
+    --primary: 90 55% 50%;
+    --primary-foreground: 120 20% 6%;
 
-    --secondary: 120 6% 22%;
-    --secondary-foreground: 0 0% 98%;
+    --secondary: 120 8% 18%;
+    --secondary-foreground: 90 10% 90%;
 
-    --muted: 120 6% 18%;
-    --muted-foreground: 120 5% 60%;
+    --muted: 120 8% 15%;
+    --muted-foreground: 90 6% 55%;
 
-    --accent: 130 25% 18%;
-    --accent-foreground: 135 50% 55%;
+    --accent: 90 20% 15%;
+    --accent-foreground: 90 50% 60%;
 
     --destructive: 0 72% 55%;
     --destructive-foreground: 0 0% 100%;
 
-    --border: 120 6% 22%;
-    --input: 120 6% 22%;
-    --ring: 135 50% 45%;
+    --border: 120 8% 18%;
+    --input: 120 8% 18%;
+    --ring: 90 55% 50%;
 
     /* APT specific colors */
     --apt-pendente: 120 8% 18%;
@@ -127,35 +124,32 @@ SISRAMOS inspired color palette - forest green theme
     --apt-nao-realizado: 0 72% 50%;
     --apt-prioritaria: 48 90% 45%;
     --apt-muito-urgente: 0 80% 55%;
-    --apt-success: 135 50% 45%;
-    --apt-zebra: 120 6% 15%;
-    --apt-header: 130 40% 25%;
+    --apt-success: 90 55% 50%;
+    --apt-zebra: 120 8% 12%;
+    --apt-header: 90 30% 20%;
     
-    /* Warning color for past month controls */
     --warning: 38 92% 50%;
     --warning-foreground: 38 96% 90%;
 
-    /* Success color */
-    --success: 135 50% 45%;
-    --success-foreground: 120 8% 8%;
+    --success: 90 55% 50%;
+    --success-foreground: 120 20% 6%;
 
-    --sidebar-background: 120 8% 10%;
-    --sidebar-foreground: 0 0% 98%;
-    --sidebar-primary: 135 50% 45%;
-    --sidebar-primary-foreground: 120 8% 8%;
-    --sidebar-accent: 130 25% 18%;
-    --sidebar-accent-foreground: 135 50% 55%;
-    --sidebar-border: 120 6% 22%;
-    --sidebar-ring: 135 50% 45%;
+    --sidebar-background: 120 10% 8%;
+    --sidebar-foreground: 90 10% 95%;
+    --sidebar-primary: 90 55% 50%;
+    --sidebar-primary-foreground: 120 20% 6%;
+    --sidebar-accent: 90 20% 15%;
+    --sidebar-accent-foreground: 90 50% 60%;
+    --sidebar-border: 120 8% 18%;
+    --sidebar-ring: 90 55% 50%;
 
-    /* Chart colors */
-    --chart-1: 135 50% 45%;
+    --chart-1: 90 55% 50%;
     --chart-2: 150 55% 50%;
     --chart-3: 165 50% 55%;
     --chart-4: 38 92% 55%;
     --chart-5: 0 72% 55%;
 
-    --sidebar: 120 8% 12%;
+    --sidebar: 120 10% 10%;
     --shadow-2xs: 0 1px 2px 0 hsl(0 0% 0% / 0.1);
     --shadow-xs: 0 1px 3px 0 hsl(0 0% 0% / 0.15);
     --shadow-sm: 0 2px 4px -1px hsl(0 0% 0% / 0.2), 0 1px 2px -1px hsl(0 0% 0% / 0.1);
@@ -174,78 +168,52 @@ SISRAMOS inspired color palette - forest green theme
 
   body {
     @apply bg-background text-foreground antialiased;
+    font-family: var(--font-sans);
   }
 
-  /* Improve focus states for accessibility */
   :focus-visible {
     @apply outline-none ring-2 ring-ring ring-offset-2 ring-offset-background;
   }
 
-  /* Better text rendering */
   h1, h2, h3, h4, h5, h6 {
     @apply font-semibold tracking-tight;
   }
 
-  /* Smooth scrolling */
   html {
     scroll-behavior: smooth;
   }
 
-  /* Custom scrollbar */
   ::-webkit-scrollbar {
-    width: 8px;
-    height: 8px;
+    width: 6px;
+    height: 6px;
   }
 
   ::-webkit-scrollbar-track {
-    @apply bg-muted/50;
+    @apply bg-transparent;
   }
 
   ::-webkit-scrollbar-thumb {
-    @apply bg-muted-foreground/30 rounded-full;
+    @apply bg-muted-foreground/20 rounded-full;
   }
 
   ::-webkit-scrollbar-thumb:hover {
-    @apply bg-muted-foreground/50;
+    @apply bg-muted-foreground/40;
   }
 }
 
 @layer components {
-  /* Radix popper wrapper can sit behind transformed/stacking contexts.
-     Force a high z-index so dropdowns (Select, Popover, etc.) always open above overlays. */
   [data-radix-popper-content-wrapper] {
     z-index: 9999 !important;
   }
 
-  /* Diagonal header accent - SISRAMOS style */
-  .diagonal-header {
-    position: relative;
-    overflow: hidden;
-  }
-
-  .diagonal-header::before {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: 0;
-    width: 200px;
-    height: 100%;
-    background: hsl(var(--primary));
-    transform: skewX(-15deg);
-    transform-origin: top left;
-  }
-
-  /* Card hover effect */
   .card-interactive {
     @apply transition-all duration-200 hover:shadow-md hover:-translate-y-0.5;
   }
 
-  /* Badge pill style */
   .badge-pill {
     @apply rounded-full px-3 py-1 text-xs font-medium;
   }
 
-  /* Table improvements */
   .table-modern th {
     @apply bg-primary text-primary-foreground font-semibold text-sm;
   }
@@ -254,39 +222,32 @@ SISRAMOS inspired color palette - forest green theme
     @apply py-3 text-sm;
   }
 
-  /* Filter section */
   .filter-section {
-    @apply p-4 rounded-lg bg-card border shadow-sm;
+    @apply p-4 rounded-xl bg-card border shadow-sm;
   }
 
-  /* Stat card */
   .stat-card {
-    @apply p-4 rounded-lg bg-card border shadow-sm transition-all hover:shadow-md;
+    @apply p-4 rounded-xl bg-card border shadow-sm transition-all hover:shadow-md;
   }
 
-  /* Status indicator base */
   .status-indicator {
     @apply inline-flex items-center gap-2 px-2.5 py-1 rounded-full text-xs font-medium;
   }
 }
 
 @layer utilities {
-  /* Text balance for better readability */
   .text-balance {
     text-wrap: balance;
   }
 
-  /* Gradient text */
   .text-gradient {
     @apply bg-gradient-to-r from-primary to-primary/70 bg-clip-text text-transparent;
   }
 
-  /* Glass effect */
   .glass {
-    @apply bg-background/80 backdrop-blur-md;
+    @apply bg-background/80 backdrop-blur-xl;
   }
 
-  /* Fade in animation */
   .animate-fade-in {
     animation: fadeIn 0.3s ease-out;
   }
@@ -294,7 +255,7 @@ SISRAMOS inspired color palette - forest green theme
   @keyframes fadeIn {
     from {
       opacity: 0;
-      transform: translateY(10px);
+      transform: translateY(8px);
     }
     to {
       opacity: 1;
@@ -302,21 +263,15 @@ SISRAMOS inspired color palette - forest green theme
     }
   }
 
-  /* Subtle pulse for notifications */
   .animate-subtle-pulse {
     animation: subtlePulse 2s ease-in-out infinite;
   }
 
   @keyframes subtlePulse {
-    0%, 100% {
-      opacity: 1;
-    }
-    50% {
-      opacity: 0.7;
-    }
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.7; }
   }
 
-  /* Safe area padding for bottom nav */
   .pb-safe {
     padding-bottom: env(safe-area-inset-bottom, 0px);
   }
@@ -325,12 +280,10 @@ SISRAMOS inspired color palette - forest green theme
     padding-bottom: env(safe-area-inset-bottom, 0px);
   }
 
-  /* Minimum touch target */
   .touch-target {
     @apply min-h-[44px] min-w-[44px];
   }
 
-  /* Checklist animations */
   @keyframes checkBounce {
     0% { transform: scale(1); }
     40% { transform: scale(1.3); }
