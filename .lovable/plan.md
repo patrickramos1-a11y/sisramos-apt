@@ -1,123 +1,156 @@
 
-# Refatoramento Completo de Responsividade Mobile/Tablet
 
-Revisao completa de todas as paginas e componentes para garantir uma experiencia de qualidade em celulares e tablets, mantendo a experiencia desktop intacta.
+# Autonomia do Colaborador com Fluxo Controlado de Exclusao na APT
 
----
+## Resumo
 
-## Problemas Identificados
-
-1. **Dashboard**: Titulo e filtros ocupam muito espaco em mobile. KPIs em grid 2 colunas funcionam, mas tabs com 4 itens ficam apertadas. Graficos de donut e barras nao se adaptam bem a telas pequenas.
-2. **APT**: Toolbar de acoes (Export, Colunas, Momento APT, Rollover, Nova Demanda) transborda horizontalmente em mobile. Botoes de acao em massa nao se adaptam.
-3. **Backlog Lista**: Tabela com 8 colunas nao e visivel em mobile -- nao tem versao em cards como a APT.
-4. **Backlog Painel**: Grid de 6 cards summary e graficos lado a lado nao se adaptam a telas menores que 768px.
-5. **Checklist**: Header com muitos botoes inline (navegacao de mes, filtro de semana, lock, novo item, copiar mes) transborda em telas pequenas.
-6. **Configuracoes**: Cards de usuario mobile ja existem, mas a secao de dados pessoais e de aparencia poderiam ter melhor espacamento.
-7. **Login**: Ja esta responsivo (grid adapta de 2 a 5 colunas). Apenas ajustes menores.
+Essa evolucao amplia as permissoes do perfil Colaborador (criar, editar e solicitar exclusao de demandas) e implementa um fluxo de exclusao sob aprovacao, onde colaboradores nao apagam demandas diretamente -- apenas solicitam, e gestores/admins aprovam ou recusam.
 
 ---
 
-## Fase 1 -- Dashboard Mobile
+## Etapa 1 -- Banco de Dados
 
-### 1.1 `src/pages/Dashboard.tsx`
-- Titulo `text-2xl` para `text-lg md:text-2xl`
-- Subtitulo com `line-clamp-2` em mobile
-- TabsList: reduzir tamanho de fonte em mobile, esconder icones em telas menores
+Criar uma nova tabela `solicitacoes_exclusao` para registrar as solicitacoes e decisoes:
 
-### 1.2 `src/components/dashboard/DashboardFilters.tsx`
-- Botao de filtros mobile: garantir altura minima de 44px (touch target)
-- Sheet de filtros: ajustar padding e scroll
+```text
+solicitacoes_exclusao
+---------------------
+id                  uuid (PK, default gen_random_uuid())
+demanda_id          uuid (FK demandas.id)
+grupo_id            uuid (nullable) -- se a exclusao eh do grupo inteiro
+tipo_exclusao       text ('unica' | 'todas') -- apenas esta ou todas as repeticoes
+solicitante_id      uuid -- user_id de quem pediu
+justificativa       text (NOT NULL)
+status              text ('pendente' | 'aprovada' | 'recusada') default 'pendente'
+decisor_id          uuid (nullable) -- quem aprovou/recusou
+justificativa_recusa text (nullable)
+created_at          timestamptz default now()
+decided_at          timestamptz (nullable)
+```
 
-### 1.3 Graficos (donuts, barras)
-- `StatusDonutChart.tsx` e `GestorStatusDonutChart.tsx`: reduzir `innerRadius`/`outerRadius` em mobile, esconder legendas longas
-- Graficos de barras: reduzir altura em mobile de 300px para 250px
-
----
-
-## Fase 2 -- APT Mobile
-
-### 2.1 `src/pages/APT.tsx`
-- Toolbar de acoes: agrupar botoes secundarios em um DropdownMenu "Mais acoes" em mobile, mostrando apenas os botoes essenciais (Nova Demanda, Filtros)
-- Bulk actions bar: layout vertical em mobile com botoes de largura total
-- Esconder texto dos botoes em mobile, manter apenas icones
-
-### 2.2 `src/components/apt/DemandaCard.tsx`
-- Ajustar padding interno para `p-2.5` em telas muito pequenas
-- Garantir que badges nao quebrem o layout (flex-wrap ja existe)
+RLS: acesso publico (seguindo o padrao existente do projeto).
 
 ---
 
-## Fase 3 -- Backlog Mobile
+## Etapa 2 -- Permissoes do Colaborador (Criar e Editar)
 
-### 3.1 `src/components/backlog/BacklogLista.tsx`
-- Criar versao mobile com cards em vez de tabela (similar ao padrao APT)
-- Card mostra: numero, titulo, status badge, prioridade badge, projeto
-- Manter tabela apenas para `md:` e acima
+Atualmente, os botoes de "Nova Demanda", "Editar" e "Excluir" so aparecem quando `isGestorOrAdmin` eh verdadeiro.
 
-### 3.2 `src/components/backlog/BacklogPainel.tsx`
-- Summary cards: `grid-cols-2` em mobile (em vez de comecar em `md:grid-cols-2`)
-- Graficos: empilhar verticalmente em mobile (`grid-cols-1` sempre em mobile)
-- Itens urgentes: ajustar layout flex para wrap em telas pequenas
+**Arquivos afetados:**
+- `src/pages/APT.tsx` -- Mostrar botao "Nova Demanda" tambem para colaboradores
+- `src/components/apt/DemandaTableRow.tsx` -- Mostrar menu de acoes (editar/excluir) para colaboradores
+- `src/components/apt/DemandaCard.tsx` -- Habilitar swipe de edicao/exclusao para colaboradores
+- `src/components/apt/APTGerenciamento.tsx` -- Mostrar acoes de editar/excluir para colaboradores
+- `src/components/apt/GerenciamentoLista.tsx` -- Idem
 
----
-
-## Fase 4 -- Checklist Mobile
-
-### 4.1 `src/pages/Checklist.tsx`
-- Header: separar controles em duas linhas em mobile
-  - Linha 1: titulo + navegacao de mes
-  - Linha 2: filtro de semana + botoes de acao (agrupados em menu)
-- Botoes "Copiar mes" e "Lock": colocar dentro de um DropdownMenu em mobile
-- Summary cards: manter `grid-cols-2` em mobile (ja funciona)
-
-### 4.2 `src/components/checklist/ChecklistWeekTable.tsx`
-- Filtros do topo (busca, status, tipo): empilhar em mobile
-- Itens da lista: garantir que o texto nao transborde
+A logica muda de `isGestorOrAdmin` para `true` (todos podem criar/editar), mas a exclusao tera comportamento diferente conforme o perfil.
 
 ---
 
-## Fase 5 -- Configuracoes Mobile
+## Etapa 3 -- Fluxo de Exclusao para Colaboradores
 
-### 5.1 `src/pages/Configuracoes.tsx`
-- Titulo: `text-lg md:text-2xl`
-- Cards de dados pessoais: ajustar padding em mobile
-- Secao de aparencia: ja funciona bem, apenas garantir touch targets
+### 3.1 Novo Dialog: `SolicitarExclusaoDialog`
+
+Criar `src/components/apt/SolicitarExclusaoDialog.tsx`:
+- Campo de justificativa obrigatorio (textarea)
+- Texto explicativo sobre aprovacao do gestor
+- Se demanda tem repeticoes: pergunta "apenas esta" ou "todas as repeticoes"
+- Botoes: "Enviar Solicitacao" e "Cancelar"
+- Ao confirmar: insere registro na tabela `solicitacoes_exclusao` com status `pendente`
+
+### 3.2 Logica de Decisao no Click de Excluir
+
+Quando o usuario clica em "Excluir":
+- Se `isGestorOrAdmin`: abre o `ExcluirDemandaIrmaDialog` existente (comportamento atual, exclusao direta)
+- Se `isColaborador`: abre o novo `SolicitarExclusaoDialog`
+
+Essa logica sera aplicada em:
+- `src/pages/APT.tsx`
+- `src/components/apt/APTGerenciamento.tsx`
+- `src/components/apt/GerenciamentoLista.tsx`
 
 ---
 
-## Fase 6 -- Melhorias Globais de Responsividade
+## Etapa 4 -- Indicacao Visual "Aguardando Exclusao"
 
-### 6.1 `src/components/ui/dialog.tsx` e modais
-- Garantir que dialogs usem `max-h-[85vh]` em mobile com scroll interno
-- Dialogs em mobile: largura `w-[95vw]` em vez de tamanhos fixos
+### 4.1 Buscar solicitacoes pendentes
 
-### 6.2 Touch targets
-- Revisar todos os botoes `size="icon"` para garantir min 44x44px em mobile
-- Inputs e selects: `h-10` minimo (ja esta na maioria)
+Em cada componente que lista demandas, buscar da tabela `solicitacoes_exclusao` os registros com `status = 'pendente'` e criar um `Set<string>` de `demanda_id`s pendentes.
 
-### 6.3 Overflow e scroll
-- Adicionar `overflow-x-hidden` no container principal para evitar scroll horizontal
-- Tabelas que nao tem versao card: adicionar `overflow-x-auto` com wrapper
+### 4.2 Exibicao visual
+
+- **Na tabela (DemandaTableRow):** Adicionar tag/badge amarelo-alaranjado "Aguardando exclusao" ao lado da descricao
+- **No card mobile (DemandaCard):** Badge similar no header do card
+- **No Gerenciamento (Painel e Lista):** Badge similar
+
+### 4.3 Tooltip
+
+Ao passar o mouse sobre a tag, mostrar:
+- Justificativa informada
+- Data da solicitacao
+- Nome do solicitante
 
 ---
 
-## Detalhes Tecnicos
+## Etapa 5 -- Area de Gestao: "Solicitacoes de Exclusao"
 
-### Arquivos a modificar:
-1. `src/pages/Dashboard.tsx` -- titulos e tabs responsivos
-2. `src/pages/APT.tsx` -- toolbar de acoes agrupada em mobile
-3. `src/pages/Checklist.tsx` -- header reorganizado em mobile
-4. `src/pages/Configuracoes.tsx` -- ajustes menores de titulo
-5. `src/components/backlog/BacklogLista.tsx` -- versao card mobile
-6. `src/components/backlog/BacklogPainel.tsx` -- grid e graficos responsivos
-7. `src/components/dashboard/StatusDonutChart.tsx` -- tamanho responsivo
-8. `src/components/dashboard/GestorStatusDonutChart.tsx` -- tamanho responsivo
-9. `src/components/checklist/ChecklistWeekTable.tsx` -- filtros empilhados
+### 5.1 Nova subtab no Gerenciamento
 
-### Principios:
-- Zero alteracoes de logica ou dados
-- Usar breakpoints existentes: `sm:` (640px), `md:` (768px), `lg:` (1024px)
-- Touch targets minimos de 44px
-- Textos truncados com `truncate` ou `line-clamp`
-- Botoes secundarios agrupados em DropdownMenu/Sheet em mobile
-- Tabelas convertidas para cards abaixo de `md:`
+Adicionar uma terceira subtab ao menu de gerenciamento: `exclusoes`.
+
+Rota: `/apt?tab=gerenciamento&subtab=exclusoes`
+
+Atualizar o dropdown menu de navegacao em `src/components/layout/APTDropdownMenu.tsx`.
+
+### 5.2 Novo componente: `SolicitacoesExclusaoLista`
+
+Criar `src/components/apt/SolicitacoesExclusaoLista.tsx`:
+- Lista todas as solicitacoes com `status = 'pendente'`
+- Exibe: descricao da demanda, responsavel, setor, semana, mes, repeticoes, data da solicitacao, justificativa completa, tipo de exclusao (unica/todas)
+- Botoes: "Aprovar" e "Recusar"
+- Ao aprovar: executa a exclusao real (delete da demanda, ou do grupo) + atualiza solicitacao para `aprovada`
+- Ao recusar: atualiza solicitacao para `recusada`, remove o status visual da demanda
+- Campo opcional de justificativa de recusa
+
+### 5.3 Indicador de pendencias
+
+Adicionar badge no menu/header do Gerenciamento mostrando quantidade de solicitacoes pendentes (ex: "3 pendentes").
+
+---
+
+## Etapa 6 -- Log e Rastreabilidade
+
+A propria tabela `solicitacoes_exclusao` serve como log completo:
+- Quem solicitou (`solicitante_id`)
+- Justificativa
+- Data da solicitacao (`created_at`)
+- Decisao (`status`)
+- Quem decidiu (`decisor_id`)
+- Data da decisao (`decided_at`)
+- Justificativa de recusa (`justificativa_recusa`)
+
+Nao eh necessario tabela de log separada -- os registros nunca sao deletados.
+
+---
+
+## Etapa 7 -- Ajustes no APTDropdownMenu
+
+Atualizar `src/components/layout/APTDropdownMenu.tsx` para incluir a nova subtab "Solicitacoes de Exclusao" dentro do submenu de Gerenciamento (visivel apenas para gestor/admin).
+
+---
+
+## Resumo de Arquivos
+
+| Arquivo | Acao |
+|---------|------|
+| Migracao SQL | Criar tabela `solicitacoes_exclusao` + RLS |
+| `src/components/apt/SolicitarExclusaoDialog.tsx` | **Novo** -- Dialog de solicitacao para colaborador |
+| `src/components/apt/SolicitacoesExclusaoLista.tsx` | **Novo** -- Tela de gestao de solicitacoes |
+| `src/pages/APT.tsx` | Liberar criar/editar para colaborador; renderizar nova subtab; redirecionar exclusao |
+| `src/components/apt/DemandaTableRow.tsx` | Mostrar acoes para colaborador; badge "Aguardando exclusao" |
+| `src/components/apt/DemandaCard.tsx` | Habilitar swipe para colaborador; badge visual |
+| `src/components/apt/APTGerenciamento.tsx` | Liberar acoes para colaborador; badge visual |
+| `src/components/apt/GerenciamentoLista.tsx` | Liberar acoes para colaborador; badge visual |
+| `src/components/layout/APTDropdownMenu.tsx` | Adicionar link para subtab "Exclusoes" |
+| `src/hooks/useDemandas.ts` | Buscar solicitacoes pendentes para exibicao visual |
+
