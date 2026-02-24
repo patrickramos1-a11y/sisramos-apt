@@ -378,7 +378,7 @@ export default function Dashboard() {
               </div>
 
               {/* Charts Row - Status Donuts */}
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <StatusDonutChart
                   data={{
                     feito: kpis.feito,
@@ -397,12 +397,14 @@ export default function Dashboard() {
                   onStatusClick={handleStatusClick}
                   activeStatus={crossFilter?.type === "status" ? crossFilter.value : null}
                 />
-                <WeeklyStackedChart
-                  demandas={demandas}
-                  onWeekClick={handleWeekClick}
-                  activeWeek={crossFilter?.type === "semana" ? parseInt(crossFilter.value) : null}
-                />
               </div>
+
+              {/* Weekly Stacked Chart */}
+              <WeeklyStackedChart
+                demandas={demandas}
+                onWeekClick={handleWeekClick}
+                activeWeek={crossFilter?.type === "semana" ? parseInt(crossFilter.value) : null}
+              />
 
               {/* Bottleneck Chart */}
               <BottleneckChart
