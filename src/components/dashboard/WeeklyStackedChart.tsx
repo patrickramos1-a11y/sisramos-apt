@@ -28,6 +28,7 @@ const chartConfig = {
   pendente: { label: "Pendente", color: "hsl(38 92% 50%)" },
   nao_realizado: { label: "Não Realizado", color: "hsl(0 84% 60%)" },
   aprovado: { label: "Aprovado", color: "hsl(221 83% 53%)" },
+  gestor_pendente: { label: "Pendente Gestor", color: "hsl(38 70% 50%)" },
   rejeitado: { label: "Rejeitado", color: "hsl(0 65% 48%)" },
 };
 
@@ -52,6 +53,7 @@ export default function WeeklyStackedChart({
         nao_realizado: weekDemandas.filter((d) => d.status_responsavel === "nao_realizado").length,
         // Gestor stack
         aprovado: weekDemandas.filter((d) => d.status_gestor === "executado").length,
+        gestor_pendente: weekDemandas.filter((d) => d.status_gestor === "pendente").length,
         rejeitado: weekDemandas.filter((d) => d.status_gestor === "nao_realizado").length,
       };
     });
@@ -120,6 +122,14 @@ export default function WeeklyStackedChart({
                 radius={[0, 0, 0, 0]}
                 cursor={onBarClick || onWeekClick ? "pointer" : "default"}
                 onClick={(data) => handleBarClick(data, "aprovado")}
+                opacity={activeWeek !== null && activeWeek !== undefined ? 0.5 : 1}
+              />
+              <Bar
+                dataKey="gestor_pendente"
+                stackId="gestor"
+                fill="var(--color-gestor_pendente)"
+                cursor={onBarClick || onWeekClick ? "pointer" : "default"}
+                onClick={(data) => handleBarClick(data, "gestor_pendente")}
                 opacity={activeWeek !== null && activeWeek !== undefined ? 0.5 : 1}
               />
               <Bar
