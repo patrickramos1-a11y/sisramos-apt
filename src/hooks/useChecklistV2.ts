@@ -611,6 +611,63 @@ export function useChecklistV2({ mes, ano }: UseChecklistV2Options) {
     }
   }, [ano, mes, loadData, toast]);
 
+  // Delete all instances for a specific week
+  const deleteAllWeekInstances = useCallback(async (semana: number) => {
+    try {
+      const weekIds = instances.filter((i) => i.semana === semana).map((i) => i.id);
+      if (weekIds.length === 0) return;
+
+      // Delete assignees first
+      await (supabase.from("checklist_instance_assignees") as any)
+        .delete()
+        .in("instance_id", weekIds);
+
+      // Delete instances
+      const { error } = await (supabase.from("checklist_instances") as any)
+        .delete()
+        .eq("mes", mes)
+        .eq("ano", ano)
+        .eq("semana", semana);
+
+      if (error) throw error;
+
+      setInstances((prev) => prev.filter((i) => i.semana !== semana));
+      toast({ title: "Semana limpa", description: `Todos os itens da ${semana}ª semana foram removidos.` });
+    } catch (error: any) {
+      console.error("Error deleting week instances:", error);
+      loadData();
+      toast({ variant: "destructive", title: "Erro ao apagar semana", description: error.message });
+    }
+  }, [instances, mes, ano, loadData, toast]);
+
+  // Delete all instances for the current month
+  const deleteAllMonthInstances = useCallback(async () => {
+    try {
+      const allIds = instances.map((i) => i.id);
+      if (allIds.length === 0) return;
+
+      // Delete assignees first
+      await (supabase.from("checklist_instance_assignees") as any)
+        .delete()
+        .in("instance_id", allIds);
+
+      // Delete all instances for this month
+      const { error } = await (supabase.from("checklist_instances") as any)
+        .delete()
+        .eq("mes", mes)
+        .eq("ano", ano);
+
+      if (error) throw error;
+
+      setInstances([]);
+      toast({ title: "Mês limpo", description: `Todos os itens do mês foram removidos.` });
+    } catch (error: any) {
+      console.error("Error deleting all instances:", error);
+      loadData();
+      toast({ variant: "destructive", title: "Erro ao apagar mês", description: error.message });
+    }
+  }, [instances, mes, ano, loadData, toast]);
+
   return {
     templates,
     instances,
@@ -626,6 +683,8 @@ export function useChecklistV2({ mes, ano }: UseChecklistV2Options) {
     rolloverToNextMonth,
     addSubItem,
     addQuickAvulso,
+    deleteAllWeekInstances,
+    deleteAllMonthInstances,
     refetch: loadData,
   };
 }
