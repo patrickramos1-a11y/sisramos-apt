@@ -195,10 +195,33 @@ export function useChecklistV2({ mes, ano }: UseChecklistV2Options) {
 
   // Update instance status
   const updateInstanceStatus = useCallback(async (instanceId: string, newStatus: ChecklistStatus) => {
-    // Optimistic update
-    setInstances((prev) =>
-      prev.map((i) => (i.id === instanceId ? { ...i, status: newStatus } : i))
-    );
+    // Optimistic update + recalculate parent in one pass
+    let parentId: string | null = null;
+    let parentNewStatus: ChecklistStatus | null = null;
+
+    setInstances((prev) => {
+      const updated = prev.map((i) => (i.id === instanceId ? { ...i, status: newStatus } : i));
+      
+      // Find parent and recalculate
+      const instance = updated.find((i) => i.id === instanceId);
+      if (instance?.parent_id) {
+        parentId = instance.parent_id;
+        const children = updated.filter((i) => i.parent_id === parentId);
+        if (children.length > 0) {
+          const allConcluido = children.every((c) => c.status === "concluido");
+          const allNaoRealizado = children.every((c) => c.status === "nao_realizado");
+          const allProcessed = children.every((c) => c.status !== "pendente");
+
+          if (allConcluido) parentNewStatus = "concluido";
+          else if (allNaoRealizado) parentNewStatus = "nao_realizado";
+          else if (allProcessed) parentNewStatus = "nao_realizado";
+          else parentNewStatus = "pendente";
+
+          return updated.map((i) => (i.id === parentId ? { ...i, status: parentNewStatus! } : i));
+        }
+      }
+      return updated;
+    });
 
     const { error } = await (supabase
       .from("checklist_instances") as any)
@@ -212,35 +235,13 @@ export function useChecklistV2({ mes, ano }: UseChecklistV2Options) {
       return;
     }
 
-    // Check if this instance has a parent - update parent status
-    const instance = instances.find((i) => i.id === instanceId);
-    if (instance?.parent_id) {
-      await recalculateParentStatus(instance.parent_id);
+    // Persist parent status to DB
+    if (parentId && parentNewStatus) {
+      await (supabase.from("checklist_instances") as any)
+        .update({ status: parentNewStatus })
+        .eq("id", parentId);
     }
-  }, [instances, loadData, toast]);
-
-  // Recalculate parent status based on children
-  const recalculateParentStatus = useCallback(async (parentId: string) => {
-    const children = instances.filter((i) => i.parent_id === parentId);
-    if (children.length === 0) return;
-
-    let newStatus: ChecklistStatus = "pendente";
-    const allConcluido = children.every((c) => c.status === "concluido");
-    const allNaoRealizado = children.every((c) => c.status === "nao_realizado");
-    const allProcessed = children.every((c) => c.status !== "pendente");
-
-    if (allConcluido) newStatus = "concluido";
-    else if (allNaoRealizado) newStatus = "nao_realizado";
-    else if (allProcessed) newStatus = "nao_realizado"; // Mixed = not fully done
-
-    setInstances((prev) =>
-      prev.map((i) => (i.id === parentId ? { ...i, status: newStatus } : i))
-    );
-
-    await (supabase.from("checklist_instances") as any)
-      .update({ status: newStatus })
-      .eq("id", parentId);
-  }, [instances]);
+  }, [loadData, toast]);
 
   // Update instance text/link
   const updateInstance = useCallback(async (instanceId: string, updates: { descricao_override?: string; link_override?: string | null }) => {
