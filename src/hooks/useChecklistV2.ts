@@ -393,7 +393,7 @@ export function useChecklistV2({ mes, ano }: UseChecklistV2Options) {
       }
 
       toast({ title: "Item adicionado", description: "O item foi adicionado ao checklist" });
-      await loadData();
+      await loadData(); // Full reload needed for complex multi-week/month inserts
     } catch (error: any) {
       console.error("Error adding item:", error);
       toast({ variant: "destructive", title: "Erro ao adicionar", description: error.message });
@@ -568,7 +568,7 @@ export function useChecklistV2({ mes, ano }: UseChecklistV2Options) {
           .eq("id", parentId);
       }
 
-      const { error } = await (supabase.from("checklist_instances") as any)
+      const { data: inserted, error } = await (supabase.from("checklist_instances") as any)
         .insert({
           template_id: null,
           ano,
@@ -577,21 +577,34 @@ export function useChecklistV2({ mes, ano }: UseChecklistV2Options) {
           tipo_item: "avulso_semana",
           descricao_override: descricao,
           parent_id: parentId,
-        });
+        })
+        .select()
+        .single();
 
       if (error) throw error;
+
+      const newInstance: ChecklistInstance = {
+        ...inserted,
+        descricao: descricao,
+        link: null,
+        ordem: inserted.ordem_override ?? 999,
+        assignees: [],
+      };
+      setInstances((prev) => [
+        ...prev.map((i) => (i.id === parentId ? { ...i, is_group: true } : i)),
+        newInstance,
+      ]);
       toast({ title: "Sub-item adicionado" });
-      await loadData();
     } catch (error: any) {
       console.error("Error adding sub-item:", error);
       toast({ variant: "destructive", title: "Erro ao adicionar sub-item", description: error.message });
     }
-  }, [instances, mes, ano, loadData, toast]);
+  }, [instances, mes, ano, toast]);
 
   // Quick add avulso item
   const addQuickAvulso = useCallback(async (descricao: string, semana: number) => {
     try {
-      const { error } = await (supabase.from("checklist_instances") as any)
+      const { data: inserted, error } = await (supabase.from("checklist_instances") as any)
         .insert({
           template_id: null,
           ano,
@@ -600,16 +613,26 @@ export function useChecklistV2({ mes, ano }: UseChecklistV2Options) {
           tipo_item: "avulso_semana",
           descricao_override: descricao,
           status: "pendente",
-        });
+        })
+        .select()
+        .single();
 
       if (error) throw error;
+
+      const newInstance: ChecklistInstance = {
+        ...inserted,
+        descricao: descricao,
+        link: null,
+        ordem: inserted.ordem_override ?? 999,
+        assignees: [],
+      };
+      setInstances((prev) => [...prev, newInstance]);
       toast({ title: "Avulso adicionado", description: "Item avulso criado com sucesso" });
-      await loadData();
     } catch (error: any) {
       console.error("Error adding quick avulso:", error);
       toast({ variant: "destructive", title: "Erro ao adicionar avulso", description: error.message });
     }
-  }, [ano, mes, loadData, toast]);
+  }, [ano, mes, toast]);
 
   // Delete all instances for a specific week
   const deleteAllWeekInstances = useCallback(async (semana: number) => {
