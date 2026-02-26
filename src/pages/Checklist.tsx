@@ -7,7 +7,7 @@ import AppLayout from "@/components/layout/AppLayout";
 import ChecklistSummaryCard from "@/components/checklist/ChecklistSummaryCard";
 import ChecklistWeekTable from "@/components/checklist/ChecklistWeekTable";
 import NovoItemChecklistDialog from "@/components/checklist/NovoItemChecklistDialog";
-import { Loader2, Info, Copy, Lock, Unlock, Filter, X, ChevronLeft, ChevronRight, CalendarDays } from "lucide-react";
+import { Loader2, Info, Copy, Lock, Unlock, Filter, X, ChevronLeft, ChevronRight, CalendarDays, Trash2 } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -104,6 +104,8 @@ export default function Checklist() {
     rolloverToNextMonth,
     addSubItem,
     addQuickAvulso,
+    deleteAllWeekInstances,
+    deleteAllMonthInstances,
     refetch,
   } = useChecklistV2({ mes: currentMes, ano: currentAno });
 
@@ -294,6 +296,37 @@ export default function Checklist() {
                     </AlertDialogFooter>
                   </AlertDialogContent>
                 </AlertDialog>
+
+                {/* Delete all month */}
+                <AlertDialog>
+                  <AlertDialogTrigger asChild>
+                    <Button variant="outline" size="sm" className="h-8 gap-1 text-xs text-destructive hover:text-destructive border-destructive/30 hover:bg-destructive/10">
+                      <Trash2 className="h-3.5 w-3.5" />
+                      <span className="hidden sm:inline">Apagar mês</span>
+                    </Button>
+                  </AlertDialogTrigger>
+                  <AlertDialogContent>
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>Apagar todos os itens de {MONTH_NAMES[currentMes - 1]}/{currentAno}?</AlertDialogTitle>
+                      <AlertDialogDescription>
+                        Esta ação removerá <strong>todos os itens de todas as semanas</strong> deste mês permanentemente. Isso não pode ser desfeito.
+                      </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                      <AlertDialogAction
+                        className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                        onClick={() => {
+                          deleteAllMonthInstances();
+                          setSelectedWeek(null);
+                        }}
+                        disabled={instances.length === 0}
+                      >
+                        Apagar tudo
+                      </AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
               </>
             )}
           </div>
@@ -360,6 +393,10 @@ export default function Checklist() {
                 onClose={() => setSelectedWeek(null)}
                 onAddSubItem={addSubItem}
                 onAddQuickAvulso={addQuickAvulso}
+                onDeleteAllWeek={async (semana) => {
+                  await deleteAllWeekInstances(semana);
+                  setSelectedWeek(null);
+                }}
               />
             )}
           </>

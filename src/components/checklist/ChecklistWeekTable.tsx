@@ -1,5 +1,16 @@
 import { useState, useMemo, useCallback } from "react";
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
+import {
   DndContext,
   closestCenter,
   KeyboardSensor,
@@ -22,7 +33,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Calendar, CheckCircle2, AlertCircle, Search, ChevronUp, Plus, ListTree, Zap } from "lucide-react";
+import { Calendar, CheckCircle2, AlertCircle, Search, ChevronUp, Plus, ListTree, Zap, Trash2 } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 import CircularProgress from "./CircularProgress";
@@ -53,6 +64,7 @@ interface ChecklistWeekTableProps {
   onClose: () => void;
   onAddSubItem?: (parentId: string, descricao: string, semana: number) => Promise<void>;
   onAddQuickAvulso?: (descricao: string, semana: number) => Promise<void>;
+  onDeleteAllWeek?: (semana: number) => Promise<void>;
 }
 
 export default function ChecklistWeekTable({
@@ -71,6 +83,7 @@ export default function ChecklistWeekTable({
   onClose,
   onAddSubItem,
   onAddQuickAvulso,
+  onDeleteAllWeek,
 }: ChecklistWeekTableProps) {
   const [searchTerm, setSearchTerm] = useState("");
   const [filterStatus, setFilterStatus] = useState<string>("all");
@@ -319,6 +332,32 @@ export default function ChecklistWeekTable({
         </div>
         <div className="flex items-center gap-2">
           <CircularProgress value={progress} size={36} strokeWidth={3} completedCount={completedCount} notDoneCount={notDoneCount} totalCount={totalCount} />
+          {canModify && onDeleteAllWeek && totalCount > 0 && (
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10">
+                  <Trash2 className="h-4 w-4" />
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Apagar todos os itens da {semana}ª semana?</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    Esta ação removerá <strong>{totalCount} {totalCount === 1 ? "item" : "itens"}</strong> desta semana permanentemente. Isso não pode ser desfeito.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                  <AlertDialogAction
+                    className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                    onClick={() => onDeleteAllWeek(semana)}
+                  >
+                    Apagar tudo
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+          )}
           <Button variant="ghost" size="icon" className="h-8 w-8" onClick={onClose}>
             <ChevronUp className="h-4 w-4" />
           </Button>
