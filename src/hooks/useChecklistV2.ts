@@ -414,53 +414,24 @@ export function useChecklistV2({ mes, ano }: UseChecklistV2Options) {
     reordered.splice(oldIndex, 1);
     reordered.splice(newIndex, 0, movedItem);
 
-    // If it's a recorrente item with a template, update template ordem_global
-    if (movedItem.tipo_item === "recorrente" && movedItem.template_id) {
-      // Update ordem_global for all templates based on new order
-      const templateUpdates: { id: string; ordem_global: number }[] = [];
-      reordered.forEach((item, idx) => {
-        if (item.tipo_item === "recorrente" && item.template_id) {
-          templateUpdates.push({ id: item.template_id, ordem_global: idx });
+    // Set ordem_override on EVERY item in this week (independent per week)
+    setInstances((prev) =>
+      prev.map((inst) => {
+        const newPos = reordered.findIndex((r) => r.id === inst.id);
+        if (newPos !== -1 && inst.semana === semana && !inst.parent_id) {
+          return { ...inst, ordem: newPos, ordem_override: newPos };
         }
-      });
+        return inst;
+      })
+    );
 
-      // Optimistic update
-      setInstances((prev) =>
-        prev.map((inst) => {
-          const newPos = reordered.findIndex((r) => r.id === inst.id);
-          if (newPos !== -1 && inst.semana === semana && !inst.parent_id) {
-            return { ...inst, ordem: newPos };
-          }
-          // Also update other weeks for recorrente items
-          const templateUpdate = templateUpdates.find((t) => t.id === inst.template_id);
-          if (templateUpdate && inst.tipo_item === "recorrente") {
-            return { ...inst, ordem: templateUpdate.ordem_global };
-          }
-          return inst;
-        })
-      );
-
-      for (const update of templateUpdates) {
-        await (supabase.from("checklist_templates") as any)
-          .update({ ordem_global: update.ordem_global })
-          .eq("id", update.id);
-      }
-    } else {
-      // Avulso - update ordem_override locally
-      setInstances((prev) =>
-        prev.map((inst) => {
-          const newPos = reordered.findIndex((r) => r.id === inst.id);
-          if (newPos !== -1 && inst.semana === semana && !inst.parent_id) {
-            return { ...inst, ordem: newPos, ordem_override: newPos };
-          }
-          return inst;
-        })
-      );
-
-      await (supabase.from("checklist_instances") as any)
-        .update({ ordem_override: newIndex })
-        .eq("id", instanceId);
-    }
+    // Batch update all items in this week with their new ordem_override
+    const updates = reordered.map((item, idx) => 
+      (supabase.from("checklist_instances") as any)
+        .update({ ordem_override: idx })
+        .eq("id", item.id)
+    );
+    await Promise.all(updates);
   }, [instances]);
 
   // Update assignees for an instance
@@ -527,6 +498,7 @@ export function useChecklistV2({ mes, ano }: UseChecklistV2Options) {
         tipo_item: "recorrente",
         status: "pendente",
         link_override: inst.link_override,
+        ordem_override: inst.ordem_override ?? inst.ordem,
       }));
 
       const { data: inserted, error } = await (supabase.from("checklist_instances") as any)
