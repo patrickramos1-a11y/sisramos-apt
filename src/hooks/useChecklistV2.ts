@@ -500,6 +500,8 @@ export function useChecklistV2({ mes, ano }: UseChecklistV2Options) {
         status: "pendente",
         link_override: inst.link_override,
         ordem_override: inst.ordem_override ?? inst.ordem,
+        is_group: inst.is_group,
+        descricao_override: inst.descricao_override,
       }));
 
       const { data: inserted, error } = await (supabase.from("checklist_instances") as any)
@@ -525,13 +527,15 @@ export function useChecklistV2({ mes, ano }: UseChecklistV2Options) {
         }
       }
 
-      // Also copy children (sub-items of groups)
+      // Also copy children (sub-items of groups) with assignees and order
       for (let i = 0; i < sourceInstances.length; i++) {
         const src = sourceInstances[i];
         if (src.is_group && inserted?.[i]) {
-          const children = instances.filter((c) => c.parent_id === src.id);
+          const children = instances
+            .filter((c) => c.parent_id === src.id)
+            .sort((a, b) => a.ordem - b.ordem);
           if (children.length > 0) {
-            const childInserts = children.map((child) => ({
+            const childInserts = children.map((child, idx) => ({
               template_id: child.template_id,
               ano: nextAno,
               mes: nextMes,
@@ -540,9 +544,29 @@ export function useChecklistV2({ mes, ano }: UseChecklistV2Options) {
               status: "pendente",
               descricao_override: child.descricao_override,
               link_override: child.link_override,
+              ordem_override: child.ordem_override ?? idx,
               parent_id: inserted[i].id,
             }));
-            await (supabase.from("checklist_instances") as any).insert(childInserts);
+            const { data: insertedChildren } = await (supabase.from("checklist_instances") as any)
+              .insert(childInserts)
+              .select();
+
+            // Copy assignees for children
+            if (insertedChildren) {
+              const childAssigneeInserts: any[] = [];
+              for (let j = 0; j < children.length; j++) {
+                const srcChild = children[j];
+                const destChild = insertedChildren[j];
+                if (srcChild.assignees && destChild) {
+                  srcChild.assignees.forEach((userId: string) => {
+                    childAssigneeInserts.push({ instance_id: destChild.id, user_id: userId });
+                  });
+                }
+              }
+              if (childAssigneeInserts.length > 0) {
+                await (supabase.from("checklist_instance_assignees") as any).insert(childAssigneeInserts);
+              }
+            }
           }
         }
       }
