@@ -4,6 +4,7 @@ interface Demanda {
   id: string;
   setor_id: string | null;
   status_responsavel: string;
+  status_gestor: string;
 }
 
 interface Setor {
@@ -19,16 +20,16 @@ interface TopSetoresBarProps {
 
 export default function TopSetoresBar({ demandas, setores }: TopSetoresBarProps) {
   const topSetores = useMemo(() => {
-    const countMap: Record<string, { total: number; pendentes: number; concluidos: number }> = {};
+    const countMap: Record<string, { total: number; pendentesGestor: number; aprovados: number }> = {};
 
     demandas.forEach((d) => {
       const sid = d.setor_id || "sem_setor";
-      if (!countMap[sid]) countMap[sid] = { total: 0, pendentes: 0, concluidos: 0 };
+      if (!countMap[sid]) countMap[sid] = { total: 0, pendentesGestor: 0, aprovados: 0 };
       countMap[sid].total++;
-      if (d.status_responsavel === "pendente" || d.status_responsavel === "nao_realizado") {
-        countMap[sid].pendentes++;
-      } else {
-        countMap[sid].concluidos++;
+      if (d.status_gestor === "pendente") {
+        countMap[sid].pendentesGestor++;
+      } else if (d.status_gestor === "executado") {
+        countMap[sid].aprovados++;
       }
     });
 
@@ -40,10 +41,10 @@ export default function TopSetoresBar({ demandas, setores }: TopSetoresBarProps)
           nome: setor?.nome || "Sem Setor",
           cor: setor?.cor || "#6B7280",
           ...data,
-          pctConcluido: data.total > 0 ? Math.round((data.concluidos / data.total) * 100) : 0,
+          pctAprovado: data.total > 0 ? Math.round((data.aprovados / data.total) * 100) : 0,
         };
       })
-      .sort((a, b) => b.total - a.total)
+      .sort((a, b) => b.pendentesGestor - a.pendentesGestor)
       .slice(0, 10);
   }, [demandas, setores]);
 
@@ -57,11 +58,10 @@ export default function TopSetoresBar({ demandas, setores }: TopSetoresBarProps)
             key={s.setorId}
             className="relative rounded-lg border bg-card p-2.5 overflow-hidden"
           >
-            {/* Progress bar background */}
             <div
               className="absolute inset-0 opacity-10"
               style={{ 
-                background: `linear-gradient(90deg, ${s.cor} ${s.pctConcluido}%, transparent ${s.pctConcluido}%)` 
+                background: `linear-gradient(90deg, ${s.cor} ${s.pctAprovado}%, transparent ${s.pctAprovado}%)` 
               }}
             />
             <div className="relative">
@@ -82,13 +82,13 @@ export default function TopSetoresBar({ demandas, setores }: TopSetoresBarProps)
               </div>
               <div className="flex items-center justify-between mt-0.5">
                 <span className="text-[10px] text-muted-foreground">
-                  {s.pendentes} pend.
+                  {s.pendentesGestor} pend.
                 </span>
                 <span
                   className="text-[10px] font-semibold"
                   style={{ color: s.cor }}
                 >
-                  {s.pctConcluido}%
+                  {s.pctAprovado}%
                 </span>
               </div>
             </div>
