@@ -428,8 +428,8 @@ export default function APT() {
             </div>
 
 
-            {/* Top 10 Setores by demand count */}
-            {!isLoading && demandas.length > 0 && (
+            {/* Top 10 Setores by demand count - only for gestor/admin */}
+            {!isLoading && demandas.length > 0 && isGestorOrAdmin && (
               <TopSetoresBar demandas={demandas} setores={setores} />
             )}
 
