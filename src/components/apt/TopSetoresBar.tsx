@@ -44,6 +44,7 @@ export default function TopSetoresBar({ demandas, setores }: TopSetoresBarProps)
           pctAprovado: data.total > 0 ? Math.round((data.aprovados / data.total) * 100) : 0,
         };
       })
+      .filter((s) => s.pendentesGestor > 0)
       .sort((a, b) => b.pendentesGestor - a.pendentesGestor)
       .slice(0, 10);
   }, [demandas, setores]);
