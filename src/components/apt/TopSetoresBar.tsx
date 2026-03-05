@@ -77,13 +77,13 @@ export default function TopSetoresBar({ demandas, setores }: TopSetoresBarProps)
               </div>
               <div className="flex items-baseline gap-1">
                 <span className="text-lg font-bold text-foreground leading-none">
-                  {s.total}
+                  {s.pendentesGestor}
                 </span>
-                <span className="text-[10px] text-muted-foreground">dem.</span>
+                <span className="text-[10px] text-muted-foreground">pend.</span>
               </div>
               <div className="flex items-center justify-between mt-0.5">
                 <span className="text-[10px] text-muted-foreground">
-                  {s.pendentesGestor} pend.
+                  {s.total} dem.
                 </span>
                 <span
                   className="text-[10px] font-semibold"
