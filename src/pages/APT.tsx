@@ -45,6 +45,7 @@ import {
 import { Card, CardContent } from "@/components/ui/card";
 import { Loader2, AlertCircle, CheckCircle2, Trash2, Check, ThumbsUp, Copy, Filter, ChevronDown, ClipboardList, BarChart3, Lock, Unlock, Eye, EyeOff, Settings2 } from "lucide-react";
 import DuplicarDemandasEmMassaDialog from "@/components/apt/DuplicarDemandasEmMassaDialog";
+import TopSetoresBar from "@/components/apt/TopSetoresBar";
 import { useSolicitacoesExclusao } from "@/hooks/useSolicitacoesExclusao";
 import {
   DropdownMenu,
@@ -425,6 +426,12 @@ export default function APT() {
                 showResponsavelFilter={isGestorOrAdmin}
               />
             </div>
+
+
+            {/* Top 10 Setores by demand count */}
+            {!isLoading && demandas.length > 0 && (
+              <TopSetoresBar demandas={demandas} setores={setores} />
+            )}
 
             <div className="flex flex-col lg:flex-row gap-6">
 
