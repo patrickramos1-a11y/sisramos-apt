@@ -165,6 +165,18 @@ export default function APT() {
   // Column visibility state (for admin/gestor)
   const [hideResponsavelColumn, setHideResponsavelColumn] = useState(false);
   
+  // Top Setores card filter
+  const [activeTopSetor, setActiveTopSetor] = useState<string | null>(null);
+  
+  const handleTopSetorClick = (setorId: string | null) => {
+    setActiveTopSetor(setorId);
+    if (setorId) {
+      setFilters((prev) => ({ ...prev, setores: [setorId] }));
+    } else {
+      setFilters((prev) => ({ ...prev, setores: [] }));
+    }
+  };
+  
   // Filters active count for badge
   const hasActiveFilters =
     filters.responsaveis.length > 0 ||
@@ -414,8 +426,8 @@ export default function APT() {
                 profiles={profiles}
                 setores={setores}
                 filters={filters}
-                onFiltersChange={setFilters}
-                onClearFilters={clearFilters}
+                onFiltersChange={(f) => { setFilters(f); setActiveTopSetor(null); }}
+                onClearFilters={() => { clearFilters(); setActiveTopSetor(null); }}
                 showResponsavelFilter={isGestorOrAdmin}
               />
             </div>
@@ -426,8 +438,8 @@ export default function APT() {
                 profiles={profiles}
                 setores={setores}
                 filters={filters}
-                onFiltersChange={setFilters}
-                onClearFilters={clearFilters}
+                onFiltersChange={(f) => { setFilters(f); setActiveTopSetor(null); }}
+                onClearFilters={() => { clearFilters(); setActiveTopSetor(null); }}
                 showResponsavelFilter={isGestorOrAdmin}
               />
             </div>
@@ -435,7 +447,7 @@ export default function APT() {
 
             {/* Top 10 Setores by demand count - only for gestor/admin */}
             {!isLoading && demandas.length > 0 && isGestorOrAdmin && (
-              <TopSetoresBar demandas={demandas} setores={setores} />
+              <TopSetoresBar demandas={demandas} setores={setores} activeSetorId={activeTopSetor} onSetorClick={handleTopSetorClick} />
             )}
 
             <div className="flex flex-col lg:flex-row gap-6">

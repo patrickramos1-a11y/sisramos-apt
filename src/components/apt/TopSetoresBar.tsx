@@ -1,4 +1,5 @@
 import { useMemo } from "react";
+import { cn } from "@/lib/utils";
 
 interface Demanda {
   id: string;
@@ -16,9 +17,11 @@ interface Setor {
 interface TopSetoresBarProps {
   demandas: Demanda[];
   setores: Setor[];
+  activeSetorId?: string | null;
+  onSetorClick?: (setorId: string | null) => void;
 }
 
-export default function TopSetoresBar({ demandas, setores }: TopSetoresBarProps) {
+export default function TopSetoresBar({ demandas, setores, activeSetorId, onSetorClick }: TopSetoresBarProps) {
   const topSetores = useMemo(() => {
     const countMap: Record<string, { total: number; pendentesGestor: number; aprovados: number }> = {};
 
@@ -51,50 +54,67 @@ export default function TopSetoresBar({ demandas, setores }: TopSetoresBarProps)
 
   if (topSetores.length === 0) return null;
 
+  const handleClick = (setorId: string) => {
+    if (!onSetorClick) return;
+    onSetorClick(activeSetorId === setorId ? null : setorId);
+  };
+
   return (
     <div className="mb-3">
       <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 lg:grid-cols-5 xl:grid-cols-10 gap-2">
-        {topSetores.map((s) => (
-          <div
-            key={s.setorId}
-            className="relative rounded-lg border bg-card p-2.5 overflow-hidden"
-          >
+        {topSetores.map((s) => {
+          const isActive = activeSetorId === s.setorId;
+          const isDimmed = activeSetorId != null && !isActive;
+
+          return (
             <div
-              className="absolute inset-0 opacity-10"
-              style={{ 
-                background: `linear-gradient(90deg, ${s.cor} ${s.pctAprovado}%, transparent ${s.pctAprovado}%)` 
-              }}
-            />
-            <div className="relative">
-              <div className="flex items-center gap-1.5 mb-1">
-                <div
-                  className="h-2 w-2 rounded-full shrink-0"
-                  style={{ backgroundColor: s.cor }}
-                />
-                <span className="text-[11px] font-medium truncate text-foreground">
-                  {s.nome}
-                </span>
-              </div>
-              <div className="flex items-baseline gap-1">
-                <span className="text-lg font-bold text-foreground leading-none">
-                  {s.pendentesGestor}
-                </span>
-                <span className="text-[10px] text-muted-foreground">pend.</span>
-              </div>
-              <div className="flex items-center justify-between mt-0.5">
-                <span className="text-[10px] text-muted-foreground">
-                  {s.total} dem.
-                </span>
-                <span
-                  className="text-[10px] font-semibold"
-                  style={{ color: s.cor }}
-                >
-                  {s.pctAprovado}%
-                </span>
+              key={s.setorId}
+              onClick={() => handleClick(s.setorId)}
+              className={cn(
+                "relative rounded-lg border bg-card p-2.5 overflow-hidden cursor-pointer transition-all duration-200",
+                isActive && "ring-2 ring-offset-1 ring-offset-background scale-[1.03]",
+                isDimmed && "opacity-35 scale-[0.97]",
+                !activeSetorId && "hover:scale-[1.02]"
+              )}
+              style={isActive ? { borderColor: s.cor, boxShadow: `0 0 12px ${s.cor}44`, ['--tw-ring-color' as any]: s.cor } : undefined}
+            >
+              <div
+                className="absolute inset-0 opacity-10"
+                style={{
+                  background: `linear-gradient(90deg, ${s.cor} ${s.pctAprovado}%, transparent ${s.pctAprovado}%)`,
+                }}
+              />
+              <div className="relative">
+                <div className="flex items-center gap-1.5 mb-1">
+                  <div
+                    className="h-2 w-2 rounded-full shrink-0"
+                    style={{ backgroundColor: s.cor }}
+                  />
+                  <span className="text-[11px] font-medium truncate text-foreground">
+                    {s.nome}
+                  </span>
+                </div>
+                <div className="flex items-baseline gap-1">
+                  <span className="text-lg font-bold text-foreground leading-none">
+                    {s.pendentesGestor}
+                  </span>
+                  <span className="text-[10px] text-muted-foreground">pend.</span>
+                </div>
+                <div className="flex items-center justify-between mt-0.5">
+                  <span className="text-[10px] text-muted-foreground">
+                    {s.total} dem.
+                  </span>
+                  <span
+                    className="text-[10px] font-semibold"
+                    style={{ color: s.cor }}
+                  >
+                    {s.pctAprovado}%
+                  </span>
+                </div>
               </div>
             </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
     </div>
   );
