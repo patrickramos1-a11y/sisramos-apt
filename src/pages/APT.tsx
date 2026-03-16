@@ -447,7 +447,7 @@ export default function APT() {
 
             {/* Top 10 Setores by demand count - only for gestor/admin */}
             {!isLoading && demandas.length > 0 && isGestorOrAdmin && (
-              <TopSetoresBar demandas={demandas} setores={setores} />
+              <TopSetoresBar demandas={demandas} setores={setores} activeSetorId={activeTopSetor} onSetorClick={handleTopSetorClick} />
             )}
 
             <div className="flex flex-col lg:flex-row gap-6">
