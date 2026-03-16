@@ -648,7 +648,7 @@ export default function APT() {
                           </TableRow>
                         </TableHeader>
                         <TableBody>
-                          {demandas.map((demanda, index) => {
+                          {displayedDemandas.map((demanda, index) => {
                             const profile = getProfileById(demanda.responsavel_id);
                             const setor = getSetorById(demanda.setor_id);
                             
