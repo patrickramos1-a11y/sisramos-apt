@@ -121,9 +121,16 @@ export default function ChecklistSummaryCard({
           )}
         </div>
 
-        <p className="text-[11px] text-muted-foreground text-center">
-          Clique para ver detalhes
-        </p>
+        {duration && duration > 0 ? (
+          <div className="flex items-center justify-center gap-1 text-muted-foreground">
+            <Clock className="h-3 w-3" />
+            <span className="text-[11px] font-medium">{formatDuration(duration)}</span>
+          </div>
+        ) : (
+          <p className="text-[11px] text-muted-foreground text-center">
+            Clique para ver detalhes
+          </p>
+        )}
       </CardContent>
     </Card>
   );
