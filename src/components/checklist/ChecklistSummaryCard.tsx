@@ -1,13 +1,21 @@
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
-import { AlertCircle, Calendar, CheckCircle2, ListTodo } from "lucide-react";
+import { AlertCircle, Calendar, CheckCircle2, Clock, ListTodo } from "lucide-react";
 import { cn } from "@/lib/utils";
 import CircularProgress from "./CircularProgress";
+
+function formatDuration(seconds: number): string {
+  const h = Math.floor(seconds / 3600);
+  const m = Math.floor((seconds % 3600) / 60);
+  if (h > 0) return `${h}h ${m}min`;
+  return `${m}min`;
+}
 
 interface ChecklistSummaryCardProps {
   semana: number;
   totalItems: number;
   completedItems: number;
   notDoneItems?: number;
+  duration?: number | null;
   onClick: () => void;
   isSelected?: boolean;
 }
@@ -17,6 +25,7 @@ export default function ChecklistSummaryCard({
   totalItems,
   completedItems,
   notDoneItems = 0,
+  duration,
   onClick,
   isSelected = false,
 }: ChecklistSummaryCardProps) {
@@ -112,9 +121,16 @@ export default function ChecklistSummaryCard({
           )}
         </div>
 
-        <p className="text-[11px] text-muted-foreground text-center">
-          Clique para ver detalhes
-        </p>
+        {duration && duration > 0 ? (
+          <div className="flex items-center justify-center gap-1 text-muted-foreground">
+            <Clock className="h-3 w-3" />
+            <span className="text-[11px] font-medium">{formatDuration(duration)}</span>
+          </div>
+        ) : (
+          <p className="text-[11px] text-muted-foreground text-center">
+            Clique para ver detalhes
+          </p>
+        )}
       </CardContent>
     </Card>
   );

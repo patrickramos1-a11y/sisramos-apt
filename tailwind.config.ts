@@ -84,14 +84,24 @@ export default {
   			'highlight-flash': {
   				'0%': { boxShadow: '0 0 0 2px hsl(var(--primary) / 0.5)' },
   				'100%': { boxShadow: '0 0 0 2px transparent' }
-  			}
-  		},
-  		animation: {
-  			'accordion-down': 'accordion-down 0.2s ease-out',
-  			'accordion-up': 'accordion-up 0.2s ease-out',
-  			'check-bounce': 'check-bounce 0.3s ease-out',
-  			'highlight-flash': 'highlight-flash 0.5s ease-out'
-  		},
+			},
+			'pulse-subtle': {
+				'0%, 100%': { opacity: '1' },
+				'50%': { opacity: '0.85' }
+			},
+			'spin-slow': {
+				from: { transform: 'rotate(0deg)' },
+				to: { transform: 'rotate(360deg)' }
+			}
+		},
+		animation: {
+			'accordion-down': 'accordion-down 0.2s ease-out',
+			'accordion-up': 'accordion-up 0.2s ease-out',
+			'check-bounce': 'check-bounce 0.3s ease-out',
+			'highlight-flash': 'highlight-flash 0.5s ease-out',
+			'pulse-subtle': 'pulse-subtle 2s ease-in-out infinite',
+			'spin-slow': 'spin-slow 3s linear infinite'
+		},
   		boxShadow: {
   			'2xs': 'var(--shadow-2xs)',
   			xs: 'var(--shadow-xs)',

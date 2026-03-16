@@ -1,10 +1,12 @@
 import { useState, useMemo, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useChecklistV2, type TipoItem } from "@/hooks/useChecklistV2";
+import { useChecklistTimer } from "@/hooks/useChecklistTimer";
 import { useMonthSettings } from "@/hooks/useMonthSettings";
 import { supabase } from "@/integrations/supabase/client";
 import AppLayout from "@/components/layout/AppLayout";
 import ChecklistSummaryCard from "@/components/checklist/ChecklistSummaryCard";
+import ChecklistTimer from "@/components/checklist/ChecklistTimer";
 import ChecklistWeekTable from "@/components/checklist/ChecklistWeekTable";
 import NovoItemChecklistDialog from "@/components/checklist/NovoItemChecklistDialog";
 import { Loader2, Info, Copy, Lock, Unlock, Filter, X, ChevronLeft, ChevronRight, CalendarDays, Trash2 } from "lucide-react";
@@ -110,6 +112,14 @@ export default function Checklist() {
   } = useChecklistV2({ mes: currentMes, ano: currentAno });
 
   const { getMonthSetting, toggleMonthStatus } = useMonthSettings();
+  const {
+    isRunning: timerIsRunning,
+    activeWeek: timerActiveWeek,
+    elapsedSeconds,
+    weekDurations,
+    startTimer,
+    stopTimer,
+  } = useChecklistTimer({ mes: currentMes, ano: currentAno });
 
   const isCurrentMonth = currentMes === now.getMonth() + 1 && currentAno === now.getFullYear();
   const isPastMonth = currentAno < now.getFullYear() || (currentAno === now.getFullYear() && currentMes < now.getMonth() + 1);
@@ -360,6 +370,16 @@ export default function Checklist() {
           </div>
         ) : (
           <>
+            {/* Timer */}
+            <ChecklistTimer
+              isRunning={timerIsRunning}
+              activeWeek={timerActiveWeek}
+              elapsedSeconds={elapsedSeconds}
+              isGestorOrAdmin={isGestorOrAdmin}
+              onStart={startTimer}
+              onStop={stopTimer}
+            />
+
             {/* Summary Cards */}
             <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
               {semanasToShow.map((sem) => (
@@ -369,6 +389,7 @@ export default function Checklist() {
                   totalItems={weekStats[sem]?.total || 0}
                   completedItems={weekStats[sem]?.completed || 0}
                   notDoneItems={weekStats[sem]?.notDone || 0}
+                  duration={weekDurations[sem] || null}
                   onClick={() => setSelectedWeek(selectedWeek === sem ? null : sem)}
                   isSelected={selectedWeek === sem}
                 />
