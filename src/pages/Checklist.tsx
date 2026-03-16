@@ -1,6 +1,7 @@
 import { useState, useMemo, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useChecklistV2, type TipoItem } from "@/hooks/useChecklistV2";
+import { useChecklistTimer } from "@/hooks/useChecklistTimer";
 import { useMonthSettings } from "@/hooks/useMonthSettings";
 import { supabase } from "@/integrations/supabase/client";
 import AppLayout from "@/components/layout/AppLayout";
