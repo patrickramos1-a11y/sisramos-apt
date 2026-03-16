@@ -149,6 +149,11 @@ export default function APT() {
     id: string;
     numero: number;
     grupo_id: string | null;
+    descricao: string;
+    responsavel_id: string;
+    mes: number;
+    ano: number;
+    semanas_repeticao: number;
   } | null>(null);
 
   // Selection state for bulk operations
@@ -217,7 +222,7 @@ export default function APT() {
   };
 
   // Helper: route delete action based on role
-  const handleDeleteClick = (demanda: { id: string; numero: number; grupo_id: string | null }) => {
+  const handleDeleteClick = (demanda: { id: string; numero: number; grupo_id: string | null; descricao: string; responsavel_id: string; mes: number; ano: number; semanas_repeticao: number }) => {
     if (isGestorOrAdmin) {
       setDeletingDemanda(demanda);
     } else {
@@ -514,11 +519,7 @@ export default function APT() {
                           }
                           onEdit={() => setEditingDemanda(demanda as Demanda)}
                           onDelete={() =>
-                            handleDeleteClick({
-                              id: demanda.id,
-                              numero: demanda.numero,
-                              grupo_id: demanda.grupo_id,
-                            })
+                            handleDeleteClick(demanda)
                           }
                         />
                       );
@@ -697,11 +698,7 @@ export default function APT() {
                                   setEditingDemanda(demanda as Demanda)
                                 }
                                 onDelete={() =>
-                                  handleDeleteClick({
-                                    id: demanda.id,
-                                    numero: demanda.numero,
-                                    grupo_id: demanda.grupo_id,
-                                  })
+                                  handleDeleteClick(demanda)
                                 }
                                 onSelectChange={(checked) =>
                                   toggleSelection(demanda.id, checked)
@@ -784,6 +781,11 @@ export default function APT() {
               })()
             : 1
         }
+        demandaDescricao={solicitandoExclusao?.descricao}
+        demandaResponsavelId={solicitandoExclusao?.responsavel_id}
+        demandaMes={solicitandoExclusao?.mes}
+        demandaAno={solicitandoExclusao?.ano}
+        demandaSemanasRepeticao={solicitandoExclusao?.semanas_repeticao}
         onSolicitacaoEnviada={() => { fetchDemandas(); refetchSolicitacoes(); }}
       />
 

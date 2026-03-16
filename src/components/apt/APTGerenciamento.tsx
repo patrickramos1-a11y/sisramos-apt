@@ -267,6 +267,11 @@ export default function APTGerenciamento({
     id: string;
     numero: number;
     grupo_id: string | null;
+    descricao: string;
+    responsavel_id: string;
+    mes: number;
+    ano: number;
+    semanas_repeticao: number;
   } | null>(null);
 
   const { pendingDemandaIds, refetchSolicitacoes } = useSolicitacoesExclusao();
@@ -511,7 +516,7 @@ export default function APTGerenciamento({
     refetchSolicitacoes();
   };
 
-  const handleDeleteClick = (demanda: { id: string; numero: number; grupo_id: string | null }) => {
+  const handleDeleteClick = (demanda: { id: string; numero: number; grupo_id: string | null; descricao: string; responsavel_id: string; mes: number; ano: number; semanas_repeticao: number }) => {
     if (isGestorOrAdmin) {
       setDeletingDemanda(demanda);
     } else {
@@ -657,11 +662,10 @@ export default function APTGerenciamento({
                   <DropdownMenuItem
                     onClick={(e) => {
                       e.stopPropagation();
-                      handleDeleteClick({
-                        id: firstSibling.id,
-                        numero: firstSibling.numero,
-                        grupo_id: demand.grupo_id,
-                      });
+                      const fullDemanda = getDemandaById(firstSibling.id);
+                      if (fullDemanda) {
+                        handleDeleteClick(fullDemanda);
+                      }
                     }}
                     className="text-destructive"
                   >
@@ -1135,11 +1139,10 @@ export default function APTGerenciamento({
                   <DropdownMenuItem
                     onClick={() => {
                       setSelectedDemand(null);
-                      handleDeleteClick({
-                        id: sibling.id,
-                        numero: sibling.numero,
-                        grupo_id: selectedDemand.grupo_id,
-                      });
+                      const fullDemanda = getDemandaById(sibling.id);
+                      if (fullDemanda) {
+                        handleDeleteClick(fullDemanda);
+                      }
                     }}
                     className="text-destructive"
                   >
@@ -1243,6 +1246,11 @@ export default function APTGerenciamento({
           demandaNumero={solicitandoExclusao.numero}
           grupoId={solicitandoExclusao.grupo_id}
           siblingCount={getSiblingCount(solicitandoExclusao.grupo_id)}
+          demandaDescricao={solicitandoExclusao.descricao}
+          demandaResponsavelId={solicitandoExclusao.responsavel_id}
+          demandaMes={solicitandoExclusao.mes}
+          demandaAno={solicitandoExclusao.ano}
+          demandaSemanasRepeticao={solicitandoExclusao.semanas_repeticao}
           onSolicitacaoEnviada={handleDemandaChange}
         />
       )}

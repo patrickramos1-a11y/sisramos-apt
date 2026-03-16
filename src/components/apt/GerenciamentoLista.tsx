@@ -258,6 +258,11 @@ export default function GerenciamentoLista({
     id: string;
     numero: number;
     grupo_id: string | null;
+    descricao: string;
+    responsavel_id: string;
+    mes: number;
+    ano: number;
+    semanas_repeticao: number;
   } | null>(null);
 
   const { pendingDemandaIds, refetchSolicitacoes } = useSolicitacoesExclusao();
@@ -437,7 +442,7 @@ export default function GerenciamentoLista({
   };
 
   // Helper: route delete action based on role
-  const handleDeleteClick = (demanda: { id: string; numero: number; grupo_id: string | null }) => {
+  const handleDeleteClick = (demanda: { id: string; numero: number; grupo_id: string | null; descricao: string; responsavel_id: string; mes: number; ano: number; semanas_repeticao: number }) => {
     if (isGestorOrAdmin) {
       setDeletingDemanda(demanda);
     } else {
@@ -582,11 +587,10 @@ export default function GerenciamentoLista({
                   <DropdownMenuItem
                     onClick={(e) => {
                       e.stopPropagation();
-                      handleDeleteClick({
-                        id: firstSibling.id,
-                        numero: firstSibling.numero,
-                        grupo_id: demand.grupo_id,
-                      });
+                      const fullDemanda = getDemandaById(firstSibling.id);
+                      if (fullDemanda) {
+                        handleDeleteClick(fullDemanda);
+                      }
                     }}
                     className="text-destructive"
                   >
@@ -842,6 +846,11 @@ export default function GerenciamentoLista({
           demandaNumero={solicitandoExclusao.numero}
           grupoId={solicitandoExclusao.grupo_id}
           siblingCount={getSiblingCount(solicitandoExclusao.grupo_id)}
+          demandaDescricao={solicitandoExclusao.descricao}
+          demandaResponsavelId={solicitandoExclusao.responsavel_id}
+          demandaMes={solicitandoExclusao.mes}
+          demandaAno={solicitandoExclusao.ano}
+          demandaSemanasRepeticao={solicitandoExclusao.semanas_repeticao}
           onSolicitacaoEnviada={handleDemandaChange}
         />
       )}
