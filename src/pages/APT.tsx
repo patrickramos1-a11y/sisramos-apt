@@ -468,7 +468,7 @@ export default function APT() {
                   <div className="flex items-center justify-center py-12">
                     <Loader2 className="h-8 w-8 animate-spin text-primary" />
                   </div>
-                ) : demandas.length === 0 ? (
+                ) : displayedDemandas.length === 0 ? (
                   <Card>
                     <CardContent className="py-12 text-center">
                       <p className="text-muted-foreground">
