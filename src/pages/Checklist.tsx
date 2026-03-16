@@ -370,6 +370,16 @@ export default function Checklist() {
           </div>
         ) : (
           <>
+            {/* Timer */}
+            <ChecklistTimer
+              isRunning={timerIsRunning}
+              activeWeek={timerActiveWeek}
+              elapsedSeconds={elapsedSeconds}
+              isGestorOrAdmin={isGestorOrAdmin}
+              onStart={startTimer}
+              onStop={stopTimer}
+            />
+
             {/* Summary Cards */}
             <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
               {semanasToShow.map((sem) => (
@@ -379,6 +389,7 @@ export default function Checklist() {
                   totalItems={weekStats[sem]?.total || 0}
                   completedItems={weekStats[sem]?.completed || 0}
                   notDoneItems={weekStats[sem]?.notDone || 0}
+                  duration={weekDurations[sem] || null}
                   onClick={() => setSelectedWeek(selectedWeek === sem ? null : sem)}
                   isSelected={selectedWeek === sem}
                 />
