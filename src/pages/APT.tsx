@@ -165,17 +165,17 @@ export default function APT() {
   // Column visibility state (for admin/gestor)
   const [hideResponsavelColumn, setHideResponsavelColumn] = useState(false);
   
-  // Top Setores card filter
+  // Top Setores card filter (client-side only, doesn't affect DB query)
   const [activeTopSetor, setActiveTopSetor] = useState<string | null>(null);
   
   const handleTopSetorClick = (setorId: string | null) => {
     setActiveTopSetor(setorId);
-    if (setorId) {
-      setFilters((prev) => ({ ...prev, setores: [setorId] }));
-    } else {
-      setFilters((prev) => ({ ...prev, setores: [] }));
-    }
   };
+
+  // Apply the top setor card filter client-side
+  const displayedDemandas = activeTopSetor
+    ? demandas.filter((d) => d.setor_id === activeTopSetor)
+    : demandas;
   
   // Filters active count for badge
   const hasActiveFilters =
