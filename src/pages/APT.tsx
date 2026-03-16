@@ -456,7 +456,7 @@ export default function APT() {
               <div className="flex-1 min-w-0">
 
                 {/* Sort header - shown for all devices when there are demandas */}
-                {!isLoading && demandas.length > 0 && (
+                {!isLoading && displayedDemandas.length > 0 && (
                   <DemandaSortHeader
                     sortConfig={sortConfig}
                     onSortChange={toggleSort}
