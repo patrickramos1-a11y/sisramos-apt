@@ -784,6 +784,11 @@ export default function APT() {
               })()
             : 1
         }
+        demandaDescricao={solicitandoExclusao?.descricao}
+        demandaResponsavelId={solicitandoExclusao?.responsavel_id}
+        demandaMes={solicitandoExclusao?.mes}
+        demandaAno={solicitandoExclusao?.ano}
+        demandaSemanasRepeticao={solicitandoExclusao?.semanas_repeticao}
         onSolicitacaoEnviada={() => { fetchDemandas(); refetchSolicitacoes(); }}
       />
 

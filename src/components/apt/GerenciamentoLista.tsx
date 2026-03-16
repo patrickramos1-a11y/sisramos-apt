@@ -842,6 +842,11 @@ export default function GerenciamentoLista({
           demandaNumero={solicitandoExclusao.numero}
           grupoId={solicitandoExclusao.grupo_id}
           siblingCount={getSiblingCount(solicitandoExclusao.grupo_id)}
+          demandaDescricao={solicitandoExclusao.descricao}
+          demandaResponsavelId={solicitandoExclusao.responsavel_id}
+          demandaMes={solicitandoExclusao.mes}
+          demandaAno={solicitandoExclusao.ano}
+          demandaSemanasRepeticao={solicitandoExclusao.semanas_repeticao}
           onSolicitacaoEnviada={handleDemandaChange}
         />
       )}
