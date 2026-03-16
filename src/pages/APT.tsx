@@ -479,7 +479,7 @@ export default function APT() {
                 ) : isMobile ? (
                   /* Mobile: Cards */
                   <div className="space-y-2">
-                    {demandas.map((demanda, index) => {
+                    {displayedDemandas.map((demanda, index) => {
                       const profile = getProfileById(demanda.responsavel_id);
                       const setor = getSetorById(demanda.setor_id);
                       
