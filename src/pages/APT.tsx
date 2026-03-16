@@ -698,11 +698,8 @@ export default function APT() {
                                   setEditingDemanda(demanda as Demanda)
                                 }
                                 onDelete={() =>
-                                  handleDeleteClick({
-                                    id: demanda.id,
-                                    numero: demanda.numero,
-                                    grupo_id: demanda.grupo_id,
-                                  })
+                                  handleDeleteClick(demanda)
+                                }
                                 }
                                 onSelectChange={(checked) =>
                                   toggleSelection(demanda.id, checked)

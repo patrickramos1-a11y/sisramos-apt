@@ -1149,6 +1149,11 @@ export default function APTGerenciamento({
                         id: sibling.id,
                         numero: sibling.numero,
                         grupo_id: selectedDemand.grupo_id,
+                        descricao: sibling.descricao,
+                        responsavel_id: sibling.responsavel_id,
+                        mes: sibling.mes,
+                        ano: sibling.ano,
+                        semanas_repeticao: sibling.semanas_repeticao,
                       });
                     }}
                     className="text-destructive"

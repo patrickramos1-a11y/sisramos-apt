@@ -591,6 +591,11 @@ export default function GerenciamentoLista({
                         id: firstSibling.id,
                         numero: firstSibling.numero,
                         grupo_id: demand.grupo_id,
+                        descricao: firstSibling.descricao,
+                        responsavel_id: firstSibling.responsavel_id,
+                        mes: firstSibling.mes,
+                        ano: firstSibling.ano,
+                        semanas_repeticao: firstSibling.semanas_repeticao,
                       });
                     }}
                     className="text-destructive"
