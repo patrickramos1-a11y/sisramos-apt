@@ -700,7 +700,6 @@ export default function APT() {
                                 onDelete={() =>
                                   handleDeleteClick(demanda)
                                 }
-                                }
                                 onSelectChange={(checked) =>
                                   toggleSelection(demanda.id, checked)
                                 }
