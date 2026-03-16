@@ -218,7 +218,7 @@ export default function APT() {
 
   const toggleSelectAll = (checked: boolean) => {
     if (checked) {
-      setSelectedIds(new Set(demandas.map((d) => d.id)));
+      setSelectedIds(new Set(displayedDemandas.map((d) => d.id)));
     } else {
       setSelectedIds(new Set());
     }
