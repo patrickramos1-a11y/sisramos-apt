@@ -165,17 +165,17 @@ export default function APT() {
   // Column visibility state (for admin/gestor)
   const [hideResponsavelColumn, setHideResponsavelColumn] = useState(false);
   
-  // Top Setores card filter
+  // Top Setores card filter (client-side only, doesn't affect DB query)
   const [activeTopSetor, setActiveTopSetor] = useState<string | null>(null);
   
   const handleTopSetorClick = (setorId: string | null) => {
     setActiveTopSetor(setorId);
-    if (setorId) {
-      setFilters((prev) => ({ ...prev, setores: [setorId] }));
-    } else {
-      setFilters((prev) => ({ ...prev, setores: [] }));
-    }
   };
+
+  // Apply the top setor card filter client-side
+  const displayedDemandas = activeTopSetor
+    ? demandas.filter((d) => d.setor_id === activeTopSetor)
+    : demandas;
   
   // Filters active count for badge
   const hasActiveFilters =
@@ -218,7 +218,7 @@ export default function APT() {
 
   const toggleSelectAll = (checked: boolean) => {
     if (checked) {
-      setSelectedIds(new Set(demandas.map((d) => d.id)));
+      setSelectedIds(new Set(displayedDemandas.map((d) => d.id)));
     } else {
       setSelectedIds(new Set());
     }
@@ -456,7 +456,7 @@ export default function APT() {
               <div className="flex-1 min-w-0">
 
                 {/* Sort header - shown for all devices when there are demandas */}
-                {!isLoading && demandas.length > 0 && (
+                {!isLoading && displayedDemandas.length > 0 && (
                   <DemandaSortHeader
                     sortConfig={sortConfig}
                     onSortChange={toggleSort}
@@ -468,7 +468,7 @@ export default function APT() {
                   <div className="flex items-center justify-center py-12">
                     <Loader2 className="h-8 w-8 animate-spin text-primary" />
                   </div>
-                ) : demandas.length === 0 ? (
+                ) : displayedDemandas.length === 0 ? (
                   <Card>
                     <CardContent className="py-12 text-center">
                       <p className="text-muted-foreground">
@@ -479,7 +479,7 @@ export default function APT() {
                 ) : isMobile ? (
                   /* Mobile: Cards */
                   <div className="space-y-2">
-                    {demandas.map((demanda, index) => {
+                    {displayedDemandas.map((demanda, index) => {
                       const profile = getProfileById(demanda.responsavel_id);
                       const setor = getSetorById(demanda.setor_id);
                       
@@ -648,7 +648,7 @@ export default function APT() {
                           </TableRow>
                         </TableHeader>
                         <TableBody>
-                          {demandas.map((demanda, index) => {
+                          {displayedDemandas.map((demanda, index) => {
                             const profile = getProfileById(demanda.responsavel_id);
                             const setor = getSetorById(demanda.setor_id);
                             
