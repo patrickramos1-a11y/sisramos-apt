@@ -516,7 +516,7 @@ export default function APTGerenciamento({
     refetchSolicitacoes();
   };
 
-  const handleDeleteClick = (demanda: { id: string; numero: number; grupo_id: string | null }) => {
+  const handleDeleteClick = (demanda: { id: string; numero: number; grupo_id: string | null; descricao: string; responsavel_id: string; mes: number; ano: number; semanas_repeticao: number }) => {
     if (isGestorOrAdmin) {
       setDeletingDemanda(demanda);
     } else {
