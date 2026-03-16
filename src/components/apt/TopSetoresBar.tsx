@@ -76,7 +76,7 @@ export default function TopSetoresBar({ demandas, setores, activeSetorId, onSeto
                 isDimmed && "opacity-35 scale-[0.97]",
                 !activeSetorId && "hover:scale-[1.02]"
               )}
-              style={isActive ? { borderColor: s.cor, ringColor: s.cor, boxShadow: `0 0 12px ${s.cor}44` } : undefined}
+              style={isActive ? { borderColor: s.cor, boxShadow: `0 0 12px ${s.cor}44`, ['--tw-ring-color' as any]: s.cor } : undefined}
             >
               <div
                 className="absolute inset-0 opacity-10"
