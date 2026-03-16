@@ -3,11 +3,19 @@ import { AlertCircle, Calendar, CheckCircle2, Clock, ListTodo } from "lucide-rea
 import { cn } from "@/lib/utils";
 import CircularProgress from "./CircularProgress";
 
+function formatDuration(seconds: number): string {
+  const h = Math.floor(seconds / 3600);
+  const m = Math.floor((seconds % 3600) / 60);
+  if (h > 0) return `${h}h ${m}min`;
+  return `${m}min`;
+}
+
 interface ChecklistSummaryCardProps {
   semana: number;
   totalItems: number;
   completedItems: number;
   notDoneItems?: number;
+  duration?: number | null;
   onClick: () => void;
   isSelected?: boolean;
 }
