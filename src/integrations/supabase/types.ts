@@ -643,6 +643,42 @@ export type Database = {
         }
         Relationships: []
       }
+      checklist_timers: {
+        Row: {
+          ano: number
+          created_at: string | null
+          duration_seconds: number | null
+          id: string
+          mes: number
+          semana: number
+          started_at: string
+          started_by: string | null
+          stopped_at: string | null
+        }
+        Insert: {
+          ano: number
+          created_at?: string | null
+          duration_seconds?: number | null
+          id?: string
+          mes: number
+          semana: number
+          started_at?: string
+          started_by?: string | null
+          stopped_at?: string | null
+        }
+        Update: {
+          ano?: number
+          created_at?: string | null
+          duration_seconds?: number | null
+          id?: string
+          mes?: number
+          semana?: number
+          started_at?: string
+          started_by?: string | null
+          stopped_at?: string | null
+        }
+        Relationships: []
+      }
       demandas: {
         Row: {
           ano: number
