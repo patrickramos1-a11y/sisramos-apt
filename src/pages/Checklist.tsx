@@ -6,6 +6,7 @@ import { useMonthSettings } from "@/hooks/useMonthSettings";
 import { supabase } from "@/integrations/supabase/client";
 import AppLayout from "@/components/layout/AppLayout";
 import ChecklistSummaryCard from "@/components/checklist/ChecklistSummaryCard";
+import ChecklistTimer from "@/components/checklist/ChecklistTimer";
 import ChecklistWeekTable from "@/components/checklist/ChecklistWeekTable";
 import NovoItemChecklistDialog from "@/components/checklist/NovoItemChecklistDialog";
 import { Loader2, Info, Copy, Lock, Unlock, Filter, X, ChevronLeft, ChevronRight, CalendarDays, Trash2 } from "lucide-react";
