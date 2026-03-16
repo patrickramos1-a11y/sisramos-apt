@@ -149,6 +149,11 @@ export default function APT() {
     id: string;
     numero: number;
     grupo_id: string | null;
+    descricao: string;
+    responsavel_id: string;
+    mes: number;
+    ano: number;
+    semanas_repeticao: number;
   } | null>(null);
 
   // Selection state for bulk operations

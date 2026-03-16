@@ -258,6 +258,11 @@ export default function GerenciamentoLista({
     id: string;
     numero: number;
     grupo_id: string | null;
+    descricao: string;
+    responsavel_id: string;
+    mes: number;
+    ano: number;
+    semanas_repeticao: number;
   } | null>(null);
 
   const { pendingDemandaIds, refetchSolicitacoes } = useSolicitacoesExclusao();
