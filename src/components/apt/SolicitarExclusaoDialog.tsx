@@ -24,6 +24,12 @@ interface SolicitarExclusaoDialogProps {
   grupoId: string | null;
   siblingCount: number;
   onSolicitacaoEnviada: () => void;
+  // Heuristic fields for fallback when grupo_id is null
+  demandaDescricao?: string;
+  demandaResponsavelId?: string;
+  demandaMes?: number;
+  demandaAno?: number;
+  demandaSemanasRepeticao?: number;
 }
 
 export default function SolicitarExclusaoDialog({
@@ -34,21 +40,83 @@ export default function SolicitarExclusaoDialog({
   grupoId,
   siblingCount,
   onSolicitacaoEnviada,
+  demandaDescricao,
+  demandaResponsavelId,
+  demandaMes,
+  demandaAno,
+  demandaSemanasRepeticao,
 }: SolicitarExclusaoDialogProps) {
   const [justificativa, setJustificativa] = useState("");
   const [tipoExclusao, setTipoExclusao] = useState<"unica" | "todas">("unica");
   const [isLoading, setIsLoading] = useState(false);
+  const [resolvedGrupoId, setResolvedGrupoId] = useState<string | null>(grupoId);
+  const [actualSiblingCount, setActualSiblingCount] = useState(siblingCount);
   const { user } = useAuth();
   const { toast } = useToast();
 
-  const hasSiblings = grupoId && siblingCount > 1;
-
+  // Resolve grupo_id and sibling count when dialog opens
   useEffect(() => {
-    if (open) {
-      setJustificativa("");
-      setTipoExclusao("unica");
-    }
-  }, [open]);
+    if (!open) return;
+
+    setJustificativa("");
+    setTipoExclusao("unica");
+
+    const resolveSiblings = async () => {
+      if (grupoId) {
+        // Primary path: fetch by grupo_id
+        const { data } = await supabase
+          .from("demandas")
+          .select("id")
+          .eq("grupo_id", grupoId)
+          .eq("ativa", true);
+
+        if (data && data.length > 1) {
+          setResolvedGrupoId(grupoId);
+          setActualSiblingCount(data.length);
+          return;
+        }
+      }
+
+      // Heuristic fallback
+      if (demandaSemanasRepeticao && demandaSemanasRepeticao > 1 && demandaDescricao && demandaResponsavelId && demandaMes && demandaAno) {
+        const { data } = await supabase
+          .from("demandas")
+          .select("id, grupo_id")
+          .eq("descricao", demandaDescricao)
+          .eq("responsavel_id", demandaResponsavelId)
+          .eq("mes", demandaMes)
+          .eq("ano", demandaAno)
+          .eq("ativa", true);
+
+        if (data && data.length > 1) {
+          setActualSiblingCount(data.length);
+
+          // Auto-fix: assign a shared grupo_id
+          const existingGrupoId = data.find(d => d.grupo_id)?.grupo_id;
+          const newGrupoId = existingGrupoId || crypto.randomUUID();
+          
+          if (!existingGrupoId) {
+            const siblingIds = data.map(d => d.id);
+            await supabase
+              .from("demandas")
+              .update({ grupo_id: newGrupoId })
+              .in("id", siblingIds);
+          }
+
+          setResolvedGrupoId(newGrupoId);
+          return;
+        }
+      }
+
+      // No siblings
+      setResolvedGrupoId(grupoId);
+      setActualSiblingCount(siblingCount);
+    };
+
+    resolveSiblings();
+  }, [open, grupoId, demandaDescricao, demandaResponsavelId, demandaMes, demandaAno, demandaSemanasRepeticao, siblingCount]);
+
+  const hasSiblings = actualSiblingCount > 1;
 
   const handleSubmit = async () => {
     if (!demandaId || !user) return;
@@ -67,7 +135,7 @@ export default function SolicitarExclusaoDialog({
       .from("solicitacoes_exclusao" as any)
       .insert({
         demanda_id: demandaId,
-        grupo_id: tipoExclusao === "todas" ? grupoId : null,
+        grupo_id: tipoExclusao === "todas" ? resolvedGrupoId : null,
         tipo_exclusao: hasSiblings ? tipoExclusao : "unica",
         solicitante_id: user.id,
         justificativa: justificativa.trim(),
@@ -111,7 +179,7 @@ export default function SolicitarExclusaoDialog({
               {hasSiblings && (
                 <div className="space-y-2">
                   <Label className="text-sm font-medium text-foreground">
-                    Esta demanda possui {siblingCount} repetições. O que deseja excluir?
+                    Esta demanda possui {actualSiblingCount} repetições. O que deseja excluir?
                   </Label>
                   <RadioGroup
                     value={tipoExclusao}
@@ -127,7 +195,7 @@ export default function SolicitarExclusaoDialog({
                     <div className="flex items-center space-x-2">
                       <RadioGroupItem value="todas" id="todas" />
                       <Label htmlFor="todas" className="text-sm text-foreground cursor-pointer">
-                        Todas as repetições ({siblingCount})
+                        Todas as repetições ({actualSiblingCount})
                       </Label>
                     </div>
                   </RadioGroup>
