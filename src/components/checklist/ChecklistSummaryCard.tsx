@@ -25,6 +25,7 @@ export default function ChecklistSummaryCard({
   totalItems,
   completedItems,
   notDoneItems = 0,
+  duration,
   onClick,
   isSelected = false,
 }: ChecklistSummaryCardProps) {
