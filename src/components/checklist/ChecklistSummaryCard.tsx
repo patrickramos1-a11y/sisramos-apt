@@ -1,5 +1,5 @@
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
-import { AlertCircle, Calendar, CheckCircle2, ListTodo } from "lucide-react";
+import { AlertCircle, Calendar, CheckCircle2, Clock, ListTodo } from "lucide-react";
 import { cn } from "@/lib/utils";
 import CircularProgress from "./CircularProgress";
 
