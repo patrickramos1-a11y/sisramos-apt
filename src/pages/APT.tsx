@@ -165,6 +165,18 @@ export default function APT() {
   // Column visibility state (for admin/gestor)
   const [hideResponsavelColumn, setHideResponsavelColumn] = useState(false);
   
+  // Top Setores card filter
+  const [activeTopSetor, setActiveTopSetor] = useState<string | null>(null);
+  
+  const handleTopSetorClick = (setorId: string | null) => {
+    setActiveTopSetor(setorId);
+    if (setorId) {
+      setFilters((prev) => ({ ...prev, setores: [setorId] }));
+    } else {
+      setFilters((prev) => ({ ...prev, setores: [] }));
+    }
+  };
+  
   // Filters active count for badge
   const hasActiveFilters =
     filters.responsaveis.length > 0 ||
