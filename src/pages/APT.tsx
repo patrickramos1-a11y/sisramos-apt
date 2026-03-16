@@ -438,8 +438,8 @@ export default function APT() {
                 profiles={profiles}
                 setores={setores}
                 filters={filters}
-                onFiltersChange={setFilters}
-                onClearFilters={clearFilters}
+                onFiltersChange={(f) => { setFilters(f); setActiveTopSetor(null); }}
+                onClearFilters={() => { clearFilters(); setActiveTopSetor(null); }}
                 showResponsavelFilter={isGestorOrAdmin}
               />
             </div>
