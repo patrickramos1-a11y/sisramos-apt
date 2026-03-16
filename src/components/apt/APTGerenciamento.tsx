@@ -1139,16 +1139,10 @@ export default function APTGerenciamento({
                   <DropdownMenuItem
                     onClick={() => {
                       setSelectedDemand(null);
-                      handleDeleteClick({
-                        id: sibling.id,
-                        numero: sibling.numero,
-                        grupo_id: selectedDemand.grupo_id,
-                        descricao: sibling.descricao,
-                        responsavel_id: sibling.responsavel_id,
-                        mes: sibling.mes,
-                        ano: sibling.ano,
-                        semanas_repeticao: sibling.semanas_repeticao,
-                      });
+                      const fullDemanda = getDemandaById(sibling.id);
+                      if (fullDemanda) {
+                        handleDeleteClick(fullDemanda);
+                      }
                     }}
                     className="text-destructive"
                   >
