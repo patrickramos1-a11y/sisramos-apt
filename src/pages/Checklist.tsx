@@ -338,6 +338,8 @@ export default function Checklist() {
                     </AlertDialogFooter>
                   </AlertDialogContent>
                 </AlertDialog>
+
+                <ChecklistTimerHistory />
               </>
             )}
           </div>
