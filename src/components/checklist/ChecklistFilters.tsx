@@ -2,6 +2,7 @@ import { Search, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { MultiSelectDropdown } from "@/components/ui/multi-select-dropdown";
+// MultiSelectDropdown now has built-in search
 
 export interface ChecklistMultiFilters {
   meses: string[];
