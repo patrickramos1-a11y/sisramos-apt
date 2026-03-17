@@ -203,9 +203,9 @@ export function useBacklogModulos(projetoId?: string) {
 
 export function useBacklogItems(filters?: {
   projetoIds?: string[];
-  categorias?: string[];
-  statuses?: string[];
-  prioridades?: string[];
+  categorias?: BacklogCategoria[];
+  statuses?: BacklogStatus[];
+  prioridades?: BacklogPrioridade[];
   dependenteCreditos?: boolean;
   search?: string;
 }) {
