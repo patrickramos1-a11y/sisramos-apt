@@ -86,7 +86,7 @@ export default function BacklogFilters({ filters, onFiltersChange }: BacklogFilt
             <MultiSelectDropdown
               options={statusOptions}
               selected={filters.statuses}
-              onChange={(v) => onFiltersChange({ ...filters, statuses: v })}
+              onChange={(v) => onFiltersChange({ ...filters, statuses: v as BacklogStatus[] })}
               placeholder="Todos os status"
             />
           </div>
