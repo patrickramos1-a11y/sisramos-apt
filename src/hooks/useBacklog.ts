@@ -202,10 +202,10 @@ export function useBacklogModulos(projetoId?: string) {
 }
 
 export function useBacklogItems(filters?: {
-  projetoId?: string;
-  categoria?: BacklogCategoria;
-  status?: BacklogStatus;
-  prioridade?: BacklogPrioridade;
+  projetoIds?: string[];
+  categorias?: string[];
+  statuses?: string[];
+  prioridades?: string[];
   dependenteCreditos?: boolean;
   search?: string;
 }) {
@@ -222,17 +222,17 @@ export function useBacklogItems(filters?: {
         `)
         .order("numero", { ascending: false });
 
-      if (filters?.projetoId) {
-        query = query.eq("projeto_id", filters.projetoId);
+      if (filters?.projetoIds && filters.projetoIds.length > 0) {
+        query = query.in("projeto_id", filters.projetoIds);
       }
-      if (filters?.categoria) {
-        query = query.eq("categoria", filters.categoria);
+      if (filters?.categorias && filters.categorias.length > 0) {
+        query = query.in("categoria", filters.categorias);
       }
-      if (filters?.status) {
-        query = query.eq("status", filters.status);
+      if (filters?.statuses && filters.statuses.length > 0) {
+        query = query.in("status", filters.statuses);
       }
-      if (filters?.prioridade) {
-        query = query.eq("prioridade", filters.prioridade);
+      if (filters?.prioridades && filters.prioridades.length > 0) {
+        query = query.in("prioridade", filters.prioridades);
       }
       if (filters?.dependenteCreditos !== undefined) {
         query = query.eq("dependente_de_creditos", filters.dependenteCreditos);
