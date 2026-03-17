@@ -64,7 +64,7 @@ export default function Configuracoes() {
 
   // Filter and sort states
   const [searchTerm, setSearchTerm] = useState("");
-  const [roleFilter, setRoleFilter] = useState<AppRole | "all">("all");
+  const [roleFilter, setRoleFilter] = useState<AppRole[]>([]);
   const [sortField, setSortField] = useState<SortField>("nome");
   const [sortDirection, setSortDirection] = useState<SortDirection>("asc");
 
