@@ -15,7 +15,7 @@ import {
   BacklogItem
 } from "@/hooks/useBacklog";
 import { useAuth } from "@/contexts/AuthContext";
-import BacklogFilters from "./BacklogFilters";
+import BacklogFilters, { type BacklogMultiFilters } from "./BacklogFilters";
 import NovoBacklogItemDialog from "./NovoBacklogItemDialog";
 import BacklogItemDetailDialog from "./BacklogItemDetailDialog";
 import { format } from "date-fns";
@@ -42,14 +42,12 @@ const PRIORIDADE_COLORS: Record<BacklogPrioridade, string> = {
 
 export default function BacklogLista() {
   const { isGestorOrAdmin } = useAuth();
-  const [filters, setFilters] = useState<{
-    projetoId?: string;
-    categoria?: BacklogCategoria;
-    status?: BacklogStatus;
-    prioridade?: BacklogPrioridade;
-    dependenteCreditos?: boolean;
-    search?: string;
-  }>({});
+  const [filters, setFilters] = useState<BacklogMultiFilters>({
+    projetoIds: [],
+    categorias: [],
+    statuses: [],
+    prioridades: [],
+  });
   
   const [isNovoDialogOpen, setIsNovoDialogOpen] = useState(false);
   const [selectedItem, setSelectedItem] = useState<BacklogItem | null>(null);

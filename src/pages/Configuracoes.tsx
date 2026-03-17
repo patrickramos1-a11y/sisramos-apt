@@ -64,7 +64,7 @@ export default function Configuracoes() {
 
   // Filter and sort states
   const [searchTerm, setSearchTerm] = useState("");
-  const [roleFilter, setRoleFilter] = useState<AppRole | "all">("all");
+  const [roleFilter, setRoleFilter] = useState<AppRole[]>([]);
   const [sortField, setSortField] = useState<SortField>("nome");
   const [sortDirection, setSortDirection] = useState<SortDirection>("asc");
 
@@ -130,8 +130,8 @@ export default function Configuracoes() {
     }
 
     // Apply role filter
-    if (roleFilter !== "all") {
-      result = result.filter((u) => u.role === roleFilter);
+    if (roleFilter.length > 0) {
+      result = result.filter((u) => roleFilter.includes(u.role));
     }
 
     // Apply sorting

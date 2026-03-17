@@ -1,8 +1,8 @@
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { Search } from "lucide-react";
+import { MultiSelectDropdown } from "@/components/ui/multi-select-dropdown";
 import { 
   useBacklogProjetos, 
   CATEGORIAS_LABELS, 
@@ -10,23 +10,30 @@ import {
   PRIORIDADE_LABELS,
   BacklogCategoria,
   BacklogStatus,
-  BacklogPrioridade
+  BacklogPrioridade,
 } from "@/hooks/useBacklog";
 
+export interface BacklogMultiFilters {
+  projetoIds: string[];
+  categorias: BacklogCategoria[];
+  statuses: BacklogStatus[];
+  prioridades: BacklogPrioridade[];
+  dependenteCreditos?: boolean;
+  search?: string;
+}
+
 interface BacklogFiltersProps {
-  filters: {
-    projetoId?: string;
-    categoria?: BacklogCategoria;
-    status?: BacklogStatus;
-    prioridade?: BacklogPrioridade;
-    dependenteCreditos?: boolean;
-    search?: string;
-  };
-  onFiltersChange: (filters: BacklogFiltersProps["filters"]) => void;
+  filters: BacklogMultiFilters;
+  onFiltersChange: (filters: BacklogMultiFilters) => void;
 }
 
 export default function BacklogFilters({ filters, onFiltersChange }: BacklogFiltersProps) {
   const { data: projetos } = useBacklogProjetos();
+
+  const projetoOptions = (projetos || []).map(p => ({ value: p.id, label: p.nome }));
+  const categoriaOptions = Object.entries(CATEGORIAS_LABELS).map(([key, label]) => ({ value: key, label }));
+  const statusOptions = Object.entries(STATUS_LABELS).map(([key, label]) => ({ value: key, label }));
+  const prioridadeOptions = Object.entries(PRIORIDADE_LABELS).map(([key, label]) => ({ value: key, label }));
 
   return (
     <div className="bg-card border rounded-lg p-4 space-y-4">
@@ -49,77 +56,53 @@ export default function BacklogFilters({ filters, onFiltersChange }: BacklogFilt
         {/* Projeto */}
         <div>
           <Label className="text-xs text-muted-foreground">Projeto</Label>
-          <Select
-            value={filters.projetoId || "all"}
-            onValueChange={(v) => onFiltersChange({ ...filters, projetoId: v === "all" ? undefined : v })}
-          >
-            <SelectTrigger className="mt-1">
-              <SelectValue placeholder="Todos" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Todos os projetos</SelectItem>
-              {projetos?.map(projeto => (
-                <SelectItem key={projeto.id} value={projeto.id}>{projeto.nome}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          <div className="mt-1">
+            <MultiSelectDropdown
+              options={projetoOptions}
+              selected={filters.projetoIds}
+              onChange={(v) => onFiltersChange({ ...filters, projetoIds: v })}
+              placeholder="Todos os projetos"
+            />
+          </div>
         </div>
 
         {/* Categoria */}
         <div>
           <Label className="text-xs text-muted-foreground">Categoria</Label>
-          <Select
-            value={filters.categoria || "all"}
-            onValueChange={(v) => onFiltersChange({ ...filters, categoria: v === "all" ? undefined : v as BacklogCategoria })}
-          >
-            <SelectTrigger className="mt-1">
-              <SelectValue placeholder="Todas" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Todas as categorias</SelectItem>
-              {Object.entries(CATEGORIAS_LABELS).map(([key, label]) => (
-                <SelectItem key={key} value={key}>{label}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          <div className="mt-1">
+            <MultiSelectDropdown
+              options={categoriaOptions}
+              selected={filters.categorias}
+              onChange={(v) => onFiltersChange({ ...filters, categorias: v as BacklogCategoria[] })}
+              placeholder="Todas as categorias"
+            />
+          </div>
         </div>
 
         {/* Status */}
         <div>
           <Label className="text-xs text-muted-foreground">Status</Label>
-          <Select
-            value={filters.status || "all"}
-            onValueChange={(v) => onFiltersChange({ ...filters, status: v === "all" ? undefined : v as BacklogStatus })}
-          >
-            <SelectTrigger className="mt-1">
-              <SelectValue placeholder="Todos" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Todos os status</SelectItem>
-              {Object.entries(STATUS_LABELS).map(([key, label]) => (
-                <SelectItem key={key} value={key}>{label}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          <div className="mt-1">
+            <MultiSelectDropdown
+              options={statusOptions}
+              selected={filters.statuses}
+              onChange={(v) => onFiltersChange({ ...filters, statuses: v as BacklogStatus[] })}
+              placeholder="Todos os status"
+            />
+          </div>
         </div>
 
         {/* Prioridade */}
         <div>
           <Label className="text-xs text-muted-foreground">Prioridade</Label>
-          <Select
-            value={filters.prioridade || "all"}
-            onValueChange={(v) => onFiltersChange({ ...filters, prioridade: v === "all" ? undefined : v as BacklogPrioridade })}
-          >
-            <SelectTrigger className="mt-1">
-              <SelectValue placeholder="Todas" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Todas as prioridades</SelectItem>
-              {Object.entries(PRIORIDADE_LABELS).map(([key, label]) => (
-                <SelectItem key={key} value={key}>{label}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          <div className="mt-1">
+            <MultiSelectDropdown
+              options={prioridadeOptions}
+              selected={filters.prioridades}
+              onChange={(v) => onFiltersChange({ ...filters, prioridades: v as BacklogPrioridade[] })}
+              placeholder="Todas as prioridades"
+            />
+          </div>
         </div>
       </div>
 

@@ -1,11 +1,13 @@
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Input } from "@/components/ui/input";
 import {
   Popover,
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import { ChevronDown } from "lucide-react";
+import { ChevronDown, Search } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface MultiSelectDropdownProps {
@@ -14,6 +16,7 @@ interface MultiSelectDropdownProps {
   onChange: (selected: string[]) => void;
   placeholder?: string;
   className?: string;
+  searchable?: boolean;
 }
 
 export function MultiSelectDropdown({
@@ -22,7 +25,14 @@ export function MultiSelectDropdown({
   onChange,
   placeholder = "Selecionar...",
   className,
+  searchable = true,
 }: MultiSelectDropdownProps) {
+  const [search, setSearch] = useState("");
+
+  const filteredOptions = search
+    ? options.filter((o) => o.label.toLowerCase().includes(search.toLowerCase()))
+    : options;
+
   const toggleOption = (value: string) => {
     if (selected.includes(value)) {
       onChange(selected.filter((v) => v !== value));
@@ -68,26 +78,47 @@ export function MultiSelectDropdown({
         align="start"
         onOpenAutoFocus={(e) => e.preventDefault()}
       >
-        <div className="max-h-60 overflow-y-auto p-2 space-y-1">
-          <div
-            className="flex items-center gap-2 px-2 py-1.5 rounded cursor-pointer hover:bg-muted"
-            onMouseDown={(e) => e.preventDefault()}
-            onClick={(e) => {
-              e.preventDefault();
-              e.stopPropagation();
-              toggleAll();
-            }}
-          >
-            <Checkbox
-              checked={selected.length === options.length}
-              className="pointer-events-none"
-            />
-            <span className="text-sm font-medium">
-              {selected.length === options.length ? "Desmarcar todos" : "Selecionar todos"}
-            </span>
+        {searchable && options.length > 5 && (
+          <div className="p-2 border-b">
+            <div className="relative">
+              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+              <Input
+                placeholder="Pesquisar..."
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className="h-8 pl-8 text-xs"
+                onMouseDown={(e) => e.stopPropagation()}
+              />
+            </div>
           </div>
-          <div className="border-t my-1" />
-          {options.map((option) => (
+        )}
+        <div className="max-h-60 overflow-y-auto p-2 space-y-1">
+          {!search && (
+            <>
+              <div
+                className="flex items-center gap-2 px-2 py-1.5 rounded cursor-pointer hover:bg-muted"
+                onMouseDown={(e) => e.preventDefault()}
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  toggleAll();
+                }}
+              >
+                <Checkbox
+                  checked={selected.length === options.length}
+                  className="pointer-events-none"
+                />
+                <span className="text-sm font-medium">
+                  {selected.length === options.length ? "Desmarcar todos" : "Selecionar todos"}
+                </span>
+              </div>
+              <div className="border-t my-1" />
+            </>
+          )}
+          {filteredOptions.length === 0 && (
+            <div className="text-sm text-muted-foreground text-center py-2">Nenhum resultado</div>
+          )}
+          {filteredOptions.map((option) => (
             <div
               key={option.value}
               className="flex items-center gap-2 px-2 py-1.5 rounded cursor-pointer hover:bg-muted"
