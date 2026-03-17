@@ -1,4 +1,7 @@
 import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import { Search, ArrowUpDown, X } from "lucide-react";
+import { MultiSelectDropdown } from "@/components/ui/multi-select-dropdown";
 import {
   Select,
   SelectContent,
@@ -6,8 +9,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Button } from "@/components/ui/button";
-import { Search, ArrowUpDown, X } from "lucide-react";
 
 type AppRole = "admin" | "gestor" | "colaborador";
 type SortField = "nome" | "email" | "role";
@@ -16,13 +17,19 @@ type SortDirection = "asc" | "desc";
 interface UserFiltersProps {
   searchTerm: string;
   onSearchChange: (value: string) => void;
-  roleFilter: AppRole | "all";
-  onRoleFilterChange: (value: AppRole | "all") => void;
+  roleFilter: AppRole[];
+  onRoleFilterChange: (value: AppRole[]) => void;
   sortField: SortField;
   onSortFieldChange: (field: SortField) => void;
   sortDirection: SortDirection;
   onSortDirectionChange: () => void;
 }
+
+const roleOptions = [
+  { value: "admin", label: "Administrador" },
+  { value: "gestor", label: "Gestor" },
+  { value: "colaborador", label: "Colaborador" },
+];
 
 export default function UserFilters({
   searchTerm,
@@ -34,11 +41,11 @@ export default function UserFilters({
   sortDirection,
   onSortDirectionChange,
 }: UserFiltersProps) {
-  const hasActiveFilters = searchTerm || roleFilter !== "all";
+  const hasActiveFilters = searchTerm || roleFilter.length > 0;
 
   const clearFilters = () => {
     onSearchChange("");
-    onRoleFilterChange("all");
+    onRoleFilterChange([]);
   };
 
   return (
@@ -54,21 +61,16 @@ export default function UserFilters({
         />
       </div>
 
-      {/* Role Filter */}
-      <Select
-        value={roleFilter}
-        onValueChange={(value) => onRoleFilterChange(value as AppRole | "all")}
-      >
-        <SelectTrigger className="w-full sm:w-[160px]">
-          <SelectValue placeholder="Filtrar por perfil" />
-        </SelectTrigger>
-        <SelectContent>
-          <SelectItem value="all">Todos os perfis</SelectItem>
-          <SelectItem value="admin">Administrador</SelectItem>
-          <SelectItem value="gestor">Gestor</SelectItem>
-          <SelectItem value="colaborador">Colaborador</SelectItem>
-        </SelectContent>
-      </Select>
+      {/* Role Filter - Multi Select */}
+      <div className="w-full sm:w-[200px]">
+        <MultiSelectDropdown
+          options={roleOptions}
+          selected={roleFilter}
+          onChange={(v) => onRoleFilterChange(v as AppRole[])}
+          placeholder="Todos os perfis"
+          searchable={false}
+        />
+      </div>
 
       {/* Sort Field */}
       <Select

@@ -1,7 +1,8 @@
-import { useRef, useEffect } from "react";
+import { useRef, useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Textarea } from "@/components/ui/textarea";
 import {
@@ -16,7 +17,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import { Filter, X, ChevronDown } from "lucide-react";
+import { Filter, X, ChevronDown, Search } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface Profile {
@@ -111,6 +112,12 @@ function MultiSelectDropdown({
   onChange,
   placeholder = "Selecionar...",
 }: MultiSelectDropdownProps) {
+  const [search, setSearch] = useState("");
+
+  const filteredOptions = search
+    ? options.filter((o) => o.label.toLowerCase().includes(search.toLowerCase()))
+    : options;
+
   const toggleOption = (value: string) => {
     if (selected.includes(value)) {
       onChange(selected.filter((v) => v !== value));
@@ -157,26 +164,47 @@ function MultiSelectDropdown({
           align="start"
           onOpenAutoFocus={(e) => e.preventDefault()}
         >
-          <div className="max-h-60 overflow-y-auto p-2 space-y-1">
-            <div
-              className="flex items-center gap-2 px-2 py-1.5 rounded cursor-pointer hover:bg-muted"
-              onMouseDown={(e) => e.preventDefault()}
-              onClick={(e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                toggleAll();
-              }}
-            >
-              <Checkbox
-                checked={selected.length === options.length}
-                className="pointer-events-none"
-              />
-              <span className="text-sm font-medium">
-                {selected.length === options.length ? "Desmarcar todos" : "Selecionar todos"}
-              </span>
+          {options.length > 5 && (
+            <div className="p-2 border-b">
+              <div className="relative">
+                <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+                <Input
+                  placeholder="Pesquisar..."
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  className="h-8 pl-8 text-xs"
+                  onMouseDown={(e) => e.stopPropagation()}
+                />
+              </div>
             </div>
-            <div className="border-t my-1" />
-            {options.map((option) => (
+          )}
+          <div className="max-h-60 overflow-y-auto p-2 space-y-1">
+            {!search && (
+              <>
+                <div
+                  className="flex items-center gap-2 px-2 py-1.5 rounded cursor-pointer hover:bg-muted"
+                  onMouseDown={(e) => e.preventDefault()}
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    toggleAll();
+                  }}
+                >
+                  <Checkbox
+                    checked={selected.length === options.length}
+                    className="pointer-events-none"
+                  />
+                  <span className="text-sm font-medium">
+                    {selected.length === options.length ? "Desmarcar todos" : "Selecionar todos"}
+                  </span>
+                </div>
+                <div className="border-t my-1" />
+              </>
+            )}
+            {filteredOptions.length === 0 && (
+              <div className="text-sm text-muted-foreground text-center py-2">Nenhum resultado</div>
+            )}
+            {filteredOptions.map((option) => (
               <div
                 key={option.value}
                 className="flex items-center gap-2 px-2 py-1.5 rounded cursor-pointer hover:bg-muted"
@@ -209,10 +237,8 @@ export default function APTFilters({
   onClearFilters,
   showResponsavelFilter = true,
 }: APTFiltersProps) {
-  // Hooks must be at the top of the component
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
-  // Auto-resize textarea
   useEffect(() => {
     const textarea = textareaRef.current;
     if (textarea) {
@@ -246,8 +272,6 @@ export default function APTFilters({
     label: s.nome,
   }));
 
-  // IMPORTANT: keep this as JSX (not an inline component) to avoid remounting
-  // on every keystroke, which would steal focus from inputs and close popovers.
   const content = (
     <div className="space-y-4">
       <div className="space-y-2">

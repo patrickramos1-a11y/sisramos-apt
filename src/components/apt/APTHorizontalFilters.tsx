@@ -1,4 +1,4 @@
-import { useRef, useEffect } from "react";
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -103,11 +103,25 @@ function CompactDropdown({
   onChange,
   placeholder = "Todos",
 }: CompactDropdownProps) {
+  const [search, setSearch] = useState("");
+
+  const filteredOptions = search
+    ? options.filter((o) => o.label.toLowerCase().includes(search.toLowerCase()))
+    : options;
+
   const toggleOption = (value: string) => {
     if (selected.includes(value)) {
       onChange(selected.filter((v) => v !== value));
     } else {
       onChange([...selected, value]);
+    }
+  };
+
+  const toggleAll = () => {
+    if (selected.length === options.length) {
+      onChange([]);
+    } else {
+      onChange(options.map((o) => o.value));
     }
   };
 
@@ -142,8 +156,40 @@ function CompactDropdown({
           align="start"
           onOpenAutoFocus={(e) => e.preventDefault()}
         >
+          {options.length > 5 && (
+            <div className="p-1.5 border-b">
+              <div className="relative">
+                <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3 w-3 text-muted-foreground" />
+                <Input
+                  placeholder="Pesquisar..."
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  className="h-7 pl-7 text-xs"
+                  onMouseDown={(e) => e.stopPropagation()}
+                />
+              </div>
+            </div>
+          )}
           <div className="max-h-48 overflow-y-auto p-1.5 space-y-0.5">
-            {options.map((option) => (
+            {!search && (
+              <>
+                <div
+                  className="flex items-center gap-2 px-2 py-1.5 rounded cursor-pointer hover:bg-muted text-xs"
+                  onMouseDown={(e) => e.preventDefault()}
+                  onClick={(e) => { e.preventDefault(); e.stopPropagation(); toggleAll(); }}
+                >
+                  <Checkbox checked={selected.length === options.length} className="pointer-events-none h-3.5 w-3.5" />
+                  <span className="font-medium">
+                    {selected.length === options.length ? "Desmarcar todos" : "Selecionar todos"}
+                  </span>
+                </div>
+                <div className="border-t my-0.5" />
+              </>
+            )}
+            {filteredOptions.length === 0 && (
+              <div className="text-xs text-muted-foreground text-center py-2">Nenhum resultado</div>
+            )}
+            {filteredOptions.map((option) => (
               <div
                 key={option.value}
                 className="flex items-center gap-2 px-2 py-1.5 rounded cursor-pointer hover:bg-muted text-xs"
