@@ -8,13 +8,16 @@ import {
   CATEGORIAS_LABELS, 
   STATUS_LABELS, 
   PRIORIDADE_LABELS,
+  BacklogCategoria,
+  BacklogStatus,
+  BacklogPrioridade,
 } from "@/hooks/useBacklog";
 
 export interface BacklogMultiFilters {
   projetoIds: string[];
-  categorias: string[];
-  statuses: string[];
-  prioridades: string[];
+  categorias: BacklogCategoria[];
+  statuses: BacklogStatus[];
+  prioridades: BacklogPrioridade[];
   dependenteCreditos?: boolean;
   search?: string;
 }
