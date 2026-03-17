@@ -99,7 +99,7 @@ export default function BacklogFilters({ filters, onFiltersChange }: BacklogFilt
             <MultiSelectDropdown
               options={prioridadeOptions}
               selected={filters.prioridades}
-              onChange={(v) => onFiltersChange({ ...filters, prioridades: v })}
+              onChange={(v) => onFiltersChange({ ...filters, prioridades: v as BacklogPrioridade[] })}
               placeholder="Todas as prioridades"
             />
           </div>
