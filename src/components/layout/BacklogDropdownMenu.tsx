@@ -1,60 +1,76 @@
 import { useState } from "react";
-import { Link, useLocation } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
+import { useAuth } from "@/contexts/AuthContext";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Package, ChevronDown, LayoutDashboard, List } from "lucide-react";
+import { BarChart3, ChevronDown, PanelLeft, List, Trash2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-interface BacklogDropdownMenuProps {
+interface GerenciamentoDropdownMenuProps {
   isMobile?: boolean;
   onItemClick?: () => void;
 }
 
-export default function BacklogDropdownMenu({ isMobile = false, onItemClick }: BacklogDropdownMenuProps) {
+export default function GerenciamentoDropdownMenu({ isMobile = false, onItemClick }: GerenciamentoDropdownMenuProps) {
   const location = useLocation();
+  const navigate = useNavigate();
+  const { isGestorOrAdmin } = useAuth();
   const [open, setOpen] = useState(false);
-  
-  const isBacklogActive = location.pathname === "/backlog";
+
+  const isActive = location.pathname === "/gerenciamento";
   const currentTab = new URLSearchParams(location.search).get("tab");
 
-  const handleItemClick = () => {
+  const handleNavigation = (path: string) => {
     setOpen(false);
+    navigate(path);
     onItemClick?.();
   };
 
   if (isMobile) {
     return (
       <div className="space-y-1">
-        <Link
-          to="/backlog?tab=painel"
-          onClick={handleItemClick}
+        <button
+          onClick={() => handleNavigation("/gerenciamento?tab=painel")}
           className={cn(
-            "flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-all ml-4",
-            isBacklogActive && currentTab === "painel"
+            "flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-all ml-4 w-full text-left",
+            isActive && currentTab === "painel"
               ? "bg-primary text-primary-foreground shadow-sm"
               : "text-muted-foreground hover:bg-muted hover:text-foreground"
           )}
         >
-          <LayoutDashboard className="h-5 w-5" />
-          Backlog - Painel
-        </Link>
-        <Link
-          to="/backlog?tab=lista"
-          onClick={handleItemClick}
+          <PanelLeft className="h-5 w-5" />
+          Painel
+        </button>
+        <button
+          onClick={() => handleNavigation("/gerenciamento?tab=lista")}
           className={cn(
-            "flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-all ml-4",
-            isBacklogActive && currentTab === "lista"
+            "flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-all ml-4 w-full text-left",
+            isActive && currentTab === "lista"
               ? "bg-primary text-primary-foreground shadow-sm"
               : "text-muted-foreground hover:bg-muted hover:text-foreground"
           )}
         >
           <List className="h-5 w-5" />
-          Backlog - Lista
-        </Link>
+          Lista
+        </button>
+        {isGestorOrAdmin && (
+          <button
+            onClick={() => handleNavigation("/gerenciamento?tab=exclusoes")}
+            className={cn(
+              "flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-all ml-4 w-full text-left",
+              isActive && currentTab === "exclusoes"
+                ? "bg-primary text-primary-foreground shadow-sm"
+                : "text-muted-foreground hover:bg-muted hover:text-foreground"
+            )}
+          >
+            <Trash2 className="h-5 w-5" />
+            Exclusões
+          </button>
+        )}
       </div>
     );
   }
@@ -65,37 +81,40 @@ export default function BacklogDropdownMenu({ isMobile = false, onItemClick }: B
         <button
           className={cn(
             "flex items-center gap-2 px-4 py-2 text-sm font-medium transition-all rounded-md mx-0.5 outline-none",
-            isBacklogActive
+            isActive
               ? "bg-primary text-primary-foreground shadow-sm"
               : "text-muted-foreground hover:text-foreground hover:bg-muted"
           )}
         >
-          <Package className="h-4 w-4" />
-          Backlog
+          <BarChart3 className="h-4 w-4" />
+          Gerenciamento
           <ChevronDown className="h-3 w-3 ml-1" />
         </button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="start" className="w-48">
-        <DropdownMenuItem asChild>
-          <Link
-            to="/backlog?tab=painel"
-            onClick={handleItemClick}
+        <DropdownMenuItem
+          onClick={() => handleNavigation("/gerenciamento?tab=painel")}
+          className="flex items-center gap-2 cursor-pointer"
+        >
+          <PanelLeft className="h-4 w-4" />
+          Painel
+        </DropdownMenuItem>
+        <DropdownMenuItem
+          onClick={() => handleNavigation("/gerenciamento?tab=lista")}
+          className="flex items-center gap-2 cursor-pointer"
+        >
+          <List className="h-4 w-4" />
+          Lista
+        </DropdownMenuItem>
+        {isGestorOrAdmin && (
+          <DropdownMenuItem
+            onClick={() => handleNavigation("/gerenciamento?tab=exclusoes")}
             className="flex items-center gap-2 cursor-pointer"
           >
-            <LayoutDashboard className="h-4 w-4" />
-            Painel
-          </Link>
-        </DropdownMenuItem>
-        <DropdownMenuItem asChild>
-          <Link
-            to="/backlog?tab=lista"
-            onClick={handleItemClick}
-            className="flex items-center gap-2 cursor-pointer"
-          >
-            <List className="h-4 w-4" />
-            Lista
-          </Link>
-        </DropdownMenuItem>
+            <Trash2 className="h-4 w-4" />
+            Exclusões
+          </DropdownMenuItem>
+        )}
       </DropdownMenuContent>
     </DropdownMenu>
   );

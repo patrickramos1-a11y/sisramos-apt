@@ -10,7 +10,7 @@ import APT from "./pages/APT";
 import Dashboard from "./pages/Dashboard";
 import Checklist from "./pages/Checklist";
 import Configuracoes from "./pages/Configuracoes";
-import Backlog from "./pages/Backlog";
+import Gerenciamento from "./pages/Gerenciamento";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -50,10 +50,10 @@ const App = () => (
               }
             />
             <Route
-              path="/backlog"
+              path="/gerenciamento"
               element={
                 <ProtectedRoute>
-                  <Backlog />
+                  <Gerenciamento />
                 </ProtectedRoute>
               }
             />
@@ -65,6 +65,8 @@ const App = () => (
                 </ProtectedRoute>
               }
             />
+            {/* Redirect old backlog URL */}
+            <Route path="/backlog" element={<Navigate to="/gerenciamento" replace />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </AuthProvider>
