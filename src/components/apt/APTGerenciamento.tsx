@@ -57,6 +57,7 @@ import ExcluirDemandaIrmaDialog from "@/components/apt/ExcluirDemandaIrmaDialog"
 import SolicitarExclusaoDialog from "@/components/apt/SolicitarExclusaoDialog";
 import { useSolicitacoesExclusao } from "@/hooks/useSolicitacoesExclusao";
 import { cn } from "@/lib/utils";
+import { MultiSelectDropdown } from "@/components/ui/multi-select-dropdown";
 
 interface Profile {
   id: string;
