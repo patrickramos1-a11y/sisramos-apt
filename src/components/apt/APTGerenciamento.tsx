@@ -57,6 +57,7 @@ import ExcluirDemandaIrmaDialog from "@/components/apt/ExcluirDemandaIrmaDialog"
 import SolicitarExclusaoDialog from "@/components/apt/SolicitarExclusaoDialog";
 import { useSolicitacoesExclusao } from "@/hooks/useSolicitacoesExclusao";
 import { cn } from "@/lib/utils";
+import { MultiSelectDropdown } from "@/components/ui/multi-select-dropdown";
 
 interface Profile {
   id: string;
@@ -148,8 +149,8 @@ const semanaOptions = [
   { value: "5", label: "5ª Semana" },
 ];
 
-// Multi-select dropdown component
-function MultiSelectDropdown({
+// Helper wrapper for MultiSelectDropdown with label
+function LabeledMultiSelect({
   label,
   options,
   selected,
@@ -162,67 +163,16 @@ function MultiSelectDropdown({
   onChange: (selected: string[]) => void;
   placeholder?: string;
 }) {
-  const toggleOption = (value: string) => {
-    if (selected.includes(value)) {
-      onChange(selected.filter((v) => v !== value));
-    } else {
-      onChange([...selected, value]);
-    }
-  };
-
-  const getDisplayText = () => {
-    if (selected.length === 0) return placeholder;
-    if (selected.length === 1) {
-      return options.find((o) => o.value === selected[0])?.label || selected[0];
-    }
-    return `${selected.length} selecionados`;
-  };
-
   return (
     <div className="space-y-1.5">
       <Label className="text-xs">{label}</Label>
-      <Popover modal={false}>
-        <PopoverTrigger asChild>
-          <Button
-            variant="outline"
-            role="combobox"
-            size="sm"
-            className={cn(
-              "w-full justify-between font-normal h-8 text-xs",
-              selected.length > 0 && "text-foreground"
-            )}
-          >
-            <span className="truncate">{getDisplayText()}</span>
-            <ChevronDown className="ml-1 h-3 w-3 shrink-0 opacity-50" />
-          </Button>
-        </PopoverTrigger>
-        <PopoverContent 
-          className="w-full min-w-[160px] p-0 bg-popover border shadow-lg z-50" 
-          align="start"
-          onOpenAutoFocus={(e) => e.preventDefault()}
-        >
-          <div className="max-h-48 overflow-y-auto p-1.5 space-y-0.5">
-            {options.map((option) => (
-              <div
-                key={option.value}
-                className="flex items-center gap-2 px-2 py-1 rounded cursor-pointer hover:bg-muted text-xs"
-                onMouseDown={(e) => e.preventDefault()}
-                onClick={(e) => {
-                  e.preventDefault();
-                  e.stopPropagation();
-                  toggleOption(option.value);
-                }}
-              >
-                <Checkbox
-                  checked={selected.includes(option.value)}
-                  className="pointer-events-none h-3 w-3"
-                />
-                <span>{option.label}</span>
-              </div>
-            ))}
-          </div>
-        </PopoverContent>
-      </Popover>
+      <MultiSelectDropdown
+        options={options}
+        selected={selected}
+        onChange={onChange}
+        placeholder={placeholder}
+        className="h-8 text-xs"
+      />
     </div>
   );
 }
@@ -703,7 +653,7 @@ export default function APTGerenciamento({
         <Card className="hidden lg:block p-4">
           <div className="flex flex-wrap items-end gap-4">
             <div className="w-[200px]">
-              <MultiSelectDropdown
+              <LabeledMultiSelect
                 label="Setores"
                 options={setorOptions}
                 selected={filters.setores}
@@ -713,7 +663,7 @@ export default function APTGerenciamento({
             </div>
 
             <div className="w-[200px]">
-              <MultiSelectDropdown
+              <LabeledMultiSelect
                 label="Responsáveis"
                 options={responsavelOptions}
                 selected={filters.responsaveis}
@@ -723,7 +673,7 @@ export default function APTGerenciamento({
             </div>
 
             <div className="w-[180px]">
-              <MultiSelectDropdown
+              <LabeledMultiSelect
                 label="Meses"
                 options={meses}
                 selected={filters.meses}
@@ -733,7 +683,7 @@ export default function APTGerenciamento({
             </div>
 
             <div className="w-[180px]">
-              <MultiSelectDropdown
+              <LabeledMultiSelect
                 label="Semanas"
                 options={semanaOptions}
                 selected={filters.semanas}
@@ -799,7 +749,7 @@ export default function APTGerenciamento({
               </SheetHeader>
               <ScrollArea className="flex-1 mt-4 -mx-6 px-6">
                 <div className="space-y-4 pb-6">
-                  <MultiSelectDropdown
+                  <LabeledMultiSelect
                     label="Setores"
                     options={setorOptions}
                     selected={filters.setores}
@@ -807,7 +757,7 @@ export default function APTGerenciamento({
                     placeholder="Todos"
                   />
 
-                  <MultiSelectDropdown
+                  <LabeledMultiSelect
                     label="Responsáveis"
                     options={responsavelOptions}
                     selected={filters.responsaveis}
@@ -815,7 +765,7 @@ export default function APTGerenciamento({
                     placeholder="Todos"
                   />
 
-                  <MultiSelectDropdown
+                  <LabeledMultiSelect
                     label="Meses"
                     options={meses}
                     selected={filters.meses}
@@ -823,7 +773,7 @@ export default function APTGerenciamento({
                     placeholder="Todos"
                   />
 
-                  <MultiSelectDropdown
+                  <LabeledMultiSelect
                     label="Semanas"
                     options={semanaOptions}
                     selected={filters.semanas}
