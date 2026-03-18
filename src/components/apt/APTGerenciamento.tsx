@@ -653,7 +653,7 @@ export default function APTGerenciamento({
         <Card className="hidden lg:block p-4">
           <div className="flex flex-wrap items-end gap-4">
             <div className="w-[200px]">
-              <MultiSelectDropdown
+              <LabeledMultiSelect
                 label="Setores"
                 options={setorOptions}
                 selected={filters.setores}
@@ -663,7 +663,7 @@ export default function APTGerenciamento({
             </div>
 
             <div className="w-[200px]">
-              <MultiSelectDropdown
+              <LabeledMultiSelect
                 label="Responsáveis"
                 options={responsavelOptions}
                 selected={filters.responsaveis}
@@ -673,7 +673,7 @@ export default function APTGerenciamento({
             </div>
 
             <div className="w-[180px]">
-              <MultiSelectDropdown
+              <LabeledMultiSelect
                 label="Meses"
                 options={meses}
                 selected={filters.meses}
@@ -683,7 +683,7 @@ export default function APTGerenciamento({
             </div>
 
             <div className="w-[180px]">
-              <MultiSelectDropdown
+              <LabeledMultiSelect
                 label="Semanas"
                 options={semanaOptions}
                 selected={filters.semanas}
