@@ -585,7 +585,7 @@ export default function GerenciamentoLista({
 
           {/* Responsavel filter */}
           <div className="w-[180px]">
-            <MultiSelectDropdown
+            <LabeledMultiSelect
               label="Responsável"
               options={responsavelOptions}
               selected={filters.responsaveis}
@@ -596,7 +596,7 @@ export default function GerenciamentoLista({
 
           {/* Setor filter */}
           <div className="w-[180px]">
-            <MultiSelectDropdown
+            <LabeledMultiSelect
               label="Setor"
               options={setorOptions}
               selected={filters.setores}
@@ -607,7 +607,7 @@ export default function GerenciamentoLista({
 
           {/* Repetições filter */}
           <div className="w-[140px]">
-            <MultiSelectDropdown
+            <LabeledMultiSelect
               label="Repetições"
               options={repeticaoOptions}
               selected={filters.repeticoes}
@@ -618,7 +618,7 @@ export default function GerenciamentoLista({
 
           {/* Mês filter */}
           <div className="w-[160px]">
-            <MultiSelectDropdown
+            <LabeledMultiSelect
               label="Mês"
               options={meses}
               selected={filters.meses}

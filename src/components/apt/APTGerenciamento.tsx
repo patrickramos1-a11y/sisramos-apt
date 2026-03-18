@@ -749,7 +749,7 @@ export default function APTGerenciamento({
               </SheetHeader>
               <ScrollArea className="flex-1 mt-4 -mx-6 px-6">
                 <div className="space-y-4 pb-6">
-                  <MultiSelectDropdown
+                  <LabeledMultiSelect
                     label="Setores"
                     options={setorOptions}
                     selected={filters.setores}
@@ -757,7 +757,7 @@ export default function APTGerenciamento({
                     placeholder="Todos"
                   />
 
-                  <MultiSelectDropdown
+                  <LabeledMultiSelect
                     label="Responsáveis"
                     options={responsavelOptions}
                     selected={filters.responsaveis}
@@ -765,7 +765,7 @@ export default function APTGerenciamento({
                     placeholder="Todos"
                   />
 
-                  <MultiSelectDropdown
+                  <LabeledMultiSelect
                     label="Meses"
                     options={meses}
                     selected={filters.meses}
@@ -773,7 +773,7 @@ export default function APTGerenciamento({
                     placeholder="Todos"
                   />
 
-                  <MultiSelectDropdown
+                  <LabeledMultiSelect
                     label="Semanas"
                     options={semanaOptions}
                     selected={filters.semanas}
