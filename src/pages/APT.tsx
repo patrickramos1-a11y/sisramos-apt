@@ -21,8 +21,7 @@ import MonthSettingsControl, { PastMonthWarningBanner } from "@/components/apt/M
 import DemandaCard from "@/components/apt/DemandaCard";
 import DemandaTableRow from "@/components/apt/DemandaTableRow";
 import DemandaSortHeader from "@/components/apt/DemandaSortHeader";
-import APTGerenciamento from "@/components/apt/APTGerenciamento";
-import GerenciamentoLista from "@/components/apt/GerenciamentoLista";
+// Gerenciamento agora é uma página independente
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
