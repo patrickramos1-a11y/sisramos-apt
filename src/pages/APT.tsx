@@ -727,29 +727,7 @@ export default function APT() {
           </div>
         )}
 
-        {urlTab === "gerenciamento" && (
-          <div className="mt-0">
-            {urlSubTab === "exclusoes" ? (
-              <SolicitacoesExclusaoLista
-                profiles={profiles}
-                setores={setores}
-                onDemandaChange={() => { fetchDemandas(); refetchSolicitacoes(); }}
-              />
-            ) : urlSubTab === "lista" ? (
-              <GerenciamentoLista
-                profiles={profiles}
-                setores={setores}
-                onDemandaChange={fetchDemandas}
-              />
-            ) : (
-              <APTGerenciamento 
-                profiles={profiles}
-                setores={setores}
-                onDemandaChange={fetchDemandas}
-              />
-            )}
-          </div>
-        )}
+        {/* Gerenciamento agora está em /gerenciamento */}
       </div>
 
       {/* Dialogs */}
