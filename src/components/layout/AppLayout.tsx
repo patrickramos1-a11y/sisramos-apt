@@ -21,7 +21,7 @@ import {
 import { cn } from "@/lib/utils";
 
 import APTDropdownMenu from "./APTDropdownMenu";
-import BacklogDropdownMenu from "./BacklogDropdownMenu";
+import GerenciamentoDropdownMenu from "./BacklogDropdownMenu";
 import BottomNav from "./BottomNav";
 import logoFull from "@/assets/logo-full.png";
 import logoFullWhite from "@/assets/logo-full-white.png";
