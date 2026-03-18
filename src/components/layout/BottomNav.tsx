@@ -1,5 +1,5 @@
 import { useLocation, useNavigate } from "react-router-dom";
-import { BarChart3, ClipboardList, CheckSquare, Package, MoreHorizontal } from "lucide-react";
+import { BarChart3, ClipboardList, CheckSquare, MoreHorizontal } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
   Sheet,
@@ -10,8 +10,8 @@ import {
 } from "@/components/ui/sheet";
 import { useState } from "react";
 import APTDropdownMenu from "./APTDropdownMenu";
-import BacklogDropdownMenu from "./BacklogDropdownMenu";
-import { Settings, LogOut, User } from "lucide-react";
+import GerenciamentoDropdownMenu from "./BacklogDropdownMenu";
+import { Settings, LogOut } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { Badge } from "@/components/ui/badge";
 
@@ -26,7 +26,6 @@ const navItems: NavItem[] = [
   { name: "Dashboard", href: "/dashboard", icon: BarChart3, matchPath: "/dashboard" },
   { name: "APT", href: "/apt?tab=execucao", icon: ClipboardList, matchPath: "/apt" },
   { name: "Checklist", href: "/checklist", icon: CheckSquare, matchPath: "/checklist" },
-  { name: "Backlog", href: "/backlog", icon: Package, matchPath: "/backlog" },
 ];
 
 export default function BottomNav() {
@@ -62,7 +61,6 @@ export default function BottomNav() {
                   : "text-muted-foreground active:text-foreground"
               )}
             >
-              {/* Active indicator bar */}
               {isActive && (
                 <div className="absolute top-0 left-1/2 -translate-x-1/2 w-8 h-[3px] rounded-b-full bg-primary" />
               )}
@@ -79,12 +77,12 @@ export default function BottomNav() {
             <button
               className={cn(
                 "relative flex flex-col items-center justify-center flex-1 gap-0.5 min-h-[44px] transition-colors",
-                (location.pathname === "/configuracoes") 
+                (location.pathname === "/configuracoes" || location.pathname === "/gerenciamento")
                   ? "text-primary" 
                   : "text-muted-foreground active:text-foreground"
               )}
             >
-              {location.pathname === "/configuracoes" && (
+              {(location.pathname === "/configuracoes" || location.pathname === "/gerenciamento") && (
                 <div className="absolute top-0 left-1/2 -translate-x-1/2 w-8 h-[3px] rounded-b-full bg-primary" />
               )}
               <MoreHorizontal className="h-5 w-5" />
@@ -114,8 +112,8 @@ export default function BottomNav() {
               </div>
 
               <div className="px-1 mt-2">
-                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-1 px-3">Backlog</p>
-                <BacklogDropdownMenu isMobile onItemClick={() => setMoreOpen(false)} />
+                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-1 px-3">Gerenciamento</p>
+                <GerenciamentoDropdownMenu isMobile onItemClick={() => setMoreOpen(false)} />
               </div>
 
               <button

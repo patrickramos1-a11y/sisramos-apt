@@ -106,7 +106,7 @@ export default function AppLayout({ children }: AppLayoutProps) {
               })}
               
               <APTDropdownMenu />
-              <BacklogDropdownMenu />
+              <GerenciamentoDropdownMenu />
               
               {navItems.slice(2).map((item) => {
                 const isActive = location.pathname === item.href;
