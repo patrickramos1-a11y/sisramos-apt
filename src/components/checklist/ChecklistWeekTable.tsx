@@ -248,33 +248,52 @@ export default function ChecklistWeekTable({
               </div>
               {expandedGroups.has(item.id) && (
                 <div className="ml-8 border-l-2 border-muted pl-3 space-y-0.5 mt-1 mb-2">
-                  {item.is_group && item.children && item.children.map((child, childIdx) => {
-                    const childAssignees = child.assignees || [];
-                    const childIsAssigned = currentUserId && childAssignees.includes(currentUserId);
-                    const childCanComplete = isGestorOrAdmin || childIsAssigned || childAssignees.length === 0;
-                    return (
-                      <SortableChecklistItem
-                        key={child.id}
-                        item={{
-                          id: child.id,
-                          texto: child.descricao,
-                          concluido: child.status === "concluido",
-                          status: child.status,
-                          link: child.link,
-                          assignees: child.assignees,
-                        }}
-                        index={childIdx}
-                        canModify={canModify}
-                        canCompleteItem={childCanComplete}
-                        isLocked={isLocked}
-                        canEdit={isGestorOrAdmin}
-                        profiles={profiles}
-                        onUpdateItem={handleUpdateItem}
-                        onDeleteItem={onDeleteInstance}
-                        onUpdateAssignees={onUpdateAssignees}
-                      />
-                    );
-                  })}
+                  {item.is_group && item.children && item.children.length > 0 && (
+                    <DndContext
+                      sensors={sensors}
+                      collisionDetection={closestCenter}
+                      onDragEnd={async (event: DragEndEvent) => {
+                        const { active, over } = event;
+                        if (!over || active.id === over.id || !onReorderSubItem) return;
+                        const children = item.children!;
+                        const oldIdx = children.findIndex((c) => c.id === active.id);
+                        const newIdx = children.findIndex((c) => c.id === over.id);
+                        if (oldIdx !== -1 && newIdx !== -1) {
+                          await onReorderSubItem(active.id as string, newIdx, item.id);
+                        }
+                      }}
+                    >
+                      <SortableContext items={item.children.map((c) => c.id)} strategy={verticalListSortingStrategy}>
+                        {item.children.map((child, childIdx) => {
+                          const childAssignees = child.assignees || [];
+                          const childIsAssigned = currentUserId && childAssignees.includes(currentUserId);
+                          const childCanComplete = isGestorOrAdmin || childIsAssigned || childAssignees.length === 0;
+                          return (
+                            <SortableChecklistItem
+                              key={child.id}
+                              item={{
+                                id: child.id,
+                                texto: child.descricao,
+                                concluido: child.status === "concluido",
+                                status: child.status,
+                                link: child.link,
+                                assignees: child.assignees,
+                              }}
+                              index={childIdx}
+                              canModify={canModify}
+                              canCompleteItem={childCanComplete}
+                              isLocked={isLocked}
+                              canEdit={isGestorOrAdmin}
+                              profiles={profiles}
+                              onUpdateItem={handleUpdateItem}
+                              onDeleteItem={onDeleteInstance}
+                              onUpdateAssignees={onUpdateAssignees}
+                            />
+                          );
+                        })}
+                      </SortableContext>
+                    </DndContext>
+                  )}
                   {!item.is_group && !item.children?.length && (
                     <p className="text-xs text-muted-foreground py-2">Nenhuma subtarefa ainda. Adicione abaixo:</p>
                   )}
