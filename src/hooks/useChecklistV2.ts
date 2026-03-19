@@ -758,6 +758,7 @@ export function useChecklistV2({ mes, ano }: UseChecklistV2Options) {
     deleteInstance,
     addItem,
     reorderItem,
+    reorderSubItem,
     updateAssignees,
     rolloverToNextMonth,
     addSubItem,
