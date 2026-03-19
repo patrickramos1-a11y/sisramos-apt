@@ -92,7 +92,7 @@ export default function ChecklistSummaryCard({
               </div>
               <h3 className="font-semibold text-xs sm:text-sm">{title}</h3>
             </div>
-            <CircularProgress value={progress} size={28} strokeWidth={2.5} completedCount={completedItems} notDoneCount={notDoneItems} totalCount={totalItems} />
+            <CircularProgress value={progress} size={40} strokeWidth={3} completedCount={completedItems} notDoneCount={notDoneItems} totalCount={totalItems} />
           </div>
         </div>
       </CardHeader>
