@@ -81,6 +81,7 @@ export default function ChecklistWeekTable({
   onDeleteInstance,
   onUpdateAssignees,
   onReorder,
+  onReorderSubItem,
   onClose,
   onAddSubItem,
   onAddQuickAvulso,
