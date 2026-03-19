@@ -435,6 +435,37 @@ export function useChecklistV2({ mes, ano }: UseChecklistV2Options) {
     await Promise.all(updates);
   }, [instances]);
 
+  // Reorder sub-item within a parent group
+  const reorderSubItem = useCallback(async (instanceId: string, newIndex: number, parentId: string) => {
+    const children = instances
+      .filter((i) => i.parent_id === parentId)
+      .sort((a, b) => a.ordem - b.ordem);
+
+    const oldIndex = children.findIndex((i) => i.id === instanceId);
+    if (oldIndex === -1 || oldIndex === newIndex) return;
+
+    const reordered = [...children];
+    const [moved] = reordered.splice(oldIndex, 1);
+    reordered.splice(newIndex, 0, moved);
+
+    setInstances((prev) =>
+      prev.map((inst) => {
+        const newPos = reordered.findIndex((r) => r.id === inst.id);
+        if (newPos !== -1 && inst.parent_id === parentId) {
+          return { ...inst, ordem: newPos, ordem_override: newPos };
+        }
+        return inst;
+      })
+    );
+
+    const updates = reordered.map((item, idx) =>
+      (supabase.from("checklist_instances") as any)
+        .update({ ordem_override: idx })
+        .eq("id", item.id)
+    );
+    await Promise.all(updates);
+  }, [instances]);
+
   // Update assignees for an instance
   const updateAssignees = useCallback(async (instanceId: string, userIds: string[]) => {
     const current = instances.find((i) => i.id === instanceId);
@@ -727,6 +758,7 @@ export function useChecklistV2({ mes, ano }: UseChecklistV2Options) {
     deleteInstance,
     addItem,
     reorderItem,
+    reorderSubItem,
     updateAssignees,
     rolloverToNextMonth,
     addSubItem,

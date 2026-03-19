@@ -103,6 +103,7 @@ export default function Checklist() {
     deleteInstance,
     addItem,
     reorderItem,
+    reorderSubItem,
     updateAssignees,
     rolloverToNextMonth,
     addSubItem,
@@ -414,6 +415,7 @@ export default function Checklist() {
                 onDeleteInstance={deleteInstance}
                 onUpdateAssignees={updateAssignees}
                 onReorder={reorderItem}
+                onReorderSubItem={reorderSubItem}
                 onClose={() => setSelectedWeek(null)}
                 onAddSubItem={addSubItem}
                 onAddQuickAvulso={addQuickAvulso}
