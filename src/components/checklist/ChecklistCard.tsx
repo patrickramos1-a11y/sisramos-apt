@@ -70,6 +70,7 @@ export default function ChecklistCard({
     setEditingText("");
   };
 
+  const completedCount = items.filter((i) => i.status === "concluido" || i.concluido).length;
   const notDoneCount = items.filter((i) => i.status === "nao_realizado").length;
   const processedCount = completedCount + notDoneCount;
   const totalCount = items.length;
