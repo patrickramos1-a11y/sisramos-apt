@@ -61,6 +61,7 @@ interface ChecklistWeekTableProps {
   onDeleteInstance: (id: string) => Promise<void>;
   onUpdateAssignees: (instanceId: string, userIds: string[]) => Promise<void>;
   onReorder: (instanceId: string, newIndex: number, semana: number) => Promise<void>;
+  onReorderSubItem?: (instanceId: string, newIndex: number, parentId: string) => Promise<void>;
   onClose: () => void;
   onAddSubItem?: (parentId: string, descricao: string, semana: number) => Promise<void>;
   onAddQuickAvulso?: (descricao: string, semana: number) => Promise<void>;
