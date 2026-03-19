@@ -93,9 +93,10 @@ export default function ChecklistDetailDialog({
   const notDoneCount = items.filter((i) => i.status === "nao_realizado").length;
   const pendingCount = items.length - completedCount - notDoneCount;
   const totalCount = items.length;
-  const progress = totalCount > 0 ? (completedCount / totalCount) * 100 : 0;
+  const processedCount = completedCount + notDoneCount;
+  const progress = totalCount > 0 ? (processedCount / totalCount) * 100 : 0;
   const allCompleted = totalCount > 0 && completedCount === totalCount;
-  const allProcessed = totalCount > 0 && !allCompleted && (completedCount + notDoneCount === totalCount) && notDoneCount > 0;
+  const allProcessed = totalCount > 0 && !allCompleted && processedCount === totalCount && notDoneCount > 0;
   const canModify = canEdit && !isLocked;
 
   const weekColors: Record<number, { bg: string; icon: string }> = {

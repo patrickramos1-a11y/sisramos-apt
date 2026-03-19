@@ -29,9 +29,10 @@ export default function ChecklistSummaryCard({
   onClick,
   isSelected = false,
 }: ChecklistSummaryCardProps) {
-  const progress = totalItems > 0 ? (completedItems / totalItems) * 100 : 0;
+  const processedItems = completedItems + notDoneItems;
+  const progress = totalItems > 0 ? (processedItems / totalItems) * 100 : 0;
   const allCompleted = totalItems > 0 && completedItems === totalItems;
-  const allProcessed = totalItems > 0 && !allCompleted && (completedItems + notDoneItems === totalItems) && notDoneItems > 0;
+  const allProcessed = totalItems > 0 && !allCompleted && processedItems === totalItems && notDoneItems > 0;
 
   const weekColors: Record<number, { bg: string; icon: string; badge: string }> = {
     1: { bg: "from-emerald-500/20 to-emerald-500/5", icon: "bg-emerald-500/30 text-emerald-700 dark:text-emerald-400", badge: "bg-emerald-500/20 text-emerald-700 dark:text-emerald-400" },
@@ -104,7 +105,7 @@ export default function ChecklistSummaryCard({
             <span className="text-xs">{totalItems} tarefas</span>
           </div>
           <span className={cn("text-[10px] font-medium px-1.5 py-0.5 rounded-full", badgeClass)}>
-            {completedItems}/{totalItems}
+            {processedItems}/{totalItems}
           </span>
         </div>
 

@@ -32,7 +32,7 @@ export default function CircularProgress({
     const completedOffset = 0;
     const notDoneOffset = completedLen;
 
-    const percent = Math.round((completedFrac) * 100);
+    const percent = Math.round(((completedCount + notDoneCount) / totalCount) * 100);
     return (
       <div className="relative inline-flex items-center justify-center" style={{ width: size, height: size }}>
         <svg
