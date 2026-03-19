@@ -105,7 +105,7 @@ export default function ChecklistSummaryCard({
             <span className="text-xs">{totalItems} tarefas</span>
           </div>
           <span className={cn("text-[10px] font-medium px-1.5 py-0.5 rounded-full", badgeClass)}>
-            {completedItems}/{totalItems}
+            {processedItems}/{totalItems}
           </span>
         </div>
 
