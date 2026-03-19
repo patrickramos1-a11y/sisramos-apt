@@ -59,32 +59,22 @@ export default function CircularProgress({
 
   // Fallback: single color mode
   const offset = circumference - (value / 100) * circumference;
+  const percent = Math.round(value);
   return (
-    <svg
-      width={size}
-      height={size}
-      className={cn("transform -rotate-90", className)}
-    >
-      <circle
-        cx={size / 2}
-        cy={size / 2}
-        r={radius}
-        fill="none"
-        stroke="hsl(var(--muted))"
-        strokeWidth={strokeWidth}
-      />
-      <circle
-        cx={size / 2}
-        cy={size / 2}
-        r={radius}
-        fill="none"
-        stroke="hsl(var(--primary))"
-        strokeWidth={strokeWidth}
-        strokeDasharray={circumference}
-        strokeDashoffset={offset}
-        strokeLinecap="round"
-        className="transition-all duration-500 ease-out"
-      />
-    </svg>
+    <div className="relative inline-flex items-center justify-center" style={{ width: size, height: size }}>
+      <svg
+        width={size}
+        height={size}
+        className={cn("transform -rotate-90", className)}
+      >
+        <circle cx={size / 2} cy={size / 2} r={radius} fill="none" stroke="hsl(var(--muted))" strokeWidth={strokeWidth} />
+        <circle cx={size / 2} cy={size / 2} r={radius} fill="none" stroke="hsl(var(--primary))" strokeWidth={strokeWidth} strokeDasharray={circumference} strokeDashoffset={offset} strokeLinecap="round" className="transition-all duration-500 ease-out" />
+      </svg>
+      {size >= 36 && (
+        <span className="absolute inset-0 flex items-center justify-center text-foreground font-semibold" style={{ fontSize: size * 0.22 }}>
+          {percent}%
+        </span>
+      )}
+    </div>
   );
 }
