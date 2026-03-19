@@ -146,7 +146,7 @@ export default function ChecklistCard({
                   ? "bg-primary/20 text-primary" 
                   : weekColor.badge
               )}>
-                {completedCount}/{totalCount}
+                {processedCount}/{totalCount}
               </span>
             )}
           </div>
