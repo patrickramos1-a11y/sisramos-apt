@@ -103,6 +103,7 @@ export default function Checklist() {
     deleteInstance,
     addItem,
     reorderItem,
+    reorderSubItem,
     updateAssignees,
     rolloverToNextMonth,
     addSubItem,
