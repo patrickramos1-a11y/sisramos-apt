@@ -70,9 +70,10 @@ export default function ChecklistCard({
     setEditingText("");
   };
 
-  const completedCount = items.filter((i) => i.status === "concluido" || i.concluido).length;
+  const notDoneCount = items.filter((i) => i.status === "nao_realizado").length;
+  const processedCount = completedCount + notDoneCount;
   const totalCount = items.length;
-  const progress = totalCount > 0 ? (completedCount / totalCount) * 100 : 0;
+  const progress = totalCount > 0 ? (processedCount / totalCount) * 100 : 0;
   const allCompleted = totalCount > 0 && completedCount === totalCount;
 
   const canModify = canEdit && !isLocked;
