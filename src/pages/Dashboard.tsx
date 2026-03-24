@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import AppLayout from "@/components/layout/AppLayout";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
-import { Loader2, LayoutDashboard, Users, TrendingUp, Clock } from "lucide-react";
+import { Loader2, LayoutDashboard, Users, TrendingUp, Clock, Timer } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 // Components
@@ -305,7 +305,7 @@ export default function Dashboard() {
 
         {/* Tabs for different dashboards */}
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
-          <TabsList className="grid w-full grid-cols-4 lg:w-auto lg:inline-grid h-auto">
+          <TabsList className="grid w-full grid-cols-5 lg:w-auto lg:inline-grid h-auto">
             <TabsTrigger value="executivo" className="gap-1.5 text-xs sm:text-sm py-2">
               <LayoutDashboard className="h-4 w-4 hidden sm:inline" />
               <span className="hidden sm:inline">Executivo</span>
@@ -315,6 +315,11 @@ export default function Dashboard() {
               <Clock className="h-4 w-4 hidden sm:inline" />
               <span className="hidden sm:inline">Momento APT</span>
               <span className="sm:hidden">APT</span>
+            </TabsTrigger>
+            <TabsTrigger value="duracao" className="gap-1.5 text-xs sm:text-sm py-2">
+              <Timer className="h-4 w-4 hidden sm:inline" />
+              <span className="hidden sm:inline">Duração</span>
+              <span className="sm:hidden">Duração</span>
             </TabsTrigger>
             <TabsTrigger value="individual" className="gap-1.5 text-xs sm:text-sm py-2">
               <Users className="h-4 w-4 hidden sm:inline" />
@@ -432,6 +437,10 @@ export default function Dashboard() {
               profiles={profiles}
               currentWeek={currentWeek}
             />
+          </TabsContent>
+
+          {/* DASHBOARD DURAÇÃO */}
+          <TabsContent value="duracao" className="space-y-4">
             <MeetingTimerCharts />
           </TabsContent>
 
