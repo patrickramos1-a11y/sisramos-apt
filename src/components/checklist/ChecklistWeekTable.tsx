@@ -319,6 +319,7 @@ export default function ChecklistWeekTable({
         "px-4 py-3 bg-gradient-to-r rounded-t-lg flex items-center justify-between gap-3",
         allCompleted ? "from-primary/20 to-primary/10"
           : allProcessed ? "from-amber-500/20 to-amber-500/10"
+          : isMerged ? "from-indigo-500/20 to-violet-500/10"
           : weekColor.bg
       )}>
         <div className="flex items-center gap-2">
