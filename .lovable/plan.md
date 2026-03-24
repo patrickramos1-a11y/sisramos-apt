@@ -1,23 +1,32 @@
 
 
-# Fix: Momento APT Lock Not Propagating in Real-Time
+## Plano: Adicionar Gráficos de Cronômetro na aba "Momento APT" do Dashboard
 
-## Problem
-When a gestor/admin activates "Momento APT", collaborators can still mark statuses until they manually refresh the page. The lock state is only fetched once on component mount.
+### Objetivo
+Adicionar gráficos de histórico do cronômetro de reuniões diretamente na aba "Momento APT" do Dashboard, com:
+1. KPIs de reuniões (total, tempo médio, mais rápida, mais longa)
+2. Gráfico de barras: duração total por mês
+3. Gráfico de linhas: comparativo semanal (tempo de cada semana ao longo dos meses)
+4. Gráfico de linhas: evolução mensal do tempo total
 
-## Solution
-Add a Supabase Realtime subscription to the `momento_apt_settings` table so all connected clients receive lock/unlock changes instantly.
+### Alterações
 
-## Technical Changes
+**1. Criar componente `src/components/dashboard/MeetingTimerCharts.tsx`**
+- Componente dedicado que busca dados da tabela `checklist_timers` (registros finalizados)
+- Reutiliza a mesma lógica de cálculo já presente em `ChecklistTimerHistory.tsx`, mas sem o Dialog wrapper
+- Inclui:
+  - Cards KPI (Total Reuniões, Tempo Médio, Mais Rápida, Mais Longa)
+  - BarChart: duração total por mês
+  - LineChart: evolução comparativa das semanas ao longo dos meses (5 linhas, uma por semana)
+  - LineChart: tempo total mensal como linha de tendência
 
-### 1. Enable Realtime on `momento_apt_settings` table (Database Migration)
-Run SQL to add the table to the realtime publication:
-```sql
-ALTER PUBLICATION supabase_realtime ADD TABLE public.momento_apt_settings;
-```
+**2. Atualizar `src/pages/Dashboard.tsx`**
+- Importar o novo `MeetingTimerCharts`
+- Adicioná-lo na aba "operacional" (Momento APT), abaixo dos componentes existentes (WeeklyUserChart e CriticalDemandsList)
 
-### 2. Update `src/hooks/useMomentoAPT.ts`
-Add a `useEffect` that subscribes to `postgres_changes` on the `momento_apt_settings` table. On any INSERT/UPDATE/DELETE event, call `fetchSettings()` to refresh the local state. Clean up the subscription on unmount.
-
-This ensures that when a gestor toggles the lock, every other user's browser receives the change within seconds -- no refresh needed.
+### Detalhes Técnicos
+- Query: `checklist_timers` com `stopped_at IS NOT NULL`, ordenado por ano/mês/semana
+- Cores das semanas seguem o padrão já definido em `ChecklistTimerHistory` (WEEK_COLORS)
+- Gráficos usam `ChartContainer` + `recharts` (LineChart, BarChart) consistentes com o resto do dashboard
+- Componente auto-contido: faz seu próprio fetch sem depender de props do Dashboard
 
