@@ -663,7 +663,8 @@ export default function Checklist() {
                 currentUserId={user?.id}
                 isGestorOrAdmin={isGestorOrAdmin}
                 profiles={profiles}
-                onUpdateStatus={updateInstanceStatus}
+                onUpdateStatus={handleUpdateStatus}
+                duplicateMap={duplicateMap}
                 onUpdateInstance={updateInstance}
                 onDeleteInstance={deleteInstance}
                 onUpdateAssignees={updateAssignees}

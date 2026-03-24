@@ -57,6 +57,7 @@ interface ChecklistWeekTableProps {
   currentUserId?: string;
   isGestorOrAdmin: boolean;
   profiles: Profile[];
+  duplicateMap?: Map<string, { ids: string[]; semanas: number[] }>;
   onUpdateStatus: (id: string, status: ChecklistStatus) => Promise<void>;
   onUpdateInstance: (id: string, updates: { descricao_override?: string; link_override?: string | null }) => Promise<void>;
   onDeleteInstance: (id: string) => Promise<void>;
