@@ -50,6 +50,7 @@ interface Profile {
 
 interface ChecklistWeekTableProps {
   semana: number;
+  semanas?: number[];
   items: ChecklistInstance[];
   canModify: boolean;
   isLocked: boolean;
