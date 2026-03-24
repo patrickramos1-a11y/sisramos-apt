@@ -336,7 +336,7 @@ export default function ChecklistWeekTable({
             )}
           </div>
           <h3 className="font-semibold text-sm">
-            {allCompleted ? "Semana Completa ✓" : allProcessed ? "Semana Finalizada ⚠" : `${semana}ª Semana`}
+            {allCompleted ? "Semana Completa ✓" : allProcessed ? "Semana Finalizada ⚠" : isMerged ? `Semanas ${semanas.join(" e ")}` : `${semana}ª Semana`}
           </h3>
           <div className="hidden sm:flex items-center gap-2 text-xs ml-2">
             {pendingCount > 0 && (
