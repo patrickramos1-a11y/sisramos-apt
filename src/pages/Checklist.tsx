@@ -167,16 +167,13 @@ export default function Checklist() {
   // Auto-unmerge: when all items in merged weeks are processed
   useEffect(() => {
     if (mergedWeeks.length < 2) return;
-    const allMergedItems = mergedWeeks.flatMap((sem) => {
-      const stats = getWeekStats(sem);
-      return [stats];
-    });
-    const totalItems = allMergedItems.reduce((sum, s) => sum + s.total, 0);
-    const processedItems = allMergedItems.reduce((sum, s) => sum + s.completed + s.notDone, 0);
+    const allMergedItems = mergedWeeks.flatMap((sem) => getInstancesByWeek(sem));
+    const totalItems = allMergedItems.filter((i) => !i.parent_id).length;
+    const processedItems = allMergedItems.filter((i) => !i.parent_id && (i.status === "concluido" || i.status === "nao_realizado")).length;
     if (totalItems > 0 && processedItems === totalItems) {
       handleUnmerge();
     }
-  }, [mergedWeeks, instances, getWeekStats, handleUnmerge]);
+  }, [mergedWeeks, instances, getInstancesByWeek, handleUnmerge]);
 
   // Month navigation
   const goToPrevMonth = () => {
