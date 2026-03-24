@@ -381,10 +381,14 @@ export default function Checklist() {
             {/* Timer */}
             <ChecklistTimer
               isRunning={timerIsRunning}
+              isPaused={timerIsPaused}
+              isActive={timerIsActive}
               activeWeek={timerActiveWeek}
               elapsedSeconds={elapsedSeconds}
               isGestorOrAdmin={isGestorOrAdmin}
               onStart={startTimer}
+              onPause={pauseTimer}
+              onResume={resumeTimer}
               onStop={stopTimer}
             />
 
