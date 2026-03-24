@@ -229,6 +229,24 @@ export default function ChecklistWeekTable({
                     onUpdateAssignees={onUpdateAssignees}
                   />
                 </div>
+                {isMerged && item.sourceWeeks && item.sourceWeeks.length > 0 && (
+                  <div className="flex gap-0.5 shrink-0">
+                    {item.sourceWeeks.map((w: number) => {
+                      const colors: Record<number, string> = {
+                        1: "bg-emerald-500/20 text-emerald-700 dark:text-emerald-400",
+                        2: "bg-blue-500/20 text-blue-700 dark:text-blue-400",
+                        3: "bg-purple-500/20 text-purple-700 dark:text-purple-400",
+                        4: "bg-orange-500/20 text-orange-700 dark:text-orange-400",
+                        5: "bg-pink-500/20 text-pink-700 dark:text-pink-400",
+                      };
+                      return (
+                        <span key={w} className={cn("text-[9px] font-bold px-1.5 py-0.5 rounded-full", colors[w] || colors[1])}>
+                          S{w}
+                        </span>
+                      );
+                    })}
+                  </div>
+                )}
                 {canModify && onAddSubItem && !item.parent_id && (
                   <TooltipProvider>
                     <Tooltip>
