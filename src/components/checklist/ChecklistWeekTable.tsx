@@ -171,20 +171,24 @@ export default function ChecklistWeekTable({
 
   // Adapt instances to ChecklistItem interface for SortableChecklistItem
   const adaptedItems = useMemo(() => {
-    return filteredItems.map((inst) => ({
-      id: inst.id,
-      texto: inst.descricao,
-      concluido: inst.status === "concluido",
-      status: inst.status as ChecklistStatus,
-      link: inst.link,
-      assignees: inst.assignees,
-      tipo_item: inst.tipo_item,
-      is_group: inst.is_group,
-      parent_id: inst.parent_id,
-      children: inst.children,
-      semana: inst.semana,
-    }));
-  }, [filteredItems]);
+    return filteredItems.map((inst) => {
+      const dupEntry = isMerged && duplicateMap ? duplicateMap.get(inst.id) : null;
+      return {
+        id: inst.id,
+        texto: inst.descricao,
+        concluido: inst.status === "concluido",
+        status: inst.status as ChecklistStatus,
+        link: inst.link,
+        assignees: inst.assignees,
+        tipo_item: inst.tipo_item,
+        is_group: inst.is_group,
+        parent_id: inst.parent_id,
+        children: inst.children,
+        semana: inst.semana,
+        sourceWeeks: dupEntry ? dupEntry.semanas : [inst.semana],
+      };
+    });
+  }, [filteredItems, isMerged, duplicateMap]);
 
   // Separate into recorrente and avulso
   const recorrenteItems = useMemo(() => adaptedItems.filter((i) => i.tipo_item !== "avulso_semana"), [adaptedItems]);
