@@ -27,6 +27,7 @@ interface ChecklistTimerProps {
   activeWeek: number | null;
   elapsedSeconds: number;
   isGestorOrAdmin: boolean;
+  mergedWeeks?: number[];
   onStart: (semana: number) => void;
   onPause: () => void;
   onResume: () => void;
@@ -47,6 +48,7 @@ export default function ChecklistTimer({
   activeWeek,
   elapsedSeconds,
   isGestorOrAdmin,
+  mergedWeeks = [],
   onStart,
   onPause,
   onResume,
@@ -56,6 +58,11 @@ export default function ChecklistTimer({
   const [showStopDialog, setShowStopDialog] = useState(false);
 
   if (!isActive && !isGestorOrAdmin) return null;
+
+  const isMergedTimer = mergedWeeks.length >= 2 && activeWeek && mergedWeeks.includes(activeWeek);
+  const weekLabel = isMergedTimer
+    ? `Semanas ${mergedWeeks.join(" e ")}`
+    : `Semana ${activeWeek}`;
 
   return (
     <>
@@ -84,7 +91,7 @@ export default function ChecklistTimer({
           <>
             <div className="flex items-center gap-2 flex-1 min-w-0">
               <span className="text-xs text-muted-foreground whitespace-nowrap">
-                Semana {activeWeek}
+                {weekLabel}
               </span>
               {isPaused && (
                 <span className="text-[10px] font-medium text-amber-500 uppercase tracking-wide">
@@ -143,7 +150,9 @@ export default function ChecklistTimer({
               <SelectContent>
                 {[1, 2, 3, 4, 5].map((s) => (
                   <SelectItem key={s} value={String(s)}>
-                    Semana {s}
+                    {mergedWeeks.includes(s) && mergedWeeks.length >= 2
+                      ? `Sem. ${mergedWeeks.join("+")}` 
+                      : `Semana ${s}`}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -165,8 +174,11 @@ export default function ChecklistTimer({
           <AlertDialogHeader>
             <AlertDialogTitle>Parar cronômetro?</AlertDialogTitle>
             <AlertDialogDescription>
-              O cronômetro da <strong>Semana {activeWeek}</strong> será finalizado com o tempo de{" "}
-              <strong>{formatTime(elapsedSeconds)}</strong>. Esse tempo ficará registrado no card da semana.
+              O cronômetro da <strong>{weekLabel}</strong> será finalizado com o tempo de{" "}
+              <strong>{formatTime(elapsedSeconds)}</strong>. 
+              {isMergedTimer && (
+                <> O tempo será registrado para cada semana mesclada ({mergedWeeks.join(", ")}).</>
+              )}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

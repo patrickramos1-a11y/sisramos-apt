@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, useCallback } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useChecklistV2, type TipoItem } from "@/hooks/useChecklistV2";
 import { useChecklistTimer } from "@/hooks/useChecklistTimer";
@@ -10,6 +10,7 @@ import ChecklistTimer from "@/components/checklist/ChecklistTimer";
 import ChecklistTimerHistory from "@/components/checklist/ChecklistTimerHistory";
 import ChecklistWeekTable from "@/components/checklist/ChecklistWeekTable";
 import NovoItemChecklistDialog from "@/components/checklist/NovoItemChecklistDialog";
+import MergeWeeksDialog from "@/components/checklist/MergeWeeksDialog";
 import { Loader2, Info, Copy, Lock, Unlock, Filter, X, ChevronLeft, ChevronRight, CalendarDays, Trash2 } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
@@ -72,6 +73,10 @@ const SEMANAS_OPTIONS = [
   { value: "5", label: "5ª Semana" },
 ];
 
+function getMergeKey(mes: number, ano: number) {
+  return `checklist-merged-weeks-${ano}-${mes}`;
+}
+
 export default function Checklist() {
   const { isGestorOrAdmin, user } = useAuth();
   const now = new Date();
@@ -84,6 +89,33 @@ export default function Checklist() {
   const [infoDismissed, setInfoDismissed] = useState(() => {
     return localStorage.getItem("checklist-info-dismissed") === "true";
   });
+
+  // Merged weeks state
+  const [mergedWeeks, setMergedWeeks] = useState<number[]>(() => {
+    try {
+      const stored = localStorage.getItem(getMergeKey(now.getMonth() + 1, now.getFullYear()));
+      return stored ? JSON.parse(stored) : [];
+    } catch { return []; }
+  });
+
+  // Update mergedWeeks when month changes
+  useEffect(() => {
+    try {
+      const stored = localStorage.getItem(getMergeKey(currentMes, currentAno));
+      setMergedWeeks(stored ? JSON.parse(stored) : []);
+    } catch { setMergedWeeks([]); }
+  }, [currentMes, currentAno]);
+
+  const handleMerge = useCallback((weeks: number[]) => {
+    setMergedWeeks(weeks);
+    localStorage.setItem(getMergeKey(currentMes, currentAno), JSON.stringify(weeks));
+  }, [currentMes, currentAno]);
+
+  const handleUnmerge = useCallback(() => {
+    setMergedWeeks([]);
+    localStorage.removeItem(getMergeKey(currentMes, currentAno));
+    setSelectedWeek(null);
+  }, [currentMes, currentAno]);
 
   useEffect(() => {
     const fetchProfiles = async () => {
@@ -131,6 +163,20 @@ export default function Checklist() {
   const isPastMonth = currentAno < now.getFullYear() || (currentAno === now.getFullYear() && currentMes < now.getMonth() + 1);
   const monthSettings = getMonthSetting(currentMes, currentAno);
   const isLocked = isPastMonth && !monthSettings?.status_ativo;
+
+  // Auto-unmerge: when all items in merged weeks are processed
+  useEffect(() => {
+    if (mergedWeeks.length < 2) return;
+    const allMergedItems = mergedWeeks.flatMap((sem) => {
+      const stats = getWeekStats(sem);
+      return [stats];
+    });
+    const totalItems = allMergedItems.reduce((sum, s) => sum + s.total, 0);
+    const processedItems = allMergedItems.reduce((sum, s) => sum + s.completed + s.notDone, 0);
+    if (totalItems > 0 && processedItems === totalItems) {
+      handleUnmerge();
+    }
+  }, [mergedWeeks, instances, getWeekStats, handleUnmerge]);
 
   // Month navigation
   const goToPrevMonth = () => {
@@ -195,8 +241,91 @@ export default function Checklist() {
     return `${MONTH_SHORT[nm - 1]}/${na}`;
   }, [currentMes, currentAno]);
 
-  // Selected week items
-  const selectedWeekItems = selectedWeek ? getInstancesByWeek(selectedWeek) : [];
+  // Determine what weeks are merged vs individual for display
+  const isMergedWeek = (sem: number) => mergedWeeks.includes(sem);
+
+  // Build display cards: merged weeks become one card, others remain individual
+  const displayCards = useMemo(() => {
+    const cards: Array<{ type: "single"; semana: number } | { type: "merged"; semanas: number[] }> = [];
+    const mergedSet = new Set(mergedWeeks);
+    let mergedCardAdded = false;
+
+    semanasToShow.forEach((sem) => {
+      if (mergedSet.has(sem)) {
+        if (!mergedCardAdded) {
+          // Only add merged card once, with semanas that are in semanasToShow
+          const visibleMerged = mergedWeeks.filter((w) => semanasToShow.includes(w));
+          if (visibleMerged.length >= 2) {
+            cards.push({ type: "merged", semanas: visibleMerged });
+          } else if (visibleMerged.length === 1) {
+            cards.push({ type: "single", semana: visibleMerged[0] });
+          }
+          mergedCardAdded = true;
+        }
+      } else {
+        cards.push({ type: "single", semana: sem });
+      }
+    });
+    return cards;
+  }, [semanasToShow, mergedWeeks]);
+
+  // Merged stats
+  const getMergedStats = (semanas: number[]) => {
+    let total = 0, completed = 0, notDone = 0;
+    semanas.forEach((sem) => {
+      const s = getWeekStats(sem);
+      total += s.total;
+      completed += s.completed;
+      notDone += s.notDone;
+    });
+    return { total, completed, notDone };
+  };
+
+  const getMergedDuration = (semanas: number[]) => {
+    // For merged weeks, show the max duration (they share the same timer)
+    let maxDur = 0;
+    semanas.forEach((sem) => {
+      if (weekDurations[sem] && weekDurations[sem] > maxDur) maxDur = weekDurations[sem];
+    });
+    return maxDur || null;
+  };
+
+  // Selected week items — support merged
+  const selectedWeekItems = useMemo(() => {
+    if (!selectedWeek) return [];
+    // If selected week is part of merged group, show all merged items
+    if (mergedWeeks.includes(selectedWeek) && mergedWeeks.length >= 2) {
+      return mergedWeeks.flatMap((sem) => getInstancesByWeek(sem));
+    }
+    return getInstancesByWeek(selectedWeek);
+  }, [selectedWeek, mergedWeeks, getInstancesByWeek, instances]);
+
+  // For the table, determine the semanas to pass
+  const tableWeeks = useMemo(() => {
+    if (!selectedWeek) return [];
+    if (mergedWeeks.includes(selectedWeek) && mergedWeeks.length >= 2) {
+      return mergedWeeks;
+    }
+    return [selectedWeek];
+  }, [selectedWeek, mergedWeeks]);
+
+  // Timer: when starting for merged weeks, pass mergedWeeks
+  const handleStartTimer = (semana: number) => {
+    if (mergedWeeks.length >= 2 && mergedWeeks.includes(semana)) {
+      startTimer(mergedWeeks[0], mergedWeeks);
+    } else {
+      startTimer(semana);
+    }
+  };
+
+  // Timer: when stopping, pass mergedWeeks so duplicates are created
+  const handleStopTimer = () => {
+    if (mergedWeeks.length >= 2 && timerActiveWeek && mergedWeeks.includes(timerActiveWeek)) {
+      stopTimer(mergedWeeks);
+    } else {
+      stopTimer();
+    }
+  };
 
   return (
     <AppLayout>
@@ -284,6 +413,13 @@ export default function Checklist() {
                   defaultMes={currentMes}
                   defaultAno={currentAno}
                   defaultSemana={selectedWeek || 1}
+                />
+
+                {/* Merge weeks */}
+                <MergeWeeksDialog
+                  currentMerged={mergedWeeks}
+                  onMerge={handleMerge}
+                  onUnmerge={handleUnmerge}
                 />
 
                 {/* Rollover */}
@@ -386,32 +522,55 @@ export default function Checklist() {
               activeWeek={timerActiveWeek}
               elapsedSeconds={elapsedSeconds}
               isGestorOrAdmin={isGestorOrAdmin}
-              onStart={startTimer}
+              mergedWeeks={mergedWeeks}
+              onStart={handleStartTimer}
               onPause={pauseTimer}
               onResume={resumeTimer}
-              onStop={stopTimer}
+              onStop={handleStopTimer}
             />
 
             {/* Summary Cards */}
             <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
-              {semanasToShow.map((sem) => (
-                <ChecklistSummaryCard
-                  key={sem}
-                  semana={sem}
-                  totalItems={weekStats[sem]?.total || 0}
-                  completedItems={weekStats[sem]?.completed || 0}
-                  notDoneItems={weekStats[sem]?.notDone || 0}
-                  duration={weekDurations[sem] || null}
-                  onClick={() => setSelectedWeek(selectedWeek === sem ? null : sem)}
-                  isSelected={selectedWeek === sem}
-                />
-              ))}
+              {displayCards.map((card) => {
+                if (card.type === "merged") {
+                  const stats = getMergedStats(card.semanas);
+                  const dur = getMergedDuration(card.semanas);
+                  const isSelected = selectedWeek !== null && card.semanas.includes(selectedWeek);
+                  return (
+                    <ChecklistSummaryCard
+                      key={`merged-${card.semanas.join("-")}`}
+                      semana={card.semanas[0]}
+                      mergedWeeks={card.semanas}
+                      totalItems={stats.total}
+                      completedItems={stats.completed}
+                      notDoneItems={stats.notDone}
+                      duration={dur}
+                      onClick={() => setSelectedWeek(isSelected ? null : card.semanas[0])}
+                      isSelected={isSelected}
+                    />
+                  );
+                }
+                const sem = card.semana;
+                return (
+                  <ChecklistSummaryCard
+                    key={sem}
+                    semana={sem}
+                    totalItems={weekStats[sem]?.total || 0}
+                    completedItems={weekStats[sem]?.completed || 0}
+                    notDoneItems={weekStats[sem]?.notDone || 0}
+                    duration={weekDurations[sem] || null}
+                    onClick={() => setSelectedWeek(selectedWeek === sem ? null : sem)}
+                    isSelected={selectedWeek === sem}
+                  />
+                );
+              })}
             </div>
 
             {/* Inline Week Table (expansion below cards) */}
             {selectedWeek && (
               <ChecklistWeekTable
                 semana={selectedWeek}
+                semanas={tableWeeks}
                 items={selectedWeekItems}
                 canModify={isGestorOrAdmin && !isLocked}
                 isLocked={isLocked ?? false}

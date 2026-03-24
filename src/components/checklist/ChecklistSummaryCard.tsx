@@ -1,5 +1,5 @@
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
-import { AlertCircle, Calendar, CheckCircle2, Clock, ListTodo } from "lucide-react";
+import { AlertCircle, Calendar, CheckCircle2, Clock, Layers, ListTodo } from "lucide-react";
 import { cn } from "@/lib/utils";
 import CircularProgress from "./CircularProgress";
 
@@ -12,6 +12,7 @@ function formatDuration(seconds: number): string {
 
 interface ChecklistSummaryCardProps {
   semana: number;
+  mergedWeeks?: number[];
   totalItems: number;
   completedItems: number;
   notDoneItems?: number;
@@ -22,6 +23,7 @@ interface ChecklistSummaryCardProps {
 
 export default function ChecklistSummaryCard({
   semana,
+  mergedWeeks,
   totalItems,
   completedItems,
   notDoneItems = 0,
@@ -29,6 +31,7 @@ export default function ChecklistSummaryCard({
   onClick,
   isSelected = false,
 }: ChecklistSummaryCardProps) {
+  const isMerged = mergedWeeks && mergedWeeks.length >= 2;
   const processedItems = completedItems + notDoneItems;
   const progress = totalItems > 0 ? (processedItems / totalItems) * 100 : 0;
   const allCompleted = totalItems > 0 && completedItems === totalItems;
@@ -48,33 +51,43 @@ export default function ChecklistSummaryCard({
     ? "from-primary/20 to-primary/10"
     : allProcessed
       ? "from-amber-500/20 to-amber-500/10"
-      : weekColor.bg;
+      : isMerged
+        ? "from-indigo-500/20 to-violet-500/10"
+        : weekColor.bg;
 
   const iconClass = allCompleted
     ? "bg-primary/20"
     : allProcessed
       ? "bg-amber-500/20"
-      : weekColor.icon;
+      : isMerged
+        ? "bg-indigo-500/20 text-indigo-700 dark:text-indigo-400"
+        : weekColor.icon;
 
   const badgeClass = allCompleted
     ? "bg-primary/20 text-primary"
     : allProcessed
       ? "bg-amber-500/20 text-amber-600 dark:text-amber-400"
-      : weekColor.badge;
+      : isMerged
+        ? "bg-indigo-500/20 text-indigo-600 dark:text-indigo-400"
+        : weekColor.badge;
 
   const title = allCompleted
     ? "Completa ✓"
     : allProcessed
       ? "Finalizada ⚠"
-      : `${semana}ª Semana`;
+      : isMerged
+        ? `Sem. ${mergedWeeks.join(" e ")}`
+        : `${semana}ª Semana`;
 
   return (
     <Card
       className={cn(
         "cursor-pointer transition-all duration-200 hover:shadow-lg hover:scale-[1.02]",
+        isMerged && "col-span-2 sm:col-span-2 lg:col-span-2",
         allCompleted && "ring-2 ring-primary/30 bg-primary/5 animate-glow-pulse",
         allProcessed && "ring-2 ring-amber-500/30 bg-amber-500/5 animate-glow-pulse-amber",
-        isSelected && !allCompleted && !allProcessed && "ring-2 ring-ring"
+        isMerged && !allCompleted && !allProcessed && "ring-2 ring-indigo-500/30 bg-indigo-500/5",
+        isSelected && !allCompleted && !allProcessed && !isMerged && "ring-2 ring-ring"
       )}
       onClick={onClick}
     >
@@ -87,11 +100,29 @@ export default function ChecklistSummaryCard({
                   <CheckCircle2 className="h-3.5 w-3.5 text-primary animate-check-bounce" />
                 ) : allProcessed ? (
                   <AlertCircle className="h-3.5 w-3.5 text-amber-600 dark:text-amber-400 animate-check-bounce" />
+                ) : isMerged ? (
+                  <Layers className="h-3.5 w-3.5" />
                 ) : (
                   <Calendar className="h-3.5 w-3.5" />
                 )}
               </div>
               <h3 className="font-semibold text-xs sm:text-sm">{title}</h3>
+              {isMerged && !allCompleted && !allProcessed && (
+                <div className="flex gap-0.5 ml-1">
+                  {mergedWeeks.map((w) => (
+                    <span
+                      key={w}
+                      className={cn("w-2 h-2 rounded-full", {
+                        "bg-emerald-500": w === 1,
+                        "bg-blue-500": w === 2,
+                        "bg-purple-500": w === 3,
+                        "bg-orange-500": w === 4,
+                        "bg-pink-500": w === 5,
+                      })}
+                    />
+                  ))}
+                </div>
+              )}
             </div>
             <CircularProgress value={progress} size={40} strokeWidth={3} completedCount={completedItems} notDoneCount={notDoneItems} totalCount={totalItems} />
           </div>
@@ -112,7 +143,7 @@ export default function ChecklistSummaryCard({
         <div className="w-full bg-secondary rounded-full h-1.5 overflow-hidden flex mb-2">
           <div
             className="h-full bg-primary rounded-l-full transition-all duration-500 ease-out"
-            style={{ width: `${progress}%` }}
+            style={{ width: `${totalItems > 0 ? (completedItems / totalItems) * 100 : 0}%` }}
           />
           {notDoneItems > 0 && totalItems > 0 && (
             <div
