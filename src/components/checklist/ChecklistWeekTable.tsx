@@ -180,6 +180,7 @@ export default function ChecklistWeekTable({
       is_group: inst.is_group,
       parent_id: inst.parent_id,
       children: inst.children,
+      semana: inst.semana,
     }));
   }, [filteredItems]);
 
