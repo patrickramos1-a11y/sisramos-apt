@@ -437,6 +437,10 @@ export default function Dashboard() {
               profiles={profiles}
               currentWeek={currentWeek}
             />
+          </TabsContent>
+
+          {/* DASHBOARD DURAÇÃO */}
+          <TabsContent value="duracao" className="space-y-4">
             <MeetingTimerCharts />
           </TabsContent>
 
