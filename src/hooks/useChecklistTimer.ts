@@ -9,6 +9,8 @@ interface TimerRow {
   semana: number;
   started_at: string;
   stopped_at: string | null;
+  paused_at: string | null;
+  accumulated_seconds: number;
   duration_seconds: number | null;
   started_by: string | null;
   created_at: string;
@@ -26,7 +28,6 @@ export function useChecklistTimer({ mes, ano }: UseChecklistTimerParams) {
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const fetchTimers = useCallback(async () => {
-    // Fetch all timers for this month
     const { data, error } = await supabase
       .from("checklist_timers")
       .select("*")
@@ -62,13 +63,23 @@ export function useChecklistTimer({ mes, ano }: UseChecklistTimerParams) {
     }
 
     if (activeTimer && !activeTimer.stopped_at) {
-      const calcElapsed = () => {
+      if (activeTimer.paused_at) {
+        // Timer is paused — show accumulated + time before pause
         const start = new Date(activeTimer.started_at).getTime();
-        const now = Date.now();
-        setElapsedSeconds(Math.floor((now - start) / 1000));
-      };
-      calcElapsed();
-      intervalRef.current = setInterval(calcElapsed, 1000);
+        const pausedAt = new Date(activeTimer.paused_at).getTime();
+        const runningSeconds = Math.floor((pausedAt - start) / 1000);
+        setElapsedSeconds(activeTimer.accumulated_seconds + runningSeconds);
+      } else {
+        // Timer is running
+        const calcElapsed = () => {
+          const start = new Date(activeTimer.started_at).getTime();
+          const now = Date.now();
+          const runningSeconds = Math.floor((now - start) / 1000);
+          setElapsedSeconds(activeTimer.accumulated_seconds + runningSeconds);
+        };
+        calcElapsed();
+        intervalRef.current = setInterval(calcElapsed, 1000);
+      }
     } else {
       setElapsedSeconds(0);
     }
@@ -118,6 +129,7 @@ export function useChecklistTimer({ mes, ano }: UseChecklistTimerParams) {
         ano,
         semana,
         started_by: userData?.user?.id || null,
+        accumulated_seconds: 0,
       });
 
       if (error) {
@@ -130,17 +142,73 @@ export function useChecklistTimer({ mes, ano }: UseChecklistTimerParams) {
     [mes, ano]
   );
 
+  const pauseTimer = useCallback(async () => {
+    if (!activeTimer || activeTimer.paused_at) return;
+
+    // Calculate seconds elapsed in current running segment
+    const start = new Date(activeTimer.started_at).getTime();
+    const now = Date.now();
+    const runningSeconds = Math.floor((now - start) / 1000);
+    const newAccumulated = activeTimer.accumulated_seconds + runningSeconds;
+
+    const { error } = await supabase
+      .from("checklist_timers")
+      .update({
+        paused_at: new Date().toISOString(),
+        accumulated_seconds: newAccumulated,
+      })
+      .eq("id", activeTimer.id);
+
+    if (error) {
+      console.error("Error pausing timer:", error);
+      toast.error("Erro ao pausar cronômetro");
+    } else {
+      toast.success("Cronômetro pausado!");
+    }
+  }, [activeTimer]);
+
+  const resumeTimer = useCallback(async () => {
+    if (!activeTimer || !activeTimer.paused_at) return;
+
+    // Reset started_at to now, keep accumulated_seconds
+    const { error } = await supabase
+      .from("checklist_timers")
+      .update({
+        started_at: new Date().toISOString(),
+        paused_at: null,
+      })
+      .eq("id", activeTimer.id);
+
+    if (error) {
+      console.error("Error resuming timer:", error);
+      toast.error("Erro ao retomar cronômetro");
+    } else {
+      toast.success("Cronômetro retomado!");
+    }
+  }, [activeTimer]);
+
   const stopTimer = useCallback(async () => {
     if (!activeTimer) return;
 
-    const start = new Date(activeTimer.started_at).getTime();
-    const duration = Math.floor((Date.now() - start) / 1000);
+    let totalDuration: number;
+    if (activeTimer.paused_at) {
+      // Already paused — accumulated_seconds has the total
+      const start = new Date(activeTimer.started_at).getTime();
+      const pausedAt = new Date(activeTimer.paused_at).getTime();
+      const lastSegment = Math.floor((pausedAt - start) / 1000);
+      totalDuration = activeTimer.accumulated_seconds + lastSegment;
+    } else {
+      // Running — calculate current
+      const start = new Date(activeTimer.started_at).getTime();
+      totalDuration = activeTimer.accumulated_seconds + Math.floor((Date.now() - start) / 1000);
+    }
 
     const { error } = await supabase
       .from("checklist_timers")
       .update({
         stopped_at: new Date().toISOString(),
-        duration_seconds: duration,
+        duration_seconds: totalDuration,
+        paused_at: null,
       })
       .eq("id", activeTimer.id);
 
@@ -152,12 +220,19 @@ export function useChecklistTimer({ mes, ano }: UseChecklistTimerParams) {
     }
   }, [activeTimer]);
 
+  const isPaused = !!activeTimer && !activeTimer.stopped_at && !!activeTimer.paused_at;
+  const isRunning = !!activeTimer && !activeTimer.stopped_at && !activeTimer.paused_at;
+
   return {
-    isRunning: !!activeTimer && !activeTimer.stopped_at,
+    isRunning,
+    isPaused,
+    isActive: isRunning || isPaused,
     activeWeek: activeTimer?.semana || null,
     elapsedSeconds,
     weekDurations,
     startTimer,
+    pauseTimer,
+    resumeTimer,
     stopTimer,
   };
 }
