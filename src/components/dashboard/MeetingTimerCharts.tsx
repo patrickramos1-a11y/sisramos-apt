@@ -54,6 +54,10 @@ function toMinutes(seconds: number): number {
   return Math.round((seconds / 60) * 10) / 10;
 }
 
+const weeklyAvgChartConfig: ChartConfig = {
+  avg: { label: "Média (min)", color: "hsl(var(--primary))" },
+};
+
 const monthlyChartConfig: ChartConfig = {
   duration: { label: "Duração (min)", color: "hsl(var(--primary))" },
 };
@@ -124,6 +128,24 @@ export default function MeetingTimerCharts() {
         count: m.count,
         totalFormatted: formatDurationShort(m.totalSec),
       }));
+  }, [timers]);
+
+  // Weekly average bar chart data
+  const weeklyAvgData = useMemo(() => {
+    const weekTotals: Record<number, { sum: number; count: number }> = {};
+    timers.forEach((t) => {
+      if (!t.duration_seconds) return;
+      if (!weekTotals[t.semana]) weekTotals[t.semana] = { sum: 0, count: 0 };
+      weekTotals[t.semana].sum += t.duration_seconds;
+      weekTotals[t.semana].count += 1;
+    });
+    return [1, 2, 3, 4, 5].map((sem) => ({
+      name: `${sem}ª Sem`,
+      semana: sem,
+      avg: weekTotals[sem] ? toMinutes(Math.round(weekTotals[sem].sum / weekTotals[sem].count)) : 0,
+      count: weekTotals[sem]?.count || 0,
+      avgFormatted: weekTotals[sem] ? formatDurationShort(Math.round(weekTotals[sem].sum / weekTotals[sem].count)) : "—",
+    }));
   }, [timers]);
 
   // Weekly comparison line chart (each week as a line across months)
@@ -259,6 +281,41 @@ export default function MeetingTimerCharts() {
               <Bar dataKey="duration" radius={[4, 4, 0, 0]} barSize={monthlyChartData.length <= 3 ? 60 : undefined}>
                 {monthlyChartData.map((_, i) => (
                   <Cell key={i} fill="hsl(var(--primary))" fillOpacity={0.85} />
+                ))}
+              </Bar>
+            </BarChart>
+          </ChartContainer>
+        </CardContent>
+      </Card>
+
+      {/* Weekly Average Bar Chart */}
+      <Card>
+        <CardHeader className="pb-2">
+          <CardTitle className="text-sm font-semibold flex items-center gap-2">
+            <BarChart3 className="h-4 w-4 text-muted-foreground" />
+            Média de Duração por Semana
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <ChartContainer config={weeklyAvgChartConfig} className="h-[280px] w-full">
+            <BarChart data={weeklyAvgData} margin={{ top: 5, right: 10, left: 0, bottom: 5 }}>
+              <CartesianGrid strokeDasharray="3 3" vertical={false} />
+              <XAxis dataKey="name" tick={{ fontSize: 11 }} />
+              <YAxis tick={{ fontSize: 11 }} unit="min" width={45} />
+              <ChartTooltip
+                content={
+                  <ChartTooltipContent
+                    formatter={(value, name, item) => (
+                      <span className="font-medium">
+                        Média: {item.payload.avgFormatted} ({item.payload.count} reuniões)
+                      </span>
+                    )}
+                  />
+                }
+              />
+              <Bar dataKey="avg" radius={[4, 4, 0, 0]} barSize={60}>
+                {weeklyAvgData.map((entry, i) => (
+                  <Cell key={i} fill={WEEK_COLORS[entry.semana - 1]} fillOpacity={0.85} />
                 ))}
               </Bar>
             </BarChart>
