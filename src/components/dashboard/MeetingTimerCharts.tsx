@@ -54,6 +54,10 @@ function toMinutes(seconds: number): number {
   return Math.round((seconds / 60) * 10) / 10;
 }
 
+const weeklyAvgChartConfig: ChartConfig = {
+  avg: { label: "Média (min)", color: "hsl(var(--primary))" },
+};
+
 const monthlyChartConfig: ChartConfig = {
   duration: { label: "Duração (min)", color: "hsl(var(--primary))" },
 };
