@@ -57,6 +57,7 @@ interface ChecklistWeekTableProps {
   currentUserId?: string;
   isGestorOrAdmin: boolean;
   profiles: Profile[];
+  duplicateMap?: Map<string, { ids: string[]; semanas: number[] }>;
   onUpdateStatus: (id: string, status: ChecklistStatus) => Promise<void>;
   onUpdateInstance: (id: string, updates: { descricao_override?: string; link_override?: string | null }) => Promise<void>;
   onDeleteInstance: (id: string) => Promise<void>;
@@ -78,6 +79,7 @@ export default function ChecklistWeekTable({
   currentUserId,
   isGestorOrAdmin,
   profiles,
+  duplicateMap,
   onUpdateStatus,
   onUpdateInstance,
   onDeleteInstance,
@@ -169,20 +171,24 @@ export default function ChecklistWeekTable({
 
   // Adapt instances to ChecklistItem interface for SortableChecklistItem
   const adaptedItems = useMemo(() => {
-    return filteredItems.map((inst) => ({
-      id: inst.id,
-      texto: inst.descricao,
-      concluido: inst.status === "concluido",
-      status: inst.status as ChecklistStatus,
-      link: inst.link,
-      assignees: inst.assignees,
-      tipo_item: inst.tipo_item,
-      is_group: inst.is_group,
-      parent_id: inst.parent_id,
-      children: inst.children,
-      semana: inst.semana,
-    }));
-  }, [filteredItems]);
+    return filteredItems.map((inst) => {
+      const dupEntry = isMerged && duplicateMap ? duplicateMap.get(inst.id) : null;
+      return {
+        id: inst.id,
+        texto: inst.descricao,
+        concluido: inst.status === "concluido",
+        status: inst.status as ChecklistStatus,
+        link: inst.link,
+        assignees: inst.assignees,
+        tipo_item: inst.tipo_item,
+        is_group: inst.is_group,
+        parent_id: inst.parent_id,
+        children: inst.children,
+        semana: inst.semana,
+        sourceWeeks: dupEntry ? dupEntry.semanas : [inst.semana],
+      };
+    });
+  }, [filteredItems, isMerged, duplicateMap]);
 
   // Separate into recorrente and avulso
   const recorrenteItems = useMemo(() => adaptedItems.filter((i) => i.tipo_item !== "avulso_semana"), [adaptedItems]);
@@ -223,6 +229,24 @@ export default function ChecklistWeekTable({
                     onUpdateAssignees={onUpdateAssignees}
                   />
                 </div>
+                {isMerged && item.sourceWeeks && item.sourceWeeks.length > 0 && (
+                  <div className="flex gap-0.5 shrink-0">
+                    {item.sourceWeeks.map((w: number) => {
+                      const colors: Record<number, string> = {
+                        1: "bg-emerald-500/20 text-emerald-700 dark:text-emerald-400",
+                        2: "bg-blue-500/20 text-blue-700 dark:text-blue-400",
+                        3: "bg-purple-500/20 text-purple-700 dark:text-purple-400",
+                        4: "bg-orange-500/20 text-orange-700 dark:text-orange-400",
+                        5: "bg-pink-500/20 text-pink-700 dark:text-pink-400",
+                      };
+                      return (
+                        <span key={w} className={cn("text-[9px] font-bold px-1.5 py-0.5 rounded-full", colors[w] || colors[1])}>
+                          S{w}
+                        </span>
+                      );
+                    })}
+                  </div>
+                )}
                 {canModify && onAddSubItem && !item.parent_id && (
                   <TooltipProvider>
                     <Tooltip>
@@ -452,49 +476,35 @@ export default function ChecklistWeekTable({
               </p>
             </div>
           ) : isMerged ? (
-            // Merged view: group items by week with separators
+            // Merged view: unified list (no week separators), with week badges
             <>
-              {semanas!.map((weekNum) => {
-                const weekItems = adaptedItems.filter((i) => i.semana === weekNum);
-                const weekRecorrente = weekItems.filter((i) => i.tipo_item !== "avulso_semana");
-                const weekAvulso = weekItems.filter((i) => i.tipo_item === "avulso_semana");
-                const wc = weekColors[weekNum] || weekColors[1];
-                if (weekItems.length === 0 && !canModify) return null;
-                return (
-                  <div key={weekNum} className="mb-4 last:mb-0">
-                    <div className="flex items-center gap-2 mb-2 mt-1">
-                      <div className={cn("w-1 h-4 rounded-full", {
-                        "bg-emerald-500": weekNum === 1,
-                        "bg-blue-500": weekNum === 2,
-                        "bg-purple-500": weekNum === 3,
-                        "bg-orange-500": weekNum === 4,
-                        "bg-pink-500": weekNum === 5,
-                      })} />
-                      <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-                        {weekNum}ª Semana
-                      </span>
+              {showRecorrente && recorrenteItems.length > 0 && (
+                <div>
+                  {showAvulso && avulsoItems.length > 0 && (
+                    <div className="flex items-center gap-2 mb-2">
+                      <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Recorrentes</span>
                       <div className="flex-1 h-px bg-border" />
-                      <span className="text-[10px] text-muted-foreground">
-                        {weekItems.filter((i) => i.status !== "pendente").length}/{weekItems.length}
-                      </span>
                     </div>
-                    {weekRecorrente.length > 0 && renderItemSection(weekRecorrente, adaptedItems)}
-                    {weekAvulso.length > 0 && (
-                      <div className="mt-2">
-                        <div className="flex items-center gap-2 mb-1">
-                          <Zap className="h-3 w-3 text-amber-500" />
-                          <span className="text-[10px] font-semibold uppercase tracking-wider text-amber-600 dark:text-amber-400">Avulso</span>
-                          <div className="flex-1 h-px bg-amber-500/20" />
-                        </div>
-                        {renderItemSection(weekAvulso, adaptedItems)}
-                      </div>
-                    )}
-                    {canModify && onAddQuickAvulso && (
-                      <AddAvulsoInline semana={weekNum} onAdd={onAddQuickAvulso} />
-                    )}
+                  )}
+                  {renderItemSection(recorrenteItems, adaptedItems)}
+                </div>
+              )}
+              {showAvulso && (
+                <div className={cn(showRecorrente && recorrenteItems.length > 0 && "mt-4")}>
+                  <div className="flex items-center gap-2 mb-2">
+                    <Zap className="h-3 w-3 text-amber-500" />
+                    <span className="text-[10px] font-semibold uppercase tracking-wider text-amber-600 dark:text-amber-400">Avulso</span>
+                    <div className="flex-1 h-px bg-amber-500/20" />
                   </div>
-                );
-              })}
+                  {avulsoItems.length > 0 && renderItemSection(avulsoItems, adaptedItems)}
+                  {avulsoItems.length === 0 && !searchTerm && filterStatus === "all" && (
+                    <p className="text-xs text-muted-foreground py-2 pl-5">Nenhum item avulso</p>
+                  )}
+                  {canModify && onAddQuickAvulso && semanas && semanas.map((s) => (
+                    <AddAvulsoInline key={s} semana={s} onAdd={onAddQuickAvulso} />
+                  ))}
+                </div>
+              )}
             </>
           ) : (
             <>

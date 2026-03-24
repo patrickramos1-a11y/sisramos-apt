@@ -111,12 +111,6 @@ export default function Checklist() {
     localStorage.setItem(getMergeKey(currentMes, currentAno), JSON.stringify(weeks));
   }, [currentMes, currentAno]);
 
-  const handleUnmerge = useCallback(() => {
-    setMergedWeeks([]);
-    localStorage.removeItem(getMergeKey(currentMes, currentAno));
-    setSelectedWeek(null);
-  }, [currentMes, currentAno]);
-
   useEffect(() => {
     const fetchProfiles = async () => {
       const { data } = await supabase.from("profiles").select("*");
@@ -145,6 +139,38 @@ export default function Checklist() {
     refetch,
   } = useChecklistV2({ mes: currentMes, ano: currentAno });
 
+  const handleUnmerge = useCallback(async () => {
+    if (mergedWeeks.length >= 2) {
+      const itemsByWeek: Record<number, ReturnType<typeof getInstancesByWeek>> = {};
+      mergedWeeks.forEach((sem) => {
+        itemsByWeek[sem] = getInstancesByWeek(sem)
+          .filter((i) => !i.parent_id)
+          .sort((a, b) => a.ordem - b.ordem);
+      });
+      const maxLen = Math.max(...Object.values(itemsByWeek).map((arr) => arr.length));
+      const interleaved: Array<{ id: string; semana: number }> = [];
+      for (let pos = 0; pos < maxLen; pos++) {
+        mergedWeeks.forEach((sem) => {
+          const item = itemsByWeek[sem]?.[pos];
+          if (item) interleaved.push({ id: item.id, semana: item.semana });
+        });
+      }
+      const weekCounters: Record<number, number> = {};
+      const updates: Array<{ id: string; ordem: number }> = [];
+      interleaved.forEach(({ id, semana }) => {
+        if (!weekCounters[semana]) weekCounters[semana] = 0;
+        updates.push({ id, ordem: weekCounters[semana]++ });
+      });
+      for (const u of updates) {
+        await supabase.from("checklist_instances").update({ ordem_override: u.ordem }).eq("id", u.id);
+      }
+    }
+    setMergedWeeks([]);
+    localStorage.removeItem(getMergeKey(currentMes, currentAno));
+    setSelectedWeek(null);
+    refetch();
+  }, [currentMes, currentAno, mergedWeeks, getInstancesByWeek, refetch]);
+
   const { getMonthSetting, toggleMonthStatus } = useMonthSettings();
   const {
     isRunning: timerIsRunning,
@@ -167,16 +193,13 @@ export default function Checklist() {
   // Auto-unmerge: when all items in merged weeks are processed
   useEffect(() => {
     if (mergedWeeks.length < 2) return;
-    const allMergedItems = mergedWeeks.flatMap((sem) => {
-      const stats = getWeekStats(sem);
-      return [stats];
-    });
-    const totalItems = allMergedItems.reduce((sum, s) => sum + s.total, 0);
-    const processedItems = allMergedItems.reduce((sum, s) => sum + s.completed + s.notDone, 0);
+    const allMergedItems = mergedWeeks.flatMap((sem) => getInstancesByWeek(sem));
+    const totalItems = allMergedItems.filter((i) => !i.parent_id).length;
+    const processedItems = allMergedItems.filter((i) => !i.parent_id && (i.status === "concluido" || i.status === "nao_realizado")).length;
     if (totalItems > 0 && processedItems === totalItems) {
       handleUnmerge();
     }
-  }, [mergedWeeks, instances, getWeekStats, handleUnmerge]);
+  }, [mergedWeeks, instances, getInstancesByWeek, handleUnmerge]);
 
   // Month navigation
   const goToPrevMonth = () => {
@@ -290,15 +313,78 @@ export default function Checklist() {
     return maxDur || null;
   };
 
-  // Selected week items — support merged
+  // Build duplicate map for merged view: descricao → [ids across weeks]
+  const { deduplicatedItems, duplicateMap } = useMemo(() => {
+    const emptyResult = { deduplicatedItems: [] as ReturnType<typeof getInstancesByWeek>, duplicateMap: new Map<string, { ids: string[]; semanas: number[] }>() };
+    if (!selectedWeek || !mergedWeeks.includes(selectedWeek) || mergedWeeks.length < 2) {
+      return emptyResult;
+    }
+
+    // Get items per week sorted by ordem
+    const itemsByWeek: Record<number, ReturnType<typeof getInstancesByWeek>> = {};
+    mergedWeeks.forEach((sem) => {
+      itemsByWeek[sem] = getInstancesByWeek(sem)
+        .filter((i) => !i.parent_id)
+        .sort((a, b) => a.ordem - b.ordem);
+    });
+
+    // Interleave by position (round-robin)
+    const maxLen = Math.max(...Object.values(itemsByWeek).map((arr) => arr.length));
+    const interleaved: ReturnType<typeof getInstancesByWeek> = [];
+    for (let pos = 0; pos < maxLen; pos++) {
+      mergedWeeks.forEach((sem) => {
+        const item = itemsByWeek[sem]?.[pos];
+        if (item) interleaved.push(item);
+      });
+    }
+
+    // Deduplicate by descricao (normalized)
+    const dupMap = new Map<string, { ids: string[]; semanas: number[] }>();
+    const seen = new Map<string, string>(); // descricao → representative id
+    const deduped: typeof interleaved = [];
+
+    interleaved.forEach((item) => {
+      const key = item.descricao.trim().toLowerCase();
+      if (seen.has(key)) {
+        // This is a duplicate — add its ID and semana to the existing entry
+        const repId = seen.get(key)!;
+        const entry = dupMap.get(repId)!;
+        entry.ids.push(item.id);
+        if (!entry.semanas.includes(item.semana)) entry.semanas.push(item.semana);
+      } else {
+        // First occurrence — this is the representative
+        seen.set(key, item.id);
+        dupMap.set(item.id, { ids: [item.id], semanas: [item.semana] });
+        deduped.push(item);
+      }
+    });
+
+    // Also collect sub-items (children) for all items — append children from duplicates
+    // Children are already nested inside each instance, no dedup needed for them
+
+    return { deduplicatedItems: deduped, duplicateMap: dupMap };
+  }, [selectedWeek, mergedWeeks, getInstancesByWeek, instances]);
+
+  // Selected week items — support merged with dedup + interleave
   const selectedWeekItems = useMemo(() => {
     if (!selectedWeek) return [];
-    // If selected week is part of merged group, show all merged items
     if (mergedWeeks.includes(selectedWeek) && mergedWeeks.length >= 2) {
-      return mergedWeeks.flatMap((sem) => getInstancesByWeek(sem));
+      return deduplicatedItems;
     }
     return getInstancesByWeek(selectedWeek);
-  }, [selectedWeek, mergedWeeks, getInstancesByWeek, instances]);
+  }, [selectedWeek, mergedWeeks, getInstancesByWeek, instances, deduplicatedItems]);
+
+  // Wrapper for status update that propagates to all duplicates
+  const handleUpdateStatus = useCallback(async (id: string, status: any) => {
+    if (mergedWeeks.length >= 2 && duplicateMap.has(id)) {
+      const entry = duplicateMap.get(id)!;
+      for (const dupId of entry.ids) {
+        await updateInstanceStatus(dupId, status);
+      }
+    } else {
+      await updateInstanceStatus(id, status);
+    }
+  }, [mergedWeeks, duplicateMap, updateInstanceStatus]);
 
   // For the table, determine the semanas to pass
   const tableWeeks = useMemo(() => {
@@ -577,7 +663,8 @@ export default function Checklist() {
                 currentUserId={user?.id}
                 isGestorOrAdmin={isGestorOrAdmin}
                 profiles={profiles}
-                onUpdateStatus={updateInstanceStatus}
+                onUpdateStatus={handleUpdateStatus}
+                duplicateMap={duplicateMap}
                 onUpdateInstance={updateInstance}
                 onDeleteInstance={deleteInstance}
                 onUpdateAssignees={updateAssignees}
