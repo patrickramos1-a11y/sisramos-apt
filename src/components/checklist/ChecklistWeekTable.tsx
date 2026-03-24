@@ -132,6 +132,7 @@ export default function ChecklistWeekTable({
     4: { bg: "from-orange-500/20 to-orange-500/5", icon: "bg-orange-500/30 text-orange-700 dark:text-orange-400" },
     5: { bg: "from-pink-500/20 to-pink-500/5", icon: "bg-pink-500/30 text-pink-700 dark:text-pink-400" },
   };
+  const isMerged = semanas && semanas.length >= 2;
   const weekColor = weekColors[semana] || weekColors[1];
 
   const handleDragEnd = async (event: DragEndEvent) => {
