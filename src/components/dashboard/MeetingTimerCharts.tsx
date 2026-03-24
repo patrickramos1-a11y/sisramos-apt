@@ -130,6 +130,24 @@ export default function MeetingTimerCharts() {
       }));
   }, [timers]);
 
+  // Weekly average bar chart data
+  const weeklyAvgData = useMemo(() => {
+    const weekTotals: Record<number, { sum: number; count: number }> = {};
+    timers.forEach((t) => {
+      if (!t.duration_seconds) return;
+      if (!weekTotals[t.semana]) weekTotals[t.semana] = { sum: 0, count: 0 };
+      weekTotals[t.semana].sum += t.duration_seconds;
+      weekTotals[t.semana].count += 1;
+    });
+    return [1, 2, 3, 4, 5].map((sem) => ({
+      name: `${sem}ª Sem`,
+      semana: sem,
+      avg: weekTotals[sem] ? toMinutes(Math.round(weekTotals[sem].sum / weekTotals[sem].count)) : 0,
+      count: weekTotals[sem]?.count || 0,
+      avgFormatted: weekTotals[sem] ? formatDurationShort(Math.round(weekTotals[sem].sum / weekTotals[sem].count)) : "—",
+    }));
+  }, [timers]);
+
   // Weekly comparison line chart (each week as a line across months)
   const weeklyComparisonData = useMemo(() => {
     const monthMap: Record<string, { label: string; sortKey: string; weeks: Record<number, number> }> = {};
