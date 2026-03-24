@@ -282,33 +282,39 @@ export type Database = {
       }
       checklist_timers: {
         Row: {
+          accumulated_seconds: number
           ano: number
           created_at: string | null
           duration_seconds: number | null
           id: string
           mes: number
+          paused_at: string | null
           semana: number
           started_at: string
           started_by: string | null
           stopped_at: string | null
         }
         Insert: {
+          accumulated_seconds?: number
           ano: number
           created_at?: string | null
           duration_seconds?: number | null
           id?: string
           mes: number
+          paused_at?: string | null
           semana: number
           started_at?: string
           started_by?: string | null
           stopped_at?: string | null
         }
         Update: {
+          accumulated_seconds?: number
           ano?: number
           created_at?: string | null
           duration_seconds?: number | null
           id?: string
           mes?: number
+          paused_at?: string | null
           semana?: number
           started_at?: string
           started_by?: string | null

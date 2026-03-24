@@ -116,10 +116,14 @@ export default function Checklist() {
   const { getMonthSetting, toggleMonthStatus } = useMonthSettings();
   const {
     isRunning: timerIsRunning,
+    isPaused: timerIsPaused,
+    isActive: timerIsActive,
     activeWeek: timerActiveWeek,
     elapsedSeconds,
     weekDurations,
     startTimer,
+    pauseTimer,
+    resumeTimer,
     stopTimer,
   } = useChecklistTimer({ mes: currentMes, ano: currentAno });
 
@@ -377,10 +381,14 @@ export default function Checklist() {
             {/* Timer */}
             <ChecklistTimer
               isRunning={timerIsRunning}
+              isPaused={timerIsPaused}
+              isActive={timerIsActive}
               activeWeek={timerActiveWeek}
               elapsedSeconds={elapsedSeconds}
               isGestorOrAdmin={isGestorOrAdmin}
               onStart={startTimer}
+              onPause={pauseTimer}
+              onResume={resumeTimer}
               onStop={stopTimer}
             />
 
