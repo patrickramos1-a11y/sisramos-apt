@@ -288,6 +288,41 @@ export default function MeetingTimerCharts() {
         </CardContent>
       </Card>
 
+      {/* Weekly Average Bar Chart */}
+      <Card>
+        <CardHeader className="pb-2">
+          <CardTitle className="text-sm font-semibold flex items-center gap-2">
+            <BarChart3 className="h-4 w-4 text-muted-foreground" />
+            Média de Duração por Semana
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <ChartContainer config={weeklyAvgChartConfig} className="h-[280px] w-full">
+            <BarChart data={weeklyAvgData} margin={{ top: 5, right: 10, left: 0, bottom: 5 }}>
+              <CartesianGrid strokeDasharray="3 3" vertical={false} />
+              <XAxis dataKey="name" tick={{ fontSize: 11 }} />
+              <YAxis tick={{ fontSize: 11 }} unit="min" width={45} />
+              <ChartTooltip
+                content={
+                  <ChartTooltipContent
+                    formatter={(value, name, item) => (
+                      <span className="font-medium">
+                        Média: {item.payload.avgFormatted} ({item.payload.count} reuniões)
+                      </span>
+                    )}
+                  />
+                }
+              />
+              <Bar dataKey="avg" radius={[4, 4, 0, 0]} barSize={60}>
+                {weeklyAvgData.map((entry, i) => (
+                  <Cell key={i} fill={WEEK_COLORS[entry.semana - 1]} fillOpacity={0.85} />
+                ))}
+              </Bar>
+            </BarChart>
+          </ChartContainer>
+        </CardContent>
+      </Card>
+
       {/* Weekly Comparison Line Chart */}
       {weeklyComparisonData.length > 1 && (
         <Card>
