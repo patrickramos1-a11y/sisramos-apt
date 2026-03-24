@@ -79,6 +79,7 @@ export default function ChecklistWeekTable({
   currentUserId,
   isGestorOrAdmin,
   profiles,
+  duplicateMap,
   onUpdateStatus,
   onUpdateInstance,
   onDeleteInstance,
