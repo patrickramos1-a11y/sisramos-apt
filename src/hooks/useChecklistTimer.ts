@@ -189,13 +189,10 @@ export function useChecklistTimer({ mes, ano }: UseChecklistTimerParams) {
 
     let totalDuration: number;
     if (activeTimer.paused_at) {
-      // Already paused — accumulated_seconds has the total
-      const start = new Date(activeTimer.started_at).getTime();
-      const pausedAt = new Date(activeTimer.paused_at).getTime();
-      const lastSegment = Math.floor((pausedAt - start) / 1000);
-      totalDuration = activeTimer.accumulated_seconds + lastSegment;
+      // Already paused — accumulated_seconds has the full total
+      totalDuration = activeTimer.accumulated_seconds;
     } else {
-      // Running — calculate current
+      // Running — calculate current segment + accumulated
       const start = new Date(activeTimer.started_at).getTime();
       totalDuration = activeTimer.accumulated_seconds + Math.floor((Date.now() - start) / 1000);
     }
