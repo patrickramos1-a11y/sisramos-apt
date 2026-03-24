@@ -287,6 +287,7 @@ export type Database = {
           created_at: string | null
           duration_seconds: number | null
           id: string
+          merged_weeks: number[] | null
           mes: number
           paused_at: string | null
           semana: number
@@ -300,6 +301,7 @@ export type Database = {
           created_at?: string | null
           duration_seconds?: number | null
           id?: string
+          merged_weeks?: number[] | null
           mes: number
           paused_at?: string | null
           semana: number
@@ -313,6 +315,7 @@ export type Database = {
           created_at?: string | null
           duration_seconds?: number | null
           id?: string
+          merged_weeks?: number[] | null
           mes?: number
           paused_at?: string | null
           semana?: number

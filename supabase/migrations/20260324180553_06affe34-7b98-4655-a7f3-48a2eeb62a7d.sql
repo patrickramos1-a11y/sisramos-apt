@@ -1,0 +1,1 @@
+ALTER TABLE public.checklist_timers ADD COLUMN merged_weeks integer[] DEFAULT NULL;

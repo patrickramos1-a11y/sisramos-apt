@@ -33,7 +33,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Calendar, CheckCircle2, AlertCircle, Search, ChevronUp, Plus, ListTree, Zap, Trash2 } from "lucide-react";
+import { Calendar, CheckCircle2, AlertCircle, Search, ChevronUp, Plus, ListTree, Zap, Trash2, Layers } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 import CircularProgress from "./CircularProgress";
@@ -50,6 +50,7 @@ interface Profile {
 
 interface ChecklistWeekTableProps {
   semana: number;
+  semanas?: number[];
   items: ChecklistInstance[];
   canModify: boolean;
   isLocked: boolean;
@@ -70,6 +71,7 @@ interface ChecklistWeekTableProps {
 
 export default function ChecklistWeekTable({
   semana,
+  semanas,
   items,
   canModify,
   isLocked,
@@ -130,6 +132,7 @@ export default function ChecklistWeekTable({
     4: { bg: "from-orange-500/20 to-orange-500/5", icon: "bg-orange-500/30 text-orange-700 dark:text-orange-400" },
     5: { bg: "from-pink-500/20 to-pink-500/5", icon: "bg-pink-500/30 text-pink-700 dark:text-pink-400" },
   };
+  const isMerged = semanas && semanas.length >= 2;
   const weekColor = weekColors[semana] || weekColors[1];
 
   const handleDragEnd = async (event: DragEndEvent) => {
@@ -177,6 +180,7 @@ export default function ChecklistWeekTable({
       is_group: inst.is_group,
       parent_id: inst.parent_id,
       children: inst.children,
+      semana: inst.semana,
     }));
   }, [filteredItems]);
 
@@ -316,6 +320,7 @@ export default function ChecklistWeekTable({
         "px-4 py-3 bg-gradient-to-r rounded-t-lg flex items-center justify-between gap-3",
         allCompleted ? "from-primary/20 to-primary/10"
           : allProcessed ? "from-amber-500/20 to-amber-500/10"
+          : isMerged ? "from-indigo-500/20 to-violet-500/10"
           : weekColor.bg
       )}>
         <div className="flex items-center gap-2">
@@ -332,7 +337,7 @@ export default function ChecklistWeekTable({
             )}
           </div>
           <h3 className="font-semibold text-sm">
-            {allCompleted ? "Semana Completa ✓" : allProcessed ? "Semana Finalizada ⚠" : `${semana}ª Semana`}
+            {allCompleted ? "Semana Completa ✓" : allProcessed ? "Semana Finalizada ⚠" : isMerged ? `Semanas ${semanas.join(" e ")}` : `${semana}ª Semana`}
           </h3>
           <div className="hidden sm:flex items-center gap-2 text-xs ml-2">
             {pendingCount > 0 && (
@@ -446,6 +451,51 @@ export default function ChecklistWeekTable({
                   : "Nenhum item nesta semana"}
               </p>
             </div>
+          ) : isMerged ? (
+            // Merged view: group items by week with separators
+            <>
+              {semanas!.map((weekNum) => {
+                const weekItems = adaptedItems.filter((i) => i.semana === weekNum);
+                const weekRecorrente = weekItems.filter((i) => i.tipo_item !== "avulso_semana");
+                const weekAvulso = weekItems.filter((i) => i.tipo_item === "avulso_semana");
+                const wc = weekColors[weekNum] || weekColors[1];
+                if (weekItems.length === 0 && !canModify) return null;
+                return (
+                  <div key={weekNum} className="mb-4 last:mb-0">
+                    <div className="flex items-center gap-2 mb-2 mt-1">
+                      <div className={cn("w-1 h-4 rounded-full", {
+                        "bg-emerald-500": weekNum === 1,
+                        "bg-blue-500": weekNum === 2,
+                        "bg-purple-500": weekNum === 3,
+                        "bg-orange-500": weekNum === 4,
+                        "bg-pink-500": weekNum === 5,
+                      })} />
+                      <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                        {weekNum}ª Semana
+                      </span>
+                      <div className="flex-1 h-px bg-border" />
+                      <span className="text-[10px] text-muted-foreground">
+                        {weekItems.filter((i) => i.status !== "pendente").length}/{weekItems.length}
+                      </span>
+                    </div>
+                    {weekRecorrente.length > 0 && renderItemSection(weekRecorrente, adaptedItems)}
+                    {weekAvulso.length > 0 && (
+                      <div className="mt-2">
+                        <div className="flex items-center gap-2 mb-1">
+                          <Zap className="h-3 w-3 text-amber-500" />
+                          <span className="text-[10px] font-semibold uppercase tracking-wider text-amber-600 dark:text-amber-400">Avulso</span>
+                          <div className="flex-1 h-px bg-amber-500/20" />
+                        </div>
+                        {renderItemSection(weekAvulso, adaptedItems)}
+                      </div>
+                    )}
+                    {canModify && onAddQuickAvulso && (
+                      <AddAvulsoInline semana={weekNum} onAdd={onAddQuickAvulso} />
+                    )}
+                  </div>
+                );
+              })}
+            </>
           ) : (
             <>
               {/* Recorrente section */}

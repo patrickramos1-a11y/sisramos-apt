@@ -12,6 +12,7 @@ interface TimerRow {
   paused_at: string | null;
   accumulated_seconds: number;
   duration_seconds: number | null;
+  merged_weeks: number[] | null;
   started_by: string | null;
   created_at: string;
 }
@@ -40,12 +41,9 @@ export function useChecklistTimer({ mes, ano }: UseChecklistTimerParams) {
     }
 
     const timers = (data || []) as TimerRow[];
-    
-    // Find active timer (no stopped_at)
     const active = timers.find((t) => !t.stopped_at) || null;
     setActiveTimer(active);
 
-    // Build week durations map from completed timers
     const durations: Record<number, number> = {};
     timers.forEach((t) => {
       if (t.stopped_at && t.duration_seconds) {
@@ -55,7 +53,6 @@ export function useChecklistTimer({ mes, ano }: UseChecklistTimerParams) {
     setWeekDurations(durations);
   }, [mes, ano]);
 
-  // Calculate elapsed from active timer
   useEffect(() => {
     if (intervalRef.current) {
       clearInterval(intervalRef.current);
@@ -64,10 +61,8 @@ export function useChecklistTimer({ mes, ano }: UseChecklistTimerParams) {
 
     if (activeTimer && !activeTimer.stopped_at) {
       if (activeTimer.paused_at) {
-        // Timer is paused — accumulated_seconds already has the full elapsed
         setElapsedSeconds(activeTimer.accumulated_seconds);
       } else {
-        // Timer is running
         const calcElapsed = () => {
           const start = new Date(activeTimer.started_at).getTime();
           const now = Date.now();
@@ -86,38 +81,36 @@ export function useChecklistTimer({ mes, ano }: UseChecklistTimerParams) {
     };
   }, [activeTimer]);
 
-  // Initial fetch
   useEffect(() => {
     fetchTimers();
   }, [fetchTimers]);
 
-  // Realtime subscription
   useEffect(() => {
     const channel = supabase
       .channel("checklist-timers-realtime")
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "checklist_timers" },
-        () => {
-          fetchTimers();
-        }
+        () => fetchTimers()
       )
       .subscribe();
 
-    return () => {
-      supabase.removeChannel(channel);
-    };
+    return () => { supabase.removeChannel(channel); };
   }, [fetchTimers]);
 
   const startTimer = useCallback(
-    async (semana: number) => {
-      // Delete existing timer for this week if any (to allow restart)
-      await supabase
-        .from("checklist_timers")
-        .delete()
-        .eq("mes", mes)
-        .eq("ano", ano)
-        .eq("semana", semana);
+    async (semana: number, mergedWeeks?: number[]) => {
+      // Delete existing timer for this week (or merged weeks)
+      const weeksToDelete = mergedWeeks && mergedWeeks.length >= 2 ? mergedWeeks : [semana];
+      for (const w of weeksToDelete) {
+        await supabase
+          .from("checklist_timers")
+          .delete()
+          .eq("mes", mes)
+          .eq("ano", ano)
+          .eq("semana", w)
+          .is("stopped_at", null);
+      }
 
       const { data: userData } = await supabase.auth.getUser();
 
@@ -127,13 +120,17 @@ export function useChecklistTimer({ mes, ano }: UseChecklistTimerParams) {
         semana,
         started_by: userData?.user?.id || null,
         accumulated_seconds: 0,
+        merged_weeks: mergedWeeks && mergedWeeks.length >= 2 ? mergedWeeks : null,
       });
 
       if (error) {
         console.error("Error starting timer:", error);
         toast.error("Erro ao iniciar cronômetro");
       } else {
-        toast.success(`Cronômetro da semana ${semana} iniciado!`);
+        const label = mergedWeeks && mergedWeeks.length >= 2
+          ? `Semanas ${mergedWeeks.join(" e ")}`
+          : `Semana ${semana}`;
+        toast.success(`Cronômetro da ${label} iniciado!`);
       }
     },
     [mes, ano]
@@ -142,7 +139,6 @@ export function useChecklistTimer({ mes, ano }: UseChecklistTimerParams) {
   const pauseTimer = useCallback(async () => {
     if (!activeTimer || activeTimer.paused_at) return;
 
-    // Calculate seconds elapsed in current running segment
     const start = new Date(activeTimer.started_at).getTime();
     const now = Date.now();
     const runningSeconds = Math.floor((now - start) / 1000);
@@ -167,7 +163,6 @@ export function useChecklistTimer({ mes, ano }: UseChecklistTimerParams) {
   const resumeTimer = useCallback(async () => {
     if (!activeTimer || !activeTimer.paused_at) return;
 
-    // Reset started_at to now, keep accumulated_seconds
     const { error } = await supabase
       .from("checklist_timers")
       .update({
@@ -184,19 +179,18 @@ export function useChecklistTimer({ mes, ano }: UseChecklistTimerParams) {
     }
   }, [activeTimer]);
 
-  const stopTimer = useCallback(async () => {
+  const stopTimer = useCallback(async (mergedWeeksOverride?: number[]) => {
     if (!activeTimer) return;
 
     let totalDuration: number;
     if (activeTimer.paused_at) {
-      // Already paused — accumulated_seconds has the full total
       totalDuration = activeTimer.accumulated_seconds;
     } else {
-      // Running — calculate current segment + accumulated
       const start = new Date(activeTimer.started_at).getTime();
       totalDuration = activeTimer.accumulated_seconds + Math.floor((Date.now() - start) / 1000);
     }
 
+    // Stop the main timer
     const { error } = await supabase
       .from("checklist_timers")
       .update({
@@ -209,10 +203,39 @@ export function useChecklistTimer({ mes, ano }: UseChecklistTimerParams) {
     if (error) {
       console.error("Error stopping timer:", error);
       toast.error("Erro ao parar cronômetro");
-    } else {
-      toast.success("Cronômetro finalizado!");
+      return;
     }
-  }, [activeTimer]);
+
+    // If merged weeks, create duplicate records for the other weeks
+    const weeks = mergedWeeksOverride || activeTimer.merged_weeks;
+    if (weeks && weeks.length >= 2) {
+      const otherWeeks = weeks.filter((w) => w !== activeTimer.semana);
+      for (const w of otherWeeks) {
+        // Delete any existing completed timer for this week first
+        await supabase
+          .from("checklist_timers")
+          .delete()
+          .eq("mes", mes)
+          .eq("ano", ano)
+          .eq("semana", w)
+          .not("stopped_at", "is", null);
+
+        await supabase.from("checklist_timers").insert({
+          mes,
+          ano,
+          semana: w,
+          started_at: activeTimer.started_at,
+          stopped_at: new Date().toISOString(),
+          duration_seconds: totalDuration,
+          accumulated_seconds: totalDuration,
+          started_by: activeTimer.started_by,
+          merged_weeks: weeks,
+        });
+      }
+    }
+
+    toast.success("Cronômetro finalizado!");
+  }, [activeTimer, mes, ano]);
 
   const isPaused = !!activeTimer && !activeTimer.stopped_at && !!activeTimer.paused_at;
   const isRunning = !!activeTimer && !activeTimer.stopped_at && !activeTimer.paused_at;
