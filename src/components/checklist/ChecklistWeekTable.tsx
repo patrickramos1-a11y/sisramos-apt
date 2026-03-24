@@ -71,6 +71,7 @@ interface ChecklistWeekTableProps {
 
 export default function ChecklistWeekTable({
   semana,
+  semanas,
   items,
   canModify,
   isLocked,
