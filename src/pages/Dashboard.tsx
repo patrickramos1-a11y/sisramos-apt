@@ -432,6 +432,7 @@ export default function Dashboard() {
               profiles={profiles}
               currentWeek={currentWeek}
             />
+            <MeetingTimerCharts />
           </TabsContent>
 
           {/* DASHBOARD INDIVIDUAL */}
