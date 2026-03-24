@@ -64,11 +64,8 @@ export function useChecklistTimer({ mes, ano }: UseChecklistTimerParams) {
 
     if (activeTimer && !activeTimer.stopped_at) {
       if (activeTimer.paused_at) {
-        // Timer is paused — show accumulated + time before pause
-        const start = new Date(activeTimer.started_at).getTime();
-        const pausedAt = new Date(activeTimer.paused_at).getTime();
-        const runningSeconds = Math.floor((pausedAt - start) / 1000);
-        setElapsedSeconds(activeTimer.accumulated_seconds + runningSeconds);
+        // Timer is paused — accumulated_seconds already has the full elapsed
+        setElapsedSeconds(activeTimer.accumulated_seconds);
       } else {
         // Timer is running
         const calcElapsed = () => {
