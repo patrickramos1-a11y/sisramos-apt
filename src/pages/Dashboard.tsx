@@ -19,6 +19,7 @@ import MonthlyEvolutionChart from "@/components/dashboard/MonthlyEvolutionChart"
 import RepetitionCompletionChart from "@/components/dashboard/RepetitionCompletionChart";
 import SectorPendingChart from "@/components/dashboard/SectorPendingChart";
 import WeeklyUserChart from "@/components/dashboard/WeeklyUserChart";
+import MeetingTimerCharts from "@/components/dashboard/MeetingTimerCharts";
 
 // Hooks
 import { useDashboardFilters, CrossFilter } from "@/hooks/useDashboardFilters";
@@ -431,6 +432,7 @@ export default function Dashboard() {
               profiles={profiles}
               currentWeek={currentWeek}
             />
+            <MeetingTimerCharts />
           </TabsContent>
 
           {/* DASHBOARD INDIVIDUAL */}
