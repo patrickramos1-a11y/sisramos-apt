@@ -111,42 +111,6 @@ export default function Checklist() {
     localStorage.setItem(getMergeKey(currentMes, currentAno), JSON.stringify(weeks));
   }, [currentMes, currentAno]);
 
-  const handleUnmerge = useCallback(async () => {
-    // Preserve the current merged order back into each week
-    if (mergedWeeks.length >= 2) {
-      // Build interleaved + deduped list to know current order
-      const itemsByWeek: Record<number, ReturnType<typeof getInstancesByWeek>> = {};
-      mergedWeeks.forEach((sem) => {
-        itemsByWeek[sem] = getInstancesByWeek(sem)
-          .filter((i) => !i.parent_id)
-          .sort((a, b) => a.ordem - b.ordem);
-      });
-      const maxLen = Math.max(...Object.values(itemsByWeek).map((arr) => arr.length));
-      const interleaved: Array<{ id: string; semana: number }> = [];
-      for (let pos = 0; pos < maxLen; pos++) {
-        mergedWeeks.forEach((sem) => {
-          const item = itemsByWeek[sem]?.[pos];
-          if (item) interleaved.push({ id: item.id, semana: item.semana });
-        });
-      }
-      // Assign new ordem_override per week based on relative position in merged list
-      const weekCounters: Record<number, number> = {};
-      const updates: Array<{ id: string; ordem: number }> = [];
-      interleaved.forEach(({ id, semana }) => {
-        if (!weekCounters[semana]) weekCounters[semana] = 0;
-        updates.push({ id, ordem: weekCounters[semana]++ });
-      });
-      // Batch update in DB
-      for (const u of updates) {
-        await supabase.from("checklist_instances").update({ ordem_override: u.ordem }).eq("id", u.id);
-      }
-    }
-    setMergedWeeks([]);
-    localStorage.removeItem(getMergeKey(currentMes, currentAno));
-    setSelectedWeek(null);
-    refetch();
-  }, [currentMes, currentAno, mergedWeeks, getInstancesByWeek, refetch]);
-
   useEffect(() => {
     const fetchProfiles = async () => {
       const { data } = await supabase.from("profiles").select("*");
@@ -174,6 +138,38 @@ export default function Checklist() {
     deleteAllMonthInstances,
     refetch,
   } = useChecklistV2({ mes: currentMes, ano: currentAno });
+
+  const handleUnmerge = useCallback(async () => {
+    if (mergedWeeks.length >= 2) {
+      const itemsByWeek: Record<number, ReturnType<typeof getInstancesByWeek>> = {};
+      mergedWeeks.forEach((sem) => {
+        itemsByWeek[sem] = getInstancesByWeek(sem)
+          .filter((i) => !i.parent_id)
+          .sort((a, b) => a.ordem - b.ordem);
+      });
+      const maxLen = Math.max(...Object.values(itemsByWeek).map((arr) => arr.length));
+      const interleaved: Array<{ id: string; semana: number }> = [];
+      for (let pos = 0; pos < maxLen; pos++) {
+        mergedWeeks.forEach((sem) => {
+          const item = itemsByWeek[sem]?.[pos];
+          if (item) interleaved.push({ id: item.id, semana: item.semana });
+        });
+      }
+      const weekCounters: Record<number, number> = {};
+      const updates: Array<{ id: string; ordem: number }> = [];
+      interleaved.forEach(({ id, semana }) => {
+        if (!weekCounters[semana]) weekCounters[semana] = 0;
+        updates.push({ id, ordem: weekCounters[semana]++ });
+      });
+      for (const u of updates) {
+        await supabase.from("checklist_instances").update({ ordem_override: u.ordem }).eq("id", u.id);
+      }
+    }
+    setMergedWeeks([]);
+    localStorage.removeItem(getMergeKey(currentMes, currentAno));
+    setSelectedWeek(null);
+    refetch();
+  }, [currentMes, currentAno, mergedWeeks, getInstancesByWeek, refetch]);
 
   const { getMonthSetting, toggleMonthStatus } = useMonthSettings();
   const {
