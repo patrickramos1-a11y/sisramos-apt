@@ -305,7 +305,7 @@ export default function Dashboard() {
 
         {/* Tabs for different dashboards */}
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
-          <TabsList className="grid w-full grid-cols-4 lg:w-auto lg:inline-grid h-auto">
+          <TabsList className="grid w-full grid-cols-5 lg:w-auto lg:inline-grid h-auto">
             <TabsTrigger value="executivo" className="gap-1.5 text-xs sm:text-sm py-2">
               <LayoutDashboard className="h-4 w-4 hidden sm:inline" />
               <span className="hidden sm:inline">Executivo</span>
@@ -315,6 +315,11 @@ export default function Dashboard() {
               <Clock className="h-4 w-4 hidden sm:inline" />
               <span className="hidden sm:inline">Momento APT</span>
               <span className="sm:hidden">APT</span>
+            </TabsTrigger>
+            <TabsTrigger value="duracao" className="gap-1.5 text-xs sm:text-sm py-2">
+              <Timer className="h-4 w-4 hidden sm:inline" />
+              <span className="hidden sm:inline">Duração</span>
+              <span className="sm:hidden">Duração</span>
             </TabsTrigger>
             <TabsTrigger value="individual" className="gap-1.5 text-xs sm:text-sm py-2">
               <Users className="h-4 w-4 hidden sm:inline" />
