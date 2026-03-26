@@ -161,9 +161,11 @@ export default function Checklist() {
         if (!weekCounters[semana]) weekCounters[semana] = 0;
         updates.push({ id, ordem: weekCounters[semana]++ });
       });
-      for (const u of updates) {
-        await supabase.from("checklist_instances").update({ ordem_override: u.ordem }).eq("id", u.id);
-      }
+      await Promise.all(
+        updates.map((u) =>
+          supabase.from("checklist_instances").update({ ordem_override: u.ordem }).eq("id", u.id)
+        )
+      );
     }
     setMergedWeeks([]);
     localStorage.removeItem(getMergeKey(currentMes, currentAno));
