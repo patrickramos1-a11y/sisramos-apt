@@ -1,0 +1,1 @@
+ALTER TABLE public.checklist_timers DROP CONSTRAINT IF EXISTS checklist_timers_mes_ano_semana_key;
