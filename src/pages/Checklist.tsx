@@ -11,7 +11,7 @@ import ChecklistTimerHistory from "@/components/checklist/ChecklistTimerHistory"
 import ChecklistWeekTable from "@/components/checklist/ChecklistWeekTable";
 import NovoItemChecklistDialog from "@/components/checklist/NovoItemChecklistDialog";
 import MergeWeeksDialog from "@/components/checklist/MergeWeeksDialog";
-import { Loader2, Info, Copy, Lock, Unlock, Filter, X, ChevronLeft, ChevronRight, CalendarDays, Trash2 } from "lucide-react";
+import { Loader2, Info, Copy, Lock, Unlock, ChevronLeft, ChevronRight, CalendarDays, Trash2, MoreHorizontal } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
