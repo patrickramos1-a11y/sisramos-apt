@@ -256,6 +256,7 @@ export function useChecklistV2({ mes, ano }: UseChecklistV2Options) {
           ...i,
           ...(updates.descricao_override !== undefined && { descricao: updates.descricao_override }),
           ...(updates.link_override !== undefined && { link: updates.link_override }),
+          ...(updates.prioridade !== undefined && { prioridade: updates.prioridade }),
           ...updates,
         };
       })
