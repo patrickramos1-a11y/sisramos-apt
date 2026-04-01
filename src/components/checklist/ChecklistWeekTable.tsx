@@ -171,14 +171,15 @@ export default function ChecklistWeekTable({
   };
 
   // Adapter functions for SortableChecklistItem compatibility
-  const handleUpdateItem = useCallback(async (id: string, updates: Partial<{ texto: string; concluido: boolean; link: string | null; status: ChecklistStatus }>) => {
+  const handleUpdateItem = useCallback(async (id: string, updates: Partial<{ texto: string; concluido: boolean; link: string | null; status: ChecklistStatus; prioridade: any }>) => {
     if (updates.status !== undefined) {
       await onUpdateStatus(id, updates.status);
     }
-    if (updates.texto !== undefined || updates.link !== undefined) {
+    if (updates.texto !== undefined || updates.link !== undefined || updates.prioridade !== undefined) {
       const instanceUpdates: any = {};
       if (updates.texto !== undefined) instanceUpdates.descricao_override = updates.texto;
       if (updates.link !== undefined) instanceUpdates.link_override = updates.link;
+      if (updates.prioridade !== undefined) instanceUpdates.prioridade = updates.prioridade;
       await onUpdateInstance(id, instanceUpdates);
     }
   }, [onUpdateStatus, onUpdateInstance]);
