@@ -300,6 +300,7 @@ export function useChecklistV2({ mes, ano }: UseChecklistV2Options) {
     link?: string;
     assignees?: string[];
     parent_id?: string;
+    prioridade?: Prioridade;
   }) => {
     try {
       if (params.tipo_item === "recorrente") {
