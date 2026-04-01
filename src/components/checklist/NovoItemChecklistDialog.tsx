@@ -86,6 +86,7 @@ export default function NovoItemChecklistDialog({
   const [texto, setTexto] = useState("");
   const [link, setLink] = useState("");
   const [tipoItem, setTipoItem] = useState<TipoItem>("recorrente");
+  const [prioridade, setPrioridade] = useState<Prioridade>("media");
   const [meses, setMeses] = useState<string[]>([String(defaultMes ?? now.getMonth() + 1)]);
   const [anos, setAnos] = useState<string[]>([String(defaultAno ?? now.getFullYear())]);
   const [semanas, setSemanas] = useState<string[]>([String(defaultSemana ?? 1)]);
