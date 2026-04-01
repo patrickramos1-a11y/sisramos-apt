@@ -55,7 +55,7 @@ export default function BottomNav() {
               key={item.name}
               onClick={() => navigate(item.href)}
               className={cn(
-                "relative flex flex-col items-center justify-center flex-1 gap-0.5 min-h-[44px] transition-colors",
+                "relative flex flex-col items-center justify-center flex-1 gap-0.5 min-h-[44px] transition-colors touch-feedback",
                 isActive
                   ? "text-primary"
                   : "text-muted-foreground active:text-foreground"
@@ -64,8 +64,11 @@ export default function BottomNav() {
               {isActive && (
                 <div className="absolute top-0 left-1/2 -translate-x-1/2 w-8 h-[3px] rounded-b-full bg-primary" />
               )}
-              <item.icon className={cn("h-5 w-5", isActive && "stroke-[2.5]")} />
-              <span className={cn("text-[10px] leading-tight", isActive ? "font-semibold" : "font-normal")}>
+              {isActive && (
+                <div className="absolute inset-x-2 inset-y-1 rounded-xl bg-primary/8" />
+              )}
+              <item.icon className={cn("h-5 w-5 relative z-10", isActive && "stroke-[2.5]")} />
+              <span className={cn("text-[11px] leading-tight relative z-10", isActive ? "font-semibold" : "font-normal")}>
                 {item.name}
               </span>
             </button>
