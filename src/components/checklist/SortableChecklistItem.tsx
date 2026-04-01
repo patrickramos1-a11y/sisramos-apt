@@ -151,12 +151,12 @@ export default function SortableChecklistItem({
         justChanged && "animate-highlight-flash"
       )}
     >
-      {/* Drag handle */}
+      {/* Drag handle - larger touch area */}
       {canModify && (
         <button
           {...attributes}
           {...listeners}
-          className="shrink-0 cursor-grab active:cursor-grabbing focus:outline-none text-muted-foreground hover:text-foreground transition-colors"
+          className="shrink-0 cursor-grab active:cursor-grabbing focus:outline-none text-muted-foreground hover:text-foreground transition-colors p-1 -m-1 min-w-[36px] min-h-[36px] flex items-center justify-center"
         >
           <GripVertical className="h-5 w-5" />
         </button>
