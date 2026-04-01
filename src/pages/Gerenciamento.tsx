@@ -35,7 +35,7 @@ export default function Gerenciamento() {
             Gestão estratégica de demandas e setores
           </p>
 
-          <div className="flex gap-1 mt-3 p-1 bg-muted/50 rounded-lg w-fit">
+          <div className="flex gap-1 mt-3 p-1 bg-muted/50 rounded-lg w-fit md:hidden">
             {tabs.map((tab) => (
               <button
                 key={tab.key}
