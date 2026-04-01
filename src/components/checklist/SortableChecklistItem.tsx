@@ -195,6 +195,28 @@ export default function SortableChecklistItem({
               className="text-sm"
             />
           </div>
+          <div className="flex items-center gap-2">
+            <span className="text-xs text-muted-foreground">Prioridade:</span>
+            <div className="flex items-center gap-1">
+              {(["alta", "media", "baixa"] as const).map((p) => (
+                <button
+                  key={p}
+                  type="button"
+                  onClick={() => setEditingPrioridade(editingPrioridade === p ? null : p)}
+                  className={cn(
+                    "text-[10px] font-medium px-2 py-0.5 rounded-full border transition-all",
+                    editingPrioridade === p ? (
+                      p === "alta" ? "bg-red-500/20 text-red-700 dark:text-red-400 border-red-500/30" :
+                      p === "media" ? "bg-amber-500/20 text-amber-700 dark:text-amber-400 border-amber-500/30" :
+                      "bg-green-500/20 text-green-700 dark:text-green-400 border-green-500/30"
+                    ) : "bg-muted/30 text-muted-foreground border-transparent hover:border-border"
+                  )}
+                >
+                  {p === "alta" ? "Alta" : p === "media" ? "Média" : "Baixa"}
+                </button>
+              ))}
+            </div>
+          </div>
           <div className="flex items-center gap-1 justify-end">
             <Button size="sm" variant="ghost" className="h-7 px-2 text-xs" onClick={handleSaveEdit}>
               <Check className="h-3.5 w-3.5 text-primary mr-1" />
