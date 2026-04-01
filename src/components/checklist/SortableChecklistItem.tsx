@@ -40,7 +40,7 @@ interface SortableChecklistItemProps {
   canEdit: boolean;
   profiles: Profile[];
   index: number;
-  onUpdateItem: (id: string, updates: Partial<{ texto: string; concluido: boolean; link: string | null; status: ChecklistStatus }>) => Promise<void>;
+  onUpdateItem: (id: string, updates: Partial<{ texto: string; concluido: boolean; link: string | null; status: ChecklistStatus; prioridade: Prioridade | null }>) => Promise<void>;
   onDeleteItem: (id: string) => Promise<void>;
   onUpdateAssignees: (itemId: string, userIds: string[]) => Promise<void>;
 }
