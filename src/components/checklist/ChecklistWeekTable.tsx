@@ -199,7 +199,7 @@ export default function ChecklistWeekTable({
         parent_id: inst.parent_id,
         children: inst.children,
         semana: inst.semana,
-        prioridade: (inst as any).prioridade || "media",
+        prioridade: (inst as any).prioridade || null,
         sourceWeeks: dupEntry ? dupEntry.semanas : [inst.semana],
       };
     });

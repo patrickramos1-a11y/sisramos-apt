@@ -139,7 +139,7 @@ export default function NovoItemChecklistDialog({
       setTexto("");
       setLink("");
       setTipoItem("recorrente");
-      setPrioridade("media");
+      setPrioridade(null);
       setMeses([String(defaultMes ?? now.getMonth() + 1)]);
       setAnos([String(defaultAno ?? now.getFullYear())]);
       setSemanas([String(defaultSemana ?? 1)]);
