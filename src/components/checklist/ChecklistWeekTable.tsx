@@ -133,8 +133,8 @@ export default function ChecklistWeekTable({
     if (sortByPriority !== "off") {
       const score: Record<string, number> = { alta: 3, media: 2, baixa: 1 };
       result = [...result].sort((a, b) => {
-        const sa = score[(a as any).prioridade || "media"] || 2;
-        const sb = score[(b as any).prioridade || "media"] || 2;
+        const sa = score[(a as any).prioridade] || 0;
+        const sb = score[(b as any).prioridade] || 0;
         return sortByPriority === "desc" ? sb - sa : sa - sb;
       });
     }
