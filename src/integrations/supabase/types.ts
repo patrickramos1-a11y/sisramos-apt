@@ -54,7 +54,7 @@ export type Database = {
           mes: number
           ordem_override: number | null
           parent_id: string | null
-          prioridade: string
+          prioridade: string | null
           semana: number
           status: string
           template_id: string | null
@@ -71,7 +71,7 @@ export type Database = {
           mes: number
           ordem_override?: number | null
           parent_id?: string | null
-          prioridade?: string
+          prioridade?: string | null
           semana: number
           status?: string
           template_id?: string | null
@@ -88,7 +88,7 @@ export type Database = {
           mes?: number
           ordem_override?: number | null
           parent_id?: string | null
-          prioridade?: string
+          prioridade?: string | null
           semana?: number
           status?: string
           template_id?: string | null
@@ -258,7 +258,7 @@ export type Database = {
           id: string
           link_default: string | null
           ordem_global: number
-          prioridade_default: string
+          prioridade_default: string | null
           semanas_aplicaveis: number[]
           updated_at: string
         }
@@ -269,7 +269,7 @@ export type Database = {
           id?: string
           link_default?: string | null
           ordem_global?: number
-          prioridade_default?: string
+          prioridade_default?: string | null
           semanas_aplicaveis?: number[]
           updated_at?: string
         }
@@ -280,7 +280,7 @@ export type Database = {
           id?: string
           link_default?: string | null
           ordem_global?: number
-          prioridade_default?: string
+          prioridade_default?: string | null
           semanas_aplicaveis?: number[]
           updated_at?: string
         }

@@ -6,10 +6,12 @@ import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip";
+
 import { Pencil, Trash2, Check, X, CheckCircle2, Link as LinkIcon, ExternalLink, Circle, XCircle, GripVertical } from "lucide-react";
 import { cn } from "@/lib/utils";
 import UserAssignmentPopover from "./UserAssignmentPopover";
 import type { ChecklistStatus } from "@/hooks/useChecklist";
+import type { Prioridade } from "@/hooks/useChecklistV2";
 
 interface Profile {
   id: string;
@@ -27,7 +29,7 @@ interface ChecklistItem {
   link?: string | null;
   assignees?: string[];
   tipo_item?: string;
-  prioridade?: string;
+  prioridade?: Prioridade | null;
 }
 
 interface SortableChecklistItemProps {
@@ -38,7 +40,7 @@ interface SortableChecklistItemProps {
   canEdit: boolean;
   profiles: Profile[];
   index: number;
-  onUpdateItem: (id: string, updates: Partial<{ texto: string; concluido: boolean; link: string | null; status: ChecklistStatus }>) => Promise<void>;
+  onUpdateItem: (id: string, updates: Partial<{ texto: string; concluido: boolean; link: string | null; status: ChecklistStatus; prioridade: Prioridade | null }>) => Promise<void>;
   onDeleteItem: (id: string) => Promise<void>;
   onUpdateAssignees: (itemId: string, userIds: string[]) => Promise<void>;
 }
@@ -58,6 +60,7 @@ export default function SortableChecklistItem({
   const [isEditing, setIsEditing] = useState(false);
   const [editingText, setEditingText] = useState("");
   const [editingLink, setEditingLink] = useState("");
+  const [editingPrioridade, setEditingPrioridade] = useState<Prioridade | null>(null);
   const [justChanged, setJustChanged] = useState(false);
 
   const {
@@ -78,6 +81,7 @@ export default function SortableChecklistItem({
     setIsEditing(true);
     setEditingText(item.texto);
     setEditingLink(item.link || "");
+    setEditingPrioridade(item.prioridade || null);
   };
 
   const handleSaveEdit = async () => {
@@ -85,6 +89,7 @@ export default function SortableChecklistItem({
     await onUpdateItem(item.id, { 
       texto: editingText.trim(),
       link: editingLink.trim() || null,
+      prioridade: editingPrioridade,
     });
     setIsEditing(false);
   };
@@ -93,8 +98,8 @@ export default function SortableChecklistItem({
     setIsEditing(false);
     setEditingText("");
     setEditingLink("");
+    setEditingPrioridade(null);
   };
-
 
   const handleStatusClick = useCallback(async () => {
     const currentStatus: ChecklistStatus = item.status || "pendente";
@@ -189,6 +194,28 @@ export default function SortableChecklistItem({
               placeholder="https://link-de-referencia.com"
               className="text-sm"
             />
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="text-xs text-muted-foreground">Prioridade:</span>
+            <div className="flex items-center gap-1">
+              {(["alta", "media", "baixa"] as const).map((p) => (
+                <button
+                  key={p}
+                  type="button"
+                  onClick={() => setEditingPrioridade(editingPrioridade === p ? null : p)}
+                  className={cn(
+                    "text-[10px] font-medium px-2 py-0.5 rounded-full border transition-all",
+                    editingPrioridade === p ? (
+                      p === "alta" ? "bg-red-500/20 text-red-700 dark:text-red-400 border-red-500/30" :
+                      p === "media" ? "bg-amber-500/20 text-amber-700 dark:text-amber-400 border-amber-500/30" :
+                      "bg-green-500/20 text-green-700 dark:text-green-400 border-green-500/30"
+                    ) : "bg-muted/30 text-muted-foreground border-transparent hover:border-border"
+                  )}
+                >
+                  {p === "alta" ? "Alta" : p === "media" ? "Média" : "Baixa"}
+                </button>
+              ))}
+            </div>
           </div>
           <div className="flex items-center gap-1 justify-end">
             <Button size="sm" variant="ghost" className="h-7 px-2 text-xs" onClick={handleSaveEdit}>

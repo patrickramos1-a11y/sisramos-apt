@@ -133,8 +133,8 @@ export default function ChecklistWeekTable({
     if (sortByPriority !== "off") {
       const score: Record<string, number> = { alta: 3, media: 2, baixa: 1 };
       result = [...result].sort((a, b) => {
-        const sa = score[(a as any).prioridade || "media"] || 2;
-        const sb = score[(b as any).prioridade || "media"] || 2;
+        const sa = score[(a as any).prioridade] || 0;
+        const sb = score[(b as any).prioridade] || 0;
         return sortByPriority === "desc" ? sb - sa : sa - sb;
       });
     }
@@ -171,14 +171,15 @@ export default function ChecklistWeekTable({
   };
 
   // Adapter functions for SortableChecklistItem compatibility
-  const handleUpdateItem = useCallback(async (id: string, updates: Partial<{ texto: string; concluido: boolean; link: string | null; status: ChecklistStatus }>) => {
+  const handleUpdateItem = useCallback(async (id: string, updates: Partial<{ texto: string; concluido: boolean; link: string | null; status: ChecklistStatus; prioridade: any }>) => {
     if (updates.status !== undefined) {
       await onUpdateStatus(id, updates.status);
     }
-    if (updates.texto !== undefined || updates.link !== undefined) {
+    if (updates.texto !== undefined || updates.link !== undefined || updates.prioridade !== undefined) {
       const instanceUpdates: any = {};
       if (updates.texto !== undefined) instanceUpdates.descricao_override = updates.texto;
       if (updates.link !== undefined) instanceUpdates.link_override = updates.link;
+      if (updates.prioridade !== undefined) instanceUpdates.prioridade = updates.prioridade;
       await onUpdateInstance(id, instanceUpdates);
     }
   }, [onUpdateStatus, onUpdateInstance]);
@@ -199,7 +200,7 @@ export default function ChecklistWeekTable({
         parent_id: inst.parent_id,
         children: inst.children,
         semana: inst.semana,
-        prioridade: (inst as any).prioridade || "media",
+        prioridade: (inst as any).prioridade || null,
         sourceWeeks: dupEntry ? dupEntry.semanas : [inst.semana],
       };
     });

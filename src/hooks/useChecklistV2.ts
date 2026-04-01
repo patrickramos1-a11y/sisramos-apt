@@ -17,7 +17,7 @@ export interface ChecklistTemplate {
   default_assignees?: string[];
 }
 
-export type Prioridade = "alta" | "media" | "baixa";
+export type Prioridade = "alta" | "media" | "baixa" | null;
 
 export interface ChecklistInstance {
   id: string;
@@ -133,7 +133,7 @@ export function useChecklistV2({ mes, ano }: UseChecklistV2Options) {
         descricao: inst.descricao_override || template?.descricao || "(Sem descrição)",
         link: inst.link_override ?? template?.link_default ?? null,
         ordem: inst.ordem_override ?? template?.ordem_global ?? 0,
-        prioridade: inst.prioridade || (template as any)?.prioridade_default || "media",
+        prioridade: inst.prioridade || (template as any)?.prioridade_default || null,
         assignees: assigneesMap[inst.id] || [],
       };
     });
@@ -312,7 +312,7 @@ export function useChecklistV2({ mes, ano }: UseChecklistV2Options) {
             link_default: params.link || null,
             ordem_global: templates.length,
             semanas_aplicaveis: params.semanas,
-            prioridade_default: params.prioridade || "media",
+            prioridade_default: params.prioridade || null,
           })
           .select()
           .single();
@@ -340,7 +340,7 @@ export function useChecklistV2({ mes, ano }: UseChecklistV2Options) {
                 semana: week,
                 tipo_item: "recorrente",
                 parent_id: params.parent_id || null,
-                prioridade: params.prioridade || "media",
+                prioridade: params.prioridade || null,
               });
             }
           }
@@ -378,7 +378,7 @@ export function useChecklistV2({ mes, ano }: UseChecklistV2Options) {
                 descricao_override: params.descricao,
                 link_override: params.link || null,
                 parent_id: params.parent_id || null,
-                prioridade: params.prioridade || "media",
+                prioridade: params.prioridade || null,
               });
             }
           }

@@ -22,6 +22,7 @@ import {
 import { MultiSelectDropdown } from "@/components/ui/multi-select-dropdown";
 import { Plus } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import { cn } from "@/lib/utils";
 import type { TipoItem, Prioridade } from "@/hooks/useChecklistV2";
 
 interface Profile {
@@ -86,7 +87,7 @@ export default function NovoItemChecklistDialog({
   const [texto, setTexto] = useState("");
   const [link, setLink] = useState("");
   const [tipoItem, setTipoItem] = useState<TipoItem>("recorrente");
-  const [prioridade, setPrioridade] = useState<Prioridade>("media");
+  const [prioridade, setPrioridade] = useState<Prioridade>(null);
   const [meses, setMeses] = useState<string[]>([String(defaultMes ?? now.getMonth() + 1)]);
   const [anos, setAnos] = useState<string[]>([String(defaultAno ?? now.getFullYear())]);
   const [semanas, setSemanas] = useState<string[]>([String(defaultSemana ?? 1)]);
@@ -139,7 +140,7 @@ export default function NovoItemChecklistDialog({
       setTexto("");
       setLink("");
       setTipoItem("recorrente");
-      setPrioridade("media");
+      setPrioridade(null);
       setMeses([String(defaultMes ?? now.getMonth() + 1)]);
       setAnos([String(defaultAno ?? now.getFullYear())]);
       setSemanas([String(defaultSemana ?? 1)]);
@@ -193,32 +194,31 @@ export default function NovoItemChecklistDialog({
 
           {/* Priority selection */}
           <div className="space-y-2">
-            <Label>Prioridade</Label>
-            <Select value={prioridade} onValueChange={(v) => setPrioridade(v as Prioridade)}>
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="alta">
-                  <span className="flex items-center gap-2">
-                    <span className="w-2 h-2 rounded-full bg-red-500" />
-                    <span className="font-medium">Alta</span>
-                  </span>
-                </SelectItem>
-                <SelectItem value="media">
-                  <span className="flex items-center gap-2">
-                    <span className="w-2 h-2 rounded-full bg-amber-500" />
-                    <span className="font-medium">Média</span>
-                  </span>
-                </SelectItem>
-                <SelectItem value="baixa">
-                  <span className="flex items-center gap-2">
-                    <span className="w-2 h-2 rounded-full bg-green-500" />
-                    <span className="font-medium">Baixa</span>
-                  </span>
-                </SelectItem>
-              </SelectContent>
-            </Select>
+            <Label>Prioridade <span className="text-muted-foreground text-xs font-normal">(opcional)</span></Label>
+            <div className="flex items-center gap-1">
+              {([
+                { value: "alta" as const, label: "Alta", dotClass: "bg-red-500" },
+                { value: "media" as const, label: "Média", dotClass: "bg-amber-500" },
+                { value: "baixa" as const, label: "Baixa", dotClass: "bg-green-500" },
+              ]).map((p) => (
+                <button
+                  key={p.value}
+                  type="button"
+                  onClick={() => setPrioridade(prioridade === p.value ? null : p.value)}
+                  className={cn(
+                    "flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-full border transition-all",
+                    prioridade === p.value
+                      ? p.value === "alta" ? "bg-red-500/20 text-red-700 dark:text-red-400 border-red-500/30"
+                      : p.value === "media" ? "bg-amber-500/20 text-amber-700 dark:text-amber-400 border-amber-500/30"
+                      : "bg-green-500/20 text-green-700 dark:text-green-400 border-green-500/30"
+                      : "bg-muted/30 text-muted-foreground border-transparent hover:border-border"
+                  )}
+                >
+                  <span className={cn("w-2 h-2 rounded-full", p.dotClass)} />
+                  {p.label}
+                </button>
+              ))}
+            </div>
           </div>
           <div className="grid grid-cols-3 gap-3">
             <div className="space-y-2">
