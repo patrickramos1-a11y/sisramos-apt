@@ -122,6 +122,7 @@ export default function NovoItemChecklistDialog({
         anos: anos.map(Number),
         link: link.trim() || undefined,
         assignees: selectedResponsaveis.length > 0 ? selectedResponsaveis : undefined,
+        prioridade,
       });
       setTexto("");
       setLink("");
