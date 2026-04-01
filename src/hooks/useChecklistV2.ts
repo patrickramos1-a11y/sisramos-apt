@@ -17,6 +17,8 @@ export interface ChecklistTemplate {
   default_assignees?: string[];
 }
 
+export type Prioridade = "alta" | "media" | "baixa";
+
 export interface ChecklistInstance {
   id: string;
   template_id: string | null;
@@ -30,6 +32,7 @@ export interface ChecklistInstance {
   ordem_override: number | null;
   parent_id: string | null;
   is_group: boolean;
+  prioridade: Prioridade;
   created_at: string;
   updated_at: string;
   // Computed/joined fields
