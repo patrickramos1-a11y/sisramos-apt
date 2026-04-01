@@ -94,6 +94,8 @@ export default function ChecklistWeekTable({
   const [searchTerm, setSearchTerm] = useState("");
   const [filterStatus, setFilterStatus] = useState<string>("all");
   const [filterTipo, setFilterTipo] = useState<string>("all");
+  const [filterPrioridade, setFilterPrioridade] = useState<string>("all");
+  const [sortByPriority, setSortByPriority] = useState<"off" | "desc" | "asc">("off");
   const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set());
 
   const sensors = useSensors(
