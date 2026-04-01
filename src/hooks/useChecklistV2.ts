@@ -378,7 +378,7 @@ export function useChecklistV2({ mes, ano }: UseChecklistV2Options) {
                 descricao_override: params.descricao,
                 link_override: params.link || null,
                 parent_id: params.parent_id || null,
-                prioridade: params.prioridade || "media",
+                prioridade: params.prioridade || null,
               });
             }
           }
