@@ -330,4 +330,37 @@
   .animate-glow-pulse-amber {
     animation: glowPulseAmber 2s ease-in-out infinite;
   }
+
+  /* Mobile touch feedback */
+  .touch-feedback {
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  .touch-feedback:active {
+    opacity: 0.7;
+    transform: scale(0.97);
+    transition: transform 0.1s ease, opacity 0.1s ease;
+  }
+}
+
+/* Mobile-specific global overrides */
+@media (max-width: 767px) {
+  html {
+    overscroll-behavior: contain;
+    -webkit-text-size-adjust: 100%;
+  }
+
+  body {
+    overscroll-behavior-y: contain;
+  }
+
+  /* Ensure all interactive elements have minimum touch target */
+  button, a, [role="button"], [role="tab"], input, select, textarea {
+    min-height: 36px;
+  }
+
+  /* Prevent horizontal overflow */
+  .overflow-x-auto {
+    -webkit-overflow-scrolling: touch;
+  }
 }
