@@ -133,7 +133,7 @@ export function useChecklistV2({ mes, ano }: UseChecklistV2Options) {
         descricao: inst.descricao_override || template?.descricao || "(Sem descrição)",
         link: inst.link_override ?? template?.link_default ?? null,
         ordem: inst.ordem_override ?? template?.ordem_global ?? 0,
-        prioridade: inst.prioridade || (template as any)?.prioridade_default || "media",
+        prioridade: inst.prioridade || (template as any)?.prioridade_default || null,
         assignees: assigneesMap[inst.id] || [],
       };
     });
