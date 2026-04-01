@@ -195,24 +195,24 @@ export default function SortableChecklistItem({
               className="text-sm"
             />
           </div>
-          <div className="flex items-center gap-2">
-            <span className="text-xs text-muted-foreground">Prioridade:</span>
-            <div className="flex items-center gap-1">
+          <div className="flex items-center gap-3">
+            <span className="text-sm font-medium text-foreground">Prioridade:</span>
+            <div className="flex items-center gap-2">
               {(["alta", "media", "baixa"] as const).map((p) => (
                 <button
                   key={p}
                   type="button"
                   onClick={() => setEditingPrioridade(editingPrioridade === p ? null : p)}
                   className={cn(
-                    "text-[10px] font-medium px-2 py-0.5 rounded-full border transition-all",
+                    "text-xs font-semibold px-3 py-1 rounded-full border-2 transition-all",
                     editingPrioridade === p ? (
-                      p === "alta" ? "bg-red-500/20 text-red-700 dark:text-red-400 border-red-500/30" :
-                      p === "media" ? "bg-amber-500/20 text-amber-700 dark:text-amber-400 border-amber-500/30" :
-                      "bg-green-500/20 text-green-700 dark:text-green-400 border-green-500/30"
-                    ) : "bg-muted/30 text-muted-foreground border-transparent hover:border-border"
+                      p === "alta" ? "bg-red-500/25 text-red-600 dark:text-red-400 border-red-500/50 shadow-sm shadow-red-500/10" :
+                      p === "media" ? "bg-amber-500/25 text-amber-600 dark:text-amber-400 border-amber-500/50 shadow-sm shadow-amber-500/10" :
+                      "bg-green-500/25 text-green-600 dark:text-green-400 border-green-500/50 shadow-sm shadow-green-500/10"
+                    ) : "bg-muted/50 text-muted-foreground border-border hover:bg-muted hover:text-foreground"
                   )}
                 >
-                  {p === "alta" ? "Alta" : p === "media" ? "Média" : "Baixa"}
+                  {p === "alta" ? "🔴 Alta" : p === "media" ? "🟡 Média" : "🟢 Baixa"}
                 </button>
               ))}
             </div>
