@@ -170,10 +170,8 @@ export default function AppLayout({ children }: AppLayoutProps) {
               </DropdownMenu>
             </div>
 
-            {/* Mobile: user initial */}
-            <span className="md:hidden text-xs font-medium text-muted-foreground truncate max-w-20">
-              {profile?.nome?.split(" ")[0]}
-            </span>
+            {/* Mobile: user initial - hidden to save space */}
+          
           </div>
         </div>
         {/* Gradient accent line */}

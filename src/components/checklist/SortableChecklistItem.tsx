@@ -321,19 +321,19 @@ export default function SortableChecklistItem({
             </a>
           )}
           
-          {/* Actions */}
+          {/* Actions - always visible on mobile */}
           {canModify && (
             <div className="flex items-center gap-0.5 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity shrink-0">
-              <Button size="icon" variant="ghost" className="h-7 w-7" onClick={handleStartEdit}>
-                <Pencil className="h-3.5 w-3.5" />
+              <Button size="icon" variant="ghost" className="h-9 w-9" onClick={handleStartEdit}>
+                <Pencil className="h-4 w-4" />
               </Button>
               <Button
                 size="icon"
                 variant="ghost"
-                className="h-7 w-7 text-destructive hover:text-destructive"
+                className="h-9 w-9 text-destructive hover:text-destructive"
                 onClick={() => onDeleteItem(item.id)}
               >
-                <Trash2 className="h-3.5 w-3.5" />
+                <Trash2 className="h-4 w-4" />
               </Button>
             </div>
           )}

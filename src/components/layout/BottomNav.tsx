@@ -79,7 +79,7 @@ export default function BottomNav() {
           <SheetTrigger asChild>
             <button
               className={cn(
-                "relative flex flex-col items-center justify-center flex-1 gap-0.5 min-h-[44px] transition-colors",
+                "relative flex flex-col items-center justify-center flex-1 gap-0.5 min-h-[44px] transition-colors touch-feedback",
                 (location.pathname === "/configuracoes" || location.pathname === "/gerenciamento")
                   ? "text-primary" 
                   : "text-muted-foreground active:text-foreground"
@@ -88,8 +88,11 @@ export default function BottomNav() {
               {(location.pathname === "/configuracoes" || location.pathname === "/gerenciamento") && (
                 <div className="absolute top-0 left-1/2 -translate-x-1/2 w-8 h-[3px] rounded-b-full bg-primary" />
               )}
-              <MoreHorizontal className="h-5 w-5" />
-              <span className="text-[10px] leading-tight font-normal">Mais</span>
+              {(location.pathname === "/configuracoes" || location.pathname === "/gerenciamento") && (
+                <div className="absolute inset-x-2 inset-y-1 rounded-xl bg-primary/8" />
+              )}
+              <MoreHorizontal className="h-5 w-5 relative z-10" />
+              <span className="text-[11px] leading-tight font-normal relative z-10">Mais</span>
             </button>
           </SheetTrigger>
           <SheetContent side="bottom" className="rounded-t-2xl pb-safe">

@@ -108,7 +108,7 @@ export default function DemandaCard({
         </div>
 
         {/* Metadados organizados em grid */}
-        <div className="grid grid-cols-3 gap-2 px-3 pb-2.5">
+        <div className="grid grid-cols-3 gap-2 px-3 pb-2">
           <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
             <User className="h-3.5 w-3.5 shrink-0" />
             <span className="truncate font-medium">{responsavel}</span>
@@ -123,9 +123,9 @@ export default function DemandaCard({
           </div>
         </div>
 
-        {/* Status section - horizontal layout */}
-        <div className="flex items-center justify-center gap-6 px-3 py-2.5 bg-muted/30 border-t">
-          <div className="flex items-center gap-2">
+        {/* Status section - larger touch targets */}
+        <div className="flex items-center justify-center gap-8 px-3 py-3 bg-muted/30 border-t">
+          <div className="flex items-center gap-2.5">
             <span className="text-xs text-muted-foreground font-medium">Feito?</span>
             <StatusBolinha
               status={statusResponsavel}
@@ -135,7 +135,7 @@ export default function DemandaCard({
             />
           </div>
           {showGestorStatus && (
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2.5">
               <span className="text-xs text-muted-foreground font-medium">Aprovado?</span>
               <StatusBolinha
                 status={statusGestor}
