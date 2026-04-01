@@ -243,7 +243,7 @@ export default function APT() {
 
   return (
     <AppLayout>
-      <div className="p-3 md:p-4 lg:p-6 max-w-[1800px] mx-auto">
+      <div className="p-2 md:p-4 lg:p-6 max-w-[1800px] mx-auto">
         {/* Header */}
         <div className="mb-3 md:mb-4 flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
           <div>
