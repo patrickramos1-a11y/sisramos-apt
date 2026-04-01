@@ -340,6 +340,7 @@ export function useChecklistV2({ mes, ano }: UseChecklistV2Options) {
                 semana: week,
                 tipo_item: "recorrente",
                 parent_id: params.parent_id || null,
+                prioridade: params.prioridade || "media",
               });
             }
           }
