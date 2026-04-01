@@ -126,8 +126,20 @@ export default function ChecklistWeekTable({
     if (filterTipo !== "all") {
       result = result.filter((i) => i.tipo_item === filterTipo);
     }
+    if (filterPrioridade !== "all") {
+      result = result.filter((i) => (i as any).prioridade === filterPrioridade);
+    }
+    // Sort by priority if active (client-side only, doesn't change ordem_override)
+    if (sortByPriority !== "off") {
+      const score: Record<string, number> = { alta: 3, media: 2, baixa: 1 };
+      result = [...result].sort((a, b) => {
+        const sa = score[(a as any).prioridade || "media"] || 2;
+        const sb = score[(b as any).prioridade || "media"] || 2;
+        return sortByPriority === "desc" ? sb - sa : sa - sb;
+      });
+    }
     return result;
-  }, [items, searchTerm, filterStatus, filterTipo]);
+  }, [items, searchTerm, filterStatus, filterTipo, filterPrioridade, sortByPriority]);
 
   const weekColors: Record<number, { bg: string; icon: string }> = {
     1: { bg: "from-emerald-500/20 to-emerald-500/5", icon: "bg-emerald-500/30 text-emerald-700 dark:text-emerald-400" },

@@ -220,6 +220,20 @@ export default function SortableChecklistItem({
                   Avulso
                 </span>
               )}
+              {item.prioridade && item.prioridade !== "media" && (
+                <span className={cn(
+                  "shrink-0 text-[10px] font-medium px-1.5 py-0.5 rounded-full border",
+                  item.prioridade === "alta" && "bg-red-500/15 text-red-700 dark:text-red-400 border-red-500/20",
+                  item.prioridade === "baixa" && "bg-green-500/15 text-green-700 dark:text-green-400 border-green-500/20",
+                )}>
+                  {item.prioridade === "alta" ? "Alta" : "Baixa"}
+                </span>
+              )}
+              {item.prioridade === "media" && (
+                <span className="shrink-0 text-[10px] font-medium px-1.5 py-0.5 rounded-full bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/15">
+                  Média
+                </span>
+              )}
             </div>
           </div>
 
