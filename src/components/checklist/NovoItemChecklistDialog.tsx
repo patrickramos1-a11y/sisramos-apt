@@ -39,6 +39,7 @@ interface NovoItemChecklistDialogProps {
     anos: number[];
     link?: string;
     assignees?: string[];
+    prioridade?: Prioridade;
   }) => Promise<void>;
   defaultMes?: number;
   defaultAno?: number;
