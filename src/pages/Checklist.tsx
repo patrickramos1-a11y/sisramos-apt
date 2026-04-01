@@ -470,10 +470,10 @@ export default function Checklist() {
             )}
           </div>
 
-          {/* Second row: week filter + actions */}
+          {/* Second row: week filter + actions - wrap on mobile */}
           <div className="flex items-center gap-2 flex-wrap">
             {/* Week filter */}
-            <div className="w-[130px]">
+            <div className="w-[120px] sm:w-[130px]">
               <MultiSelectDropdown
                 options={SEMANAS_OPTIONS}
                 selected={weekFilter}

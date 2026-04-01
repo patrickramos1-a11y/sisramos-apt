@@ -325,7 +325,7 @@ export default function Configuracoes() {
 
   return (
     <AppLayout>
-      <div className="p-4 lg:p-6 max-w-5xl mx-auto space-y-6">
+      <div className="p-2 md:p-4 lg:p-6 max-w-5xl mx-auto space-y-6">
         <div className="mb-6">
           <h1 className="text-lg md:text-2xl font-bold tracking-tight">Configurações</h1>
           <p className="text-sm text-muted-foreground mt-1">
