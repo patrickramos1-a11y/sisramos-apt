@@ -312,7 +312,7 @@ export function useChecklistV2({ mes, ano }: UseChecklistV2Options) {
             link_default: params.link || null,
             ordem_global: templates.length,
             semanas_aplicaveis: params.semanas,
-            prioridade_default: params.prioridade || "media",
+            prioridade_default: params.prioridade || null,
           })
           .select()
           .single();
