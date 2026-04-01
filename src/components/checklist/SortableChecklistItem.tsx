@@ -166,7 +166,7 @@ export default function SortableChecklistItem({
       <button
         type="button"
         onClick={handleStatusClick}
-        className="shrink-0 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 rounded-full disabled:opacity-50 disabled:cursor-not-allowed transition-transform hover:scale-110"
+        className="shrink-0 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 rounded-full disabled:opacity-50 disabled:cursor-not-allowed transition-transform hover:scale-110 min-w-[36px] min-h-[36px] flex items-center justify-center"
         disabled={!canCompleteItem || (isLocked && !canEdit)}
         title={
           isCompleted ? "Concluído (clique para marcar como não realizado)"
