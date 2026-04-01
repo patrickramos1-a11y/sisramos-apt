@@ -29,7 +29,7 @@ interface ChecklistItem {
   link?: string | null;
   assignees?: string[];
   tipo_item?: string;
-  prioridade?: string;
+  prioridade?: Prioridade | null;
 }
 
 interface SortableChecklistItemProps {
