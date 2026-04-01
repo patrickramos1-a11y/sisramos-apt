@@ -6,7 +6,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+
 import { Pencil, Trash2, Check, X, CheckCircle2, Link as LinkIcon, ExternalLink, Circle, XCircle, GripVertical } from "lucide-react";
 import { cn } from "@/lib/utils";
 import UserAssignmentPopover from "./UserAssignmentPopover";
