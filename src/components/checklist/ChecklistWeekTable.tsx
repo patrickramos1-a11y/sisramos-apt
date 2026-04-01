@@ -441,7 +441,7 @@ export default function ChecklistWeekTable({
             className="h-8 pl-8 text-xs"
           />
         </div>
-        <div className="flex gap-2">
+        <div className="flex gap-2 flex-wrap">
           <Select value={filterStatus} onValueChange={setFilterStatus}>
             <SelectTrigger className="h-8 flex-1 sm:w-[130px] text-xs">
               <SelectValue placeholder="Status" />
@@ -463,6 +463,42 @@ export default function ChecklistWeekTable({
               <SelectItem value="avulso_semana">Avulso</SelectItem>
             </SelectContent>
           </Select>
+          <Select value={filterPrioridade} onValueChange={setFilterPrioridade}>
+            <SelectTrigger className="h-8 flex-1 sm:w-[130px] text-xs">
+              <SelectValue placeholder="Prioridade" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Todas</SelectItem>
+              <SelectItem value="alta">
+                <span className="flex items-center gap-1.5">
+                  <span className="w-2 h-2 rounded-full bg-red-500" />Alta
+                </span>
+              </SelectItem>
+              <SelectItem value="media">
+                <span className="flex items-center gap-1.5">
+                  <span className="w-2 h-2 rounded-full bg-amber-500" />Média
+                </span>
+              </SelectItem>
+              <SelectItem value="baixa">
+                <span className="flex items-center gap-1.5">
+                  <span className="w-2 h-2 rounded-full bg-green-500" />Baixa
+                </span>
+              </SelectItem>
+            </SelectContent>
+          </Select>
+          <Button
+            variant={sortByPriority !== "off" ? "secondary" : "outline"}
+            size="sm"
+            className="h-8 gap-1 text-xs"
+            onClick={() => {
+              if (sortByPriority === "off") setSortByPriority("desc");
+              else if (sortByPriority === "desc") setSortByPriority("asc");
+              else setSortByPriority("off");
+            }}
+          >
+            <ArrowUpDown className="h-3.5 w-3.5" />
+            {sortByPriority === "off" ? "Prioridade" : sortByPriority === "desc" ? "Alta→Baixa" : "Baixa→Alta"}
+          </Button>
         </div>
       </div>
 
