@@ -504,72 +504,112 @@ export default function Checklist() {
                   defaultSemana={selectedWeek || 1}
                 />
 
-                {/* Merge weeks */}
-                <MergeWeeksDialog
-                  currentMerged={mergedWeeks}
-                  onMerge={handleMerge}
-                  onUnmerge={handleUnmerge}
-                />
+                {/* Desktop: all actions visible */}
+                <div className="hidden sm:contents">
+                  <MergeWeeksDialog
+                    currentMerged={mergedWeeks}
+                    onMerge={handleMerge}
+                    onUnmerge={handleUnmerge}
+                  />
 
-                {/* Rollover */}
-                <AlertDialog>
-                  <AlertDialogTrigger asChild>
-                    <Button variant="outline" size="sm" className="h-8 gap-1 text-xs">
-                      <Copy className="h-3.5 w-3.5" />
-                      <span className="hidden sm:inline">Copiar mês</span>
-                    </Button>
-                  </AlertDialogTrigger>
-                  <AlertDialogContent>
-                    <AlertDialogHeader>
-                      <AlertDialogTitle>Copiar checklist para {nextMonthLabel}</AlertDialogTitle>
-                      <AlertDialogDescription>
-                        Serão copiados apenas os <strong>{rolloverItemsCount} itens recorrentes</strong> de {MONTH_NAMES[currentMes - 1]}/{currentAno} para {nextMonthLabel}. Itens avulsos não serão copiados.
-                      </AlertDialogDescription>
-                    </AlertDialogHeader>
-                    <AlertDialogFooter>
-                      <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                      <AlertDialogAction
+                  <AlertDialog>
+                    <AlertDialogTrigger asChild>
+                      <Button variant="outline" size="sm" className="h-8 gap-1 text-xs">
+                        <Copy className="h-3.5 w-3.5" />
+                        Copiar mês
+                      </Button>
+                    </AlertDialogTrigger>
+                    <AlertDialogContent>
+                      <AlertDialogHeader>
+                        <AlertDialogTitle>Copiar checklist para {nextMonthLabel}</AlertDialogTitle>
+                        <AlertDialogDescription>
+                          Serão copiados apenas os <strong>{rolloverItemsCount} itens recorrentes</strong> de {MONTH_NAMES[currentMes - 1]}/{currentAno} para {nextMonthLabel}. Itens avulsos não serão copiados.
+                        </AlertDialogDescription>
+                      </AlertDialogHeader>
+                      <AlertDialogFooter>
+                        <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                        <AlertDialogAction
+                          onClick={() => rolloverToNextMonth(currentMes, currentAno)}
+                          disabled={rolloverItemsCount === 0}
+                        >
+                          Confirmar cópia
+                        </AlertDialogAction>
+                      </AlertDialogFooter>
+                    </AlertDialogContent>
+                  </AlertDialog>
+
+                  <AlertDialog>
+                    <AlertDialogTrigger asChild>
+                      <Button variant="outline" size="sm" className="h-8 gap-1 text-xs text-destructive hover:text-destructive border-destructive/30 hover:bg-destructive/10">
+                        <Trash2 className="h-3.5 w-3.5" />
+                        Apagar mês
+                      </Button>
+                    </AlertDialogTrigger>
+                    <AlertDialogContent>
+                      <AlertDialogHeader>
+                        <AlertDialogTitle>Apagar todos os itens de {MONTH_NAMES[currentMes - 1]}/{currentAno}?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                          Esta ação removerá <strong>todos os itens de todas as semanas</strong> deste mês permanentemente. Isso não pode ser desfeito.
+                        </AlertDialogDescription>
+                      </AlertDialogHeader>
+                      <AlertDialogFooter>
+                        <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                        <AlertDialogAction
+                          className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                          onClick={() => {
+                            deleteAllMonthInstances();
+                            setSelectedWeek(null);
+                          }}
+                          disabled={instances.length === 0}
+                        >
+                          Apagar tudo
+                        </AlertDialogAction>
+                      </AlertDialogFooter>
+                    </AlertDialogContent>
+                  </AlertDialog>
+
+                  <ChecklistTimerHistory />
+                </div>
+
+                {/* Mobile: grouped actions in dropdown */}
+                <div className="sm:hidden">
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button variant="outline" size="sm" className="h-8 gap-1 text-xs min-w-[44px]">
+                        <MoreHorizontal className="h-4 w-4" />
+                        Mais
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end" className="w-48">
+                      <DropdownMenuItem asChild>
+                        <MergeWeeksDialog
+                          currentMerged={mergedWeeks}
+                          onMerge={handleMerge}
+                          onUnmerge={handleUnmerge}
+                        />
+                      </DropdownMenuItem>
+                      <DropdownMenuItem
                         onClick={() => rolloverToNextMonth(currentMes, currentAno)}
                         disabled={rolloverItemsCount === 0}
+                        className="gap-2"
                       >
-                        Confirmar cópia
-                      </AlertDialogAction>
-                    </AlertDialogFooter>
-                  </AlertDialogContent>
-                </AlertDialog>
-
-                {/* Delete all month */}
-                <AlertDialog>
-                  <AlertDialogTrigger asChild>
-                    <Button variant="outline" size="sm" className="h-8 gap-1 text-xs text-destructive hover:text-destructive border-destructive/30 hover:bg-destructive/10">
-                      <Trash2 className="h-3.5 w-3.5" />
-                      <span className="hidden sm:inline">Apagar mês</span>
-                    </Button>
-                  </AlertDialogTrigger>
-                  <AlertDialogContent>
-                    <AlertDialogHeader>
-                      <AlertDialogTitle>Apagar todos os itens de {MONTH_NAMES[currentMes - 1]}/{currentAno}?</AlertDialogTitle>
-                      <AlertDialogDescription>
-                        Esta ação removerá <strong>todos os itens de todas as semanas</strong> deste mês permanentemente. Isso não pode ser desfeito.
-                      </AlertDialogDescription>
-                    </AlertDialogHeader>
-                    <AlertDialogFooter>
-                      <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                      <AlertDialogAction
-                        className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                        <Copy className="h-4 w-4" />
+                        Copiar mês
+                      </DropdownMenuItem>
+                      <DropdownMenuItem
                         onClick={() => {
                           deleteAllMonthInstances();
                           setSelectedWeek(null);
                         }}
                         disabled={instances.length === 0}
+                        className="gap-2 text-destructive focus:text-destructive"
                       >
-                        Apagar tudo
-                      </AlertDialogAction>
-                    </AlertDialogFooter>
-                  </AlertDialogContent>
-                </AlertDialog>
-
-                <ChecklistTimerHistory />
+                        <Trash2 className="h-4 w-4" />
+                        Apagar mês
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                </div>
               </>
             )}
           </div>
