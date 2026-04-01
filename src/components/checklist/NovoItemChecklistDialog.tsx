@@ -22,6 +22,7 @@ import {
 import { MultiSelectDropdown } from "@/components/ui/multi-select-dropdown";
 import { Plus } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import { cn } from "@/lib/utils";
 import type { TipoItem, Prioridade } from "@/hooks/useChecklistV2";
 
 interface Profile {
