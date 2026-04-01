@@ -418,7 +418,7 @@ export default function Checklist() {
 
   return (
     <AppLayout>
-      <div className="p-4 lg:p-6 max-w-[1400px] mx-auto space-y-3">
+      <div className="p-2 md:p-4 lg:p-6 max-w-[1400px] mx-auto space-y-3">
         {/* Compact Header */}
         <div className="flex flex-col gap-3">
           <div className="flex items-center justify-between">
