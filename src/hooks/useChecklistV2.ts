@@ -247,8 +247,8 @@ export function useChecklistV2({ mes, ano }: UseChecklistV2Options) {
     }
   }, [loadData, toast]);
 
-  // Update instance text/link
-  const updateInstance = useCallback(async (instanceId: string, updates: { descricao_override?: string; link_override?: string | null }) => {
+  // Update instance text/link/prioridade
+  const updateInstance = useCallback(async (instanceId: string, updates: { descricao_override?: string; link_override?: string | null; prioridade?: Prioridade }) => {
     setInstances((prev) =>
       prev.map((i) => {
         if (i.id !== instanceId) return i;
