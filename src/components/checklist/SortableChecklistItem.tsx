@@ -151,12 +151,12 @@ export default function SortableChecklistItem({
         justChanged && "animate-highlight-flash"
       )}
     >
-      {/* Drag handle */}
+      {/* Drag handle - larger touch area */}
       {canModify && (
         <button
           {...attributes}
           {...listeners}
-          className="shrink-0 cursor-grab active:cursor-grabbing focus:outline-none text-muted-foreground hover:text-foreground transition-colors"
+          className="shrink-0 cursor-grab active:cursor-grabbing focus:outline-none text-muted-foreground hover:text-foreground transition-colors p-1 -m-1 min-w-[36px] min-h-[36px] flex items-center justify-center"
         >
           <GripVertical className="h-5 w-5" />
         </button>
@@ -166,7 +166,7 @@ export default function SortableChecklistItem({
       <button
         type="button"
         onClick={handleStatusClick}
-        className="shrink-0 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 rounded-full disabled:opacity-50 disabled:cursor-not-allowed transition-transform hover:scale-110"
+        className="shrink-0 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 rounded-full disabled:opacity-50 disabled:cursor-not-allowed transition-transform hover:scale-110 min-w-[36px] min-h-[36px] flex items-center justify-center"
         disabled={!canCompleteItem || (isLocked && !canEdit)}
         title={
           isCompleted ? "Concluído (clique para marcar como não realizado)"
@@ -187,7 +187,7 @@ export default function SortableChecklistItem({
             placeholder="Descrição da tarefa"
           />
           <div className="flex items-center gap-2">
-            <LinkIcon className="h-4 w-4 text-muted-foreground" />
+            <LinkIcon className="h-4 w-4 text-muted-foreground shrink-0" />
             <Input
               value={editingLink}
               onChange={(e) => setEditingLink(e.target.value)}
@@ -195,16 +195,16 @@ export default function SortableChecklistItem({
               className="text-sm"
             />
           </div>
-          <div className="flex items-center gap-3">
-            <span className="text-sm font-medium text-foreground">Prioridade:</span>
-            <div className="flex items-center gap-2">
+          <div className="flex flex-col sm:flex-row sm:items-center gap-2">
+            <span className="text-sm font-medium text-foreground shrink-0">Prioridade:</span>
+            <div className="flex items-center gap-2 flex-wrap">
               {(["alta", "media", "baixa"] as const).map((p) => (
                 <button
                   key={p}
                   type="button"
                   onClick={() => setEditingPrioridade(editingPrioridade === p ? null : p)}
                   className={cn(
-                    "text-xs font-semibold px-3 py-1 rounded-full border-2 transition-all",
+                    "text-xs font-semibold px-4 py-2 rounded-full border-2 transition-all min-h-[36px]",
                     editingPrioridade === p ? (
                       p === "alta" ? "bg-red-500/25 text-red-600 dark:text-red-400 border-red-500/50 shadow-sm shadow-red-500/10" :
                       p === "media" ? "bg-amber-500/25 text-amber-600 dark:text-amber-400 border-amber-500/50 shadow-sm shadow-amber-500/10" :
@@ -217,12 +217,12 @@ export default function SortableChecklistItem({
               ))}
             </div>
           </div>
-          <div className="flex items-center gap-1 justify-end">
-            <Button size="sm" variant="ghost" className="h-7 px-2 text-xs" onClick={handleSaveEdit}>
+          <div className="flex items-center gap-2 justify-end">
+            <Button size="sm" variant="ghost" className="h-9 px-3 text-xs" onClick={handleSaveEdit}>
               <Check className="h-3.5 w-3.5 text-primary mr-1" />
               Salvar
             </Button>
-            <Button size="sm" variant="ghost" className="h-7 px-2 text-xs" onClick={handleCancelEdit}>
+            <Button size="sm" variant="ghost" className="h-9 px-3 text-xs" onClick={handleCancelEdit}>
               <X className="h-3.5 w-3.5 text-muted-foreground mr-1" />
               Cancelar
             </Button>
@@ -321,19 +321,19 @@ export default function SortableChecklistItem({
             </a>
           )}
           
-          {/* Actions */}
+          {/* Actions - always visible on mobile */}
           {canModify && (
             <div className="flex items-center gap-0.5 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity shrink-0">
-              <Button size="icon" variant="ghost" className="h-7 w-7" onClick={handleStartEdit}>
-                <Pencil className="h-3.5 w-3.5" />
+              <Button size="icon" variant="ghost" className="h-9 w-9" onClick={handleStartEdit}>
+                <Pencil className="h-4 w-4" />
               </Button>
               <Button
                 size="icon"
                 variant="ghost"
-                className="h-7 w-7 text-destructive hover:text-destructive"
+                className="h-9 w-9 text-destructive hover:text-destructive"
                 onClick={() => onDeleteItem(item.id)}
               >
-                <Trash2 className="h-3.5 w-3.5" />
+                <Trash2 className="h-4 w-4" />
               </Button>
             </div>
           )}

@@ -62,7 +62,7 @@ export default function AppLayout({ children }: AppLayoutProps) {
     <div className="min-h-screen bg-background">
       {/* Header */}
       <header className="sticky top-0 z-50 border-b bg-card/95 backdrop-blur-lg shadow-sm">
-        <div className="flex h-14 items-center justify-between px-3 md:px-6">
+        <div className="flex h-12 md:h-14 items-center justify-between px-3 md:px-6">
           {/* Logo and nav */}
           <div className="flex items-center gap-6 lg:gap-8">
             {/* Logo */}
@@ -170,10 +170,8 @@ export default function AppLayout({ children }: AppLayoutProps) {
               </DropdownMenu>
             </div>
 
-            {/* Mobile: user initial */}
-            <span className="md:hidden text-xs font-medium text-muted-foreground truncate max-w-20">
-              {profile?.nome?.split(" ")[0]}
-            </span>
+            {/* Mobile: user initial - hidden to save space */}
+          
           </div>
         </div>
         {/* Gradient accent line */}

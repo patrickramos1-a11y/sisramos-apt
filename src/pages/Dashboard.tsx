@@ -281,7 +281,7 @@ export default function Dashboard() {
 
   return (
     <AppLayout>
-      <div className="p-4 lg:p-6 space-y-4 max-w-[1800px] mx-auto">
+      <div className="p-2 md:p-4 lg:p-6 space-y-4 max-w-[1800px] mx-auto">
         {/* Header */}
         <div>
           <h1 className="text-lg md:text-2xl font-bold tracking-tight">Dashboard APT</h1>
@@ -305,33 +305,35 @@ export default function Dashboard() {
 
         {/* Tabs for different dashboards */}
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
-          <TabsList className="grid w-full grid-cols-5 lg:w-auto lg:inline-grid h-auto">
-            <TabsTrigger value="executivo" className="gap-1.5 text-xs sm:text-sm py-2">
-              <LayoutDashboard className="h-4 w-4 hidden sm:inline" />
-              <span className="hidden sm:inline">Executivo</span>
-              <span className="sm:hidden">Exec.</span>
-            </TabsTrigger>
-            <TabsTrigger value="operacional" className="gap-1.5 text-xs sm:text-sm py-2">
-              <Clock className="h-4 w-4 hidden sm:inline" />
-              <span className="hidden sm:inline">Momento APT</span>
-              <span className="sm:hidden">APT</span>
-            </TabsTrigger>
-            <TabsTrigger value="duracao" className="gap-1.5 text-xs sm:text-sm py-2">
-              <Timer className="h-4 w-4 hidden sm:inline" />
-              <span className="hidden sm:inline">Duração</span>
-              <span className="sm:hidden">Duração</span>
-            </TabsTrigger>
-            <TabsTrigger value="individual" className="gap-1.5 text-xs sm:text-sm py-2">
-              <Users className="h-4 w-4 hidden sm:inline" />
-              <span className="hidden sm:inline">Individual</span>
-              <span className="sm:hidden">Indiv.</span>
-            </TabsTrigger>
-            <TabsTrigger value="historico" className="gap-1.5 text-xs sm:text-sm py-2">
-              <TrendingUp className="h-4 w-4 hidden sm:inline" />
-              <span className="hidden sm:inline">Histórico</span>
-              <span className="sm:hidden">Hist.</span>
-            </TabsTrigger>
-          </TabsList>
+          <div className="overflow-x-auto -mx-2 px-2 md:mx-0 md:px-0">
+            <TabsList className="inline-flex w-auto min-w-full md:grid md:w-full md:grid-cols-5 lg:w-auto lg:inline-grid h-auto snap-x snap-mandatory">
+              <TabsTrigger value="executivo" className="gap-1.5 text-xs sm:text-sm py-2.5 snap-start whitespace-nowrap min-h-[40px]">
+                <LayoutDashboard className="h-4 w-4 hidden sm:inline" />
+                <span className="hidden sm:inline">Executivo</span>
+                <span className="sm:hidden">Exec.</span>
+              </TabsTrigger>
+              <TabsTrigger value="operacional" className="gap-1.5 text-xs sm:text-sm py-2.5 snap-start whitespace-nowrap min-h-[40px]">
+                <Clock className="h-4 w-4 hidden sm:inline" />
+                <span className="hidden sm:inline">Momento APT</span>
+                <span className="sm:hidden">APT</span>
+              </TabsTrigger>
+              <TabsTrigger value="duracao" className="gap-1.5 text-xs sm:text-sm py-2.5 snap-start whitespace-nowrap min-h-[40px]">
+                <Timer className="h-4 w-4 hidden sm:inline" />
+                <span className="hidden sm:inline">Duração</span>
+                <span className="sm:hidden">Duração</span>
+              </TabsTrigger>
+              <TabsTrigger value="individual" className="gap-1.5 text-xs sm:text-sm py-2.5 snap-start whitespace-nowrap min-h-[40px]">
+                <Users className="h-4 w-4 hidden sm:inline" />
+                <span className="hidden sm:inline">Individual</span>
+                <span className="sm:hidden">Indiv.</span>
+              </TabsTrigger>
+              <TabsTrigger value="historico" className="gap-1.5 text-xs sm:text-sm py-2.5 snap-start whitespace-nowrap min-h-[40px]">
+                <TrendingUp className="h-4 w-4 hidden sm:inline" />
+                <span className="hidden sm:inline">Histórico</span>
+                <span className="sm:hidden">Hist.</span>
+              </TabsTrigger>
+            </TabsList>
+          </div>
 
           {/* DASHBOARD EXECUTIVO */}
           <TabsContent value="executivo" className="space-y-4">

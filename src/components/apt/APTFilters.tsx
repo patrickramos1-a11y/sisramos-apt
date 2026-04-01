@@ -377,7 +377,7 @@ export default function APTFilters({
       <div className="lg:hidden">
         <Sheet>
           <SheetTrigger asChild>
-            <Button variant="outline" size="sm" className="gap-2">
+            <Button variant="outline" size="sm" className="gap-2 h-10 min-w-[44px]">
               <Filter className="h-4 w-4" />
               Filtros
               {hasActiveFilters && (
@@ -387,11 +387,11 @@ export default function APTFilters({
               )}
             </Button>
           </SheetTrigger>
-          <SheetContent side="right" className="w-80 flex flex-col">
+          <SheetContent side="bottom" className="rounded-t-2xl max-h-[85vh] pb-safe">
             <SheetHeader>
               <SheetTitle>Filtros</SheetTitle>
             </SheetHeader>
-            <ScrollArea className="flex-1 mt-6 -mx-6 px-6">
+            <ScrollArea className="flex-1 mt-4 max-h-[65vh]">
               <div className="pb-6">
                 {content}
               </div>

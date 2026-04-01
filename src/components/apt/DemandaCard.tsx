@@ -63,8 +63,8 @@ export default function DemandaCard({
       )}
     >
       <CardContent className="p-0">
-        {/* Header com número, setor e badges - cor de destaque para separar cards */}
-        <div className="flex items-center justify-between gap-2 px-3 py-2.5 bg-[hsl(var(--apt-header))] border-b-2 border-primary/20">
+        {/* Header com número, setor e badges */}
+        <div className="flex items-center justify-between gap-2 px-3 py-2 bg-[hsl(var(--apt-header))] border-b-2 border-primary/20">
           <div className="flex items-center gap-2 flex-wrap">
             <Badge variant="outline" className="font-mono text-xs px-2 py-0.5">
               #{numero}
@@ -96,8 +96,8 @@ export default function DemandaCard({
         </div>
 
         {/* Descrição */}
-        <div className="px-3 py-2.5">
-          <p className="text-sm font-medium leading-relaxed whitespace-normal break-words">
+        <div className="px-3 py-2">
+          <p className="text-sm font-medium leading-snug whitespace-normal break-words">
             {descricao}
           </p>
           {pendingExclusao && (
@@ -108,7 +108,7 @@ export default function DemandaCard({
         </div>
 
         {/* Metadados organizados em grid */}
-        <div className="grid grid-cols-3 gap-2 px-3 pb-2.5">
+        <div className="grid grid-cols-3 gap-2 px-3 pb-2">
           <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
             <User className="h-3.5 w-3.5 shrink-0" />
             <span className="truncate font-medium">{responsavel}</span>
@@ -123,9 +123,9 @@ export default function DemandaCard({
           </div>
         </div>
 
-        {/* Status section - horizontal layout */}
-        <div className="flex items-center justify-center gap-6 px-3 py-2.5 bg-muted/30 border-t">
-          <div className="flex items-center gap-2">
+        {/* Status section - larger touch targets */}
+        <div className="flex items-center justify-center gap-8 px-3 py-3 bg-muted/30 border-t">
+          <div className="flex items-center gap-2.5">
             <span className="text-xs text-muted-foreground font-medium">Feito?</span>
             <StatusBolinha
               status={statusResponsavel}
@@ -135,7 +135,7 @@ export default function DemandaCard({
             />
           </div>
           {showGestorStatus && (
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2.5">
               <span className="text-xs text-muted-foreground font-medium">Aprovado?</span>
               <StatusBolinha
                 status={statusGestor}

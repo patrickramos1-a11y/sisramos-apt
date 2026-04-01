@@ -243,7 +243,7 @@ export default function APT() {
 
   return (
     <AppLayout>
-      <div className="p-3 md:p-4 lg:p-6 max-w-[1800px] mx-auto">
+      <div className="p-2 md:p-4 lg:p-6 max-w-[1800px] mx-auto">
         {/* Header */}
         <div className="mb-3 md:mb-4 flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
           <div>
@@ -477,7 +477,7 @@ export default function APT() {
                   </Card>
                 ) : isMobile ? (
                   /* Mobile: Cards */
-                  <div className="space-y-2">
+                  <div className="space-y-3">
                     {displayedDemandas.map((demanda, index) => {
                       const profile = getProfileById(demanda.responsavel_id);
                       const setor = getSetorById(demanda.setor_id);
