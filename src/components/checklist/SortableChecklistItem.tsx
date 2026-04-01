@@ -60,6 +60,7 @@ export default function SortableChecklistItem({
   const [isEditing, setIsEditing] = useState(false);
   const [editingText, setEditingText] = useState("");
   const [editingLink, setEditingLink] = useState("");
+  const [editingPrioridade, setEditingPrioridade] = useState<Prioridade | null>(null);
   const [justChanged, setJustChanged] = useState(false);
 
   const {
