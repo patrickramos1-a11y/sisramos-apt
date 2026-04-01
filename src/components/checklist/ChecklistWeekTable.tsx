@@ -33,7 +33,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Calendar, CheckCircle2, AlertCircle, Search, ChevronUp, Plus, ListTree, Zap, Trash2, Layers, ArrowUpDown } from "lucide-react";
+import { Calendar, CheckCircle2, AlertCircle, Search, ChevronUp, Plus, ListTree, Zap, Trash2, ArrowUpDown } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 import CircularProgress from "./CircularProgress";
