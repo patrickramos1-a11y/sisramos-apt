@@ -281,7 +281,7 @@ export default function Dashboard() {
 
   return (
     <AppLayout>
-      <div className="p-4 lg:p-6 space-y-4 max-w-[1800px] mx-auto">
+      <div className="p-2 md:p-4 lg:p-6 space-y-4 max-w-[1800px] mx-auto">
         {/* Header */}
         <div>
           <h1 className="text-lg md:text-2xl font-bold tracking-tight">Dashboard APT</h1>
