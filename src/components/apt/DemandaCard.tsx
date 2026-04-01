@@ -96,8 +96,8 @@ export default function DemandaCard({
         </div>
 
         {/* Descrição */}
-        <div className="px-3 py-2.5">
-          <p className="text-sm font-medium leading-relaxed whitespace-normal break-words">
+        <div className="px-3 py-2">
+          <p className="text-sm font-medium leading-snug whitespace-normal break-words">
             {descricao}
           </p>
           {pendingExclusao && (
