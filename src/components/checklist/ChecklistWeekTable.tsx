@@ -33,7 +33,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Calendar, CheckCircle2, AlertCircle, Search, ChevronUp, Plus, ListTree, Zap, Trash2, Layers } from "lucide-react";
+import { Calendar, CheckCircle2, AlertCircle, Search, ChevronUp, Plus, ListTree, Zap, Trash2, ArrowUpDown } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 import CircularProgress from "./CircularProgress";
@@ -94,6 +94,8 @@ export default function ChecklistWeekTable({
   const [searchTerm, setSearchTerm] = useState("");
   const [filterStatus, setFilterStatus] = useState<string>("all");
   const [filterTipo, setFilterTipo] = useState<string>("all");
+  const [filterPrioridade, setFilterPrioridade] = useState<string>("all");
+  const [sortByPriority, setSortByPriority] = useState<"off" | "desc" | "asc">("off");
   const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set());
 
   const sensors = useSensors(
@@ -124,8 +126,20 @@ export default function ChecklistWeekTable({
     if (filterTipo !== "all") {
       result = result.filter((i) => i.tipo_item === filterTipo);
     }
+    if (filterPrioridade !== "all") {
+      result = result.filter((i) => (i as any).prioridade === filterPrioridade);
+    }
+    // Sort by priority if active (client-side only, doesn't change ordem_override)
+    if (sortByPriority !== "off") {
+      const score: Record<string, number> = { alta: 3, media: 2, baixa: 1 };
+      result = [...result].sort((a, b) => {
+        const sa = score[(a as any).prioridade || "media"] || 2;
+        const sb = score[(b as any).prioridade || "media"] || 2;
+        return sortByPriority === "desc" ? sb - sa : sa - sb;
+      });
+    }
     return result;
-  }, [items, searchTerm, filterStatus, filterTipo]);
+  }, [items, searchTerm, filterStatus, filterTipo, filterPrioridade, sortByPriority]);
 
   const weekColors: Record<number, { bg: string; icon: string }> = {
     1: { bg: "from-emerald-500/20 to-emerald-500/5", icon: "bg-emerald-500/30 text-emerald-700 dark:text-emerald-400" },
@@ -185,6 +199,7 @@ export default function ChecklistWeekTable({
         parent_id: inst.parent_id,
         children: inst.children,
         semana: inst.semana,
+        prioridade: (inst as any).prioridade || "media",
         sourceWeeks: dupEntry ? dupEntry.semanas : [inst.semana],
       };
     });
@@ -426,7 +441,7 @@ export default function ChecklistWeekTable({
             className="h-8 pl-8 text-xs"
           />
         </div>
-        <div className="flex gap-2">
+        <div className="flex gap-2 flex-wrap">
           <Select value={filterStatus} onValueChange={setFilterStatus}>
             <SelectTrigger className="h-8 flex-1 sm:w-[130px] text-xs">
               <SelectValue placeholder="Status" />
@@ -448,6 +463,42 @@ export default function ChecklistWeekTable({
               <SelectItem value="avulso_semana">Avulso</SelectItem>
             </SelectContent>
           </Select>
+          <Select value={filterPrioridade} onValueChange={setFilterPrioridade}>
+            <SelectTrigger className="h-8 flex-1 sm:w-[130px] text-xs">
+              <SelectValue placeholder="Prioridade" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Todas</SelectItem>
+              <SelectItem value="alta">
+                <span className="flex items-center gap-1.5">
+                  <span className="w-2 h-2 rounded-full bg-red-500" />Alta
+                </span>
+              </SelectItem>
+              <SelectItem value="media">
+                <span className="flex items-center gap-1.5">
+                  <span className="w-2 h-2 rounded-full bg-amber-500" />Média
+                </span>
+              </SelectItem>
+              <SelectItem value="baixa">
+                <span className="flex items-center gap-1.5">
+                  <span className="w-2 h-2 rounded-full bg-green-500" />Baixa
+                </span>
+              </SelectItem>
+            </SelectContent>
+          </Select>
+          <Button
+            variant={sortByPriority !== "off" ? "secondary" : "outline"}
+            size="sm"
+            className="h-8 gap-1 text-xs"
+            onClick={() => {
+              if (sortByPriority === "off") setSortByPriority("desc");
+              else if (sortByPriority === "desc") setSortByPriority("asc");
+              else setSortByPriority("off");
+            }}
+          >
+            <ArrowUpDown className="h-3.5 w-3.5" />
+            {sortByPriority === "off" ? "Prioridade" : sortByPriority === "desc" ? "Alta→Baixa" : "Baixa→Alta"}
+          </Button>
         </div>
       </div>
 

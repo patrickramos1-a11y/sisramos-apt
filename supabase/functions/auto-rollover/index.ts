@@ -225,6 +225,7 @@ Deno.serve(async (req) => {
           link_override: inst.link_override,
           ordem_override: inst.ordem_override,
           is_group: inst.is_group,
+          prioridade: inst.prioridade || "media",
           parent_id: null,
         }));
 
@@ -288,6 +289,7 @@ Deno.serve(async (req) => {
                 link_override: c.link_override,
                 ordem_override: c.ordem_override,
                 is_group: c.is_group,
+                prioridade: c.prioridade || "media",
                 parent_id: idMap.get(c.parent_id)!,
               }));
 

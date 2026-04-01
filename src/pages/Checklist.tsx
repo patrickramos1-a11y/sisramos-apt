@@ -234,8 +234,9 @@ export default function Checklist() {
     anos: number[];
     link?: string;
     assignees?: string[];
+    prioridade?: string;
   }) => {
-    await addItem(params);
+    await addItem(params as any);
   };
 
   const handleDismissInfo = () => {
