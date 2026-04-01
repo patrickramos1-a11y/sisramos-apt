@@ -81,6 +81,7 @@ export default function SortableChecklistItem({
     setIsEditing(true);
     setEditingText(item.texto);
     setEditingLink(item.link || "");
+    setEditingPrioridade(item.prioridade || null);
   };
 
   const handleSaveEdit = async () => {
@@ -88,6 +89,7 @@ export default function SortableChecklistItem({
     await onUpdateItem(item.id, { 
       texto: editingText.trim(),
       link: editingLink.trim() || null,
+      prioridade: editingPrioridade,
     });
     setIsEditing(false);
   };
@@ -96,8 +98,8 @@ export default function SortableChecklistItem({
     setIsEditing(false);
     setEditingText("");
     setEditingLink("");
+    setEditingPrioridade(null);
   };
-
 
   const handleStatusClick = useCallback(async () => {
     const currentStatus: ChecklistStatus = item.status || "pendente";
