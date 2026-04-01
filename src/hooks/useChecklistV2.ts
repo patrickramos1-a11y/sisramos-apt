@@ -17,7 +17,7 @@ export interface ChecklistTemplate {
   default_assignees?: string[];
 }
 
-export type Prioridade = "alta" | "media" | "baixa";
+export type Prioridade = "alta" | "media" | "baixa" | null;
 
 export interface ChecklistInstance {
   id: string;
