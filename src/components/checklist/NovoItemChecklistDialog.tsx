@@ -191,7 +191,35 @@ export default function NovoItemChecklistDialog({
             </Select>
           </div>
 
-          {/* Period selection */}
+          {/* Priority selection */}
+          <div className="space-y-2">
+            <Label>Prioridade</Label>
+            <Select value={prioridade} onValueChange={(v) => setPrioridade(v as Prioridade)}>
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="alta">
+                  <span className="flex items-center gap-2">
+                    <span className="w-2 h-2 rounded-full bg-red-500" />
+                    <span className="font-medium">Alta</span>
+                  </span>
+                </SelectItem>
+                <SelectItem value="media">
+                  <span className="flex items-center gap-2">
+                    <span className="w-2 h-2 rounded-full bg-amber-500" />
+                    <span className="font-medium">Média</span>
+                  </span>
+                </SelectItem>
+                <SelectItem value="baixa">
+                  <span className="flex items-center gap-2">
+                    <span className="w-2 h-2 rounded-full bg-green-500" />
+                    <span className="font-medium">Baixa</span>
+                  </span>
+                </SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
           <div className="grid grid-cols-3 gap-3">
             <div className="space-y-2">
               <Label>Ano</Label>
