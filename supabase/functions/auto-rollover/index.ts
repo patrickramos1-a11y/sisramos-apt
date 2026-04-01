@@ -225,6 +225,7 @@ Deno.serve(async (req) => {
           link_override: inst.link_override,
           ordem_override: inst.ordem_override,
           is_group: inst.is_group,
+          prioridade: inst.prioridade || "media",
           parent_id: null,
         }));
 
