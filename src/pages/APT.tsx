@@ -42,6 +42,13 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Card, CardContent } from "@/components/ui/card";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Loader2, AlertCircle, CheckCircle2, Trash2, Check, ThumbsUp, Copy, Filter, ChevronDown, ClipboardList, BarChart3, Lock, Unlock, Eye, EyeOff, Settings2 } from "lucide-react";
 import DuplicarDemandasEmMassaDialog from "@/components/apt/DuplicarDemandasEmMassaDialog";
 import TopSetoresBar from "@/components/apt/TopSetoresBar";
@@ -71,6 +78,8 @@ interface Demanda {
   muito_urgente?: boolean;
   grupo_id: string | null;
 }
+
+const rowLimitOptions = [50, 100, 500, 1000, 2000];
 
 export default function APT() {
   const [searchParams] = useSearchParams();
@@ -163,6 +172,7 @@ export default function APT() {
   
   // Column visibility state (for admin/gestor)
   const [hideResponsavelColumn, setHideResponsavelColumn] = useState(false);
+  const [rowLimit, setRowLimit] = useState(50);
   
   // Top Setores card filter (client-side only, doesn't affect DB query)
   const [activeTopSetor, setActiveTopSetor] = useState<string | null>(null);
@@ -175,6 +185,11 @@ export default function APT() {
   const displayedDemandas = activeTopSetor
     ? demandas.filter((d) => d.setor_id === activeTopSetor)
     : demandas;
+
+  const visibleDemandas = useMemo(
+    () => displayedDemandas.slice(0, rowLimit),
+    [displayedDemandas, rowLimit],
+  );
   
   // Filters active count for badge
   const hasActiveFilters =
@@ -217,14 +232,15 @@ export default function APT() {
 
   const toggleSelectAll = (checked: boolean) => {
     if (checked) {
-      setSelectedIds(new Set(displayedDemandas.map((d) => d.id)));
+      setSelectedIds(new Set(visibleDemandas.map((d) => d.id)));
     } else {
       setSelectedIds(new Set());
     }
   };
 
-  const allSelected = demandas.length > 0 && selectedIds.size === demandas.length;
-  const someSelected = selectedIds.size > 0 && selectedIds.size < demandas.length;
+  const visibleSelectedCount = visibleDemandas.filter((d) => selectedIds.has(d.id)).length;
+  const allSelected = visibleDemandas.length > 0 && visibleSelectedCount === visibleDemandas.length;
+  const someSelected = visibleSelectedCount > 0 && visibleSelectedCount < visibleDemandas.length;
 
   const handleBulkOperationComplete = () => {
     setSelectedIds(new Set());
@@ -478,7 +494,7 @@ export default function APT() {
                 ) : isMobile ? (
                   /* Mobile: Cards */
                   <div className="space-y-3">
-                    {displayedDemandas.map((demanda, index) => {
+                    {visibleDemandas.map((demanda) => {
                       const profile = getProfileById(demanda.responsavel_id);
                       const setor = getSetorById(demanda.setor_id);
                       
@@ -647,7 +663,7 @@ export default function APT() {
                           </TableRow>
                         </TableHeader>
                         <TableBody>
-                          {displayedDemandas.map((demanda, index) => {
+                          {visibleDemandas.map((demanda, index) => {
                             const profile = getProfileById(demanda.responsavel_id);
                             const setor = getSetorById(demanda.setor_id);
                             
@@ -720,7 +736,34 @@ export default function APT() {
                         </TableBody>
                       </Table>
                     </Card>
+
                   </>
+                )}
+
+                {!isLoading && displayedDemandas.length > 0 && (
+                  <div className="mt-3 flex flex-col gap-3 rounded-lg border bg-card px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+                    <p className="text-sm text-muted-foreground">
+                      Mostrando <span className="font-medium text-foreground">{visibleDemandas.length}</span> de{" "}
+                      <span className="font-medium text-foreground">{displayedDemandas.length}</span> demandas
+                    </p>
+
+                    <div className="flex items-center gap-2 self-start sm:self-auto">
+                      <span className="text-sm text-muted-foreground">Exibir</span>
+                      <Select value={String(rowLimit)} onValueChange={(value) => setRowLimit(Number(value))}>
+                        <SelectTrigger className="h-9 w-[120px]">
+                          <SelectValue placeholder="50" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {rowLimitOptions.map((option) => (
+                            <SelectItem key={option} value={String(option)}>
+                              {option}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <span className="text-sm text-muted-foreground">linhas</span>
+                    </div>
+                  </div>
                 )}
               </div>
             </div>
