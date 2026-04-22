@@ -494,7 +494,7 @@ export default function APT() {
                 ) : isMobile ? (
                   /* Mobile: Cards */
                   <div className="space-y-3">
-                    {displayedDemandas.map((demanda, index) => {
+                    {visibleDemandas.map((demanda) => {
                       const profile = getProfileById(demanda.responsavel_id);
                       const setor = getSetorById(demanda.setor_id);
                       
@@ -663,7 +663,7 @@ export default function APT() {
                           </TableRow>
                         </TableHeader>
                         <TableBody>
-                          {displayedDemandas.map((demanda, index) => {
+                          {visibleDemandas.map((demanda, index) => {
                             const profile = getProfileById(demanda.responsavel_id);
                             const setor = getSetorById(demanda.setor_id);
                             
@@ -736,6 +736,30 @@ export default function APT() {
                         </TableBody>
                       </Table>
                     </Card>
+
+                    <div className="flex flex-col gap-3 border rounded-lg bg-card px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+                      <p className="text-sm text-muted-foreground">
+                        Mostrando <span className="font-medium text-foreground">{visibleDemandas.length}</span> de{" "}
+                        <span className="font-medium text-foreground">{displayedDemandas.length}</span> demandas
+                      </p>
+
+                      <div className="flex items-center gap-2 self-start sm:self-auto">
+                        <span className="text-sm text-muted-foreground">Exibir</span>
+                        <Select value={String(rowLimit)} onValueChange={(value) => setRowLimit(Number(value))}>
+                          <SelectTrigger className="h-9 w-[120px]">
+                            <SelectValue placeholder="50" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {rowLimitOptions.map((option) => (
+                              <SelectItem key={option} value={String(option)}>
+                                {option}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <span className="text-sm text-muted-foreground">linhas</span>
+                      </div>
+                    </div>
                   </>
                 )}
               </div>
