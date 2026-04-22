@@ -42,6 +42,13 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Card, CardContent } from "@/components/ui/card";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Loader2, AlertCircle, CheckCircle2, Trash2, Check, ThumbsUp, Copy, Filter, ChevronDown, ClipboardList, BarChart3, Lock, Unlock, Eye, EyeOff, Settings2 } from "lucide-react";
 import DuplicarDemandasEmMassaDialog from "@/components/apt/DuplicarDemandasEmMassaDialog";
 import TopSetoresBar from "@/components/apt/TopSetoresBar";
@@ -71,6 +78,8 @@ interface Demanda {
   muito_urgente?: boolean;
   grupo_id: string | null;
 }
+
+const rowLimitOptions = [50, 100, 500, 1000, 2000];
 
 export default function APT() {
   const [searchParams] = useSearchParams();
@@ -163,6 +172,7 @@ export default function APT() {
   
   // Column visibility state (for admin/gestor)
   const [hideResponsavelColumn, setHideResponsavelColumn] = useState(false);
+  const [rowLimit, setRowLimit] = useState(50);
   
   // Top Setores card filter (client-side only, doesn't affect DB query)
   const [activeTopSetor, setActiveTopSetor] = useState<string | null>(null);
@@ -175,6 +185,11 @@ export default function APT() {
   const displayedDemandas = activeTopSetor
     ? demandas.filter((d) => d.setor_id === activeTopSetor)
     : demandas;
+
+  const visibleDemandas = useMemo(
+    () => displayedDemandas.slice(0, rowLimit),
+    [displayedDemandas, rowLimit],
+  );
   
   // Filters active count for badge
   const hasActiveFilters =
@@ -217,14 +232,15 @@ export default function APT() {
 
   const toggleSelectAll = (checked: boolean) => {
     if (checked) {
-      setSelectedIds(new Set(displayedDemandas.map((d) => d.id)));
+      setSelectedIds(new Set(visibleDemandas.map((d) => d.id)));
     } else {
       setSelectedIds(new Set());
     }
   };
 
-  const allSelected = demandas.length > 0 && selectedIds.size === demandas.length;
-  const someSelected = selectedIds.size > 0 && selectedIds.size < demandas.length;
+  const visibleSelectedCount = visibleDemandas.filter((d) => selectedIds.has(d.id)).length;
+  const allSelected = visibleDemandas.length > 0 && visibleSelectedCount === visibleDemandas.length;
+  const someSelected = visibleSelectedCount > 0 && visibleSelectedCount < visibleDemandas.length;
 
   const handleBulkOperationComplete = () => {
     setSelectedIds(new Set());
