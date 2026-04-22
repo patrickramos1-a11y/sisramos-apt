@@ -707,13 +707,41 @@ export default function GerenciamentoLista({
                     </TableCell>
                   </TableRow>
                 ) : (
-                  sortedDemands.map((demand) => (
+                  visibleDemands.map((demand) => (
                     <ConsolidatedDemandRow key={demand.grupo_id || demand.siblings[0].id} demand={demand} />
                   ))
                 )}
               </TableBody>
             </Table>
           </div>
+
+          {sortedDemands.length > 0 && (
+            <div className="flex flex-col gap-3 border-t px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+              <p className="text-sm text-muted-foreground">
+                Mostrando <span className="font-medium text-foreground">{visibleDemands.length}</span> de{" "}
+                <span className="font-medium text-foreground">{sortedDemands.length}</span> demandas
+              </p>
+
+              <div className="flex items-center gap-2 self-start sm:self-auto">
+                <Label htmlFor="row-limit" className="text-sm text-muted-foreground">
+                  Exibir
+                </Label>
+                <Select value={String(rowLimit)} onValueChange={(value) => setRowLimit(Number(value))}>
+                  <SelectTrigger id="row-limit" className="h-9 w-[120px]">
+                    <SelectValue placeholder="50" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {rowLimitOptions.map((option) => (
+                      <SelectItem key={option} value={String(option)}>
+                        {option}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <span className="text-sm text-muted-foreground">linhas</span>
+              </div>
+            </div>
+          )}
         </Card>
       </section>
 
