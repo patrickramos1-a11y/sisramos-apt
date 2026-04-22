@@ -34,6 +34,13 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
@@ -161,6 +168,8 @@ const repeticaoOptions = [
   { value: "5", label: "5X" },
 ];
 
+const rowLimitOptions = [50, 100, 500, 1000, 2000];
+
 export default function GerenciamentoLista({
   profiles,
   setores,
@@ -185,6 +194,7 @@ export default function GerenciamentoLista({
   // Sorting
   const [sortColumn, setSortColumn] = useState<"descricao" | "responsavel" | "setor" | "repeticao" | null>(null);
   const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc");
+  const [rowLimit, setRowLimit] = useState(50);
 
   const handleSort = (column: typeof sortColumn) => {
     if (sortColumn === column) {
@@ -374,6 +384,11 @@ export default function GerenciamentoLista({
     });
     return sorted;
   }, [consolidatedDemands, sortColumn, sortDirection, getProfileById, getSetorById]);
+
+  const visibleDemands = useMemo(
+    () => sortedDemands.slice(0, rowLimit),
+    [sortedDemands, rowLimit],
+  );
 
   const getDemandaById = useCallback((id: string) => {
     return allDemandas.find((d) => d.id === id);
