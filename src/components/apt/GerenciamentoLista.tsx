@@ -34,6 +34,13 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
@@ -161,6 +168,8 @@ const repeticaoOptions = [
   { value: "5", label: "5X" },
 ];
 
+const rowLimitOptions = [50, 100, 500, 1000, 2000];
+
 export default function GerenciamentoLista({
   profiles,
   setores,
@@ -185,6 +194,7 @@ export default function GerenciamentoLista({
   // Sorting
   const [sortColumn, setSortColumn] = useState<"descricao" | "responsavel" | "setor" | "repeticao" | null>(null);
   const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc");
+  const [rowLimit, setRowLimit] = useState(50);
 
   const handleSort = (column: typeof sortColumn) => {
     if (sortColumn === column) {
@@ -374,6 +384,11 @@ export default function GerenciamentoLista({
     });
     return sorted;
   }, [consolidatedDemands, sortColumn, sortDirection, getProfileById, getSetorById]);
+
+  const visibleDemands = useMemo(
+    () => sortedDemands.slice(0, rowLimit),
+    [sortedDemands, rowLimit],
+  );
 
   const getDemandaById = useCallback((id: string) => {
     return allDemandas.find((d) => d.id === id);
@@ -692,13 +707,41 @@ export default function GerenciamentoLista({
                     </TableCell>
                   </TableRow>
                 ) : (
-                  sortedDemands.map((demand) => (
+                  visibleDemands.map((demand) => (
                     <ConsolidatedDemandRow key={demand.grupo_id || demand.siblings[0].id} demand={demand} />
                   ))
                 )}
               </TableBody>
             </Table>
           </div>
+
+          {sortedDemands.length > 0 && (
+            <div className="flex flex-col gap-3 border-t px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+              <p className="text-sm text-muted-foreground">
+                Mostrando <span className="font-medium text-foreground">{visibleDemands.length}</span> de{" "}
+                <span className="font-medium text-foreground">{sortedDemands.length}</span> demandas
+              </p>
+
+              <div className="flex items-center gap-2 self-start sm:self-auto">
+                <Label htmlFor="row-limit" className="text-sm text-muted-foreground">
+                  Exibir
+                </Label>
+                <Select value={String(rowLimit)} onValueChange={(value) => setRowLimit(Number(value))}>
+                  <SelectTrigger id="row-limit" className="h-9 w-[120px]">
+                    <SelectValue placeholder="50" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {rowLimitOptions.map((option) => (
+                      <SelectItem key={option} value={String(option)}>
+                        {option}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <span className="text-sm text-muted-foreground">linhas</span>
+              </div>
+            </div>
+          )}
         </Card>
       </section>
 
