@@ -70,6 +70,7 @@ export default function EditarDemandaIrmaDialog({
   const [isLoading, setIsLoading] = useState(false);
   const [editScope, setEditScope] = useState<"single" | "all">("single");
   const [actualSiblingCount, setActualSiblingCount] = useState(siblingCount);
+  const [resolvedGrupoId, setResolvedGrupoId] = useState<string | null>(null);
   const { toast } = useToast();
 
   const [formData, setFormData] = useState({
@@ -99,6 +100,7 @@ export default function EditarDemandaIrmaDialog({
         
         if (!error && data && data.length > 1) {
           setActualSiblingCount(data.length);
+          setResolvedGrupoId(demanda.grupo_id);
           return;
         }
       }
@@ -118,21 +120,26 @@ export default function EditarDemandaIrmaDialog({
           setActualSiblingCount(data.length);
 
           // Auto-fix: assign grupo_id if missing
-          if (!demanda.grupo_id) {
-            const newGrupoId = crypto.randomUUID();
-            const siblingIds = data.map(d => d.id);
-            await supabase
+          const existingGrupoId = data.find((d) => d.grupo_id)?.grupo_id ?? null;
+          let groupId: string | null = demanda.grupo_id ?? existingGrupoId;
+          if (!groupId) {
+            groupId = crypto.randomUUID();
+            const siblingIds = data.map((d) => d.id);
+            const { error: fixError } = await supabase
               .from("demandas")
-              .update({ grupo_id: newGrupoId })
+              .update({ grupo_id: groupId })
               .in("id", siblingIds);
-            // Update the demanda reference so "edit all" works
-            demanda.grupo_id = newGrupoId;
+            if (fixError) {
+              console.error("Error assigning grupo_id to orphan siblings:", fixError);
+            }
           }
+          setResolvedGrupoId(groupId);
           return;
         }
       }
 
       setActualSiblingCount(siblingCount);
+      setResolvedGrupoId(demanda.grupo_id ?? null);
     };
 
     fetchActualSiblingCount();
@@ -188,18 +195,39 @@ export default function EditarDemandaIrmaDialog({
         muito_urgente: formData.muito_urgente,
       };
 
-      if (editScope === "all" && demanda?.grupo_id) {
-        // Update all siblings
-        const { error } = await supabase
+      if (editScope === "all") {
+        if (!resolvedGrupoId) {
+          toast({
+            variant: "destructive",
+            title: "Não foi possível atualizar todas",
+            description:
+              "Não foi possível identificar o grupo desta demanda. Tente recarregar a página e editar novamente.",
+          });
+          setIsLoading(false);
+          return;
+        }
+
+        // Update ALL siblings sharing the grupo_id with the same fields
+        // (we deliberately do NOT update semana_limite to keep each sibling's week)
+        const { data: updated, error } = await supabase
           .from("demandas")
           .update(baseUpdateData)
-          .eq("grupo_id", demanda.grupo_id);
+          .eq("grupo_id", resolvedGrupoId)
+          .eq("ativa", true)
+          .select("id");
 
         if (error) throw error;
 
+        const affected = updated?.length ?? 0;
+        if (affected === 0) {
+          throw new Error(
+            "Nenhuma demanda foi atualizada. Verifique se o grupo ainda existe.",
+          );
+        }
+
         toast({
           title: "Demandas atualizadas!",
-          description: `${siblingCount} demandas foram atualizadas`,
+          description: `${affected} demandas do grupo foram atualizadas`,
         });
       } else {
         // Single demand - check if we need to expand to multiple weeks
@@ -214,7 +242,7 @@ export default function EditarDemandaIrmaDialog({
         // OR if we're expanding an existing demand
         if (weeksToAdd.length > 0 || newWeeks.length !== currentWeeks.length || !currentWeeks.every(w => newWeeks.includes(w))) {
           // Get or create a grupo_id
-          let grupoId = demanda?.grupo_id;
+          let grupoId = resolvedGrupoId ?? demanda?.grupo_id ?? null;
           if (!grupoId && newWeeks.length > 1) {
             grupoId = crypto.randomUUID();
           }
