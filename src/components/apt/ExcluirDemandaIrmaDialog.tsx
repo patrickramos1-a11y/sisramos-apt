@@ -158,16 +158,28 @@ export default function ExcluirDemandaIrmaDialog({
 
     setIsLoading(true);
 
-    const { error } = await supabase
+    const { data: deleted, error } = await supabase
       .from("demandas")
       .delete()
-      .eq("id", demandaId);
+      .eq("id", demandaId)
+      .select("id");
 
     if (error) {
       toast({
         variant: "destructive",
         title: "Erro ao excluir demanda",
         description: error.message,
+      });
+      setIsLoading(false);
+      return;
+    }
+
+    if (!deleted || deleted.length === 0) {
+      toast({
+        variant: "destructive",
+        title: "Nenhuma demanda removida",
+        description:
+          "A demanda pode já ter sido removida ou está bloqueada por permissões.",
       });
       setIsLoading(false);
       return;
@@ -193,14 +205,23 @@ export default function ExcluirDemandaIrmaDialog({
   };
 
   const handleDeleteAll = async () => {
-    if (!resolvedGrupoId) return;
+    if (!resolvedGrupoId) {
+      toast({
+        variant: "destructive",
+        title: "Grupo não identificado",
+        description:
+          "Não foi possível identificar o grupo desta demanda. Recarregue a página e tente de novo.",
+      });
+      return;
+    }
 
     setIsLoading(true);
 
-    const { error } = await supabase
+    const { data: deleted, error } = await supabase
       .from("demandas")
       .delete()
-      .eq("grupo_id", resolvedGrupoId);
+      .eq("grupo_id", resolvedGrupoId)
+      .select("id");
 
     if (error) {
       toast({
@@ -212,16 +233,30 @@ export default function ExcluirDemandaIrmaDialog({
       return;
     }
 
+    const affected = deleted?.length ?? 0;
+    if (affected === 0) {
+      toast({
+        variant: "destructive",
+        title: "Nenhuma demanda removida",
+        description:
+          "O grupo pode já ter sido removido. Recarregue a página e tente novamente.",
+      });
+      setIsLoading(false);
+      return;
+    }
+
     playDeleteSound();
 
     toast({
       title: "Demandas excluídas!",
-      description: `${actualSiblingCount} demandas do grupo removidas permanentemente`,
+      description: `${affected} demandas do grupo removidas permanentemente`,
     });
 
     onOpenChange(false);
-    onDemandaExcluida();
     setIsLoading(false);
+    setTimeout(() => {
+      onDemandaExcluida();
+    }, 100);
   };
 
   const hasSiblings = resolvedGrupoId && actualSiblingCount > 1;
