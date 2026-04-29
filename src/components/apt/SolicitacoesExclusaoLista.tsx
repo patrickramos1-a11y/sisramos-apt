@@ -119,16 +119,58 @@ export default function SolicitacoesExclusaoLista({
 
     try {
       // Execute the actual deletion
-      if (solicitacao.tipo_exclusao === "todas" && solicitacao.grupo_id) {
-        await supabase
+      let affected = 0;
+      if (solicitacao.tipo_exclusao === "todas") {
+        // Resolve grupo_id with heuristic fallback (orphans without grupo_id)
+        let grupoId: string | null =
+          solicitacao.grupo_id ?? solicitacao.demanda?.grupo_id ?? null;
+
+        if (!grupoId && solicitacao.demanda) {
+          const { data: siblings } = await supabase
+            .from("demandas")
+            .select("id, grupo_id")
+            .eq("descricao", solicitacao.demanda.descricao)
+            .eq("responsavel_id", solicitacao.demanda.responsavel_id)
+            .eq("mes", solicitacao.demanda.mes)
+            .eq("ano", solicitacao.demanda.ano)
+            .eq("ativa", true);
+
+          if (siblings && siblings.length > 1) {
+            const existing = siblings.find((s) => s.grupo_id)?.grupo_id ?? null;
+            grupoId = existing ?? crypto.randomUUID();
+            if (!existing) {
+              await supabase
+                .from("demandas")
+                .update({ grupo_id: grupoId })
+                .in(
+                  "id",
+                  siblings.map((s) => s.id),
+                );
+            }
+          }
+        }
+
+        if (!grupoId) {
+          throw new Error(
+            "Não foi possível identificar o grupo da demanda para excluir todas.",
+          );
+        }
+
+        const { data: deleted, error: delError } = await supabase
           .from("demandas")
           .delete()
-          .eq("grupo_id", solicitacao.grupo_id);
+          .eq("grupo_id", grupoId)
+          .select("id");
+        if (delError) throw delError;
+        affected = deleted?.length ?? 0;
       } else {
-        await supabase
+        const { data: deleted, error: delError } = await supabase
           .from("demandas")
           .delete()
-          .eq("id", solicitacao.demanda_id);
+          .eq("id", solicitacao.demanda_id)
+          .select("id");
+        if (delError) throw delError;
+        affected = deleted?.length ?? 0;
 
         // Update remaining siblings' repetition count
         if (solicitacao.demanda?.grupo_id) {
@@ -139,17 +181,24 @@ export default function SolicitacoesExclusaoLista({
             .eq("ativa", true);
 
           if (remaining && remaining.length > 0) {
-            await supabase
+            const { error: updErr } = await supabase
               .from("demandas")
               .update({ semanas_repeticao: remaining.length })
               .eq("grupo_id", solicitacao.demanda.grupo_id)
               .eq("ativa", true);
+            if (updErr) console.error("Error updating sibling counts:", updErr);
           }
         }
       }
 
+      if (affected === 0) {
+        throw new Error(
+          "Nenhuma demanda foi removida. Pode já ter sido excluída.",
+        );
+      }
+
       // Mark solicitacao as approved
-      await supabase
+      const { error: markErr } = await supabase
         .from("solicitacoes_exclusao" as any)
         .update({
           status: "aprovada",
@@ -157,6 +206,7 @@ export default function SolicitacoesExclusaoLista({
           decided_at: new Date().toISOString(),
         })
         .eq("id", solicitacao.id);
+      if (markErr) console.error("Error marking solicitacao approved:", markErr);
 
       // Also approve any other pending requests for the same demand
       if (solicitacao.tipo_exclusao === "todas" && solicitacao.grupo_id) {
@@ -175,16 +225,16 @@ export default function SolicitacoesExclusaoLista({
 
       toast({
         title: "Exclusão aprovada!",
-        description: "A demanda foi removida permanentemente.",
+        description: `${affected} demanda(s) removida(s) permanentemente.`,
       });
 
       fetchSolicitacoes();
       onDemandaChange();
-    } catch (err) {
+    } catch (err: any) {
       toast({
         variant: "destructive",
         title: "Erro ao aprovar exclusão",
-        description: "Tente novamente.",
+        description: err?.message ?? "Tente novamente.",
       });
     }
 
