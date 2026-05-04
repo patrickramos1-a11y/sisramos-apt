@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { FormattedTextarea } from "@/components/ui/formatted-textarea";
+import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -62,6 +63,7 @@ export default function NovaDemandaDialog({
     responsavel_ids: [] as string[],
     setor_id: lockedSetorId || "",
     descricao: "",
+    observacoes: "",
     semanas_repeticao: "1",
     semana_limite: [1] as number[],
     mes: String(new Date().getMonth() + 1),
@@ -75,6 +77,7 @@ export default function NovaDemandaDialog({
       responsavel_ids: [],
       setor_id: lockedSetorId || "",
       descricao: "",
+      observacoes: "",
       semanas_repeticao: "1",
       semana_limite: [1],
       mes: String(new Date().getMonth() + 1),
@@ -137,6 +140,7 @@ export default function NovaDemandaDialog({
       responsavel_id: string;
       setor_id: string | null;
       descricao: string;
+      observacoes: string | null;
       semanas_repeticao: number;
       semana_limite: number[];
       mes: number;
@@ -158,6 +162,7 @@ export default function NovaDemandaDialog({
           responsavel_id: responsavelId,
           setor_id: formData.setor_id || null,
           descricao: formData.descricao.trim(),
+          observacoes: formData.observacoes.trim() || null,
           semanas_repeticao: parseInt(formData.semanas_repeticao),
           semana_limite: [semana],
           mes: parseInt(formData.mes),

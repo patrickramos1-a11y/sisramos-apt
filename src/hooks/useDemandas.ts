@@ -27,6 +27,7 @@ interface Demanda {
   setor_id: string | null;
   responsavel_id: string;
   descricao: string;
+  observacoes: string | null;
   status_responsavel: StatusBolinha;
   status_gestor: StatusBolinha;
   semanas_repeticao: number;
