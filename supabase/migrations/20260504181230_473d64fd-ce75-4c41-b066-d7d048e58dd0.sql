@@ -1,0 +1,1 @@
+ALTER TABLE public.demandas ADD COLUMN observacoes text;
