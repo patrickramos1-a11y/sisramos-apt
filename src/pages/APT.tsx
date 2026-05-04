@@ -544,6 +544,7 @@ export default function APT() {
                           setorCor={setor?.cor || "#E5E7EB"}
                           responsavel={profile?.nome || "Desconhecido"}
                           descricao={demanda.descricao}
+                          observacoes={demanda.observacoes}
                           statusResponsavel={demanda.status_responsavel}
                           statusGestor={demanda.status_gestor}
                           semanasRepeticao={demanda.semanas_repeticao}
@@ -554,6 +555,7 @@ export default function APT() {
                           canEditGestor={canEditGestor}
                           canEditDemanda={canEditDemanda}
                           showGestorStatus={isGestorOrAdmin}
+                          showObservacoes={!hideObservacoesColumn}
                           pendingExclusao={pendingDemandaIds.has(demanda.id)}
                           onStatusResponsavelChange={() =>
                             updateStatusResponsavel(
@@ -663,6 +665,9 @@ export default function APT() {
                             <TableHead className="w-28 text-primary-foreground font-semibold">Setor</TableHead>
                             <TableHead className="w-36 text-primary-foreground font-semibold">Responsável</TableHead>
                             <TableHead className="text-primary-foreground font-semibold">Descrição</TableHead>
+                            {!hideObservacoesColumn && (
+                              <TableHead className="w-48 text-primary-foreground font-semibold">Observações</TableHead>
+                            )}
                             {!hideResponsavelColumn && (
                               <TableHead className="text-center w-20 text-primary-foreground font-semibold">
                                 Feito?
@@ -714,6 +719,7 @@ export default function APT() {
                                 setorCor={setor?.cor || "#E5E7EB"}
                                 responsavel={profile?.nome || "Desconhecido"}
                                 descricao={demanda.descricao}
+                                observacoes={demanda.observacoes}
                                 statusResponsavel={demanda.status_responsavel}
                                 statusGestor={demanda.status_gestor}
                                 semanasRepeticao={demanda.semanas_repeticao}
@@ -725,6 +731,7 @@ export default function APT() {
                                 canEditDemanda={canEditDemanda}
                                 showGestorColumn={isGestorOrAdmin}
                                 showResponsavelColumn={!hideResponsavelColumn}
+                                showObservacoesColumn={!hideObservacoesColumn}
                                 isAlternateRow={index % 2 === 1}
                                 isSelected={selectedIds.has(demanda.id)}
                                 showCheckbox={true}
