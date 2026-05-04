@@ -345,6 +345,17 @@ export default function APT() {
                             )}
                             {hideResponsavelColumn ? "Mostrar" : "Ocultar"} coluna "Feito"
                           </DropdownMenuItem>
+                          <DropdownMenuItem
+                            onClick={() => setHideObservacoesColumn(!hideObservacoesColumn)}
+                            className="gap-2"
+                          >
+                            {hideObservacoesColumn ? (
+                              <EyeOff className="h-4 w-4" />
+                            ) : (
+                              <Eye className="h-4 w-4" />
+                            )}
+                            {hideObservacoesColumn ? "Mostrar" : "Ocultar"} coluna "Observações"
+                          </DropdownMenuItem>
                         </DropdownMenuContent>
                       </DropdownMenu>
 
@@ -390,6 +401,13 @@ export default function APT() {
                           >
                             {hideResponsavelColumn ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                             {hideResponsavelColumn ? "Mostrar" : "Ocultar"} col. "Feito"
+                          </DropdownMenuItem>
+                          <DropdownMenuItem
+                            onClick={() => setHideObservacoesColumn(!hideObservacoesColumn)}
+                            className="gap-2"
+                          >
+                            {hideObservacoesColumn ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                            {hideObservacoesColumn ? "Mostrar" : "Ocultar"} col. "Observações"
                           </DropdownMenuItem>
                           {viewedMes !== null && viewedAno !== null && (
                             <DropdownMenuItem
