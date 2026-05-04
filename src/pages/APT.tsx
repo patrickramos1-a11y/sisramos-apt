@@ -68,6 +68,7 @@ interface Demanda {
   setor_id: string | null;
   responsavel_id: string;
   descricao: string;
+  observacoes?: string | null;
   status_responsavel: "pendente" | "executado" | "nao_realizado";
   status_gestor: "pendente" | "executado" | "nao_realizado";
   semanas_repeticao: number;
@@ -172,6 +173,7 @@ export default function APT() {
   
   // Column visibility state (for admin/gestor)
   const [hideResponsavelColumn, setHideResponsavelColumn] = useState(false);
+  const [hideObservacoesColumn, setHideObservacoesColumn] = useState(false);
   const [rowLimit, setRowLimit] = useState(50);
   
   // Top Setores card filter (client-side only, doesn't affect DB query)
