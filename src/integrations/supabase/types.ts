@@ -343,6 +343,7 @@ export type Database = {
           mes: number
           muito_urgente: boolean
           numero: number
+          observacoes: string | null
           prioritaria: boolean
           responsavel_id: string
           semana_limite: number[]
@@ -363,6 +364,7 @@ export type Database = {
           mes: number
           muito_urgente?: boolean
           numero?: number
+          observacoes?: string | null
           prioritaria?: boolean
           responsavel_id: string
           semana_limite?: number[]
@@ -383,6 +385,7 @@ export type Database = {
           mes?: number
           muito_urgente?: boolean
           numero?: number
+          observacoes?: string | null
           prioritaria?: boolean
           responsavel_id?: string
           semana_limite?: number[]

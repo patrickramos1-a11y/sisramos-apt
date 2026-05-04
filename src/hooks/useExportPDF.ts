@@ -8,6 +8,7 @@ interface DemandaExport {
   setor: string;
   responsavel: string;
   descricao: string;
+  observacoes: string;
   statusResponsavel: string;
   statusGestor: string;
   repeticao: number;
@@ -30,7 +31,7 @@ const statusLabels: Record<string, string> = {
 export function useExportPDF() {
   const exportDemandas = useCallback(
     (demandas: DemandaExport[], filters?: ExportFilters) => {
-      const doc = new jsPDF();
+      const doc = new jsPDF({ orientation: "landscape" });
 
       // Header
       doc.setFontSize(18);
@@ -60,6 +61,7 @@ export function useExportPDF() {
         d.setor,
         d.responsavel,
         d.descricao.length > 50 ? d.descricao.substring(0, 50) + "..." : d.descricao,
+        d.observacoes.length > 40 ? d.observacoes.substring(0, 40) + "..." : d.observacoes,
         statusLabels[d.statusResponsavel] || d.statusResponsavel,
         statusLabels[d.statusGestor] || d.statusGestor,
         `${d.repeticao}x`,
@@ -68,7 +70,7 @@ export function useExportPDF() {
 
       autoTable(doc, {
         startY: 40,
-        head: [["Nº", "Setor", "Responsável", "Descrição", "Feito", "Aprovado", "Rep.", "Semana"]],
+        head: [["Nº", "Setor", "Responsável", "Descrição", "Observações", "Feito", "Aprovado", "Rep.", "Semana"]],
         body: tableData,
         styles: {
           fontSize: 8,
@@ -83,14 +85,15 @@ export function useExportPDF() {
           fillColor: [245, 245, 245],
         },
         columnStyles: {
-          0: { cellWidth: 12 },
-          1: { cellWidth: 22 },
-          2: { cellWidth: 25 },
-          3: { cellWidth: 50 },
-          4: { cellWidth: 20 },
-          5: { cellWidth: 20 },
-          6: { cellWidth: 12 },
-          7: { cellWidth: 18 },
+          0: { cellWidth: 14 },
+          1: { cellWidth: 28 },
+          2: { cellWidth: 32 },
+          3: { cellWidth: 70 },
+          4: { cellWidth: 55 },
+          5: { cellWidth: 22 },
+          6: { cellWidth: 24 },
+          7: { cellWidth: 14 },
+          8: { cellWidth: 20 },
         },
       });
 

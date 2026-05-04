@@ -16,6 +16,7 @@ interface Demanda {
   setor_id: string | null;
   responsavel_id: string;
   descricao: string;
+  observacoes?: string | null;
   status_responsavel: "pendente" | "executado" | "nao_realizado";
   status_gestor: "pendente" | "executado" | "nao_realizado";
   semanas_repeticao: number;
@@ -76,6 +77,7 @@ export default function ExportDemandasButton({
           setor: setor?.nome || "Sem setor",
           responsavel: profile?.nome || "Desconhecido",
           descricao: d.descricao,
+          observacoes: d.observacoes || "",
           statusResponsavel: d.status_responsavel,
           statusGestor: d.status_gestor,
           repeticao: d.semanas_repeticao,

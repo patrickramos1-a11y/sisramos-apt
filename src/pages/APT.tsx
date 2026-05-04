@@ -68,6 +68,7 @@ interface Demanda {
   setor_id: string | null;
   responsavel_id: string;
   descricao: string;
+  observacoes?: string | null;
   status_responsavel: "pendente" | "executado" | "nao_realizado";
   status_gestor: "pendente" | "executado" | "nao_realizado";
   semanas_repeticao: number;
@@ -172,6 +173,7 @@ export default function APT() {
   
   // Column visibility state (for admin/gestor)
   const [hideResponsavelColumn, setHideResponsavelColumn] = useState(false);
+  const [hideObservacoesColumn, setHideObservacoesColumn] = useState(false);
   const [rowLimit, setRowLimit] = useState(50);
   
   // Top Setores card filter (client-side only, doesn't affect DB query)
@@ -343,6 +345,17 @@ export default function APT() {
                             )}
                             {hideResponsavelColumn ? "Mostrar" : "Ocultar"} coluna "Feito"
                           </DropdownMenuItem>
+                          <DropdownMenuItem
+                            onClick={() => setHideObservacoesColumn(!hideObservacoesColumn)}
+                            className="gap-2"
+                          >
+                            {hideObservacoesColumn ? (
+                              <EyeOff className="h-4 w-4" />
+                            ) : (
+                              <Eye className="h-4 w-4" />
+                            )}
+                            {hideObservacoesColumn ? "Mostrar" : "Ocultar"} coluna "Observações"
+                          </DropdownMenuItem>
                         </DropdownMenuContent>
                       </DropdownMenu>
 
@@ -388,6 +401,13 @@ export default function APT() {
                           >
                             {hideResponsavelColumn ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                             {hideResponsavelColumn ? "Mostrar" : "Ocultar"} col. "Feito"
+                          </DropdownMenuItem>
+                          <DropdownMenuItem
+                            onClick={() => setHideObservacoesColumn(!hideObservacoesColumn)}
+                            className="gap-2"
+                          >
+                            {hideObservacoesColumn ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                            {hideObservacoesColumn ? "Mostrar" : "Ocultar"} col. "Observações"
                           </DropdownMenuItem>
                           {viewedMes !== null && viewedAno !== null && (
                             <DropdownMenuItem
@@ -524,6 +544,7 @@ export default function APT() {
                           setorCor={setor?.cor || "#E5E7EB"}
                           responsavel={profile?.nome || "Desconhecido"}
                           descricao={demanda.descricao}
+                          observacoes={demanda.observacoes}
                           statusResponsavel={demanda.status_responsavel}
                           statusGestor={demanda.status_gestor}
                           semanasRepeticao={demanda.semanas_repeticao}
@@ -534,6 +555,7 @@ export default function APT() {
                           canEditGestor={canEditGestor}
                           canEditDemanda={canEditDemanda}
                           showGestorStatus={isGestorOrAdmin}
+                          showObservacoes={!hideObservacoesColumn}
                           pendingExclusao={pendingDemandaIds.has(demanda.id)}
                           onStatusResponsavelChange={() =>
                             updateStatusResponsavel(
@@ -643,6 +665,9 @@ export default function APT() {
                             <TableHead className="w-28 text-primary-foreground font-semibold">Setor</TableHead>
                             <TableHead className="w-36 text-primary-foreground font-semibold">Responsável</TableHead>
                             <TableHead className="text-primary-foreground font-semibold">Descrição</TableHead>
+                            {!hideObservacoesColumn && (
+                              <TableHead className="w-48 text-primary-foreground font-semibold">Observações</TableHead>
+                            )}
                             {!hideResponsavelColumn && (
                               <TableHead className="text-center w-20 text-primary-foreground font-semibold">
                                 Feito?
@@ -694,6 +719,7 @@ export default function APT() {
                                 setorCor={setor?.cor || "#E5E7EB"}
                                 responsavel={profile?.nome || "Desconhecido"}
                                 descricao={demanda.descricao}
+                                observacoes={demanda.observacoes}
                                 statusResponsavel={demanda.status_responsavel}
                                 statusGestor={demanda.status_gestor}
                                 semanasRepeticao={demanda.semanas_repeticao}
@@ -705,6 +731,7 @@ export default function APT() {
                                 canEditDemanda={canEditDemanda}
                                 showGestorColumn={isGestorOrAdmin}
                                 showResponsavelColumn={!hideResponsavelColumn}
+                                showObservacoesColumn={!hideObservacoesColumn}
                                 isAlternateRow={index % 2 === 1}
                                 isSelected={selectedIds.has(demanda.id)}
                                 showCheckbox={true}
