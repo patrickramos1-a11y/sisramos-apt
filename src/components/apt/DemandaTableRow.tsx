@@ -20,6 +20,7 @@ interface DemandaTableRowProps {
   setorCor: string;
   responsavel: string;
   descricao: string;
+  observacoes?: string | null;
   statusResponsavel: StatusBolinha;
   statusGestor: StatusBolinha;
   semanasRepeticao: number;
@@ -31,6 +32,7 @@ interface DemandaTableRowProps {
   canEditDemanda?: boolean;
   showGestorColumn?: boolean;
   showResponsavelColumn?: boolean;
+  showObservacoesColumn?: boolean;
   isAlternateRow?: boolean;
   isSelected?: boolean;
   showCheckbox?: boolean;
@@ -50,6 +52,7 @@ export default function DemandaTableRow({
   setorCor,
   responsavel,
   descricao,
+  observacoes,
   statusResponsavel,
   statusGestor,
   semanasRepeticao,
@@ -61,6 +64,7 @@ export default function DemandaTableRow({
   canEditDemanda,
   showGestorColumn = true,
   showResponsavelColumn = true,
+  showObservacoesColumn = true,
   isAlternateRow,
   isSelected,
   showCheckbox,
@@ -115,6 +119,11 @@ export default function DemandaTableRow({
           )}
         </div>
       </TableCell>
+      {showObservacoesColumn && (
+        <TableCell className="whitespace-normal break-words text-sm text-muted-foreground w-48 align-top">
+          {observacoes ? observacoes : <span className="text-muted-foreground/50">—</span>}
+        </TableCell>
+      )}
       {showResponsavelColumn && (
         <TableCell className="text-center w-20" onClick={(e) => e.stopPropagation()}>
           <div className="flex justify-center">

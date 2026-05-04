@@ -13,6 +13,7 @@ interface DemandaCardProps {
   setorCor: string;
   responsavel: string;
   descricao: string;
+  observacoes?: string | null;
   statusResponsavel: StatusBolinha;
   statusGestor: StatusBolinha;
   semanasRepeticao: number;
@@ -23,6 +24,7 @@ interface DemandaCardProps {
   canEditGestor: boolean;
   canEditDemanda?: boolean;
   showGestorStatus?: boolean;
+  showObservacoes?: boolean;
   pendingExclusao?: boolean;
   onStatusResponsavelChange: () => void;
   onStatusGestorChange: () => void;
@@ -36,6 +38,7 @@ export default function DemandaCard({
   setorCor,
   responsavel,
   descricao,
+  observacoes,
   statusResponsavel,
   statusGestor,
   semanasRepeticao,
@@ -46,6 +49,7 @@ export default function DemandaCard({
   canEditGestor,
   canEditDemanda,
   showGestorStatus = true,
+  showObservacoes = true,
   pendingExclusao,
   onStatusResponsavelChange,
   onStatusGestorChange,
@@ -106,6 +110,16 @@ export default function DemandaCard({
             </span>
           )}
         </div>
+
+        {/* Observações */}
+        {showObservacoes && observacoes && (
+          <div className="px-3 pb-2">
+            <p className="text-xs text-muted-foreground italic break-words">
+              <span className="font-semibold not-italic text-foreground/70">Obs: </span>
+              {observacoes}
+            </p>
+          </div>
+        )}
 
         {/* Metadados organizados em grid */}
         <div className="grid grid-cols-3 gap-2 px-3 pb-2">
