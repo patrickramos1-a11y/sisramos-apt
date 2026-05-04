@@ -374,6 +374,19 @@ export default function NovaDemandaDialog({
           </div>
 
           <div className="space-y-2">
+            <Label htmlFor="observacoes">Observações</Label>
+            <Textarea
+              id="observacoes"
+              placeholder="Observações adicionais (opcional)..."
+              value={formData.observacoes}
+              onChange={(e) =>
+                setFormData((prev) => ({ ...prev, observacoes: e.target.value }))
+              }
+              rows={2}
+            />
+          </div>
+
+          <div className="space-y-2">
             <Label htmlFor="semanas">Repetições</Label>
             <Input
               id="semanas"

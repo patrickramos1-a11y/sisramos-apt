@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { FormattedTextarea } from "@/components/ui/formatted-textarea";
+import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import {
@@ -39,6 +40,7 @@ interface Demanda {
   setor_id: string | null;
   responsavel_id: string;
   descricao: string;
+  observacoes?: string | null;
   semanas_repeticao: number;
   semana_limite: number[];
   mes: number;
@@ -77,6 +79,7 @@ export default function EditarDemandaIrmaDialog({
     responsavel_id: "",
     setor_id: "",
     descricao: "",
+    observacoes: "",
     semanas_selecionadas: [1] as number[],
     mes: String(new Date().getMonth() + 1),
     ano: String(new Date().getFullYear()),
@@ -151,6 +154,7 @@ export default function EditarDemandaIrmaDialog({
         responsavel_id: demanda.responsavel_id,
         setor_id: demanda.setor_id || "",
         descricao: demanda.descricao,
+        observacoes: demanda.observacoes ?? "",
         semanas_selecionadas: demanda.semana_limite || [1],
         mes: String(demanda.mes),
         ano: String(demanda.ano),
@@ -189,6 +193,7 @@ export default function EditarDemandaIrmaDialog({
         responsavel_id: formData.responsavel_id,
         setor_id: formData.setor_id || null,
         descricao: formData.descricao.trim(),
+        observacoes: formData.observacoes.trim() || null,
         mes: parseInt(formData.mes),
         ano: parseInt(formData.ano),
         prioritaria: formData.prioritaria,
@@ -266,6 +271,7 @@ export default function EditarDemandaIrmaDialog({
               responsavel_id: formData.responsavel_id,
               setor_id: formData.setor_id || null,
               descricao: formData.descricao.trim(),
+              observacoes: formData.observacoes.trim() || null,
               mes: parseInt(formData.mes),
               ano: parseInt(formData.ano),
               prioritaria: formData.prioritaria,
@@ -486,6 +492,19 @@ export default function EditarDemandaIrmaDialog({
                 setFormData((prev) => ({ ...prev, descricao: e.target.value }))
               }
               rows={3}
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="observacoes">Observações</Label>
+            <Textarea
+              id="observacoes"
+              placeholder="Observações adicionais (opcional)..."
+              value={formData.observacoes}
+              onChange={(e) =>
+                setFormData((prev) => ({ ...prev, observacoes: e.target.value }))
+              }
+              rows={2}
             />
           </div>
 
