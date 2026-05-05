@@ -269,7 +269,31 @@ export default function NovaDemandaDialog({
     label: String(currentYear - 2 + i),
   }));
 
-  const totalDemandas = formData.responsavel_ids.length * formData.semana_limite.length;
+  const ocorrenciasMesesNum = formData.repetir_meses
+    ? Math.max(1, parseInt(formData.ocorrencias_meses) || 1)
+    : 1;
+  const intervaloMesesNum = formData.repetir_meses
+    ? Math.max(1, parseInt(formData.intervalo_meses) || 1)
+    : 1;
+  const totalDemandas =
+    formData.responsavel_ids.length *
+    formData.semana_limite.length *
+    ocorrenciasMesesNum;
+
+  // Preview of target months for the recurrence block
+  const previewMonths = (() => {
+    const baseMes = parseInt(formData.mes);
+    const baseAno = parseInt(formData.ano);
+    const out: string[] = [];
+    for (let i = 0; i < ocorrenciasMesesNum; i++) {
+      const d = new Date(baseAno, baseMes - 1 + i * intervaloMesesNum, 1);
+      out.push(
+        d.toLocaleDateString("pt-BR", { month: "short", year: "numeric" })
+          .replace(".", "")
+      );
+    }
+    return out;
+  })();
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
