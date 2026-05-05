@@ -123,9 +123,35 @@ Deno.serve(async (req) => {
         .filter((g): g is string => !!g),
     );
 
+    // Detect multi-month groups: groups with occurrences in any (mes, ano)
+    // different from the source month are pre-scheduled recurrences and must
+    // NOT be expanded to unplanned months by rollover.
+    const sourceGroupIds = Array.from(
+      new Set(
+        sourceDemandas
+          .map((d: Demanda) => d.grupo_id)
+          .filter((g): g is string => !!g),
+      ),
+    );
+    const multiMonthGroupIds = new Set<string>();
+    if (sourceGroupIds.length > 0) {
+      const { data: groupOccurrences, error: groupErr } = await supabase
+        .from("demandas")
+        .select("grupo_id, mes, ano")
+        .in("grupo_id", sourceGroupIds);
+      if (groupErr) throw groupErr;
+      for (const occ of groupOccurrences || []) {
+        if (occ.grupo_id && (occ.mes !== sourceMes || occ.ano !== sourceAno)) {
+          multiMonthGroupIds.add(occ.grupo_id);
+        }
+      }
+    }
+
     // Prepare new demands for target month
     const newDemandas = sourceDemandas
       .filter((d: Demanda) => {
+        // Skip multi-month recurrence groups: their future occurrences are pre-scheduled
+        if (d.grupo_id && multiMonthGroupIds.has(d.grupo_id)) return false;
         // Skip if this group already has an occurrence in target month (pre-scheduled multi-month recurrence)
         if (d.grupo_id && existingGrupoIds.has(d.grupo_id)) return false;
         // Skip if a similar demand already exists in target month
