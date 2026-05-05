@@ -12,6 +12,7 @@ interface Demanda {
   setor_id: string | null;
   responsavel_id: string;
   descricao: string;
+  observacoes: string | null;
   semanas_repeticao: number;
   semana_limite: number[];
   prioritaria: boolean;
