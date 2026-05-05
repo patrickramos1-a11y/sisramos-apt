@@ -193,16 +193,22 @@ export default function EditarDemandaIrmaDialog({
     setIsLoading(true);
 
     try {
-      const baseUpdateData = {
+      const isMultiMonthGroup =
+        new Set(siblingMonths.map((m) => `${m.mes}-${m.ano}`)).size > 1;
+
+      const baseUpdateData: Record<string, unknown> = {
         responsavel_id: formData.responsavel_id,
         setor_id: formData.setor_id || null,
         descricao: formData.descricao.trim(),
         observacoes: formData.observacoes.trim() || null,
-        mes: parseInt(formData.mes),
-        ano: parseInt(formData.ano),
         prioritaria: formData.prioritaria,
         muito_urgente: formData.muito_urgente,
       };
+      // Only push mes/ano in single-month groups OR when editing a single demand
+      if (!isMultiMonthGroup || editScope === "single") {
+        baseUpdateData.mes = parseInt(formData.mes);
+        baseUpdateData.ano = parseInt(formData.ano);
+      }
 
       if (editScope === "all") {
         if (!resolvedGrupoId) {
