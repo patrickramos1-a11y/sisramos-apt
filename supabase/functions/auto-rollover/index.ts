@@ -141,17 +141,22 @@ Deno.serve(async (req) => {
     );
     const multiMonthGroupIds = new Set<string>();
     if (sourceGroupIds.length > 0) {
-      const { data: groupOccurrences, error: groupErr } = await supabase
-        .from("demandas")
-        .select("grupo_id, mes, ano")
-        .in("grupo_id", sourceGroupIds);
-      if (groupErr) {
-        console.error("❌ Error fetching group occurrences:", groupErr);
-        throw groupErr;
-      }
-      for (const occ of groupOccurrences || []) {
-        if (occ.grupo_id && (occ.mes !== previousMonth || occ.ano !== previousYear)) {
-          multiMonthGroupIds.add(occ.grupo_id);
+      // Chunk the .in() query to avoid URL length limits
+      const chunkSize = 80;
+      for (let i = 0; i < sourceGroupIds.length; i += chunkSize) {
+        const chunk = sourceGroupIds.slice(i, i + chunkSize);
+        const { data: groupOccurrences, error: groupErr } = await supabase
+          .from("demandas")
+          .select("grupo_id, mes, ano")
+          .in("grupo_id", chunk);
+        if (groupErr) {
+          console.error("❌ Error fetching group occurrences:", groupErr);
+          throw groupErr;
+        }
+        for (const occ of groupOccurrences || []) {
+          if (occ.grupo_id && (occ.mes !== previousMonth || occ.ano !== previousYear)) {
+            multiMonthGroupIds.add(occ.grupo_id);
+          }
         }
       }
       console.log(`🔁 Detected ${multiMonthGroupIds.size} multi-month recurrence groups (will be skipped)`);
