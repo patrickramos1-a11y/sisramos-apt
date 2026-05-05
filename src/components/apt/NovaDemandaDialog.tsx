@@ -620,11 +620,14 @@ export default function NovaDemandaDialog({
             <div className="bg-muted/50 rounded-md p-3 text-sm">
               <p className="font-medium">Resumo:</p>
               <p className="text-muted-foreground">
-                {formData.responsavel_ids.length} responsável(is) × {formData.semana_limite.length} semana(s) = <strong>{totalDemandas} demandas</strong>
+                {formData.responsavel_ids.length} responsável(is) ×{" "}
+                {ocorrenciasMesesNum} mês(es) ×{" "}
+                {formData.semana_limite.length} semana(s) ={" "}
+                <strong>{totalDemandas} demandas</strong>
               </p>
-              {formData.semana_limite.length > 1 && (
+              {(formData.semana_limite.length > 1 || ocorrenciasMesesNum > 1) && (
                 <p className="text-xs text-muted-foreground mt-1">
-                  Demandas de cada responsável em diferentes semanas serão irmãs entre si
+                  Demandas de cada responsável serão irmãs entre si (mesmo grupo)
                 </p>
               )}
             </div>
