@@ -70,6 +70,9 @@ export default function NovaDemandaDialog({
     ano: String(new Date().getFullYear()),
     prioritaria: false,
     muito_urgente: false,
+    repetir_meses: false,
+    intervalo_meses: "1",
+    ocorrencias_meses: "2",
   });
 
   const resetForm = () => {
@@ -84,6 +87,9 @@ export default function NovaDemandaDialog({
       ano: String(new Date().getFullYear()),
       prioritaria: false,
       muito_urgente: false,
+      repetir_meses: false,
+      intervalo_meses: "1",
+      ocorrencias_meses: "2",
     });
   };
 
@@ -134,8 +140,20 @@ export default function NovaDemandaDialog({
 
     setIsLoading(true);
 
+    // Compute target months based on monthly recurrence
+    const baseMes = parseInt(formData.mes);
+    const baseAno = parseInt(formData.ano);
+    const intervaloMeses = formData.repetir_meses ? parseInt(formData.intervalo_meses) : 1;
+    const ocorrenciasMeses = formData.repetir_meses ? parseInt(formData.ocorrencias_meses) : 1;
+    const targetMonths: { mes: number; ano: number }[] = [];
+    for (let i = 0; i < ocorrenciasMeses; i++) {
+      const offset = i * intervaloMeses;
+      const d = new Date(baseAno, baseMes - 1 + offset, 1);
+      targetMonths.push({ mes: d.getMonth() + 1, ano: d.getFullYear() });
+    }
+
     // Create demands for each responsible
-    // Each responsible gets their own grupo_id if multiple weeks are selected
+    // Each responsible gets their own grupo_id if multiple (week × month) combinations exist
     const allDemandas: {
       responsavel_id: string;
       setor_id: string | null;
@@ -150,27 +168,29 @@ export default function NovaDemandaDialog({
       grupo_id: string | null;
     }[] = [];
 
-    for (const responsavelId of formData.responsavel_ids) {
-      // Generate a unique group ID for this responsible if multiple weeks
-      const grupoId = formData.semana_limite.length > 1 
-        ? crypto.randomUUID() 
-        : null;
+    const totalPerResponsavel = formData.semana_limite.length * targetMonths.length;
 
-      // Create one demand for each selected week for this responsible
-      for (const semana of formData.semana_limite) {
-        allDemandas.push({
-          responsavel_id: responsavelId,
-          setor_id: formData.setor_id || null,
-          descricao: formData.descricao.trim(),
-          observacoes: formData.observacoes.trim() || null,
-          semanas_repeticao: parseInt(formData.semanas_repeticao),
-          semana_limite: [semana],
-          mes: parseInt(formData.mes),
-          ano: parseInt(formData.ano),
-          prioritaria: formData.prioritaria,
-          muito_urgente: formData.muito_urgente,
-          grupo_id: grupoId,
-        });
+    for (const responsavelId of formData.responsavel_ids) {
+      // Generate a unique group ID for this responsible if more than 1 demand will be created
+      const grupoId = totalPerResponsavel > 1 ? crypto.randomUUID() : null;
+
+      // Create one demand for each (target month × selected week)
+      for (const { mes, ano } of targetMonths) {
+        for (const semana of formData.semana_limite) {
+          allDemandas.push({
+            responsavel_id: responsavelId,
+            setor_id: formData.setor_id || null,
+            descricao: formData.descricao.trim(),
+            observacoes: formData.observacoes.trim() || null,
+            semanas_repeticao: formData.semana_limite.length,
+            semana_limite: [semana],
+            mes,
+            ano,
+            prioritaria: formData.prioritaria,
+            muito_urgente: formData.muito_urgente,
+            grupo_id: grupoId,
+          });
+        }
       }
     }
 
@@ -186,17 +206,15 @@ export default function NovaDemandaDialog({
       const totalDemandas = allDemandas.length;
       const numResponsaveis = formData.responsavel_ids.length;
       const numSemanas = formData.semana_limite.length;
-      
-      let description = "";
-      if (numResponsaveis > 1 && numSemanas > 1) {
-        description = `${totalDemandas} demandas criadas (${numResponsaveis} responsáveis × ${numSemanas} semanas)`;
-      } else if (numResponsaveis > 1) {
-        description = `${totalDemandas} demandas criadas (uma para cada responsável)`;
-      } else if (numSemanas > 1) {
-        description = `${totalDemandas} demandas criadas (uma para cada semana)`;
-      } else {
-        description = "A demanda foi adicionada com sucesso";
-      }
+      const numMeses = targetMonths.length;
+
+      const parts: string[] = [];
+      if (numResponsaveis > 1) parts.push(`${numResponsaveis} responsáveis`);
+      if (numMeses > 1) parts.push(`${numMeses} meses`);
+      if (numSemanas > 1) parts.push(`${numSemanas} semanas`);
+      const description = parts.length > 0
+        ? `${totalDemandas} demandas criadas (${parts.join(" × ")})`
+        : "A demanda foi adicionada com sucesso";
       
       toast({
         title: totalDemandas > 1 ? "Demandas criadas!" : "Demanda criada!",
