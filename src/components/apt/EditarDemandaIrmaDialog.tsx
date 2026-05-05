@@ -549,7 +549,7 @@ export default function EditarDemandaIrmaDialog({
             </p>
           </div>
 
-          {editScope === "single" && (
+          {editScope === "single" || !lockSemanas ? (
             <div className="space-y-2">
               <Label>Semanas (selecione uma ou mais)</Label>
               <div className="flex flex-wrap gap-2">
@@ -559,6 +559,7 @@ export default function EditarDemandaIrmaDialog({
                     type="button"
                     variant={formData.semanas_selecionadas.includes(s) ? "default" : "outline"}
                     size="sm"
+                    disabled={editScope === "all"}
                     onClick={() => toggleSemana(s)}
                   >
                     {s}ª
@@ -571,7 +572,7 @@ export default function EditarDemandaIrmaDialog({
                   : "Selecione mais semanas para criar demandas irmãs"}
               </p>
             </div>
-          )}
+          ) : null}
 
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
@@ -581,8 +582,9 @@ export default function EditarDemandaIrmaDialog({
                 onValueChange={(v) =>
                   setFormData((prev) => ({ ...prev, mes: v }))
                 }
+                disabled={lockMonthYear}
               >
-                <SelectTrigger>
+                <SelectTrigger className={lockMonthYear ? "bg-muted" : ""}>
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -602,8 +604,9 @@ export default function EditarDemandaIrmaDialog({
                 onValueChange={(v) =>
                   setFormData((prev) => ({ ...prev, ano: v }))
                 }
+                disabled={lockMonthYear}
               >
-                <SelectTrigger>
+                <SelectTrigger className={lockMonthYear ? "bg-muted" : ""}>
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
