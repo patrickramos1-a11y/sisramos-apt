@@ -511,6 +511,74 @@ export default function NovaDemandaDialog({
             </div>
           </div>
 
+          {/* Repetição mensal */}
+          <div className="space-y-3 rounded-md border border-border p-3">
+            <div className="flex items-center gap-2">
+              <Checkbox
+                id="repetir_meses"
+                checked={formData.repetir_meses}
+                onCheckedChange={(checked) =>
+                  setFormData((prev) => ({
+                    ...prev,
+                    repetir_meses: checked as boolean,
+                  }))
+                }
+              />
+              <Label htmlFor="repetir_meses" className="cursor-pointer">
+                Repetir em outros meses
+              </Label>
+            </div>
+
+            {formData.repetir_meses && (
+              <div className="space-y-3 pl-6">
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1">
+                    <Label className="text-xs">A cada</Label>
+                    <Select
+                      value={formData.intervalo_meses}
+                      onValueChange={(v) =>
+                        setFormData((prev) => ({ ...prev, intervalo_meses: v }))
+                      }
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {[1, 2, 3, 4, 6, 12].map((n) => (
+                          <SelectItem key={n} value={String(n)}>
+                            {n === 1 ? "1 mês" : `${n} meses`}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-xs">Ocorrências</Label>
+                    <Input
+                      type="number"
+                      min={2}
+                      max={12}
+                      value={formData.ocorrencias_meses}
+                      onChange={(e) =>
+                        setFormData((prev) => ({
+                          ...prev,
+                          ocorrencias_meses: e.target.value,
+                        }))
+                      }
+                    />
+                  </div>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Será criada nas semanas{" "}
+                  <strong>
+                    {formData.semana_limite.map((s) => `${s}ª`).join(", ")}
+                  </strong>{" "}
+                  de <strong>{previewMonths.join(", ")}</strong>
+                </p>
+              </div>
+            )}
+          </div>
+
           <div className="space-y-3">
             <div className="flex items-center gap-2">
               <Checkbox
