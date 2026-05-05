@@ -411,14 +411,14 @@ Deno.test("rollover: cenário misto — copia normais e pula multi-mês", async 
   const responsavelId = await getResponsavelId();
   const grupoMulti = crypto.randomUUID();
   try {
+    // Insert separately to avoid PostgREST "All object keys must match"
+    await insertDemandas([{
+      responsavel_id: responsavelId,
+      descricao: `${prefix}_normal`,
+      mes: 1, ano: TEST_YEAR, semana_limite: [1], semanas_repeticao: 1,
+      grupo_id: null, ativa: true,
+    }]);
     await insertDemandas([
-      // Normal — deve copiar
-      {
-        responsavel_id: responsavelId,
-        descricao: `${prefix}_normal`,
-        mes: 1, ano: TEST_YEAR, semana_limite: [1], semanas_repeticao: 1, ativa: true,
-      },
-      // Multi-mês — NÃO deve copiar para fev
       {
         responsavel_id: responsavelId,
         descricao: `${prefix}_multi`,
