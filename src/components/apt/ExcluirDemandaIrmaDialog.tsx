@@ -20,6 +20,8 @@ interface SiblingDemanda {
   numero: number;
   descricao: string;
   semana_limite: number[];
+  mes?: number;
+  ano?: number;
 }
 
 interface ExcluirDemandaIrmaDialogProps {
@@ -70,7 +72,7 @@ export default function ExcluirDemandaIrmaDialog({
         // Primary path: fetch by grupo_id
         const { data, error } = await supabase
           .from("demandas")
-          .select("id, numero, descricao, semana_limite")
+          .select("id, numero, descricao, semana_limite, mes, ano")
           .eq("grupo_id", grupoId)
           .eq("ativa", true);
         
@@ -86,7 +88,7 @@ export default function ExcluirDemandaIrmaDialog({
       if (demandaSemanasRepeticao && demandaSemanasRepeticao > 1 && demandaDescricao && demandaResponsavelId && demandaMes && demandaAno) {
         const { data, error } = await supabase
           .from("demandas")
-          .select("id, numero, descricao, semana_limite, grupo_id")
+          .select("id, numero, descricao, semana_limite, grupo_id, mes, ano")
           .eq("descricao", demandaDescricao)
           .eq("responsavel_id", demandaResponsavelId)
           .eq("mes", demandaMes)
@@ -94,7 +96,16 @@ export default function ExcluirDemandaIrmaDialog({
           .eq("ativa", true);
 
         if (!error && data && data.length > 1) {
-          setAllSiblings(data.map(d => ({ id: d.id, numero: d.numero, descricao: d.descricao, semana_limite: d.semana_limite })));
+          setAllSiblings(
+            data.map((d) => ({
+              id: d.id,
+              numero: d.numero,
+              descricao: d.descricao,
+              semana_limite: d.semana_limite,
+              mes: d.mes,
+              ano: d.ano,
+            })),
+          );
           setActualSiblingCount(data.length);
 
           // Auto-fix: assign a shared grupo_id to all these orphan siblings
@@ -268,6 +279,12 @@ export default function ExcluirDemandaIrmaDialog({
     return semanas.map(s => `${s}ª`).join(", ");
   };
 
+  const getMesLabel = (mes?: number, ano?: number) => {
+    if (!mes || !ano) return "";
+    const d = new Date(ano, mes - 1, 1);
+    return d.toLocaleDateString("pt-BR", { month: "short", year: "2-digit" }).replace(".", "");
+  };
+
   return (
     <AlertDialog open={open} onOpenChange={onOpenChange}>
       <AlertDialogContent className="max-w-lg">
@@ -309,6 +326,11 @@ export default function ExcluirDemandaIrmaDialog({
                                     #{s.numero}
                                   </Badge>
                                   <span className="truncate flex-1">{s.descricao}</span>
+                                  {s.mes && s.ano && (
+                                    <Badge variant="outline" className="shrink-0 text-[10px]">
+                                      {getMesLabel(s.mes, s.ano)}
+                                    </Badge>
+                                  )}
                                   <Badge variant="secondary" className="shrink-0">
                                     {getSemanaLabel(s.semana_limite)}
                                   </Badge>
