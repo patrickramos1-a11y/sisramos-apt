@@ -135,14 +135,18 @@ Deno.serve(async (req) => {
     );
     const multiMonthGroupIds = new Set<string>();
     if (sourceGroupIds.length > 0) {
-      const { data: groupOccurrences, error: groupErr } = await supabase
-        .from("demandas")
-        .select("grupo_id, mes, ano")
-        .in("grupo_id", sourceGroupIds);
-      if (groupErr) throw groupErr;
-      for (const occ of groupOccurrences || []) {
-        if (occ.grupo_id && (occ.mes !== sourceMes || occ.ano !== sourceAno)) {
-          multiMonthGroupIds.add(occ.grupo_id);
+      const chunkSize = 80;
+      for (let i = 0; i < sourceGroupIds.length; i += chunkSize) {
+        const chunk = sourceGroupIds.slice(i, i + chunkSize);
+        const { data: groupOccurrences, error: groupErr } = await supabase
+          .from("demandas")
+          .select("grupo_id, mes, ano")
+          .in("grupo_id", chunk);
+        if (groupErr) throw groupErr;
+        for (const occ of groupOccurrences || []) {
+          if (occ.grupo_id && (occ.mes !== sourceMes || occ.ano !== sourceAno)) {
+            multiMonthGroupIds.add(occ.grupo_id);
+          }
         }
       }
     }
