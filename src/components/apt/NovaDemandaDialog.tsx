@@ -70,6 +70,9 @@ export default function NovaDemandaDialog({
     ano: String(new Date().getFullYear()),
     prioritaria: false,
     muito_urgente: false,
+    repetir_meses: false,
+    intervalo_meses: "1",
+    ocorrencias_meses: "2",
   });
 
   const resetForm = () => {
@@ -84,6 +87,9 @@ export default function NovaDemandaDialog({
       ano: String(new Date().getFullYear()),
       prioritaria: false,
       muito_urgente: false,
+      repetir_meses: false,
+      intervalo_meses: "1",
+      ocorrencias_meses: "2",
     });
   };
 
@@ -134,8 +140,20 @@ export default function NovaDemandaDialog({
 
     setIsLoading(true);
 
+    // Compute target months based on monthly recurrence
+    const baseMes = parseInt(formData.mes);
+    const baseAno = parseInt(formData.ano);
+    const intervaloMeses = formData.repetir_meses ? parseInt(formData.intervalo_meses) : 1;
+    const ocorrenciasMeses = formData.repetir_meses ? parseInt(formData.ocorrencias_meses) : 1;
+    const targetMonths: { mes: number; ano: number }[] = [];
+    for (let i = 0; i < ocorrenciasMeses; i++) {
+      const offset = i * intervaloMeses;
+      const d = new Date(baseAno, baseMes - 1 + offset, 1);
+      targetMonths.push({ mes: d.getMonth() + 1, ano: d.getFullYear() });
+    }
+
     // Create demands for each responsible
-    // Each responsible gets their own grupo_id if multiple weeks are selected
+    // Each responsible gets their own grupo_id if multiple (week × month) combinations exist
     const allDemandas: {
       responsavel_id: string;
       setor_id: string | null;
@@ -150,27 +168,29 @@ export default function NovaDemandaDialog({
       grupo_id: string | null;
     }[] = [];
 
-    for (const responsavelId of formData.responsavel_ids) {
-      // Generate a unique group ID for this responsible if multiple weeks
-      const grupoId = formData.semana_limite.length > 1 
-        ? crypto.randomUUID() 
-        : null;
+    const totalPerResponsavel = formData.semana_limite.length * targetMonths.length;
 
-      // Create one demand for each selected week for this responsible
-      for (const semana of formData.semana_limite) {
-        allDemandas.push({
-          responsavel_id: responsavelId,
-          setor_id: formData.setor_id || null,
-          descricao: formData.descricao.trim(),
-          observacoes: formData.observacoes.trim() || null,
-          semanas_repeticao: parseInt(formData.semanas_repeticao),
-          semana_limite: [semana],
-          mes: parseInt(formData.mes),
-          ano: parseInt(formData.ano),
-          prioritaria: formData.prioritaria,
-          muito_urgente: formData.muito_urgente,
-          grupo_id: grupoId,
-        });
+    for (const responsavelId of formData.responsavel_ids) {
+      // Generate a unique group ID for this responsible if more than 1 demand will be created
+      const grupoId = totalPerResponsavel > 1 ? crypto.randomUUID() : null;
+
+      // Create one demand for each (target month × selected week)
+      for (const { mes, ano } of targetMonths) {
+        for (const semana of formData.semana_limite) {
+          allDemandas.push({
+            responsavel_id: responsavelId,
+            setor_id: formData.setor_id || null,
+            descricao: formData.descricao.trim(),
+            observacoes: formData.observacoes.trim() || null,
+            semanas_repeticao: formData.semana_limite.length,
+            semana_limite: [semana],
+            mes,
+            ano,
+            prioritaria: formData.prioritaria,
+            muito_urgente: formData.muito_urgente,
+            grupo_id: grupoId,
+          });
+        }
       }
     }
 
@@ -186,17 +206,15 @@ export default function NovaDemandaDialog({
       const totalDemandas = allDemandas.length;
       const numResponsaveis = formData.responsavel_ids.length;
       const numSemanas = formData.semana_limite.length;
-      
-      let description = "";
-      if (numResponsaveis > 1 && numSemanas > 1) {
-        description = `${totalDemandas} demandas criadas (${numResponsaveis} responsáveis × ${numSemanas} semanas)`;
-      } else if (numResponsaveis > 1) {
-        description = `${totalDemandas} demandas criadas (uma para cada responsável)`;
-      } else if (numSemanas > 1) {
-        description = `${totalDemandas} demandas criadas (uma para cada semana)`;
-      } else {
-        description = "A demanda foi adicionada com sucesso";
-      }
+      const numMeses = targetMonths.length;
+
+      const parts: string[] = [];
+      if (numResponsaveis > 1) parts.push(`${numResponsaveis} responsáveis`);
+      if (numMeses > 1) parts.push(`${numMeses} meses`);
+      if (numSemanas > 1) parts.push(`${numSemanas} semanas`);
+      const description = parts.length > 0
+        ? `${totalDemandas} demandas criadas (${parts.join(" × ")})`
+        : "A demanda foi adicionada com sucesso";
       
       toast({
         title: totalDemandas > 1 ? "Demandas criadas!" : "Demanda criada!",
@@ -251,7 +269,31 @@ export default function NovaDemandaDialog({
     label: String(currentYear - 2 + i),
   }));
 
-  const totalDemandas = formData.responsavel_ids.length * formData.semana_limite.length;
+  const ocorrenciasMesesNum = formData.repetir_meses
+    ? Math.max(1, parseInt(formData.ocorrencias_meses) || 1)
+    : 1;
+  const intervaloMesesNum = formData.repetir_meses
+    ? Math.max(1, parseInt(formData.intervalo_meses) || 1)
+    : 1;
+  const totalDemandas =
+    formData.responsavel_ids.length *
+    formData.semana_limite.length *
+    ocorrenciasMesesNum;
+
+  // Preview of target months for the recurrence block
+  const previewMonths = (() => {
+    const baseMes = parseInt(formData.mes);
+    const baseAno = parseInt(formData.ano);
+    const out: string[] = [];
+    for (let i = 0; i < ocorrenciasMesesNum; i++) {
+      const d = new Date(baseAno, baseMes - 1 + i * intervaloMesesNum, 1);
+      out.push(
+        d.toLocaleDateString("pt-BR", { month: "short", year: "numeric" })
+          .replace(".", "")
+      );
+    }
+    return out;
+  })();
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
@@ -469,6 +511,74 @@ export default function NovaDemandaDialog({
             </div>
           </div>
 
+          {/* Repetição mensal */}
+          <div className="space-y-3 rounded-md border border-border p-3">
+            <div className="flex items-center gap-2">
+              <Checkbox
+                id="repetir_meses"
+                checked={formData.repetir_meses}
+                onCheckedChange={(checked) =>
+                  setFormData((prev) => ({
+                    ...prev,
+                    repetir_meses: checked as boolean,
+                  }))
+                }
+              />
+              <Label htmlFor="repetir_meses" className="cursor-pointer">
+                Repetir em outros meses
+              </Label>
+            </div>
+
+            {formData.repetir_meses && (
+              <div className="space-y-3 pl-6">
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1">
+                    <Label className="text-xs">A cada</Label>
+                    <Select
+                      value={formData.intervalo_meses}
+                      onValueChange={(v) =>
+                        setFormData((prev) => ({ ...prev, intervalo_meses: v }))
+                      }
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {[1, 2, 3, 4, 6, 12].map((n) => (
+                          <SelectItem key={n} value={String(n)}>
+                            {n === 1 ? "1 mês" : `${n} meses`}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-xs">Ocorrências</Label>
+                    <Input
+                      type="number"
+                      min={2}
+                      max={12}
+                      value={formData.ocorrencias_meses}
+                      onChange={(e) =>
+                        setFormData((prev) => ({
+                          ...prev,
+                          ocorrencias_meses: e.target.value,
+                        }))
+                      }
+                    />
+                  </div>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Será criada nas semanas{" "}
+                  <strong>
+                    {formData.semana_limite.map((s) => `${s}ª`).join(", ")}
+                  </strong>{" "}
+                  de <strong>{previewMonths.join(", ")}</strong>
+                </p>
+              </div>
+            )}
+          </div>
+
           <div className="space-y-3">
             <div className="flex items-center gap-2">
               <Checkbox
@@ -510,11 +620,14 @@ export default function NovaDemandaDialog({
             <div className="bg-muted/50 rounded-md p-3 text-sm">
               <p className="font-medium">Resumo:</p>
               <p className="text-muted-foreground">
-                {formData.responsavel_ids.length} responsável(is) × {formData.semana_limite.length} semana(s) = <strong>{totalDemandas} demandas</strong>
+                {formData.responsavel_ids.length} responsável(is) ×{" "}
+                {ocorrenciasMesesNum} mês(es) ×{" "}
+                {formData.semana_limite.length} semana(s) ={" "}
+                <strong>{totalDemandas} demandas</strong>
               </p>
-              {formData.semana_limite.length > 1 && (
+              {(formData.semana_limite.length > 1 || ocorrenciasMesesNum > 1) && (
                 <p className="text-xs text-muted-foreground mt-1">
-                  Demandas de cada responsável em diferentes semanas serão irmãs entre si
+                  Demandas de cada responsável serão irmãs entre si (mesmo grupo)
                 </p>
               )}
             </div>

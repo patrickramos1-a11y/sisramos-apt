@@ -73,6 +73,7 @@ export default function EditarDemandaIrmaDialog({
   const [editScope, setEditScope] = useState<"single" | "all">("single");
   const [actualSiblingCount, setActualSiblingCount] = useState(siblingCount);
   const [resolvedGrupoId, setResolvedGrupoId] = useState<string | null>(null);
+  const [siblingMonths, setSiblingMonths] = useState<{ mes: number; ano: number }[]>([]);
   const { toast } = useToast();
 
   const [formData, setFormData] = useState({
@@ -97,13 +98,14 @@ export default function EditarDemandaIrmaDialog({
       if (demanda.grupo_id) {
         const { data, error } = await supabase
           .from("demandas")
-          .select("id")
+          .select("id, mes, ano")
           .eq("grupo_id", demanda.grupo_id)
           .eq("ativa", true);
         
         if (!error && data && data.length > 1) {
           setActualSiblingCount(data.length);
           setResolvedGrupoId(demanda.grupo_id);
+          setSiblingMonths(data.map((d) => ({ mes: d.mes, ano: d.ano })));
           return;
         }
       }
@@ -112,7 +114,7 @@ export default function EditarDemandaIrmaDialog({
       if (demanda.semanas_repeticao > 1) {
         const { data, error } = await supabase
           .from("demandas")
-          .select("id, grupo_id")
+          .select("id, grupo_id, mes, ano")
           .eq("descricao", demanda.descricao)
           .eq("responsavel_id", demanda.responsavel_id)
           .eq("mes", demanda.mes)
@@ -137,12 +139,14 @@ export default function EditarDemandaIrmaDialog({
             }
           }
           setResolvedGrupoId(groupId);
+          setSiblingMonths(data.map((d) => ({ mes: d.mes, ano: d.ano })));
           return;
         }
       }
 
       setActualSiblingCount(siblingCount);
       setResolvedGrupoId(demanda.grupo_id ?? null);
+      setSiblingMonths(demanda ? [{ mes: demanda.mes, ano: demanda.ano }] : []);
     };
 
     fetchActualSiblingCount();
@@ -189,16 +193,22 @@ export default function EditarDemandaIrmaDialog({
     setIsLoading(true);
 
     try {
-      const baseUpdateData = {
+      const isMultiMonthGroup =
+        new Set(siblingMonths.map((m) => `${m.mes}-${m.ano}`)).size > 1;
+
+      const baseUpdateData: Record<string, unknown> = {
         responsavel_id: formData.responsavel_id,
         setor_id: formData.setor_id || null,
         descricao: formData.descricao.trim(),
         observacoes: formData.observacoes.trim() || null,
-        mes: parseInt(formData.mes),
-        ano: parseInt(formData.ano),
         prioritaria: formData.prioritaria,
         muito_urgente: formData.muito_urgente,
       };
+      // Only push mes/ano in single-month groups OR when editing a single demand
+      if (!isMultiMonthGroup || editScope === "single") {
+        baseUpdateData.mes = parseInt(formData.mes);
+        baseUpdateData.ano = parseInt(formData.ano);
+      }
 
       if (editScope === "all") {
         if (!resolvedGrupoId) {
@@ -407,7 +417,14 @@ export default function EditarDemandaIrmaDialog({
 
   const semanas = [1, 2, 3, 4, 5];
 
-  const hasSiblings = demanda?.grupo_id && actualSiblingCount > 1;
+  const hasSiblings = actualSiblingCount > 1;
+  const isMultiMonthGroup =
+    new Set(siblingMonths.map((m) => `${m.mes}-${m.ano}`)).size > 1;
+  const distinctMonthCount = new Set(
+    siblingMonths.map((m) => `${m.mes}-${m.ano}`),
+  ).size;
+  const lockMonthYear = hasSiblings && editScope === "all" && isMultiMonthGroup;
+  const lockSemanas = hasSiblings && editScope === "all" && isMultiMonthGroup;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -434,9 +451,16 @@ export default function EditarDemandaIrmaDialog({
                   <RadioGroupItem value="all" id="all" />
                   <Label htmlFor="all" className="font-normal cursor-pointer">
                     Todas as {actualSiblingCount} demandas do grupo
+                    {isMultiMonthGroup && ` (em ${distinctMonthCount} meses)`}
                   </Label>
                 </div>
               </RadioGroup>
+              {lockMonthYear && (
+                <p className="text-xs text-muted-foreground">
+                  Este grupo abrange vários meses. Mês/ano e semanas só podem
+                  ser alterados em "Apenas esta demanda".
+                </p>
+              )}
             </div>
           )}
 
@@ -525,7 +549,7 @@ export default function EditarDemandaIrmaDialog({
             </p>
           </div>
 
-          {editScope === "single" && (
+          {editScope === "single" || !lockSemanas ? (
             <div className="space-y-2">
               <Label>Semanas (selecione uma ou mais)</Label>
               <div className="flex flex-wrap gap-2">
@@ -535,6 +559,7 @@ export default function EditarDemandaIrmaDialog({
                     type="button"
                     variant={formData.semanas_selecionadas.includes(s) ? "default" : "outline"}
                     size="sm"
+                    disabled={editScope === "all"}
                     onClick={() => toggleSemana(s)}
                   >
                     {s}ª
@@ -547,7 +572,7 @@ export default function EditarDemandaIrmaDialog({
                   : "Selecione mais semanas para criar demandas irmãs"}
               </p>
             </div>
-          )}
+          ) : null}
 
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
@@ -557,8 +582,9 @@ export default function EditarDemandaIrmaDialog({
                 onValueChange={(v) =>
                   setFormData((prev) => ({ ...prev, mes: v }))
                 }
+                disabled={lockMonthYear}
               >
-                <SelectTrigger>
+                <SelectTrigger className={lockMonthYear ? "bg-muted" : ""}>
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -578,8 +604,9 @@ export default function EditarDemandaIrmaDialog({
                 onValueChange={(v) =>
                   setFormData((prev) => ({ ...prev, ano: v }))
                 }
+                disabled={lockMonthYear}
               >
-                <SelectTrigger>
+                <SelectTrigger className={lockMonthYear ? "bg-muted" : ""}>
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
