@@ -94,12 +94,6 @@ export default function EditarDemandaIrmaDialog({
     if (!open || !demanda) return;
 
     const fetchActualSiblingCount = async () => {
-      console.log("[EditarDemandaIrma] Fetching siblings for demanda:", {
-        id: demanda.id,
-        numero: demanda.numero,
-        grupo_id: demanda.grupo_id,
-        semanas_repeticao: demanda.semanas_repeticao,
-      });
       // Primary: fetch by grupo_id
       if (demanda.grupo_id) {
         const { data, error } = await supabase
@@ -107,7 +101,6 @@ export default function EditarDemandaIrmaDialog({
           .select("id, mes, ano")
           .eq("grupo_id", demanda.grupo_id)
           .eq("ativa", true);
-        console.log("[EditarDemandaIrma] Primary fetch result:", { data, error, count: data?.length });
         
         if (!error && data && data.length > 1) {
           setActualSiblingCount(data.length);
