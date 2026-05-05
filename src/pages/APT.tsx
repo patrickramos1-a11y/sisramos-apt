@@ -195,7 +195,10 @@ export default function APT() {
 
   // Contadores derivados das demandas atualmente visíveis (respeitando todos os filtros + topSetor)
   const visiblePendingCount = useMemo(
-    () => displayedDemandas.filter((d) => d.status_responsavel === "pendente").length,
+    () =>
+      displayedDemandas.filter(
+        (d) => d.status_responsavel === "pendente" || d.status_responsavel === "nao_realizado",
+      ).length,
     [displayedDemandas],
   );
   const visiblePendingApprovalCount = useMemo(
