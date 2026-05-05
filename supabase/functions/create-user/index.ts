@@ -23,6 +23,49 @@ Deno.serve(async (req) => {
       );
     }
 
+    // Type checks
+    if (typeof email !== "string" || typeof password !== "string" || typeof nome !== "string") {
+      return new Response(
+        JSON.stringify({ error: "Tipos de campos inválidos" }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // Length limits
+    if (nome.trim().length === 0 || nome.length > 100) {
+      return new Response(
+        JSON.stringify({ error: "Nome inválido (1-100 caracteres)" }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+    if (email.length > 255) {
+      return new Response(
+        JSON.stringify({ error: "E-mail muito longo (máx. 255 caracteres)" }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email.trim())) {
+      return new Response(
+        JSON.stringify({ error: "Formato de e-mail inválido" }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+    if (password.length < 6 || password.length > 72) {
+      return new Response(
+        JSON.stringify({ error: "Senha deve ter entre 6 e 72 caracteres" }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+    // Strip control characters and angle brackets from name
+    const sanitizedNome = nome.trim().replace(/[\x00-\x1F\x7F<>]/g, "");
+    if (sanitizedNome.length === 0) {
+      return new Response(
+        JSON.stringify({ error: "Nome contém apenas caracteres inválidos" }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
     // Validar role
     const validRoles = ["admin", "gestor", "colaborador"];
     const userRole = role && validRoles.includes(role) ? role : "colaborador";
@@ -32,10 +75,10 @@ Deno.serve(async (req) => {
 
     // Criar usuário
     const { data: newUser, error: createError } = await adminClient.auth.admin.createUser({
-      email,
+      email: email.trim(),
       password,
       email_confirm: true,
-      user_metadata: { nome },
+      user_metadata: { nome: sanitizedNome },
     });
 
     if (createError) {
@@ -64,7 +107,7 @@ Deno.serve(async (req) => {
       .from("profiles")
       .insert({
         user_id: newUserId,
-        nome: nome.trim(),
+        nome: sanitizedNome,
         email: email.trim(),
       });
 

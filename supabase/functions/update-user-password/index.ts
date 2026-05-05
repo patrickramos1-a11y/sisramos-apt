@@ -71,6 +71,14 @@ Deno.serve(async (req) => {
       );
     }
 
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    if (!uuidRegex.test(userId)) {
+      return new Response(
+        JSON.stringify({ error: "ID do usuário inválido" }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
     if (!newPassword || typeof newPassword !== "string") {
       return new Response(
         JSON.stringify({ error: "Nova senha é obrigatória" }),
@@ -78,9 +86,9 @@ Deno.serve(async (req) => {
       );
     }
 
-    if (newPassword.length < 6) {
+    if (newPassword.length < 6 || newPassword.length > 72) {
       return new Response(
-        JSON.stringify({ error: "A senha deve ter pelo menos 6 caracteres" }),
+        JSON.stringify({ error: "A senha deve ter entre 6 e 72 caracteres" }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }

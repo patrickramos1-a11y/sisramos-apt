@@ -54,6 +54,23 @@ Deno.serve(async (req) => {
       );
     }
 
+    // Validar tipos e ranges
+    const validRange = (mes: unknown, ano: unknown): boolean =>
+      typeof mes === "number" && Number.isInteger(mes) && mes >= 1 && mes <= 12 &&
+      typeof ano === "number" && Number.isInteger(ano) && ano >= 2020 && ano <= 2100;
+
+    if (!validRange(sourceMes, sourceAno) || !validRange(targetMes, targetAno)) {
+      return new Response(
+        JSON.stringify({
+          error: "Parâmetros inválidos: mes deve ser 1-12 (inteiro), ano 2020-2100 (inteiro)",
+        }),
+        {
+          status: 400,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        }
+      );
+    }
+
     // Fetch active demands from source month
     const { data: sourceDemandas, error: fetchError } = await supabase
       .from("demandas")

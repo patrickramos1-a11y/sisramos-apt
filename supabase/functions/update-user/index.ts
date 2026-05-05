@@ -59,6 +59,15 @@ Deno.serve(async (req) => {
       );
     }
 
+    // Validar UUID
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    if (typeof userId !== "string" || !uuidRegex.test(userId)) {
+      return new Response(
+        JSON.stringify({ error: "ID do usuário inválido" }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
     // Validação de entrada
     if (nome && (typeof nome !== "string" || nome.trim().length === 0 || nome.length > 100)) {
       return new Response(
@@ -87,7 +96,7 @@ Deno.serve(async (req) => {
 
     // Atualizar profile
     const updateData: { nome?: string; email?: string } = {};
-    if (nome) updateData.nome = nome.trim();
+    if (nome) updateData.nome = nome.trim().replace(/[\x00-\x1F\x7F<>]/g, "");
     if (email) updateData.email = email.trim();
 
     if (Object.keys(updateData).length > 0) {
