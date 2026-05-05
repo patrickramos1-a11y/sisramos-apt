@@ -129,9 +129,44 @@ Deno.serve(async (req) => {
         .filter((g): g is string => !!g),
     );
 
+    // Detect multi-month groups: if a demand's grupo_id has occurrences in any
+    // (mes, ano) different from the source month, it's a pre-scheduled multi-month
+    // recurrence and must NOT be rolled over to non-planned months.
+    const sourceGroupIds = Array.from(
+      new Set(
+        sourceDemandas
+          .map((d: Demanda) => d.grupo_id)
+          .filter((g): g is string => !!g),
+      ),
+    );
+    const multiMonthGroupIds = new Set<string>();
+    if (sourceGroupIds.length > 0) {
+      // Chunk the .in() query to avoid URL length limits
+      const chunkSize = 80;
+      for (let i = 0; i < sourceGroupIds.length; i += chunkSize) {
+        const chunk = sourceGroupIds.slice(i, i + chunkSize);
+        const { data: groupOccurrences, error: groupErr } = await supabase
+          .from("demandas")
+          .select("grupo_id, mes, ano")
+          .in("grupo_id", chunk);
+        if (groupErr) {
+          console.error("❌ Error fetching group occurrences:", groupErr);
+          throw groupErr;
+        }
+        for (const occ of groupOccurrences || []) {
+          if (occ.grupo_id && (occ.mes !== previousMonth || occ.ano !== previousYear)) {
+            multiMonthGroupIds.add(occ.grupo_id);
+          }
+        }
+      }
+      console.log(`🔁 Detected ${multiMonthGroupIds.size} multi-month recurrence groups (will be skipped)`);
+    }
+
     // Prepare new demands for current month (filter out duplicates)
     const newDemandas = sourceDemandas
       .filter((d: Demanda) => {
+        // Skip multi-month recurrence groups: their future occurrences are pre-scheduled
+        if (d.grupo_id && multiMonthGroupIds.has(d.grupo_id)) return false;
         // Skip if this group already has an occurrence in target month (pre-scheduled multi-month recurrence)
         if (d.grupo_id && existingGrupoIds.has(d.grupo_id)) return false;
         const signature = `${d.descricao}-${d.responsavel_id}`;
