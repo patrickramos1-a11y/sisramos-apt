@@ -133,6 +133,7 @@ Deno.serve(async (req) => {
         setor_id: d.setor_id,
         responsavel_id: d.responsavel_id,
         descricao: d.descricao,
+        observacoes: d.observacoes ?? null,
         semanas_repeticao: d.semanas_repeticao,
         semana_limite: d.semana_limite,
         prioritaria: d.prioritaria,
