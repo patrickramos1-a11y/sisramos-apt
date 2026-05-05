@@ -417,7 +417,14 @@ export default function EditarDemandaIrmaDialog({
 
   const semanas = [1, 2, 3, 4, 5];
 
-  const hasSiblings = demanda?.grupo_id && actualSiblingCount > 1;
+  const hasSiblings = actualSiblingCount > 1;
+  const isMultiMonthGroup =
+    new Set(siblingMonths.map((m) => `${m.mes}-${m.ano}`)).size > 1;
+  const distinctMonthCount = new Set(
+    siblingMonths.map((m) => `${m.mes}-${m.ano}`),
+  ).size;
+  const lockMonthYear = hasSiblings && editScope === "all" && isMultiMonthGroup;
+  const lockSemanas = hasSiblings && editScope === "all" && isMultiMonthGroup;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -444,9 +451,16 @@ export default function EditarDemandaIrmaDialog({
                   <RadioGroupItem value="all" id="all" />
                   <Label htmlFor="all" className="font-normal cursor-pointer">
                     Todas as {actualSiblingCount} demandas do grupo
+                    {isMultiMonthGroup && ` (em ${distinctMonthCount} meses)`}
                   </Label>
                 </div>
               </RadioGroup>
+              {lockMonthYear && (
+                <p className="text-xs text-muted-foreground">
+                  Este grupo abrange vários meses. Mês/ano e semanas só podem
+                  ser alterados em "Apenas esta demanda".
+                </p>
+              )}
             </div>
           )}
 
