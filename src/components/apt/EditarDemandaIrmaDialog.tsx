@@ -73,6 +73,7 @@ export default function EditarDemandaIrmaDialog({
   const [editScope, setEditScope] = useState<"single" | "all">("single");
   const [actualSiblingCount, setActualSiblingCount] = useState(siblingCount);
   const [resolvedGrupoId, setResolvedGrupoId] = useState<string | null>(null);
+  const [siblingMonths, setSiblingMonths] = useState<{ mes: number; ano: number }[]>([]);
   const { toast } = useToast();
 
   const [formData, setFormData] = useState({
@@ -97,13 +98,14 @@ export default function EditarDemandaIrmaDialog({
       if (demanda.grupo_id) {
         const { data, error } = await supabase
           .from("demandas")
-          .select("id")
+          .select("id, mes, ano")
           .eq("grupo_id", demanda.grupo_id)
           .eq("ativa", true);
         
         if (!error && data && data.length > 1) {
           setActualSiblingCount(data.length);
           setResolvedGrupoId(demanda.grupo_id);
+          setSiblingMonths(data.map((d) => ({ mes: d.mes, ano: d.ano })));
           return;
         }
       }
@@ -112,7 +114,7 @@ export default function EditarDemandaIrmaDialog({
       if (demanda.semanas_repeticao > 1) {
         const { data, error } = await supabase
           .from("demandas")
-          .select("id, grupo_id")
+          .select("id, grupo_id, mes, ano")
           .eq("descricao", demanda.descricao)
           .eq("responsavel_id", demanda.responsavel_id)
           .eq("mes", demanda.mes)
@@ -137,12 +139,14 @@ export default function EditarDemandaIrmaDialog({
             }
           }
           setResolvedGrupoId(groupId);
+          setSiblingMonths(data.map((d) => ({ mes: d.mes, ano: d.ano })));
           return;
         }
       }
 
       setActualSiblingCount(siblingCount);
       setResolvedGrupoId(demanda.grupo_id ?? null);
+      setSiblingMonths(demanda ? [{ mes: demanda.mes, ano: demanda.ano }] : []);
     };
 
     fetchActualSiblingCount();
