@@ -23,6 +23,14 @@ Deno.serve(async (req) => {
       );
     }
 
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    if (typeof userId !== "string" || !uuidRegex.test(userId)) {
+      return new Response(
+        JSON.stringify({ error: "ID do usuário inválido" }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
     const adminClient = createClient(supabaseUrl, supabaseServiceKey);
 
     // Deletar user_role primeiro (devido a constraints)
