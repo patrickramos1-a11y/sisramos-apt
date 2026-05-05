@@ -104,7 +104,7 @@ Deno.serve(async (req) => {
     // Check for existing demands in current month to avoid duplicating
     const { data: existingTargetDemandas, error: existingError } = await supabase
       .from("demandas")
-      .select("descricao, responsavel_id")
+      .select("descricao, responsavel_id, grupo_id")
       .eq("mes", currentMonth)
       .eq("ano", currentYear)
       .eq("ativa", true);
@@ -122,10 +122,18 @@ Deno.serve(async (req) => {
         (d) => `${d.descricao}-${d.responsavel_id}`
       )
     );
+    // Set of grupo_ids that already exist in target month (pre-scheduled future occurrences)
+    const existingGrupoIds = new Set(
+      (existingTargetDemandas || [])
+        .map((d) => d.grupo_id)
+        .filter((g): g is string => !!g),
+    );
 
     // Prepare new demands for current month (filter out duplicates)
     const newDemandas = sourceDemandas
       .filter((d: Demanda) => {
+        // Skip if this group already has an occurrence in target month (pre-scheduled multi-month recurrence)
+        if (d.grupo_id && existingGrupoIds.has(d.grupo_id)) return false;
         const signature = `${d.descricao}-${d.responsavel_id}`;
         return !existingSignatures.has(signature);
       })
