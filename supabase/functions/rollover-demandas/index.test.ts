@@ -451,3 +451,163 @@ Deno.test("rollover: cenário misto — copia normais e pula multi-mês", async 
     await deleteByPrefix(prefix);
   }
 });
+
+// ===================================================================
+// TEST 10 — CRITICAL: rollover de grupo de N semanas mantém agrupamento
+// (todas irmãs no destino compartilham UM ÚNICO grupo_id, não N).
+// Esta é a regressão que quebrava "Editar todas / Excluir todas".
+// ===================================================================
+Deno.test(
+  "rollover: grupo de 5 semanas mantém UM ÚNICO grupo_id no destino (não 5)",
+  async () => {
+    const prefix = uniqPrefix();
+    const responsavelId = await getResponsavelId();
+    const grupoOriginal = crypto.randomUUID();
+    try {
+      // 5 irmãs no mês 1, mesmo grupo_id, semanas 1..5
+      await insertDemandas(
+        [1, 2, 3, 4, 5].map((semana) => ({
+          responsavel_id: responsavelId,
+          descricao: `${prefix}_5semanas`,
+          mes: 1,
+          ano: TEST_YEAR,
+          semana_limite: [semana],
+          semanas_repeticao: 5,
+          grupo_id: grupoOriginal,
+          ativa: true,
+        })),
+      );
+
+      // Rollover REAL (não dryRun) para validar persistência
+      const { status, json } = await callRollover({
+        sourceMes: 1,
+        sourceAno: TEST_YEAR,
+        targetMes: 2,
+        targetAno: TEST_YEAR,
+      });
+      assertEquals(status, 200);
+      assert(json.copied >= 5, `Esperava >=5 copiadas, veio ${json.copied}`);
+
+      // Verifica destino: 5 demandas, todas compartilhando UM grupo_id (novo)
+      const all = await fetchDemandasByPrefix(prefix);
+      const destino = all.filter((d) => d.mes === 2 && d.ano === TEST_YEAR);
+      assertEquals(destino.length, 5, "5 irmãs deveriam existir no destino");
+
+      const gruposDestino = new Set(destino.map((d) => d.grupo_id));
+      assertEquals(
+        gruposDestino.size,
+        1,
+        `BUG DE REGRESSÃO: irmãs no destino devem compartilhar 1 grupo_id, vieram ${gruposDestino.size}`,
+      );
+
+      const novoGrupo = destino[0].grupo_id;
+      assert(novoGrupo, "Grupo destino não pode ser null");
+      // Deve ser um NOVO grupo_id (não reusar o da origem)
+      assert(
+        novoGrupo !== grupoOriginal,
+        "Rollover deve gerar novo grupo_id (não reusar origem)",
+      );
+
+      // Semanas devem cobrir 1..5 sem duplicação
+      const semanas = destino.flatMap((d) => d.semana_limite).sort();
+      assertEquals(semanas, [1, 2, 3, 4, 5]);
+
+      // E editar por esse novo grupo_id deve afetar as 5
+      const ok = await patchByGrupo(novoGrupo!, { observacoes: "via grupo" });
+      assert(ok);
+      const apos = await fetchDemandasByPrefix(prefix);
+      const destinoApos = apos.filter((d) => d.mes === 2);
+      assertEquals(destinoApos.length, 5);
+      for (const d of destinoApos) {
+        assertEquals(d.observacoes, "via grupo");
+      }
+    } finally {
+      await deleteByPrefix(prefix);
+    }
+  },
+);
+
+// ===================================================================
+// TEST 11 — Rollover de grupo single-mês de 3 semanas: 1 único grupo_id
+// ===================================================================
+Deno.test(
+  "rollover: grupo single-mês de 3 semanas preserva agrupamento",
+  async () => {
+    const prefix = uniqPrefix();
+    const responsavelId = await getResponsavelId();
+    const grupoOriginal = crypto.randomUUID();
+    try {
+      await insertDemandas(
+        [1, 2, 3].map((semana) => ({
+          responsavel_id: responsavelId,
+          descricao: `${prefix}_3sem`,
+          mes: 6,
+          ano: TEST_YEAR,
+          semana_limite: [semana],
+          semanas_repeticao: 3,
+          grupo_id: grupoOriginal,
+          ativa: true,
+        })),
+      );
+
+      const { status } = await callRollover({
+        sourceMes: 6,
+        sourceAno: TEST_YEAR,
+        targetMes: 7,
+        targetAno: TEST_YEAR,
+      });
+      assertEquals(status, 200);
+
+      const all = await fetchDemandasByPrefix(prefix);
+      const destino = all.filter((d) => d.mes === 7);
+      assertEquals(destino.length, 3);
+      assertEquals(
+        new Set(destino.map((d) => d.grupo_id)).size,
+        1,
+        "3 irmãs devem compartilhar 1 grupo_id",
+      );
+    } finally {
+      await deleteByPrefix(prefix);
+    }
+  },
+);
+
+// ===================================================================
+// TEST 12 — Demanda solo (semanas_repeticao=1, sem grupo_id) continua null
+// ===================================================================
+Deno.test(
+  "rollover: demanda solo continua sem grupo_id no destino",
+  async () => {
+    const prefix = uniqPrefix();
+    const responsavelId = await getResponsavelId();
+    try {
+      await insertDemandas([
+        {
+          responsavel_id: responsavelId,
+          descricao: `${prefix}_solo`,
+          mes: 8,
+          ano: TEST_YEAR,
+          semana_limite: [1],
+          semanas_repeticao: 1,
+          grupo_id: null,
+          ativa: true,
+        },
+      ]);
+
+      const { status } = await callRollover({
+        sourceMes: 8,
+        sourceAno: TEST_YEAR,
+        targetMes: 9,
+        targetAno: TEST_YEAR,
+      });
+      assertEquals(status, 200);
+
+      const all = await fetchDemandasByPrefix(prefix);
+      const destino = all.filter((d) => d.mes === 9);
+      assertEquals(destino.length, 1);
+      assertEquals(destino[0].grupo_id, null, "Solo deve permanecer sem grupo");
+    } finally {
+      await deleteByPrefix(prefix);
+    }
+  },
+);
