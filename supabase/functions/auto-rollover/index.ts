@@ -208,40 +208,27 @@ Deno.serve(async (req) => {
     const skipped = sourceDemandas.length - newDemandas.length;
     console.log(`📝 Will copy ${newDemandas.length} demands, skipping ${skipped} duplicates`);
 
+    let copied = 0;
     if (newDemandas.length === 0) {
-      const message = `All demands from ${previousMonth}/${previousYear} already exist in ${currentMonth}/${currentYear}`;
-      console.log(`ℹ️ ${message}`);
-      
-      return new Response(
-        JSON.stringify({
-          success: true,
-          message,
-          copied: 0,
-          skipped: sourceDemandas.length,
-          executionTime: Date.now() - startTime,
-        }),
-        {
-          status: 200,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        }
+      console.log(
+        `ℹ️ All demands from ${previousMonth}/${previousYear} already exist in ${currentMonth}/${currentYear} — continuing to checklist rollover`,
       );
+    } else {
+      // Insert new demands
+      const { data: insertedData, error: insertError } = await supabase
+        .from("demandas")
+        .insert(newDemandas)
+        .select("id");
+
+      if (insertError) {
+        console.error("❌ Error inserting demands:", insertError);
+        throw insertError;
+      }
+
+      copied = insertedData?.length || 0;
+      console.log(`✅ Successfully copied ${copied} demands`);
+      console.log(`📈 Summary: ${copied} copied, ${skipped} skipped (duplicates)`);
     }
-
-    // Insert new demands
-    const { data: insertedData, error: insertError } = await supabase
-      .from("demandas")
-      .insert(newDemandas)
-      .select("id");
-
-    if (insertError) {
-      console.error("❌ Error inserting demands:", insertError);
-      throw insertError;
-    }
-
-    const copied = insertedData?.length || 0;
-    
-    console.log(`✅ Successfully copied ${copied} demands`);
-    console.log(`📈 Summary: ${copied} copied, ${skipped} skipped (duplicates)`);
 
     // ========== CHECKLIST ROLLOVER ==========
     console.log(`📋 Starting checklist rollover from ${previousMonth}/${previousYear} to ${currentMonth}/${currentYear}`);
