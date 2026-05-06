@@ -151,6 +151,16 @@ Deno.serve(async (req) => {
       }
     }
 
+    // Build a map: old grupo_id -> new grupo_id
+    // CRITICAL: all siblings sharing an old grupo_id MUST share the SAME new
+    // grupo_id in the target month, otherwise bulk edit/delete breaks.
+    const grupoIdMap = new Map<string, string>();
+    for (const d of sourceDemandas as Demanda[]) {
+      if (d.grupo_id && !grupoIdMap.has(d.grupo_id)) {
+        grupoIdMap.set(d.grupo_id, crypto.randomUUID());
+      }
+    }
+
     // Prepare new demands for target month
     const newDemandas = sourceDemandas
       .filter((d: Demanda) => {
@@ -175,8 +185,14 @@ Deno.serve(async (req) => {
         ano: targetAno,
         status_responsavel: "pendente",
         status_gestor: "pendente",
-        // Generate new grupo_id for demands with multiple repetitions
-        grupo_id: d.semanas_repeticao > 1 ? crypto.randomUUID() : null,
+        // Preserve sibling grouping: siblings sharing an old grupo_id share
+        // the same new grupo_id. Orphan demands with semanas_repeticao > 1
+        // get an individual UUID (degenerate case).
+        grupo_id: d.grupo_id
+          ? grupoIdMap.get(d.grupo_id)!
+          : d.semanas_repeticao > 1
+            ? crypto.randomUUID()
+            : null,
       }));
 
     if (newDemandas.length === 0) {
