@@ -110,7 +110,7 @@ export default function EditarDemandaIrmaDialog({
         }
       }
 
-      // Heuristic fallback for orphan siblings
+      // Heuristic fallback #1: same descricao + responsavel + mes + ano
       if (demanda.semanas_repeticao > 1) {
         const { data, error } = await supabase
           .from("demandas")
@@ -141,6 +141,46 @@ export default function EditarDemandaIrmaDialog({
           setResolvedGrupoId(groupId);
           setSiblingMonths(data.map((d) => ({ mes: d.mes, ano: d.ano })));
           return;
+        }
+
+        // Heuristic fallback #2: descrição pode ter divergido por edições
+        // parciais. Procurar por (responsavel_id, mes, ano, semanas_repeticao)
+        // e validar que cobrem semanas distintas (1 demanda por semana).
+        const { data: data2, error: error2 } = await supabase
+          .from("demandas")
+          .select("id, grupo_id, mes, ano, semana_limite, semanas_repeticao")
+          .eq("responsavel_id", demanda.responsavel_id)
+          .eq("mes", demanda.mes)
+          .eq("ano", demanda.ano)
+          .eq("semanas_repeticao", demanda.semanas_repeticao)
+          .eq("ativa", true);
+
+        if (!error2 && data2 && data2.length === demanda.semanas_repeticao) {
+          // Validar: cada demanda deve cobrir uma semana única
+          const allWeeks = data2.flatMap((d) => d.semana_limite || []);
+          const uniqueWeeks = new Set(allWeeks);
+          if (uniqueWeeks.size === allWeeks.length && data2.length > 1) {
+            // É um grupo quebrado de irmãs — reagrupar
+            let groupId =
+              demanda.grupo_id ??
+              data2.find((d) => d.grupo_id)?.grupo_id ??
+              null;
+            if (!groupId) groupId = crypto.randomUUID();
+
+            const siblingIds = data2.map((d) => d.id);
+            const { error: fixError } = await supabase
+              .from("demandas")
+              .update({ grupo_id: groupId })
+              .in("id", siblingIds);
+            if (fixError) {
+              console.error("Error re-grouping broken siblings:", fixError);
+            }
+
+            setActualSiblingCount(data2.length);
+            setResolvedGrupoId(groupId);
+            setSiblingMonths(data2.map((d) => ({ mes: d.mes, ano: d.ano })));
+            return;
+          }
         }
       }
 
