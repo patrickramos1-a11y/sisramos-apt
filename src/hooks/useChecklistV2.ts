@@ -147,11 +147,61 @@ export function useChecklistV2({ mes, ano }: UseChecklistV2Options) {
     setIsLoading(true);
     try {
       const loadedTemplates = await fetchTemplates();
-      await fetchInstances(mes, ano, loadedTemplates);
+      const loaded = await fetchInstances(mes, ano, loadedTemplates);
+
+      // 🔄 Auto-rollover safety net:
+      // If we're viewing the CURRENT month and it has no recurring items
+      // but the previous month does, automatically run the rollover so
+      // the user never has to copy manually.
+      try {
+        const today = new Date();
+        const isCurrentMonth =
+          mes === today.getMonth() + 1 && ano === today.getFullYear();
+        const hasRecorrente = loaded.some(
+          (i: any) => i.tipo_item === "recorrente" && !i.parent_id,
+        );
+
+        if (isCurrentMonth && !hasRecorrente) {
+          let prevMes = mes - 1;
+          let prevAno = ano;
+          if (prevMes === 0) { prevMes = 12; prevAno = ano - 1; }
+
+          const { data: prevHas } = await (supabase
+            .from("checklist_instances")
+            .select("id") as any)
+            .eq("mes", prevMes)
+            .eq("ano", prevAno)
+            .eq("tipo_item", "recorrente")
+            .is("parent_id", null)
+            .limit(1);
+
+          if (prevHas && prevHas.length > 0) {
+            console.log(
+              `[checklist] Auto-rollover triggered for ${mes}/${ano} (previous month has recurring items)`,
+            );
+            const { data: rollResp, error: rollErr } = await supabase.functions.invoke(
+              "auto-rollover",
+              { body: {} },
+            );
+            if (rollErr) {
+              console.error("[checklist] auto-rollover invoke error:", rollErr);
+            } else {
+              console.log("[checklist] auto-rollover response:", rollResp);
+              await fetchInstances(mes, ano, loadedTemplates);
+              toast({
+                title: "Checklist atualizado",
+                description: "As tarefas recorrentes foram trazidas do mês anterior automaticamente.",
+              });
+            }
+          }
+        }
+      } catch (e) {
+        console.error("[checklist] auto-rollover safety net failed:", e);
+      }
     } finally {
       setIsLoading(false);
     }
-  }, [mes, ano, fetchTemplates, fetchInstances]);
+  }, [mes, ano, fetchTemplates, fetchInstances, toast]);
 
   // eslint-disable-next-line react-hooks/exhaustive-deps -- loadData is stable now
 
