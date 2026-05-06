@@ -249,17 +249,26 @@ Deno.serve(async (req) => {
     let checklistCopied = 0;
     let checklistAssigneesCopied = 0;
 
-    // Check if target month already has checklist instances
-    const { data: existingChecklist } = await supabase
+    // IMPORTANT: only skip rollover if the target month already has RECORRENTE parents
+    // (we used to bail out when any avulso item existed, which broke the monthly copy).
+    const { data: existingRecorrentes } = await supabase
       .from("checklist_instances")
-      .select("id")
+      .select("id, template_id, semana, descricao_override")
       .eq("mes", currentMonth)
       .eq("ano", currentYear)
-      .limit(1);
+      .eq("tipo_item", "recorrente")
+      .is("parent_id", null);
 
-    if (existingChecklist && existingChecklist.length > 0) {
-      console.log(`ℹ️ Checklist already has instances in ${currentMonth}/${currentYear}, skipping`);
-    } else {
+    const existingRecorrenteCount = existingRecorrentes?.length || 0;
+    // Build a signature set so we can copy only NEW recurring items (idempotent).
+    const existingSig = new Set(
+      (existingRecorrentes || []).map(
+        (r: any) =>
+          `${r.template_id || ""}|${r.semana}|${r.descricao_override || ""}`
+      )
+    );
+
+    {
       // Fetch recorrente parent instances from previous month
       const { data: sourceParents, error: srcErr } = await supabase
         .from("checklist_instances")
@@ -272,10 +281,22 @@ Deno.serve(async (req) => {
       if (srcErr) {
         console.error("❌ Error fetching checklist source:", srcErr);
       } else if (sourceParents && sourceParents.length > 0) {
-        console.log(`📊 Found ${sourceParents.length} checklist parent items to copy`);
+        // Filter out parents that already exist in the target month (idempotent rollover)
+        const parentsToCopy = sourceParents.filter(
+          (p: any) =>
+            !existingSig.has(
+              `${p.template_id || ""}|${p.semana}|${p.descricao_override || ""}`
+            )
+        );
+        console.log(
+          `📊 Found ${sourceParents.length} parents in source; ${parentsToCopy.length} need copy (target already has ${existingRecorrenteCount})`,
+        );
+        if (parentsToCopy.length === 0) {
+          console.log(`ℹ️ Nothing to copy for checklist — target already has all recurring items`);
+        }
 
         // Insert parents
-        const parentInserts = sourceParents.map((inst: any) => ({
+        const parentInserts = parentsToCopy.map((inst: any) => ({
           template_id: inst.template_id,
           ano: currentYear,
           mes: currentMonth,
@@ -286,14 +307,20 @@ Deno.serve(async (req) => {
           link_override: inst.link_override,
           ordem_override: inst.ordem_override,
           is_group: inst.is_group,
-          prioridade: inst.prioridade || "media",
+          prioridade: inst.prioridade || null,
           parent_id: null,
         }));
 
-        const { data: insertedParents, error: parentErr } = await supabase
-          .from("checklist_instances")
-          .insert(parentInserts)
-          .select();
+        let insertedParents: any[] | null = null;
+        let parentErr: any = null;
+        if (parentInserts.length > 0) {
+          const res = await supabase
+            .from("checklist_instances")
+            .insert(parentInserts)
+            .select();
+          insertedParents = res.data;
+          parentErr = res.error;
+        }
 
         if (parentErr) {
           console.error("❌ Error inserting checklist parents:", parentErr);
@@ -302,14 +329,15 @@ Deno.serve(async (req) => {
 
           // Build old→new ID mapping
           const idMap = new Map<string, string>();
-          for (let i = 0; i < sourceParents.length; i++) {
+          for (let i = 0; i < parentsToCopy.length; i++) {
             if (insertedParents[i]) {
-              idMap.set(sourceParents[i].id, insertedParents[i].id);
+              idMap.set(parentsToCopy[i].id, insertedParents[i].id);
             }
           }
 
           // Copy parent assignees
-          const parentIds = sourceParents.map((p: any) => p.id);
+          const parentIds = parentsToCopy.map((p: any) => p.id);
+          if (parentIds.length > 0) {
           const { data: parentAssignees } = await supabase
             .from("checklist_instance_assignees")
             .select("*")
@@ -327,8 +355,10 @@ Deno.serve(async (req) => {
               checklistAssigneesCopied += assigneeInserts.length;
             }
           }
+          }
 
           // Copy children for group items
+          if (parentIds.length > 0) {
           const { data: sourceChildren, error: childErr } = await supabase
             .from("checklist_instances")
             .select("*")
@@ -350,20 +380,25 @@ Deno.serve(async (req) => {
                 link_override: c.link_override,
                 ordem_override: c.ordem_override,
                 is_group: c.is_group,
-                prioridade: c.prioridade || "media",
+                prioridade: c.prioridade || null,
                 parent_id: idMap.get(c.parent_id)!,
               }));
 
-            const { data: insertedChildren } = await supabase
-              .from("checklist_instances")
-              .insert(childInserts)
-              .select();
+            const { data: insertedChildren } = childInserts.length > 0
+              ? await supabase
+                  .from("checklist_instances")
+                  .insert(childInserts)
+                  .select()
+              : { data: [] as any[] };
 
             if (insertedChildren) {
               checklistCopied += insertedChildren.length;
 
               // Copy children assignees
-              const childIds = sourceChildren.map((c: any) => c.id);
+              const childIds = sourceChildren
+                .filter((c: any) => idMap.has(c.parent_id))
+                .map((c: any) => c.id);
+              if (childIds.length > 0) {
               const { data: childAssignees } = await supabase
                 .from("checklist_instance_assignees")
                 .select("*")
@@ -371,9 +406,10 @@ Deno.serve(async (req) => {
 
               if (childAssignees && childAssignees.length > 0) {
                 const childIdMap = new Map<string, string>();
-                for (let i = 0; i < sourceChildren.length; i++) {
-                  if (insertedChildren[i]) {
-                    childIdMap.set(sourceChildren[i].id, insertedChildren[i].id);
+                const filteredSourceChildren = sourceChildren.filter((c: any) => idMap.has(c.parent_id));
+                for (let i = 0; i < filteredSourceChildren.length; i++) {
+                  if ((insertedChildren as any[])[i]) {
+                    childIdMap.set(filteredSourceChildren[i].id, (insertedChildren as any[])[i].id);
                   }
                 }
                 const childAssigneeInserts = childAssignees
@@ -387,7 +423,9 @@ Deno.serve(async (req) => {
                   checklistAssigneesCopied += childAssigneeInserts.length;
                 }
               }
+              }
             }
+          }
           }
         }
 
