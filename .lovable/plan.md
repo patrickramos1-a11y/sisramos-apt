@@ -1,55 +1,56 @@
+## Plano para corrigir o checklist automático
 
-## Varredura concluída — 3 grupos suspeitos encontrados
+### Objetivo
+Garantir que as tarefas recorrentes do checklist passem automaticamente do mês anterior para o mês atual, sem depender de ação manual do usuário, e reparar o mês atual que ficou vazio.
 
-Fiz uma busca completa no banco por demandas ativas que compartilham `(descricao, responsavel_id, mes, ano)` mas têm `grupo_id` divergente, nulo, ou misturado. Resultado:
+### O que encontrei
+- Abril/2026 tem 103 itens recorrentes principais e 51 subtarefas no `checklist_instances`.
+- Maio/2026 tem apenas 1 item avulso, ou seja, o rollover automático do checklist não aconteceu neste mês.
+- A função `auto-rollover` já contém lógica para copiar o checklist, mas não há evidência de execução recente dela.
+- No código do app não existe nenhum ponto chamando `auto-rollover`; hoje ela depende de um agendamento externo que aparentemente não está disparando.
+- Também não encontrei teste automatizado cobrindo o rollover do checklist dentro da função `auto-rollover`, então esse fluxo ficou sem proteção.
 
-### Caso 1 — Mai/2026 — "CONSUMO HÍDRICO" (4 demandas, 1 órfã)
+### Implementação proposta
+1. Reparar imediatamente os dados do mês atual
+- Executar a cópia de abril/2026 para maio/2026 preservando:
+  - itens recorrentes
+  - subtarefas/grupos
+  - links
+  - responsáveis
+  - prioridades
+  - ordem manual
+- Resetar os status para `pendente`, como já é o padrão do rollover.
+- Validar no banco a contagem final para garantir que maio fique consistente.
 
-| Nº | Semana | semanas_repeticao | grupo_id |
-|---|---|---|---|
-| 2286 | 1 | 4 | `e4c6c01e…` |
-| 2423 | 4 | 4 | `e4c6c01e…` |
-| 2435 | 3 | **1** | **NULL** ← órfã |
-| 2640 | 2 | 4 | `e4c6c01e…` |
+2. Tornar a automação confiável
+- Criar um mecanismo de auto-recuperação no frontend do Checklist para quando o usuário abrir o mês atual e ele estiver sem itens recorrentes, mas o mês anterior tiver tarefas recorrentes.
+- Esse mecanismo chamará a função de rollover automático de forma idempotente e silenciosa, apenas quando necessário, evitando depender 100% do agendamento.
+- Incluir proteção para não duplicar dados se o mês atual já tiver checklist preenchido.
 
-A #2435 deveria estar no grupo `e4c6c01e…` (cobre a semana 3 que falta no grupo). Provavelmente foi recriada manualmente sem agrupamento.
+3. Endurecer a função `auto-rollover`
+- Ajustar a função para aceitar execução segura sob demanda focada no mês atual.
+- Garantir retorno explícito separando resultado de demandas e checklist para facilitar diagnóstico.
+- Preservar o comportamento de não duplicar quando o destino já tiver registros.
 
-### Caso 2 — Abr/2026 — "CONSUMO HÍDRICO" (4 demandas, 2 grupos diferentes)
+4. Adicionar cobertura de testes
+- Criar testes da `auto-rollover` cobrindo:
+  - cópia automática de itens recorrentes do checklist
+  - cópia de subtarefas com `parent_id` remapeado
+  - cópia de responsáveis
+  - preservação de prioridade/ordem/link
+  - não duplicação quando o mês destino já possui checklist
 
-| Nº | Semana | semanas_repeticao | grupo_id |
-|---|---|---|---|
-| 1694 | 2 | 4 | `7284858e…` |
-| 1762 | 1 | 4 | `7284858e…` |
-| 1893 | 4 | 4 | `7284858e…` |
-| 1894 | 3 | **1** | `b2fb2420…` ← grupo isolado |
+5. Verificação final
+- Testar a função após a correção.
+- Confirmar via consulta no banco que maio/2026 recebeu os itens esperados.
+- Validar no app que o checklist do mês atual volta a aparecer automaticamente.
 
-A #1894 (semana 3) deveria estar no grupo `7284858e…` para completar 4 semanas distintas.
+### Arquivos e áreas afetadas
+- `src/pages/Checklist.tsx`
+- `src/hooks/useChecklistV2.ts`
+- `supabase/functions/auto-rollover/index.ts`
+- testes da função `auto-rollover`
+- atualização de dados no banco para reparar maio/2026
 
-### Caso 3 — Mai/2026 — "Falar com o Patrick … LO e Alvará" (2 demandas sem grupo)
-
-| Nº | Semana | semanas_repeticao | grupo_id |
-|---|---|---|---|
-| 2178 | 4 | **1** | NULL |
-| 2184 | 5 | **1** | NULL |
-
-**Este caso é ambíguo**: ambas têm `semanas_repeticao=1` (declaradas como demandas únicas), em semanas diferentes (4 e 5). Pode ter sido intencional — duas demandas separadas — ou erro de criação. **Não vou tocar sem confirmação.**
-
-## Plano de correção
-
-### 1. Reparar Caso 1 (mai/2026 — Hídrico)
-- Atualizar #2435: setar `grupo_id = e4c6c01e-3ef3-4d19-b333-cee95c6a7cc4` e `semanas_repeticao = 4`.
-
-### 2. Reparar Caso 2 (abr/2026 — Hídrico)
-- Atualizar #1894: setar `grupo_id = 7284858e-65f9-4648-8dcb-1fc88f443c77` e `semanas_repeticao = 4`.
-
-### 3. Caso 3 — pedir confirmação
-Pergunto ao usuário se quer:
-- (a) Agrupar #2178 e #2184 como irmãs (semanas 4 e 5, semanas_repeticao=2), ou
-- (b) Deixar como demandas independentes.
-
-### 4. Validação pós-reparo
-- Re-rodar a mesma varredura SQL para confirmar que nenhum grupo quebrado permanece.
-- Confirmar que abrir #2435 ou #1894 e clicar em "Editar todas as N demandas do grupo" afeta as 4 demandas corretamente.
-
-### 5. Detalhes técnicos
-As correções são `UPDATE`s simples na tabela `demandas` via tool de insert/update. O fix do rollover já aplicado anteriormente (preservação do `grupo_id` via `Map`) garante que esses casos não voltem a acontecer em viradas de mês futuras. Os casos atuais provavelmente são resíduos de criações manuais ou de rollovers anteriores ao fix.
+### Resultado esperado
+Daqui para frente, o checklist recorrente entra no mês novo automaticamente. Mesmo se o agendamento falhar, o próprio sistema se corrige ao abrir o checklist, sem você precisar copiar mês manualmente.
