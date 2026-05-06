@@ -84,7 +84,7 @@ export default function ExcluirDemandaIrmaDialog({
         }
       }
 
-      // Heuristic fallback: search by descricao + responsavel + mes + ano
+      // Heuristic fallback #1: descricao + responsavel + mes + ano
       if (demandaSemanasRepeticao && demandaSemanasRepeticao > 1 && demandaDescricao && demandaResponsavelId && demandaMes && demandaAno) {
         const { data, error } = await supabase
           .from("demandas")
@@ -118,6 +118,47 @@ export default function ExcluirDemandaIrmaDialog({
           
           setResolvedGrupoId(newGrupoId);
           return;
+        }
+
+        // Heuristic fallback #2: descrição divergiu — buscar por
+        // (responsavel_id, mes, ano, semanas_repeticao) e validar semanas únicas.
+        const { data: data2, error: error2 } = await supabase
+          .from("demandas")
+          .select("id, numero, descricao, semana_limite, grupo_id, mes, ano, semanas_repeticao")
+          .eq("responsavel_id", demandaResponsavelId)
+          .eq("mes", demandaMes)
+          .eq("ano", demandaAno)
+          .eq("semanas_repeticao", demandaSemanasRepeticao)
+          .eq("ativa", true);
+
+        if (!error2 && data2 && data2.length === demandaSemanasRepeticao && data2.length > 1) {
+          const allWeeks = data2.flatMap((d) => d.semana_limite || []);
+          const uniqueWeeks = new Set(allWeeks);
+          if (uniqueWeeks.size === allWeeks.length) {
+            let groupId =
+              grupoId ?? data2.find((d) => d.grupo_id)?.grupo_id ?? null;
+            if (!groupId) groupId = crypto.randomUUID();
+
+            const siblingIds = data2.map((d) => d.id);
+            await supabase
+              .from("demandas")
+              .update({ grupo_id: groupId })
+              .in("id", siblingIds);
+
+            setAllSiblings(
+              data2.map((d) => ({
+                id: d.id,
+                numero: d.numero,
+                descricao: d.descricao,
+                semana_limite: d.semana_limite,
+                mes: d.mes,
+                ano: d.ano,
+              })),
+            );
+            setActualSiblingCount(data2.length);
+            setResolvedGrupoId(groupId);
+            return;
+          }
         }
       }
 
