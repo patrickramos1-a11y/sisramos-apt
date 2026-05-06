@@ -1,68 +1,55 @@
 
-## Problema identificado
+## Varredura concluída — 3 grupos suspeitos encontrados
 
-Confirmei no banco que as 5 demandas (#2442, 2443, 2444, 2466, 2598) que deveriam ser irmãs têm **5 `grupo_id` DIFERENTES** — por isso "Editar todas" só edita uma e o mesmo vale para "Excluir todas".
+Fiz uma busca completa no banco por demandas ativas que compartilham `(descricao, responsavel_id, mes, ano)` mas têm `grupo_id` divergente, nulo, ou misturado. Resultado:
 
-### Causa raiz
+### Caso 1 — Mai/2026 — "CONSUMO HÍDRICO" (4 demandas, 1 órfã)
 
-Nos edge functions `rollover-demandas/index.ts` (linha 189) e `auto-rollover/index.ts`, o rollover gera um **novo UUID por demanda copiada**:
+| Nº | Semana | semanas_repeticao | grupo_id |
+|---|---|---|---|
+| 2286 | 1 | 4 | `e4c6c01e…` |
+| 2423 | 4 | 4 | `e4c6c01e…` |
+| 2435 | 3 | **1** | **NULL** ← órfã |
+| 2640 | 2 | 4 | `e4c6c01e…` |
 
-```ts
-grupo_id: d.semanas_repeticao > 1 ? crypto.randomUUID() : null,
-```
+A #2435 deveria estar no grupo `e4c6c01e…` (cobre a semana 3 que falta no grupo). Provavelmente foi recriada manualmente sem agrupamento.
 
-Como cada demanda irmã é processada individualmente no `.map()`, cada uma recebe um UUID único. Resultado: o grupo é destruído a cada virada de mês.
+### Caso 2 — Abr/2026 — "CONSUMO HÍDRICO" (4 demandas, 2 grupos diferentes)
 
-### Causa secundária
+| Nº | Semana | semanas_repeticao | grupo_id |
+|---|---|---|---|
+| 1694 | 2 | 4 | `7284858e…` |
+| 1762 | 1 | 4 | `7284858e…` |
+| 1893 | 4 | 4 | `7284858e…` |
+| 1894 | 3 | **1** | `b2fb2420…` ← grupo isolado |
 
-O fallback heurístico no `EditarDemandaIrmaDialog` e `ExcluirDemandaIrmaDialog` exige `descricao` idêntica para reagrupar órfãos. Após qualquer edição parcial (como já aconteceu com #2442 e #2443), a heurística falha.
+A #1894 (semana 3) deveria estar no grupo `7284858e…` para completar 4 semanas distintas.
 
-## Correções
+### Caso 3 — Mai/2026 — "Falar com o Patrick … LO e Alvará" (2 demandas sem grupo)
 
-### 1. Corrigir o rollover (raiz do problema)
+| Nº | Semana | semanas_repeticao | grupo_id |
+|---|---|---|---|
+| 2178 | 4 | **1** | NULL |
+| 2184 | 5 | **1** | NULL |
 
-Em `supabase/functions/rollover-demandas/index.ts` e `supabase/functions/auto-rollover/index.ts`:
+**Este caso é ambíguo**: ambas têm `semanas_repeticao=1` (declaradas como demandas únicas), em semanas diferentes (4 e 5). Pode ter sido intencional — duas demandas separadas — ou erro de criação. **Não vou tocar sem confirmação.**
 
-- Antes do `.map()`, construir um `Map<oldGrupoId, newGrupoId>` que preserva o agrupamento: todas as demandas que compartilhavam o mesmo `grupo_id` na origem recebem o **mesmo novo `grupo_id`** no destino.
-- Demandas sem `grupo_id` mas com `semanas_repeticao > 1` (caso degenerado) recebem UUID individual como antes.
+## Plano de correção
 
-### 2. Reparar dados existentes via migration
+### 1. Reparar Caso 1 (mai/2026 — Hídrico)
+- Atualizar #2435: setar `grupo_id = e4c6c01e-3ef3-4d19-b333-cee95c6a7cc4` e `semanas_repeticao = 4`.
 
-Detectar grupos quebrados e reagrupá-los pela assinatura `(responsavel_id, semanas_repeticao, mes, ano)` + similaridade de descrição prévia ao "drift" de edições. Como as descrições já divergiram (#2442/2443 viraram "para ele" e #2444/2466/2598 continuam "MATADORA"), a migration usará uma heurística mais permissiva:
+### 2. Reparar Caso 2 (abr/2026 — Hídrico)
+- Atualizar #1894: setar `grupo_id = 7284858e-65f9-4648-8dcb-1fc88f443c77` e `semanas_repeticao = 4`.
 
-- Agrupar por `(responsavel_id, mes, ano, semanas_repeticao)` quando o número de demandas no agrupamento for **igual a `semanas_repeticao`** e cada uma cobrir uma semana distinta de 1..N. Atribuir um único `grupo_id` ao grupo.
-- Já normalizar a descrição dessas 5 demandas específicas para `"Acompanhar com o Patrick os processos internos das empresas. e apresentar as informações para ele"` (conforme pedido do usuário).
+### 3. Caso 3 — pedir confirmação
+Pergunto ao usuário se quer:
+- (a) Agrupar #2178 e #2184 como irmãs (semanas 4 e 5, semanas_repeticao=2), ou
+- (b) Deixar como demandas independentes.
 
-### 3. Melhorar o fallback heurístico do dialog
+### 4. Validação pós-reparo
+- Re-rodar a mesma varredura SQL para confirmar que nenhum grupo quebrado permanece.
+- Confirmar que abrir #2435 ou #1894 e clicar em "Editar todas as N demandas do grupo" afeta as 4 demandas corretamente.
 
-Em `EditarDemandaIrmaDialog.tsx` e `ExcluirDemandaIrmaDialog.tsx`:
-
-- Quando `grupo_id` existir mas a busca primária retornar apenas 1 resultado (grupo quebrado), executar **fallback adicional** por `(responsavel_id, mes, ano, semanas_repeticao)` ignorando descrição.
-- Se encontrar `N` demandas onde `N === semanas_repeticao` e as semanas forem distintas, reagrupá-las atribuindo o mesmo `grupo_id` (auto-cura).
-
-### 4. Suíte de testes
-
-Atualizar `supabase/functions/rollover-demandas/index.test.ts` cobrindo:
-
-- Rollover de grupo de 5 semanas → as 5 demandas no destino compartilham **1 único** `grupo_id` (não 5).
-- Rollover de grupo single-mês → preserva agrupamento.
-- Rollover de grupo multi-mês → não duplica (já coberto, manter).
-- Edição em massa: simular update por `grupo_id` e verificar que afeta N linhas.
-- Exclusão em massa: simular delete por `grupo_id` e verificar que afeta N linhas.
-- Caso degenerado: demanda solo com `semanas_repeticao=1` continua com `grupo_id=null`.
-
-## Arquivos alterados
-
-- `supabase/functions/rollover-demandas/index.ts` — preservar agrupamento via Map
-- `supabase/functions/auto-rollover/index.ts` — mesma correção
-- Migration SQL — reparar os 5 órfãos atuais + corrigir descrição
-- `src/components/apt/EditarDemandaIrmaDialog.tsx` — fallback adicional sem exigir descrição
-- `src/components/apt/ExcluirDemandaIrmaDialog.tsx` — mesmo fallback
-- `supabase/functions/rollover-demandas/index.test.ts` — novos testes
-
-## Validação
-
-Após aplicar:
-1. Rodar testes Deno do edge function (`supabase--test_edge_functions`).
-2. Verificar via SQL que as 5 demandas compartilham o mesmo `grupo_id` e têm a descrição correta.
-3. Pedir ao usuário para abrir #2442 → "Editar todas as 5 demandas do grupo" e confirmar que afeta as 5.
+### 5. Detalhes técnicos
+As correções são `UPDATE`s simples na tabela `demandas` via tool de insert/update. O fix do rollover já aplicado anteriormente (preservação do `grupo_id` via `Map`) garante que esses casos não voltem a acontecer em viradas de mês futuras. Os casos atuais provavelmente são resíduos de criações manuais ou de rollovers anteriores ao fix.
