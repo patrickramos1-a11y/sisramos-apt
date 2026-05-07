@@ -54,6 +54,7 @@ export default function Login() {
         const { data: profiles, error } = await supabase
           .from("profiles")
           .select("*")
+          .is("deleted_at", null)
           .order("nome");
 
         if (error) { console.error("Error fetching users:", error); setIsLoadingUsers(false); return; }
