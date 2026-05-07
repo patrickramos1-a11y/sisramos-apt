@@ -111,7 +111,7 @@ export default function UserAssignmentPopover({
         </div>
         <ScrollArea className="max-h-48">
           <div className="space-y-1">
-            {profiles.map((profile) => {
+            {profiles.filter((p: any) => !p.deleted_at).map((profile) => {
               const isAssigned = assignedUserIds.includes(profile.user_id);
               return (
                 <div
