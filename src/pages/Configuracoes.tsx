@@ -573,7 +573,7 @@ export default function Configuracoes() {
                           <TableHead>Perfil</TableHead>
                           <TableHead className="w-[150px]">Alterar Perfil</TableHead>
                           <TableHead className="w-[80px]">Cor</TableHead>
-                          <TableHead className="w-[140px] text-center">Ações</TableHead>
+                          <TableHead className="w-[170px] text-center">Ações</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
