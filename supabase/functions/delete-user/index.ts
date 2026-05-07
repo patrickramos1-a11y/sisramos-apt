@@ -33,24 +33,32 @@ Deno.serve(async (req) => {
 
     const adminClient = createClient(supabaseUrl, supabaseServiceKey);
 
-    // Deletar user_role primeiro (devido a constraints)
-    await adminClient.from("user_roles").delete().eq("user_id", userId);
+    // Soft-delete: marca o profile como excluído (preserva histórico em demandas, checklists, timers, etc.)
+    const { error: profileError } = await adminClient
+      .from("profiles")
+      .update({ deleted_at: new Date().toISOString() })
+      .eq("user_id", userId);
 
-    // Deletar profile
-    await adminClient.from("profiles").delete().eq("user_id", userId);
-
-    // Deletar usuário do auth
-    const { error: deleteError } = await adminClient.auth.admin.deleteUser(userId);
-
-    if (deleteError) {
-      console.error("Erro ao deletar usuário do auth:", deleteError);
+    if (profileError) {
+      console.error("Erro ao marcar profile como excluído:", profileError);
       return new Response(
-        JSON.stringify({ error: deleteError.message }),
+        JSON.stringify({ error: profileError.message }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    console.log(`Usuário ${userId} excluído com sucesso`);
+    // Remove role para que o usuário deixe de aparecer com permissões
+    await adminClient.from("user_roles").delete().eq("user_id", userId);
+
+    // Remove acesso de autenticação (defesa em profundidade). Não há FK para auth.users
+    // nas tabelas de domínio, então o histórico é preservado.
+    const { error: authDeleteError } = await adminClient.auth.admin.deleteUser(userId);
+    if (authDeleteError) {
+      // Não bloqueia: o soft-delete já protege o acesso pelo seletor de perfil.
+      console.warn("Aviso ao remover usuário do auth:", authDeleteError.message);
+    }
+
+    console.log(`Usuário ${userId} excluído (soft-delete) com sucesso`);
 
     return new Response(
       JSON.stringify({ success: true }),
