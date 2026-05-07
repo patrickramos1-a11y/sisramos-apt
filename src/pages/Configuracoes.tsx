@@ -87,6 +87,7 @@ export default function Configuracoes() {
       const { data: profiles } = await supabase
         .from("profiles")
         .select("*")
+        .is("deleted_at", null)
         .order("nome");
 
       if (profiles) {
