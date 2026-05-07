@@ -516,7 +516,7 @@ export default function EditarDemandaIrmaDialog({
                 <SelectValue placeholder="Selecione o responsável" />
               </SelectTrigger>
               <SelectContent>
-                {profiles.map((p) => (
+                {profiles.filter((p: any) => !p.deleted_at).map((p) => (
                   <SelectItem key={p.id} value={p.user_id}>
                     {p.nome}
                   </SelectItem>

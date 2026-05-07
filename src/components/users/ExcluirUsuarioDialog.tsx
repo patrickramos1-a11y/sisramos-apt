@@ -52,7 +52,7 @@ export default function ExcluirUsuarioDialog({
 
       toast({
         title: "Usuário excluído!",
-        description: `${user.nome} foi removido do sistema.`,
+        description: `${user.nome} foi removido do sistema. O histórico foi preservado.`,
       });
 
       onOpenChange(false);
@@ -78,8 +78,13 @@ export default function ExcluirUsuarioDialog({
             <strong>{user?.nome}</strong> ({user?.email})?
             <br />
             <br />
-            Esta ação não pode ser desfeita. O usuário perderá acesso ao sistema
-            e todos os seus dados serão removidos.
+            O usuário será removido das listas e do login, mas seus registros
+            históricos (demandas, checklists, timers e solicitações) serão{" "}
+            <strong>preservados</strong> e exibidos com a marcação{" "}
+            <em>"(excluído)"</em>.
+            <br />
+            <br />
+            Esta ação não pode ser desfeita pela interface.
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>

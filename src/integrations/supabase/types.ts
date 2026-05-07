@@ -469,6 +469,7 @@ export type Database = {
         Row: {
           cor: string | null
           created_at: string
+          deleted_at: string | null
           email: string
           id: string
           nome: string
@@ -478,6 +479,7 @@ export type Database = {
         Insert: {
           cor?: string | null
           created_at?: string
+          deleted_at?: string | null
           email: string
           id?: string
           nome: string
@@ -487,6 +489,7 @@ export type Database = {
         Update: {
           cor?: string | null
           created_at?: string
+          deleted_at?: string | null
           email?: string
           id?: string
           nome?: string

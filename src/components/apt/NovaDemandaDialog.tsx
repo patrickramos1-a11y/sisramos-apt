@@ -325,7 +325,7 @@ export default function NovaDemandaDialog({
               </PopoverTrigger>
               <PopoverContent className="w-full p-0" align="start">
                 <div className="max-h-60 overflow-y-auto p-1">
-                  {profiles.map((p) => (
+                  {profiles.filter((p: any) => !p.deleted_at).map((p) => (
                     <div
                       key={p.id}
                       className={cn(

@@ -97,7 +97,10 @@ export default function NovoItemChecklistDialog({
 
   useEffect(() => {
     const fetchProfiles = async () => {
-      const { data } = await supabase.from("profiles").select("id, user_id, nome");
+      const { data } = await supabase
+        .from("profiles")
+        .select("id, user_id, nome")
+        .is("deleted_at", null);
       setProfiles((data as Profile[]) || []);
     };
     fetchProfiles();
