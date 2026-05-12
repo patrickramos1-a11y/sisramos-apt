@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -8,7 +8,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import { X, ChevronDown, Search } from "lucide-react";
+import { X, ChevronDown, Search, Filter } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface Profile {
@@ -222,22 +222,42 @@ export default function APTHorizontalFilters({
   onClearFilters,
   showResponsavelFilter = true,
 }: APTHorizontalFiltersProps) {
-  const updateFilter = <K extends keyof MultiFilters>(key: K, value: MultiFilters[K]) => {
-    onFiltersChange({ ...filters, [key]: value });
+  // Draft state: changes here only apply when user clicks "Filtrar"
+  const [draft, setDraft] = useState<MultiFilters>(filters);
+
+  // Resync draft when applied filters change externally (clear, cross-filter, etc.)
+  useEffect(() => {
+    setDraft(filters);
+  }, [filters]);
+
+  const updateDraft = <K extends keyof MultiFilters>(key: K, value: MultiFilters[K]) => {
+    setDraft((prev) => ({ ...prev, [key]: value }));
   };
 
+  // Busca textual continua aplicando ao vivo (digitação)
+  const updateBusca = (value: string) => {
+    setDraft((prev) => ({ ...prev, busca: value }));
+    onFiltersChange({ ...filters, busca: value });
+  };
+
+  const applyDraft = () => {
+    onFiltersChange(draft);
+  };
+
+  const isDirty = JSON.stringify(draft) !== JSON.stringify(filters);
+
   const hasActiveFilters =
-    filters.responsaveis.length > 0 ||
-    filters.setores.length > 0 ||
-    filters.meses.length > 0 ||
-    filters.anos.length > 0 ||
-    filters.semanas.length > 0 ||
-    filters.statusResponsavel.length > 0 ||
-    filters.statusGestor.length > 0 ||
-    filters.repeticoes.length > 0 ||
-    filters.busca !== "" ||
-    filters.urgente ||
-    filters.prioridade;
+    draft.responsaveis.length > 0 ||
+    draft.setores.length > 0 ||
+    draft.meses.length > 0 ||
+    draft.anos.length > 0 ||
+    draft.semanas.length > 0 ||
+    draft.statusResponsavel.length > 0 ||
+    draft.statusGestor.length > 0 ||
+    draft.repeticoes.length > 0 ||
+    draft.busca !== "" ||
+    draft.urgente ||
+    draft.prioridade;
 
   const responsavelOptions = profiles.map((p) => ({
     value: p.user_id,
@@ -259,8 +279,8 @@ export default function APTHorizontalFilters({
             <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
             <Input
               placeholder="Pesquisar..."
-              value={filters.busca}
-              onChange={(e) => updateFilter("busca", e.target.value)}
+              value={draft.busca}
+              onChange={(e) => updateBusca(e.target.value)}
               className="h-9 pl-8 text-xs"
             />
           </div>
@@ -271,8 +291,8 @@ export default function APTHorizontalFilters({
           <CompactDropdown
             label="Responsável"
             options={responsavelOptions}
-            selected={filters.responsaveis}
-            onChange={(v) => updateFilter("responsaveis", v)}
+            selected={draft.responsaveis}
+            onChange={(v) => updateDraft("responsaveis", v)}
           />
         )}
 
@@ -280,16 +300,16 @@ export default function APTHorizontalFilters({
         <CompactDropdown
           label="Setor"
           options={setorOptions}
-          selected={filters.setores}
-          onChange={(v) => updateFilter("setores", v)}
+          selected={draft.setores}
+          onChange={(v) => updateDraft("setores", v)}
         />
 
         {/* Repetições */}
         <CompactDropdown
           label="Repetições"
           options={repeticaoOptions}
-          selected={filters.repeticoes}
-          onChange={(v) => updateFilter("repeticoes", v)}
+          selected={draft.repeticoes}
+          onChange={(v) => updateDraft("repeticoes", v)}
           placeholder="Todas"
         />
 
@@ -297,24 +317,24 @@ export default function APTHorizontalFilters({
         <CompactDropdown
           label="Mês"
           options={meses}
-          selected={filters.meses}
-          onChange={(v) => updateFilter("meses", v)}
+          selected={draft.meses}
+          onChange={(v) => updateDraft("meses", v)}
         />
 
         {/* Ano */}
         <CompactDropdown
           label="Ano"
           options={anos}
-          selected={filters.anos}
-          onChange={(v) => updateFilter("anos", v)}
+          selected={draft.anos}
+          onChange={(v) => updateDraft("anos", v)}
         />
 
         {/* Semana */}
         <CompactDropdown
           label="Semana"
           options={semanaOptions}
-          selected={filters.semanas}
-          onChange={(v) => updateFilter("semanas", v)}
+          selected={draft.semanas}
+          onChange={(v) => updateDraft("semanas", v)}
           placeholder="Todas"
         />
 
@@ -322,29 +342,29 @@ export default function APTHorizontalFilters({
         <CompactDropdown
           label="Status Feito"
           options={statusOptions}
-          selected={filters.statusResponsavel}
-          onChange={(v) => updateFilter("statusResponsavel", v)}
+          selected={draft.statusResponsavel}
+          onChange={(v) => updateDraft("statusResponsavel", v)}
         />
 
         {/* Status Gestor */}
         <CompactDropdown
           label="Status Aprovado"
           options={statusOptions}
-          selected={filters.statusGestor}
-          onChange={(v) => updateFilter("statusGestor", v)}
+          selected={draft.statusGestor}
+          onChange={(v) => updateDraft("statusGestor", v)}
         />
 
         {/* Urgente toggle */}
         <div className="flex flex-col gap-1">
           <Label className="text-xs text-muted-foreground">Urgente</Label>
           <Button
-            variant={filters.urgente ? "default" : "outline"}
+            variant={draft.urgente ? "default" : "outline"}
             size="sm"
             className={cn(
               "h-9 text-xs",
-              filters.urgente && "bg-destructive hover:bg-destructive/90"
+              draft.urgente && "bg-destructive hover:bg-destructive/90"
             )}
-            onClick={() => updateFilter("urgente", !filters.urgente)}
+            onClick={() => updateDraft("urgente", !draft.urgente)}
           >
             Urgente
           </Button>
@@ -354,15 +374,32 @@ export default function APTHorizontalFilters({
         <div className="flex flex-col gap-1">
           <Label className="text-xs text-muted-foreground">Prioridade</Label>
           <Button
-            variant={filters.prioridade ? "default" : "outline"}
+            variant={draft.prioridade ? "default" : "outline"}
             size="sm"
             className={cn(
               "h-9 text-xs",
-              filters.prioridade && "bg-warning hover:bg-warning/90 text-warning-foreground"
+              draft.prioridade && "bg-warning hover:bg-warning/90 text-warning-foreground"
             )}
-            onClick={() => updateFilter("prioridade", !filters.prioridade)}
+            onClick={() => updateDraft("prioridade", !draft.prioridade)}
           >
             Prioridade
+          </Button>
+        </div>
+
+        {/* Apply filters button */}
+        <div className="flex flex-col gap-1">
+          <Label className="text-xs text-muted-foreground">&nbsp;</Label>
+          <Button
+            size="sm"
+            className={cn(
+              "h-9 text-xs gap-1",
+              isDirty && "ring-2 ring-primary/50 animate-pulse"
+            )}
+            onClick={applyDraft}
+            disabled={!isDirty}
+          >
+            <Filter className="h-3.5 w-3.5" />
+            {isDirty ? "Aplicar filtros" : "Filtrar"}
           </Button>
         </div>
 
