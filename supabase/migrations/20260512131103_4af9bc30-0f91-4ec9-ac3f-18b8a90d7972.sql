@@ -1,0 +1,1 @@
+UPDATE public.checklist_timers SET duration_seconds = 14400, accumulated_seconds = 14400 WHERE id = 'a3834f4b-d8b0-4610-9d3a-087b9e3f3f33';
