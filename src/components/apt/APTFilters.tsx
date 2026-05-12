@@ -17,7 +17,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import { Filter, X, ChevronDown, Search } from "lucide-react";
+import { Filter, X, ChevronDown, Search, Check } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface Profile {
@@ -239,28 +239,43 @@ export default function APTFilters({
 }: APTFiltersProps) {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
+  // Draft state - apply only on click
+  const [draft, setDraft] = useState<MultiFilters>(filters);
+  useEffect(() => {
+    setDraft(filters);
+  }, [filters]);
+
   useEffect(() => {
     const textarea = textareaRef.current;
     if (textarea) {
       textarea.style.height = "auto";
       textarea.style.height = `${Math.min(textarea.scrollHeight, 120)}px`;
     }
-  }, [filters.busca]);
+  }, [draft.busca]);
 
-  const updateFilter = <K extends keyof MultiFilters>(key: K, value: MultiFilters[K]) => {
-    onFiltersChange({ ...filters, [key]: value });
+  const updateDraft = <K extends keyof MultiFilters>(key: K, value: MultiFilters[K]) => {
+    setDraft((prev) => ({ ...prev, [key]: value }));
   };
 
+  // Busca textual aplica ao vivo
+  const updateBusca = (value: string) => {
+    setDraft((prev) => ({ ...prev, busca: value }));
+    onFiltersChange({ ...filters, busca: value });
+  };
+
+  const applyDraft = () => onFiltersChange(draft);
+  const isDirty = JSON.stringify(draft) !== JSON.stringify(filters);
+
   const hasActiveFilters =
-    filters.responsaveis.length > 0 ||
-    filters.setores.length > 0 ||
-    filters.meses.length > 0 ||
-    filters.anos.length > 0 ||
-    filters.semanas.length > 0 ||
-    filters.statusResponsavel.length > 0 ||
-    filters.statusGestor.length > 0 ||
-    filters.repeticoes.length > 0 ||
-    filters.busca !== "";
+    draft.responsaveis.length > 0 ||
+    draft.setores.length > 0 ||
+    draft.meses.length > 0 ||
+    draft.anos.length > 0 ||
+    draft.semanas.length > 0 ||
+    draft.statusResponsavel.length > 0 ||
+    draft.statusGestor.length > 0 ||
+    draft.repeticoes.length > 0 ||
+    draft.busca !== "";
 
   const responsavelOptions = profiles.map((p) => ({
     value: p.user_id,
@@ -279,8 +294,8 @@ export default function APTFilters({
         <Textarea
           ref={textareaRef}
           placeholder="Buscar por descrição..."
-          value={filters.busca}
-          onChange={(e) => updateFilter("busca", e.target.value)}
+          value={draft.busca}
+          onChange={(e) => updateBusca(e.target.value)}
           className="min-h-[38px] resize-none overflow-hidden"
           rows={1}
         />
@@ -290,8 +305,8 @@ export default function APTFilters({
         <MultiSelectDropdown
           label="Responsáveis"
           options={responsavelOptions}
-          selected={filters.responsaveis}
-          onChange={(v) => updateFilter("responsaveis", v)}
+          selected={draft.responsaveis}
+          onChange={(v) => updateDraft("responsaveis", v)}
           placeholder="Todos"
         />
       )}
@@ -299,8 +314,8 @@ export default function APTFilters({
       <MultiSelectDropdown
         label="Setores"
         options={setorOptions}
-        selected={filters.setores}
-        onChange={(v) => updateFilter("setores", v)}
+        selected={draft.setores}
+        onChange={(v) => updateDraft("setores", v)}
         placeholder="Todos"
       />
 
@@ -308,16 +323,16 @@ export default function APTFilters({
         <MultiSelectDropdown
           label="Meses"
           options={meses}
-          selected={filters.meses}
-          onChange={(v) => updateFilter("meses", v)}
+          selected={draft.meses}
+          onChange={(v) => updateDraft("meses", v)}
           placeholder="Todos"
         />
 
         <MultiSelectDropdown
           label="Anos"
           options={anos}
-          selected={filters.anos}
-          onChange={(v) => updateFilter("anos", v)}
+          selected={draft.anos}
+          onChange={(v) => updateDraft("anos", v)}
           placeholder="Todos"
         />
       </div>
@@ -325,34 +340,43 @@ export default function APTFilters({
       <MultiSelectDropdown
         label="Semanas"
         options={semanaOptions}
-        selected={filters.semanas}
-        onChange={(v) => updateFilter("semanas", v)}
+        selected={draft.semanas}
+        onChange={(v) => updateDraft("semanas", v)}
         placeholder="Todas"
       />
 
       <MultiSelectDropdown
         label="Status Responsável"
         options={statusOptions}
-        selected={filters.statusResponsavel}
-        onChange={(v) => updateFilter("statusResponsavel", v)}
+        selected={draft.statusResponsavel}
+        onChange={(v) => updateDraft("statusResponsavel", v)}
         placeholder="Todos"
       />
 
       <MultiSelectDropdown
         label="Status Gestor"
         options={statusOptions}
-        selected={filters.statusGestor}
-        onChange={(v) => updateFilter("statusGestor", v)}
+        selected={draft.statusGestor}
+        onChange={(v) => updateDraft("statusGestor", v)}
         placeholder="Todos"
       />
 
       <MultiSelectDropdown
         label="Repetição (X)"
         options={repeticaoOptions}
-        selected={filters.repeticoes}
-        onChange={(v) => updateFilter("repeticoes", v)}
+        selected={draft.repeticoes}
+        onChange={(v) => updateDraft("repeticoes", v)}
         placeholder="Todas"
       />
+
+      <Button
+        className="w-full"
+        onClick={applyDraft}
+        disabled={!isDirty}
+      >
+        <Check className="mr-2 h-4 w-4" />
+        {isDirty ? "Aplicar filtros" : "Filtros aplicados"}
+      </Button>
 
       <Button
         variant="destructive"
