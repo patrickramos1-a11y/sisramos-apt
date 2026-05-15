@@ -192,27 +192,6 @@ export function useDemandas() {
     fetchDemandas();
   }, [fetchDemandas]);
 
-  // Realtime: refetch automaticamente quando qualquer usuário alterar demandas
-  // (necessário para que mudanças de status feitas por colaboradores ou bulk
-  // updates do gestor apareçam em todas as telas abertas, sem precisar refresh).
-  useEffect(() => {
-    const channel = supabase
-      .channel("demandas-realtime")
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "demandas" },
-        () => {
-          fetchDemandas();
-        }
-      )
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, [fetchDemandas]);
-
-
   const cycleStatus = (current: StatusBolinha): StatusBolinha => {
     const cycle: StatusBolinha[] = ["pendente", "executado", "nao_realizado"];
     const currentIndex = cycle.indexOf(current);
