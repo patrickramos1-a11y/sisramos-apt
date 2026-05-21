@@ -28,7 +28,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import {
   Loader2, ChevronRight, MoreVertical, Pencil, Trash2,
-  ArrowUpDown, ArrowUp, ArrowDown, Flame, Star, Group, ChevronDown, GripVertical,
+  ArrowUpDown, ArrowUp, ArrowDown, Flame, Star, Group, ChevronDown,
 } from "lucide-react";
 import StatusBolinha from "@/components/apt/StatusBolinha";
 import EditarDemandaIrmaDialog from "@/components/apt/EditarDemandaIrmaDialog";
