@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect, useCallback } from "react";
+import { useState, useMemo, useEffect, useCallback, Fragment } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { Badge } from "@/components/ui/badge";
@@ -656,15 +656,13 @@ export default function GerenciamentoLista({ profiles, setores, onDemandaChange 
               ) : (
                 grouped.map((g) => {
                   if (groupBy === "nenhum") {
-                    return g.items.map((c, i) => (
-                      <RowWithZebra key={c.key} idx={i}>{renderRow(c)}</RowWithZebra>
-                    ));
+                    return g.items.map((c) => <Fragment key={c.key}>{renderRow(c)}</Fragment>);
                   }
                   const collapsed = collapsedGroups.has(g.label);
                   const groupAllSelected = g.items.every((c) => c.siblings.every((s) => selectedIds.has(s.id)));
                   return (
-                    <>
-                      <TableRow key={`g-${g.label}`} className="bg-muted/40 hover:bg-muted/60 border-t border-b border-border/60">
+                    <Fragment key={`g-${g.label}`}>
+                      <TableRow className="bg-muted/40 hover:bg-muted/60 border-t border-b border-border/60">
                         <TableCell className="py-1.5">
                           <Checkbox checked={groupAllSelected} onCheckedChange={() => toggleGroup(g.items)} />
                         </TableCell>
@@ -686,10 +684,8 @@ export default function GerenciamentoLista({ profiles, setores, onDemandaChange 
                           </button>
                         </TableCell>
                       </TableRow>
-                      {!collapsed && g.items.map((c, i) => (
-                        <RowWithZebra key={c.key} idx={i}>{renderRow(c)}</RowWithZebra>
-                      ))}
-                    </>
+                      {!collapsed && g.items.map((c) => <Fragment key={c.key}>{renderRow(c)}</Fragment>)}
+                    </Fragment>
                   );
                 })
               )}
