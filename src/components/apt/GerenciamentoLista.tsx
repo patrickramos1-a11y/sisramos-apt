@@ -801,14 +801,3 @@ export default function GerenciamentoLista({ profiles, setores, onDemandaChange 
     </div>
   );
 }
-
-function RowWithZebra({ idx, children }: { idx: number; children: React.ReactNode }) {
-  // Use wrapper just for the zebra context (the row className already handles hover/selected)
-  return (
-    <>{idx % 2 === 1 ? <ShadowedRow>{children}</ShadowedRow> : children}</>
-  );
-}
-
-function ShadowedRow({ children }: { children: React.ReactNode }) {
-  return <>{children}</>;
-}
