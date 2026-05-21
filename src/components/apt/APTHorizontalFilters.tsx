@@ -142,7 +142,7 @@ function CompactDropdown({
 
   return (
     <div className="flex flex-col gap-1">
-      <Label className="text-xs text-muted-foreground">{label}</Label>
+      {label && <Label className="text-xs text-muted-foreground">{label}</Label>}
       <Popover modal={false}>
         <PopoverTrigger asChild>
           <Button
