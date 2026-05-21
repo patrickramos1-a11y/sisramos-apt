@@ -798,11 +798,8 @@ export default function GerenciamentoLista({ profiles, setores, onDemandaChange 
         <DuplicarDemandasEmMassaDialog
           open={!!duplicandoIds}
           onOpenChange={(open) => !open && setDuplicandoIds(null)}
-          demandaIds={duplicandoIds}
-          allDemandas={allDemandas as any}
-          profiles={profiles}
-          setores={setores}
-          onDemandasDuplicadas={handleDemandaChange}
+          selectedIds={new Set(duplicandoIds)}
+          onComplete={handleDemandaChange}
         />
       )}
     </div>
