@@ -382,21 +382,12 @@ export default function GerenciamentoLista({ profiles, setores, onDemandaChange 
       <TableRow
         key={c.key}
         className={cn(
-          "group relative h-10 hover:bg-accent/30 transition-colors",
-          allInRow && "bg-primary/5"
+          "group h-10 hover:bg-accent/30 transition-colors",
+          allInRow && "bg-primary/5",
+          c.muito_urgente && "shadow-[inset_3px_0_0_0_hsl(var(--destructive))]",
+          !c.muito_urgente && c.prioritaria && "shadow-[inset_3px_0_0_0_hsl(var(--warning))]"
         )}
       >
-        {/* Vertical priority bar */}
-        {(c.muito_urgente || c.prioritaria) && (
-          <span
-            aria-hidden
-            className={cn(
-              "absolute left-0 top-0 bottom-0 w-[3px]",
-              c.muito_urgente ? "bg-destructive" : "bg-warning"
-            )}
-          />
-        )}
-
         {/* Checkbox */}
         <TableCell className="w-[36px] py-1">
           <Checkbox
