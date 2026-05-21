@@ -111,3 +111,50 @@ export function RepeticoesPicker({ value, onSelect, trigger }: RepeticoesPickerP
     </Popover>
   );
 }
+
+interface SemanasPickerProps {
+  value: number[];
+  onSelect: (semanas: number[]) => void;
+  trigger: React.ReactNode;
+}
+
+export function SemanasPicker({ value, onSelect, trigger }: SemanasPickerProps) {
+  const orderedValue = [...new Set(value)].sort((a, b) => a - b);
+
+  const toggleSemana = (semana: number) => {
+    const exists = orderedValue.includes(semana);
+    const next = exists
+      ? orderedValue.filter((item) => item !== semana)
+      : [...orderedValue, semana].sort((a, b) => a - b);
+
+    if (next.length === 0) return;
+    onSelect(next);
+  };
+
+  return (
+    <Popover>
+      <PopoverTrigger asChild onClick={(e) => e.stopPropagation()}>
+        {trigger}
+      </PopoverTrigger>
+      <PopoverContent align="start" className="w-auto p-2" onClick={(e) => e.stopPropagation()}>
+        <div className="flex gap-1">
+          {[1, 2, 3, 4, 5].map((semana) => (
+            <button
+              key={semana}
+              type="button"
+              onClick={() => toggleSemana(semana)}
+              className={cn(
+                "h-8 w-8 rounded-md text-xs font-semibold border transition-colors",
+                orderedValue.includes(semana)
+                  ? "bg-primary text-primary-foreground border-primary"
+                  : "bg-background hover:bg-muted border-border/70"
+              )}
+            >
+              {semana}
+            </button>
+          ))}
+        </div>
+      </PopoverContent>
+    </Popover>
+  );
+}

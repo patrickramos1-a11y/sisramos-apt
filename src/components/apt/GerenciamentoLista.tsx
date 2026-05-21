@@ -40,7 +40,7 @@ import { useBulkDemandaActions } from "@/hooks/useBulkDemandaActions";
 import { cn } from "@/lib/utils";
 import FiltersBar, { ListaFilters, MESES_FULL } from "./gerenciamento/FiltersBar";
 import BulkActionsBar from "./gerenciamento/BulkActionsBar";
-import { InlinePicker, RepeticoesPicker } from "./gerenciamento/InlinePickers";
+import { InlinePicker, SemanasPicker } from "./gerenciamento/InlinePickers";
 
 interface Profile { id: string; user_id: string; nome: string; cor?: string | null; }
 interface Setor { id: string; nome: string; cor: string; }
@@ -50,6 +50,7 @@ interface Demanda {
   setor_id: string | null;
   responsavel_id: string;
   descricao: string;
+  observacoes?: string | null;
   status_responsavel: "pendente" | "executado" | "nao_realizado";
   status_gestor: "pendente" | "executado" | "nao_realizado";
   semanas_repeticao: number;
@@ -345,6 +346,73 @@ export default function GerenciamentoLista({ profiles, setores, onDemandaChange 
     if (!error) handleDemandaChange();
   };
 
+  const updateGroupWeeks = async (c: ConsolidatedDemand, semanas: number[]) => {
+    const orderedWeeks = [...new Set(semanas)].sort((a, b) => a - b);
+    const siblingIds = c.siblings.map((s) => s.id);
+    const keptSiblings = c.siblings
+      .filter((s) => orderedWeeks.includes(s.semana_limite?.[0]))
+      .sort((a, b) => (a.semana_limite?.[0] ?? 0) - (b.semana_limite?.[0] ?? 0));
+    const weeksToCreate = orderedWeeks.filter(
+      (semana) => !keptSiblings.some((s) => s.semana_limite?.[0] === semana)
+    );
+    const count = orderedWeeks.length;
+    const grupoId = count > 1 ? c.grupo_id ?? crypto.randomUUID() : null;
+
+    if (keptSiblings.length > 0) {
+      const updateResults = await Promise.all(
+        keptSiblings.map((sibling) =>
+          supabase
+            .from("demandas")
+            .update({
+              semana_limite: [sibling.semana_limite[0]],
+              semanas_repeticao: count,
+              grupo_id: grupoId,
+            })
+            .eq("id", sibling.id)
+        )
+      );
+
+      const updateError = updateResults.find((result) => result.error)?.error;
+      if (updateError) return;
+    }
+
+    const idsToDelete = siblingIds.filter(
+      (id) => !keptSiblings.some((sibling) => sibling.id === id)
+    );
+    if (idsToDelete.length > 0) {
+      const { error: deleteError } = await supabase
+        .from("demandas")
+        .update({ ativa: false })
+        .in("id", idsToDelete);
+      if (deleteError) return;
+    }
+
+    if (weeksToCreate.length > 0) {
+      const template = keptSiblings[0] ?? c.siblings[0];
+      const rowsToInsert = weeksToCreate.map((semana) => ({
+        responsavel_id: template.responsavel_id,
+        setor_id: template.setor_id,
+        descricao: template.descricao,
+        observacoes: template.observacoes ?? null,
+        status_responsavel: template.status_responsavel,
+        status_gestor: template.status_gestor,
+        semanas_repeticao: count,
+        semana_limite: [semana],
+        mes: template.mes,
+        ano: template.ano,
+        prioritaria: template.prioritaria,
+        muito_urgente: template.muito_urgente ?? false,
+        grupo_id: grupoId,
+        ativa: true,
+      }));
+
+      const { error: insertError } = await supabase.from("demandas").insert(rowsToInsert);
+      if (insertError) return;
+    }
+
+    handleDemandaChange();
+  };
+
   const profileOptions = profiles.map((p) => ({ value: p.user_id, label: p.nome, color: p.cor ?? null }));
   const setorOptions = setores.map((s) => ({ value: s.id, label: s.nome, color: s.cor }));
 
@@ -400,8 +468,13 @@ export default function GerenciamentoLista({ profiles, setores, onDemandaChange 
         {/* Descrição */}
         <TableCell className="py-1.5 align-top" style={{ width: descWidth, maxWidth: descWidth }}>
           <div className="flex items-start gap-1.5 min-w-0">
-            {c.muito_urgente && <Flame className="h-3.5 w-3.5 mt-0.5 text-destructive shrink-0" />}
-            {c.prioritaria && !c.muito_urgente && <Star className="h-3.5 w-3.5 mt-0.5 text-warning shrink-0" />}
+            <div className="flex h-4 w-4 shrink-0 items-start justify-center pt-0.5">
+              {c.muito_urgente ? (
+                <Flame className="h-3.5 w-3.5 text-destructive" />
+              ) : c.prioritaria ? (
+                <Star className="h-3.5 w-3.5 text-warning" />
+              ) : null}
+            </div>
             <div className="min-w-0 flex-1">
               <TooltipProvider delayDuration={400}>
                 <Tooltip>
@@ -479,26 +552,30 @@ export default function GerenciamentoLista({ profiles, setores, onDemandaChange 
 
         {/* Semanas */}
         <TableCell className="py-1 w-[88px] align-top">
-          <div className="inline-flex h-6 items-center px-2 rounded-md bg-muted/60 border border-border/50 text-[11px] font-semibold tabular-nums text-foreground/80">
-            {allSemanas.length > 0 ? allSemanas.join(",") : "—"}
-          </div>
-        </TableCell>
-
-        {/* Repetições */}
-        <TableCell className="py-1 w-[52px] text-center align-top">
-          <RepeticoesPicker
-            value={c.siblings.length}
-            onSelect={(n) => groupUpdate(c, { semanas_repeticao: n })}
+          <SemanasPicker
+            value={allSemanas}
+            onSelect={(semanas) => updateGroupWeeks(c, semanas)}
             trigger={
               <button
                 type="button"
                 onClick={(e) => e.stopPropagation()}
-                className="inline-flex h-6 w-9 items-center justify-center rounded-md border bg-muted text-[11px] font-semibold hover:bg-accent"
+                className="inline-flex h-6 items-center rounded-md border border-border/50 bg-muted/60 px-2 text-[11px] font-semibold tabular-nums text-foreground/80 hover:bg-accent"
+                title="Editar semanas"
               >
-                {c.siblings.length}X
+                {allSemanas.length > 0 ? allSemanas.join(",") : "—"}
               </button>
             }
           />
+        </TableCell>
+
+        {/* Repetições */}
+        <TableCell className="py-1 w-[52px] text-center align-top">
+          <div
+            className="inline-flex h-6 w-9 items-center justify-center rounded-md border bg-muted text-[11px] font-semibold text-foreground/80"
+            title="Repetição calculada automaticamente pelas semanas"
+          >
+            {allSemanas.length}X
+          </div>
         </TableCell>
 
         {/* Flags */}
