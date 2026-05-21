@@ -41,6 +41,8 @@ export function useBulkDemandaActions(onDone: () => void) {
       runUpdate(ids, { status_responsavel: status }, "Status do responsável atualizado"),
     setStatusGestor: (ids: string[], status: Status) =>
       runUpdate(ids, { status_gestor: status }, "Aprovação atualizada"),
+    runRepeticoes: (ids: string[], n: number) =>
+      runUpdate(ids, { semanas_repeticao: n }, "Repetições atualizadas"),
     softDelete: (ids: string[]) => runUpdate(ids, { ativa: false }, "Demandas removidas"),
   };
 }
