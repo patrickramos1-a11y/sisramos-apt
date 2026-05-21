@@ -150,10 +150,11 @@ export default function FiltersBar({ filters, onChange, profileOptions, setorOpt
         <div className="flex items-center gap-1">
           {(["urgente", "prioridade", "pendenteAprovacao"] as const).map((key) => {
             const cfg = {
-              urgente: { icon: Flame, label: "Urgente", color: "text-destructive border-destructive/40 bg-destructive/10" },
-              prioridade: { icon: Star, label: "Prioritária", color: "text-warning border-warning/40 bg-warning/10" },
-              pendenteAprovacao: { icon: null, label: "Aguardando aprovação", color: "text-primary border-primary/40 bg-primary/10" },
+              urgente: { icon: Flame, activeCls: "bg-destructive text-destructive-foreground border-destructive shadow-sm" },
+              prioridade: { icon: Star, activeCls: "bg-warning text-warning-foreground border-warning shadow-sm" },
+              pendenteAprovacao: { icon: null, activeCls: "bg-primary text-primary-foreground border-primary shadow-sm" },
             }[key];
+            const labels = { urgente: "Urgente", prioridade: "Prioritária", pendenteAprovacao: "Aguardando aprovação" };
             const Icon = cfg.icon;
             const active = filters[key];
             return (
@@ -162,12 +163,14 @@ export default function FiltersBar({ filters, onChange, profileOptions, setorOpt
                 type="button"
                 onClick={() => update({ [key]: !active } as Partial<ListaFilters>)}
                 className={cn(
-                  "h-7 px-2.5 rounded-full text-[11px] font-medium border inline-flex items-center gap-1 transition-colors",
-                  active ? cfg.color : "bg-background hover:bg-muted border-border/70 text-muted-foreground"
+                  "h-7 px-3 rounded-full text-[11px] font-medium border inline-flex items-center gap-1.5 transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-ring/40",
+                  active
+                    ? cfg.activeCls
+                    : "bg-background hover:bg-muted border-border/70 text-muted-foreground"
                 )}
               >
-                {Icon && <Icon className="h-3 w-3" />}
-                {cfg.label}
+                {Icon && <Icon className={cn("h-3 w-3", active && "fill-current")} />}
+                {labels[key]}
               </button>
             );
           })}
