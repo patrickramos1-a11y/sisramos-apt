@@ -1,30 +1,11 @@
-import { useState, useMemo, useEffect, useCallback } from "react";
+import { useState, useMemo, useEffect, useCallback, Fragment } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
-import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import {
   Table,
   TableBody,
@@ -34,44 +15,35 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { 
-  Loader2, ClipboardList, Users, ChevronRight, 
-  MoreVertical, Pencil, Trash2, ChevronDown, X, Search,
-  ArrowUpDown, ArrowUp, ArrowDown
+import {
+  Loader2, ChevronRight, MoreVertical, Pencil, Trash2,
+  ArrowUpDown, ArrowUp, ArrowDown, Flame, Star, Group, ChevronDown,
 } from "lucide-react";
 import StatusBolinha from "@/components/apt/StatusBolinha";
 import EditarDemandaIrmaDialog from "@/components/apt/EditarDemandaIrmaDialog";
 import ExcluirDemandaIrmaDialog from "@/components/apt/ExcluirDemandaIrmaDialog";
 import SolicitarExclusaoDialog from "@/components/apt/SolicitarExclusaoDialog";
+import DuplicarDemandasEmMassaDialog from "@/components/apt/DuplicarDemandasEmMassaDialog";
 import { useSolicitacoesExclusao } from "@/hooks/useSolicitacoesExclusao";
+import { useBulkDemandaActions } from "@/hooks/useBulkDemandaActions";
 import { cn } from "@/lib/utils";
-import { MultiSelectDropdown } from "@/components/ui/multi-select-dropdown";
+import FiltersBar, { ListaFilters, MESES_FULL } from "./gerenciamento/FiltersBar";
+import BulkActionsBar from "./gerenciamento/BulkActionsBar";
+import { InlinePicker, RepeticoesPicker } from "./gerenciamento/InlinePickers";
 
-interface Profile {
-  id: string;
-  user_id: string;
-  nome: string;
-  cor?: string;
-}
-
-interface Setor {
-  id: string;
-  nome: string;
-  cor: string;
-}
-
+interface Profile { id: string; user_id: string; nome: string; cor?: string | null; }
+interface Setor { id: string; nome: string; cor: string; }
 interface Demanda {
   id: string;
   numero: number;
@@ -91,6 +63,7 @@ interface Demanda {
 }
 
 interface ConsolidatedDemand {
+  key: string;
   grupo_id: string | null;
   descricao: string;
   responsavel_id: string;
@@ -99,219 +72,122 @@ interface ConsolidatedDemand {
   muito_urgente: boolean;
   mes: number;
   ano: number;
-  siblings: Array<{
-    id: string;
-    numero: number;
-    semana_limite: number[];
-    status_responsavel: "pendente" | "executado" | "nao_realizado";
-    status_gestor: "pendente" | "executado" | "nao_realizado";
-    mes: number;
-    ano: number;
-    prioritaria: boolean;
-    muito_urgente: boolean;
-  }>;
+  siblings: Demanda[];
 }
 
-interface GerenciamentoListaProps {
+type GroupBy = "nenhum" | "responsavel" | "setor" | "setor_responsavel";
+type SortCol = "descricao" | "responsavel" | "setor" | "repeticao" | "semana" | null;
+
+interface Props {
   profiles: Profile[];
   setores: Setor[];
   onDemandaChange: () => void;
 }
 
-// Helper wrapper for MultiSelectDropdown with label
-function LabeledMultiSelect({
-  label,
-  options,
-  selected,
-  onChange,
-  placeholder = "Selecionar...",
-}: {
-  label: string;
-  options: { value: string; label: string }[];
-  selected: string[];
-  onChange: (selected: string[]) => void;
-  placeholder?: string;
-}) {
-  return (
-    <div className="space-y-1">
-      <Label className="text-xs font-medium">{label}</Label>
-      <MultiSelectDropdown
-        options={options}
-        selected={selected}
-        onChange={onChange}
-        placeholder={placeholder}
-      />
-    </div>
-  );
-}
+const STORAGE_KEY = "gerenciamento-lista-prefs";
 
-const meses = [
-  { value: "1", label: "Janeiro" },
-  { value: "2", label: "Fevereiro" },
-  { value: "3", label: "Março" },
-  { value: "4", label: "Abril" },
-  { value: "5", label: "Maio" },
-  { value: "6", label: "Junho" },
-  { value: "7", label: "Julho" },
-  { value: "8", label: "Agosto" },
-  { value: "9", label: "Setembro" },
-  { value: "10", label: "Outubro" },
-  { value: "11", label: "Novembro" },
-  { value: "12", label: "Dezembro" },
-];
+const DEFAULT_FILTERS: ListaFilters = {
+  busca: "",
+  meses: [String(new Date().getMonth() + 1)],
+  semanas: [],
+  responsaveis: [],
+  setores: [],
+  repeticoes: [],
+  urgente: false,
+  prioridade: false,
+  pendenteAprovacao: false,
+  todosOsMeses: false,
+};
 
-const repeticaoOptions = [
-  { value: "1", label: "1X" },
-  { value: "2", label: "2X" },
-  { value: "3", label: "3X" },
-  { value: "4", label: "4X" },
-  { value: "5", label: "5X" },
-];
-
-const rowLimitOptions = [50, 100, 500, 1000, 2000];
-
-export default function GerenciamentoLista({
-  profiles,
-  setores,
-  onDemandaChange,
-}: GerenciamentoListaProps) {
+export default function GerenciamentoLista({ profiles, setores, onDemandaChange }: Props) {
   const { user, isGestorOrAdmin, role } = useAuth();
   const isColaborador = role === "colaborador";
-  
-  const [allDemandas, setAllDemandas] = useState<Demanda[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+
+  const prefs = useMemo(() => {
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY);
+      return raw ? JSON.parse(raw) : null;
+    } catch { return null; }
+  }, []);
+
+  const [filters, setFilters] = useState<ListaFilters>({ ...DEFAULT_FILTERS, ...(prefs?.filters ?? {}) });
+  const [groupBy, setGroupBy] = useState<GroupBy>(prefs?.groupBy ?? "nenhum");
+  const [sortColumn, setSortColumn] = useState<SortCol>(null);
+  const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc");
+  const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set());
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [selectedDemand, setSelectedDemand] = useState<ConsolidatedDemand | null>(null);
 
-  // Fixed filters - always visible
-  const [filters, setFilters] = useState({
-    responsaveis: [] as string[],
-    setores: [] as string[],
-    repeticoes: [] as string[],
-    busca: "",
-    meses: [String(new Date().getMonth() + 1)],
-  });
+  const [allDemandas, setAllDemandas] = useState<Demanda[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
 
-  // Sorting
-  const [sortColumn, setSortColumn] = useState<"descricao" | "responsavel" | "setor" | "repeticao" | null>(null);
-  const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc");
-  const [rowLimit, setRowLimit] = useState(50);
-
-  const handleSort = (column: typeof sortColumn) => {
-    if (sortColumn === column) {
-      if (sortDirection === "asc") setSortDirection("desc");
-      else { setSortColumn(null); setSortDirection("asc"); }
-    } else {
-      setSortColumn(column);
-      setSortDirection("asc");
-    }
-  };
-
-  // Edit/Delete states
   const [editingDemanda, setEditingDemanda] = useState<Demanda | null>(null);
-  const [deletingDemanda, setDeletingDemanda] = useState<{
-    id: string;
-    numero: number;
-    grupo_id: string | null;
-  } | null>(null);
-  const [solicitandoExclusao, setSolicitandoExclusao] = useState<{
-    id: string;
-    numero: number;
-    grupo_id: string | null;
-    descricao: string;
-    responsavel_id: string;
-    mes: number;
-    ano: number;
-    semanas_repeticao: number;
-  } | null>(null);
+  const [deletingDemanda, setDeletingDemanda] = useState<{ id: string; numero: number; grupo_id: string | null } | null>(null);
+  const [solicitandoExclusao, setSolicitandoExclusao] = useState<{ id: string; numero: number; grupo_id: string | null; descricao: string; responsavel_id: string; mes: number; ano: number; semanas_repeticao: number } | null>(null);
+  const [duplicandoIds, setDuplicandoIds] = useState<string[] | null>(null);
 
   const { pendingDemandaIds, refetchSolicitacoes } = useSolicitacoesExclusao();
 
-  // Fetch all demands
+  // persist prefs
+  useEffect(() => {
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify({ filters, groupBy }));
+    } catch {}
+  }, [filters, groupBy]);
+
   const fetchAllDemandas = useCallback(async () => {
     setIsLoading(true);
-    
-    let query = supabase
-      .from("demandas")
-      .select("*")
-      .eq("ativa", true)
-      .order("numero", { ascending: true });
-
-    // Apply month filter
-    if (filters.meses.length > 0) {
-      query = query.in("mes", filters.meses.map(m => parseInt(m)));
+    let query = supabase.from("demandas").select("*").eq("ativa", true).order("numero", { ascending: true });
+    if (!filters.todosOsMeses && filters.meses.length > 0) {
+      query = query.in("mes", filters.meses.map((m) => parseInt(m)));
     }
-
-    // For colaboradores, only show their own demands
-    if (isColaborador && user?.id) {
-      query = query.eq("responsavel_id", user.id);
-    }
-
+    if (isColaborador && user?.id) query = query.eq("responsavel_id", user.id);
     const { data, error } = await query;
-
-    if (error) {
-      console.error("Error fetching demands:", error);
-      setAllDemandas([]);
-    } else {
-      setAllDemandas(data || []);
-    }
-    
+    if (error) { console.error(error); setAllDemandas([]); }
+    else setAllDemandas(data || []);
     setIsLoading(false);
-  }, [filters.meses, isColaborador, user?.id]);
+  }, [filters.meses, filters.todosOsMeses, isColaborador, user?.id]);
 
-  useEffect(() => {
+  useEffect(() => { fetchAllDemandas(); }, [fetchAllDemandas]);
+
+  const handleDemandaChange = () => {
     fetchAllDemandas();
-  }, [fetchAllDemandas]);
+    onDemandaChange();
+    refetchSolicitacoes();
+    setSelectedIds(new Set());
+  };
 
-  // Apply client-side filters
+  const bulk = useBulkDemandaActions(handleDemandaChange);
+
+  // Client-side filtering
   const filteredDemandas = useMemo(() => {
     let result = allDemandas;
-
-    // Filter by responsavel
-    if (filters.responsaveis.length > 0) {
-      result = result.filter(d => filters.responsaveis.includes(d.responsavel_id));
-    }
-
-    // Filter by setor
-    if (filters.setores.length > 0) {
-      result = result.filter(d => d.setor_id && filters.setores.includes(d.setor_id));
-    }
-
-    // Filter by search term
+    if (filters.responsaveis.length > 0) result = result.filter((d) => filters.responsaveis.includes(d.responsavel_id));
+    if (filters.setores.length > 0) result = result.filter((d) => d.setor_id && filters.setores.includes(d.setor_id));
     if (filters.busca.trim()) {
-      const searchLower = filters.busca.toLowerCase();
-      result = result.filter(d => d.descricao.toLowerCase().includes(searchLower));
+      const q = filters.busca.toLowerCase();
+      result = result.filter((d) => d.descricao.toLowerCase().includes(q));
     }
-
+    if (filters.semanas.length > 0) {
+      const wanted = filters.semanas.map((s) => parseInt(s));
+      result = result.filter((d) => (d.semana_limite || []).some((s) => wanted.includes(s)));
+    }
+    if (filters.urgente) result = result.filter((d) => d.muito_urgente);
+    if (filters.prioridade) result = result.filter((d) => d.prioritaria);
+    if (filters.pendenteAprovacao) result = result.filter((d) => d.status_responsavel === "executado" && d.status_gestor === "pendente");
     return result;
   }, [allDemandas, filters]);
 
-  // Consolidate demands
-  // Groups by grupo_id when available, otherwise by descricao+responsavel+mes+ano
-  const consolidatedDemands = useMemo(() => {
-    const groupMap = new Map<string, ConsolidatedDemand>();
-    
+  // Consolidate
+  const consolidated = useMemo(() => {
+    const map = new Map<string, ConsolidatedDemand>();
     filteredDemandas.forEach((d) => {
-      // Use grupo_id if available, otherwise create a composite key
-      // This handles cases where rollover didn't preserve grupo_id
-      const key = d.grupo_id 
-        ? d.grupo_id 
-        : `${d.descricao.toLowerCase().trim()}|${d.responsavel_id}|${d.mes}|${d.ano}`;
-      
-      if (groupMap.has(key)) {
-        const existing = groupMap.get(key)!;
-        existing.siblings.push({
-          id: d.id,
-          numero: d.numero,
-          semana_limite: d.semana_limite,
-          status_responsavel: d.status_responsavel,
-          status_gestor: d.status_gestor,
-          mes: d.mes,
-          ano: d.ano,
-          prioritaria: d.prioritaria,
-          muito_urgente: d.muito_urgente || false,
-        });
+      const key = d.grupo_id ?? `${d.descricao.toLowerCase().trim()}|${d.responsavel_id}|${d.mes}|${d.ano}`;
+      if (map.has(key)) {
+        map.get(key)!.siblings.push(d);
       } else {
-        groupMap.set(key, {
+        map.set(key, {
+          key,
           grupo_id: d.grupo_id,
           descricao: d.descricao,
           responsavel_id: d.responsavel_id,
@@ -320,451 +196,511 @@ export default function GerenciamentoLista({
           muito_urgente: d.muito_urgente || false,
           mes: d.mes,
           ano: d.ano,
-          siblings: [{
-            id: d.id,
-            numero: d.numero,
-            semana_limite: d.semana_limite,
-            status_responsavel: d.status_responsavel,
-            status_gestor: d.status_gestor,
-            mes: d.mes,
-            ano: d.ano,
-            prioritaria: d.prioritaria,
-            muito_urgente: d.muito_urgente || false,
-          }],
+          siblings: [d],
         });
       }
     });
-    
-    let result = Array.from(groupMap.values());
-
-    // Filter by repetitions
+    let result = Array.from(map.values());
     if (filters.repeticoes.length > 0) {
-      const repNums = filters.repeticoes.map(r => parseInt(r));
-      result = result.filter(d => repNums.includes(d.siblings.length));
+      const reps = filters.repeticoes.map((r) => parseInt(r));
+      result = result.filter((d) => reps.includes(d.siblings.length));
     }
-
     return result;
   }, [filteredDemandas, filters.repeticoes]);
 
-  const getProfileById = useCallback((userId: string) => {
-    return profiles.find((p) => p.user_id === userId);
-  }, [profiles]);
+  const getProfileById = useCallback((id: string) => profiles.find((p) => p.user_id === id), [profiles]);
+  const getSetorById = useCallback((id: string | null) => (id ? setores.find((s) => s.id === id) ?? null : null), [setores]);
 
-  const getSetorById = useCallback((setorId: string | null) => {
-    if (!setorId) return null;
-    return setores.find((s) => s.id === setorId);
-  }, [setores]);
-
-  // Apply sorting
-  const sortedDemands = useMemo(() => {
-    if (!sortColumn) return consolidatedDemands;
-    const sorted = [...consolidatedDemands].sort((a, b) => {
-      let cmp = 0;
-      switch (sortColumn) {
-        case "descricao":
-          cmp = a.descricao.localeCompare(b.descricao, "pt-BR");
-          break;
-        case "responsavel": {
-          const na = getProfileById(a.responsavel_id)?.nome || "";
-          const nb = getProfileById(b.responsavel_id)?.nome || "";
-          cmp = na.localeCompare(nb, "pt-BR");
-          break;
-        }
-        case "setor": {
-          const sa = getSetorById(a.setor_id)?.nome || "";
-          const sb = getSetorById(b.setor_id)?.nome || "";
-          cmp = sa.localeCompare(sb, "pt-BR");
-          break;
-        }
-        case "repeticao":
-          cmp = a.siblings.length - b.siblings.length;
-          break;
+  const sortFn = (a: ConsolidatedDemand, b: ConsolidatedDemand) => {
+    let cmp = 0;
+    switch (sortColumn) {
+      case "descricao": cmp = a.descricao.localeCompare(b.descricao, "pt-BR"); break;
+      case "responsavel": cmp = (getProfileById(a.responsavel_id)?.nome || "").localeCompare(getProfileById(b.responsavel_id)?.nome || "", "pt-BR"); break;
+      case "setor": cmp = (getSetorById(a.setor_id)?.nome || "").localeCompare(getSetorById(b.setor_id)?.nome || "", "pt-BR"); break;
+      case "repeticao": cmp = a.siblings.length - b.siblings.length; break;
+      case "semana": {
+        const wa = Math.min(...(a.siblings.flatMap((s) => s.semana_limite) || [99]));
+        const wb = Math.min(...(b.siblings.flatMap((s) => s.semana_limite) || [99]));
+        cmp = wa - wb;
+        break;
       }
-      return sortDirection === "asc" ? cmp : -cmp;
-    });
-    return sorted;
-  }, [consolidatedDemands, sortColumn, sortDirection, getProfileById, getSetorById]);
-
-  const visibleDemands = useMemo(
-    () => sortedDemands.slice(0, rowLimit),
-    [sortedDemands, rowLimit],
-  );
-
-  const getDemandaById = useCallback((id: string) => {
-    return allDemandas.find((d) => d.id === id);
-  }, [allDemandas]);
-
-  const getSiblingCount = useCallback((grupoId: string | null) => {
-    if (!grupoId) return 1;
-    return allDemandas.filter((d) => d.grupo_id === grupoId).length;
-  }, [allDemandas]);
-
-  const handleDemandaChange = () => {
-    fetchAllDemandas();
-    onDemandaChange();
-    refetchSolicitacoes();
+    }
+    return sortDirection === "asc" ? cmp : -cmp;
   };
 
-  // Helper: route delete action based on role
-  const handleDeleteClick = (demanda: { id: string; numero: number; grupo_id: string | null; descricao: string; responsavel_id: string; mes: number; ano: number; semanas_repeticao: number }) => {
-    if (isGestorOrAdmin) {
-      setDeletingDemanda(demanda);
-    } else {
-      setSolicitandoExclusao(demanda);
+  const sortedFlat = useMemo(() => {
+    if (!sortColumn) return consolidated;
+    return [...consolidated].sort(sortFn);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [consolidated, sortColumn, sortDirection]);
+
+  // Group structure
+  const grouped = useMemo(() => {
+    if (groupBy === "nenhum") return [{ label: "", count: sortedFlat.length, items: sortedFlat }];
+    const groups = new Map<string, ConsolidatedDemand[]>();
+    sortedFlat.forEach((d) => {
+      let label = "";
+      if (groupBy === "responsavel") {
+        label = getProfileById(d.responsavel_id)?.nome ?? "Sem responsável";
+      } else if (groupBy === "setor") {
+        label = getSetorById(d.setor_id)?.nome ?? "Sem setor";
+      } else if (groupBy === "setor_responsavel") {
+        label = `${getSetorById(d.setor_id)?.nome ?? "Sem setor"} › ${getProfileById(d.responsavel_id)?.nome ?? "Sem responsável"}`;
+      }
+      const arr = groups.get(label) ?? [];
+      arr.push(d);
+      groups.set(label, arr);
+    });
+    return Array.from(groups.entries())
+      .sort(([a], [b]) => a.localeCompare(b, "pt-BR"))
+      .map(([label, items]) => ({ label, count: items.length, items }));
+  }, [sortedFlat, groupBy, getProfileById, getSetorById]);
+
+  const handleSort = (c: NonNullable<SortCol>) => {
+    if (sortColumn === c) {
+      if (sortDirection === "asc") setSortDirection("desc");
+      else { setSortColumn(null); setSortDirection("asc"); }
+    } else { setSortColumn(c); setSortDirection("asc"); }
+  };
+
+  const expandedSelectedIds = useMemo(() => {
+    const ids: string[] = [];
+    consolidated.forEach((c) => {
+      if (c.siblings.every((s) => selectedIds.has(s.id))) {
+        c.siblings.forEach((s) => ids.push(s.id));
+      } else {
+        c.siblings.forEach((s) => { if (selectedIds.has(s.id)) ids.push(s.id); });
+      }
+    });
+    return Array.from(new Set(ids));
+  }, [consolidated, selectedIds]);
+
+  const totalSiblingsVisible = useMemo(() => consolidated.reduce((acc, c) => acc + c.siblings.length, 0), [consolidated]);
+  const allSelected = totalSiblingsVisible > 0 && consolidated.every((c) => c.siblings.every((s) => selectedIds.has(s.id)));
+
+  const toggleAll = () => {
+    if (allSelected) setSelectedIds(new Set());
+    else {
+      const next = new Set<string>();
+      consolidated.forEach((c) => c.siblings.forEach((s) => next.add(s.id)));
+      setSelectedIds(next);
     }
   };
 
-  const clearFilters = () => {
-    setFilters({
-      responsaveis: [],
-      setores: [],
-      repeticoes: [],
-      busca: "",
-      meses: [String(new Date().getMonth() + 1)],
-    });
+  const toggleRow = (c: ConsolidatedDemand) => {
+    const next = new Set(selectedIds);
+    const allInRow = c.siblings.every((s) => next.has(s.id));
+    c.siblings.forEach((s) => { allInRow ? next.delete(s.id) : next.add(s.id); });
+    setSelectedIds(next);
   };
 
-  const hasActiveFilters = 
-    filters.responsaveis.length > 0 ||
-    filters.setores.length > 0 ||
-    filters.repeticoes.length > 0 ||
-    filters.busca.trim() !== "";
-
-  const responsavelOptions = profiles.map((p) => ({
-    value: p.user_id,
-    label: p.nome,
-  }));
-
-  const setorOptions = setores.map((s) => ({
-    value: s.id,
-    label: s.nome,
-  }));
-
-  // Get siblings for delete dialog
-  const deletingSiblings = deletingDemanda?.grupo_id
-    ? allDemandas
-        .filter((d) => d.grupo_id === deletingDemanda.grupo_id)
-        .map((d) => ({
-          id: d.id,
-          numero: d.numero,
-          descricao: d.descricao,
-          semana_limite: d.semana_limite,
-        }))
-    : [];
-
-  const editingSiblingCount = editingDemanda
-    ? getSiblingCount(editingDemanda.grupo_id)
-    : 1;
-
-  const deletingSiblingCount = deletingDemanda
-    ? getSiblingCount(deletingDemanda.grupo_id)
-    : 1;
-
-  const getInitials = (name: string) => {
-    return name.split(" ").map(n => n[0]).slice(0, 2).join("").toUpperCase();
+  const toggleGroup = (items: ConsolidatedDemand[]) => {
+    const next = new Set(selectedIds);
+    const allIn = items.every((c) => c.siblings.every((s) => next.has(s.id)));
+    items.forEach((c) => c.siblings.forEach((s) => { allIn ? next.delete(s.id) : next.add(s.id); }));
+    setSelectedIds(next);
   };
 
-  // Consolidated row component
-  const ConsolidatedDemandRow = ({ demand }: { demand: ConsolidatedDemand }) => {
-    const profile = getProfileById(demand.responsavel_id);
-    const setor = getSetorById(demand.setor_id);
-    const firstSibling = demand.siblings[0];
-    const showActions = true; // All users can now see actions
-    const hasPendingExclusao = demand.siblings.some(s => pendingDemandaIds.has(s.id));
-    
+  const handleDeleteClick = (d: Demanda) => {
+    if (isGestorOrAdmin) setDeletingDemanda(d);
+    else setSolicitandoExclusao(d);
+  };
+
+  // Inline cell edits
+  const inlineUpdate = async (id: string, patch: Partial<Demanda>) => {
+    const { error } = await supabase.from("demandas").update(patch).eq("id", id);
+    if (!error) handleDemandaChange();
+  };
+  const groupUpdate = async (c: ConsolidatedDemand, patch: Partial<Demanda>) => {
+    const ids = c.siblings.map((s) => s.id);
+    const { error } = await supabase.from("demandas").update(patch).in("id", ids);
+    if (!error) handleDemandaChange();
+  };
+
+  const profileOptions = profiles.map((p) => ({ value: p.user_id, label: p.nome, color: p.cor ?? null }));
+  const setorOptions = setores.map((s) => ({ value: s.id, label: s.nome, color: s.cor }));
+
+  const currentMes = new Date().getMonth() + 1;
+  const currentAno = new Date().getFullYear();
+
+  const getInitials = (n: string) => n.split(" ").map((x) => x[0]).slice(0, 2).join("").toUpperCase();
+
+  const SortBtn = ({ col, children, align = "left" }: { col: NonNullable<SortCol>; children: React.ReactNode; align?: "left" | "center" }) => (
+    <button
+      type="button"
+      onClick={() => handleSort(col)}
+      className={cn(
+        "inline-flex items-center gap-1 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground hover:text-foreground",
+        align === "center" && "justify-center w-full"
+      )}
+    >
+      {children}
+      {sortColumn === col
+        ? (sortDirection === "asc" ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />)
+        : <ArrowUpDown className="h-3 w-3 opacity-30" />}
+    </button>
+  );
+
+  const renderRow = (c: ConsolidatedDemand) => {
+    const profile = getProfileById(c.responsavel_id);
+    const setor = getSetorById(c.setor_id);
+    const first = c.siblings[0];
+    const hasPending = c.siblings.some((s) => pendingDemandaIds.has(s.id));
+    const allSemanas = Array.from(new Set(c.siblings.flatMap((s) => s.semana_limite || []))).sort((a, b) => a - b);
+    const allInRow = c.siblings.every((s) => selectedIds.has(s.id));
+    const showMonthBadge = c.mes !== currentMes || c.ano !== currentAno;
+
     return (
-      <TableRow 
+      <TableRow
+        key={c.key}
         className={cn(
-          "cursor-pointer hover:bg-muted/50",
-          demand.muito_urgente && "bg-[hsl(var(--apt-muito-urgente))]/30",
-          demand.prioritaria && !demand.muito_urgente && "bg-[hsl(var(--apt-priority))]/30"
+          "group relative h-10 hover:bg-accent/30 transition-colors",
+          allInRow && "bg-primary/5"
         )}
-        onClick={() => setSelectedDemand(demand)}
       >
-        <TableCell className="max-w-[300px]">
-          <div className="flex items-center gap-2 flex-wrap">
-            <p className="whitespace-normal break-words">{demand.descricao}</p>
-            {hasPendingExclusao && (
-              <span className="inline-flex items-center rounded-full bg-warning/20 text-warning border border-warning/30 px-2 py-0.5 text-[10px] font-medium whitespace-nowrap">
-                Aguardando exclusão
-              </span>
+        {/* Vertical priority bar */}
+        {(c.muito_urgente || c.prioritaria) && (
+          <span
+            aria-hidden
+            className={cn(
+              "absolute left-0 top-0 bottom-0 w-[3px]",
+              c.muito_urgente ? "bg-destructive" : "bg-warning"
             )}
+          />
+        )}
+
+        {/* Checkbox */}
+        <TableCell className="w-[36px] py-1">
+          <Checkbox
+            checked={allInRow}
+            onCheckedChange={() => toggleRow(c)}
+            onClick={(e) => e.stopPropagation()}
+          />
+        </TableCell>
+
+        {/* Descrição */}
+        <TableCell className="py-1.5 max-w-[560px]">
+          <div className="flex items-start gap-1.5 min-w-0">
+            {c.muito_urgente && <Flame className="h-3.5 w-3.5 mt-0.5 text-destructive shrink-0" />}
+            {c.prioritaria && !c.muito_urgente && <Star className="h-3.5 w-3.5 mt-0.5 text-warning shrink-0" />}
+            <div className="min-w-0 flex-1">
+              <TooltipProvider delayDuration={400}>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <p className="text-sm leading-tight line-clamp-2 break-words">{c.descricao}</p>
+                  </TooltipTrigger>
+                  <TooltipContent className="max-w-md"><p className="text-xs">{c.descricao}</p></TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+              {(hasPending || showMonthBadge) && (
+                <div className="flex items-center gap-1.5 mt-0.5">
+                  {showMonthBadge && (
+                    <span className="text-[9px] font-medium uppercase tracking-wide text-muted-foreground bg-muted px-1.5 py-0 rounded">
+                      {MESES_FULL[c.mes - 1].slice(0, 3)}/{c.ano}
+                    </span>
+                  )}
+                  {hasPending && (
+                    <span className="text-[9px] font-medium uppercase tracking-wide text-warning bg-warning/10 px-1.5 py-0 rounded">
+                      Excl. pendente
+                    </span>
+                  )}
+                </div>
+              )}
+            </div>
           </div>
         </TableCell>
-        <TableCell>
-          <div className="flex items-center gap-2">
-            <Avatar 
-              className="h-6 w-6 border"
-              style={{ 
-                borderColor: profile?.cor || "#6B7280",
-                backgroundColor: `${profile?.cor || "#6B7280"}20`
-              }}
-            >
-              <AvatarFallback 
-                className="text-[10px] font-medium"
-                style={{ color: profile?.cor || "#6B7280" }}
+
+        {/* Responsável */}
+        <TableCell className="py-1 w-[180px]">
+          <InlinePicker
+            value={c.responsavel_id}
+            options={profileOptions}
+            onSelect={(v) => v && groupUpdate(c, { responsavel_id: v })}
+            searchPlaceholder="Buscar pessoa..."
+            trigger={
+              <button
+                type="button"
+                className="inline-flex items-center gap-1.5 text-sm hover:bg-muted rounded px-1 py-0.5 -mx-1 truncate max-w-full"
+                onClick={(e) => e.stopPropagation()}
               >
-                {getInitials(profile?.nome || "?")}
-              </AvatarFallback>
-            </Avatar>
-            {profile?.nome || "Desconhecido"}
+                <Avatar
+                  className="h-5 w-5 border shrink-0"
+                  style={{ borderColor: profile?.cor || "#6B7280", backgroundColor: `${profile?.cor || "#6B7280"}20` }}
+                >
+                  <AvatarFallback className="text-[9px] font-medium" style={{ color: profile?.cor || "#6B7280" }}>
+                    {getInitials(profile?.nome || "?")}
+                  </AvatarFallback>
+                </Avatar>
+                <span className="truncate">{profile?.nome || "—"}</span>
+              </button>
+            }
+          />
+        </TableCell>
+
+        {/* Setor */}
+        <TableCell className="py-1 w-[160px]">
+          <InlinePicker
+            value={c.setor_id}
+            options={setorOptions}
+            allowNone
+            onSelect={(v) => groupUpdate(c, { setor_id: v })}
+            searchPlaceholder="Buscar setor..."
+            trigger={
+              <button
+                type="button"
+                className="inline-flex items-center gap-1.5 text-sm hover:bg-muted rounded px-1 py-0.5 -mx-1 truncate max-w-full"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <span className="h-2 w-2 rounded-full shrink-0" style={{ backgroundColor: setor?.cor || "#E5E7EB" }} />
+                <span className="truncate">{setor?.nome ?? "—"}</span>
+              </button>
+            }
+          />
+        </TableCell>
+
+        {/* Semanas */}
+        <TableCell className="py-1 w-[140px]">
+          <div className="flex items-center gap-0.5">
+            {[1, 2, 3, 4, 5].map((s) => {
+              const has = allSemanas.includes(s);
+              return (
+                <span
+                  key={s}
+                  className={cn(
+                    "inline-flex h-5 w-5 items-center justify-center rounded text-[10px] font-medium",
+                    has ? "bg-primary/15 text-primary border border-primary/30" : "text-muted-foreground/30"
+                  )}
+                >
+                  {s}
+                </span>
+              );
+            })}
           </div>
         </TableCell>
-        <TableCell>
-          {setor ? (
-            <div className="flex items-center gap-2">
-              <div
-                className="w-2 h-2 rounded-full"
-                style={{ backgroundColor: setor.cor || "#E5E7EB" }}
-              />
-              {setor.nome}
-            </div>
-          ) : (
-            <span className="text-muted-foreground">-</span>
-          )}
+
+        {/* Repetições */}
+        <TableCell className="py-1 w-[72px] text-center">
+          <RepeticoesPicker
+            value={c.siblings.length}
+            onSelect={(n) => groupUpdate(c, { semanas_repeticao: n })}
+            trigger={
+              <button
+                type="button"
+                onClick={(e) => e.stopPropagation()}
+                className="inline-flex h-6 px-2 items-center rounded-md border bg-muted text-xs font-semibold hover:bg-accent"
+              >
+                {c.siblings.length}X
+              </button>
+            }
+          />
         </TableCell>
-        <TableCell className="text-center">
-          <Badge variant="secondary">
-            {demand.siblings.length}X
-          </Badge>
+
+        {/* Flags */}
+        <TableCell className="py-1 w-[64px]">
+          <div className="flex items-center gap-0.5">
+            <button
+              type="button"
+              onClick={(e) => { e.stopPropagation(); groupUpdate(c, { prioritaria: !c.prioritaria }); }}
+              className="h-6 w-6 inline-flex items-center justify-center rounded hover:bg-muted"
+              title="Prioritária"
+            >
+              <Star className={cn("h-3.5 w-3.5", c.prioritaria ? "fill-warning text-warning" : "text-muted-foreground/40")} />
+            </button>
+            <button
+              type="button"
+              onClick={(e) => { e.stopPropagation(); groupUpdate(c, { muito_urgente: !c.muito_urgente }); }}
+              className="h-6 w-6 inline-flex items-center justify-center rounded hover:bg-muted"
+              title="Urgente"
+            >
+              <Flame className={cn("h-3.5 w-3.5", c.muito_urgente ? "fill-destructive text-destructive" : "text-muted-foreground/40")} />
+            </button>
+          </div>
         </TableCell>
-        {showActions && (
-          <TableCell>
-            <div className="flex items-center gap-1">
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
-                  <Button variant="ghost" size="icon" className="h-8 w-8">
-                    <MoreVertical className="h-4 w-4" />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end">
-                  <DropdownMenuItem
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      const demanda = getDemandaById(firstSibling.id);
-                      if (demanda) setEditingDemanda(demanda);
-                    }}
-                  >
-                    <Pencil className="mr-2 h-4 w-4" />
-                    Editar
-                  </DropdownMenuItem>
-                  <DropdownMenuItem
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      const fullDemanda = getDemandaById(firstSibling.id);
-                      if (fullDemanda) {
-                        handleDeleteClick(fullDemanda);
-                      }
-                    }}
-                    className="text-destructive"
-                  >
-                    <Trash2 className="mr-2 h-4 w-4" />
-                    Excluir
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-              <ChevronRight className="h-4 w-4 text-muted-foreground" />
-            </div>
+
+        {/* Status Resp */}
+        <TableCell className="py-1 w-[56px]">
+          <div className="flex items-center gap-1">
+            <StatusBolinha
+              size="sm"
+              status={first.status_responsavel}
+              onClick={() => {
+                const cycle = ["pendente", "executado", "nao_realizado"] as const;
+                const next = cycle[(cycle.indexOf(first.status_responsavel) + 1) % cycle.length];
+                inlineUpdate(first.id, { status_responsavel: next });
+              }}
+            />
+            {c.siblings.length > 1 && <span className="text-[9px] text-muted-foreground">+{c.siblings.length - 1}</span>}
+          </div>
+        </TableCell>
+
+        {/* Status Gestor */}
+        {isGestorOrAdmin && (
+          <TableCell className="py-1 w-[56px]">
+            <StatusBolinha
+              size="sm"
+              status={first.status_gestor}
+              onClick={() => {
+                const cycle = ["pendente", "executado", "nao_realizado"] as const;
+                const next = cycle[(cycle.indexOf(first.status_gestor) + 1) % cycle.length];
+                inlineUpdate(first.id, { status_gestor: next });
+              }}
+            />
           </TableCell>
         )}
+
+        {/* Actions */}
+        <TableCell className="py-1 w-[80px]">
+          <div className="flex items-center gap-0.5 opacity-60 group-hover:opacity-100">
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
+                <Button variant="ghost" size="icon" className="h-7 w-7">
+                  <MoreVertical className="h-3.5 w-3.5" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem onClick={(e) => { e.stopPropagation(); setEditingDemanda(first); }}>
+                  <Pencil className="mr-2 h-4 w-4" /> Editar completo
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={(e) => { e.stopPropagation(); handleDeleteClick(first); }} className="text-destructive">
+                  <Trash2 className="mr-2 h-4 w-4" /> Excluir
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+            <button
+              type="button"
+              onClick={() => setSelectedDemand(c)}
+              className="h-7 w-7 inline-flex items-center justify-center rounded hover:bg-muted"
+              aria-label="Ver detalhes"
+            >
+              <ChevronRight className="h-3.5 w-3.5 text-muted-foreground" />
+            </button>
+          </div>
+        </TableCell>
       </TableRow>
     );
   };
 
   if (isLoading) {
-    return (
-      <div className="flex items-center justify-center py-12">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
-      </div>
-    );
+    return <div className="flex items-center justify-center py-12"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>;
   }
 
   return (
-    <div className="space-y-4">
-      {/* Fixed Filter Bar */}
-      <Card className="p-4">
-        <div className="flex flex-wrap items-end gap-4">
-          {/* Search */}
-          <div className="flex-1 min-w-[200px] max-w-[300px] space-y-1">
-            <Label className="text-xs font-medium">Buscar demanda</Label>
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input
-                placeholder="Pesquisar..."
-                value={filters.busca}
-                onChange={(e) => setFilters(prev => ({ ...prev, busca: e.target.value }))}
-                className="pl-9 h-9"
-              />
-            </div>
-          </div>
+    <div className="space-y-3 pb-20">
+      <FiltersBar
+        filters={filters}
+        onChange={setFilters}
+        profileOptions={profileOptions.map(({ value, label }) => ({ value, label }))}
+        setorOptions={setorOptions.map(({ value, label }) => ({ value, label }))}
+      />
 
-          {/* Responsavel filter */}
-          <div className="w-[180px]">
-            <LabeledMultiSelect
-              label="Responsável"
-              options={responsavelOptions}
-              selected={filters.responsaveis}
-              onChange={(v) => setFilters(prev => ({ ...prev, responsaveis: v }))}
-              placeholder="Todos"
-            />
-          </div>
+      {/* Grouping toolbar */}
+      <div className="flex flex-wrap items-center gap-2 px-1">
+        <span className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground inline-flex items-center gap-1">
+          <Group className="h-3 w-3" /> Agrupar:
+        </span>
+        {([
+          ["nenhum", "Nenhum"],
+          ["responsavel", "Responsável"],
+          ["setor", "Setor"],
+          ["setor_responsavel", "Setor › Resp."],
+        ] as [GroupBy, string][]).map(([g, lbl]) => (
+          <button
+            key={g}
+            type="button"
+            onClick={() => setGroupBy(g)}
+            className={cn(
+              "h-7 px-2.5 rounded-md text-[11px] font-medium border transition-colors",
+              groupBy === g
+                ? "bg-foreground text-background border-foreground"
+                : "bg-background hover:bg-muted border-border/70 text-muted-foreground"
+            )}
+          >
+            {lbl}
+          </button>
+        ))}
+        <div className="flex-1" />
+        <span className="text-xs text-muted-foreground">
+          {consolidated.length} grupos · {filteredDemandas.length} demandas
+        </span>
+      </div>
 
-          {/* Setor filter */}
-          <div className="w-[180px]">
-            <LabeledMultiSelect
-              label="Setor"
-              options={setorOptions}
-              selected={filters.setores}
-              onChange={(v) => setFilters(prev => ({ ...prev, setores: v }))}
-              placeholder="Todos"
-            />
-          </div>
-
-          {/* Repetições filter */}
-          <div className="w-[140px]">
-            <LabeledMultiSelect
-              label="Repetições"
-              options={repeticaoOptions}
-              selected={filters.repeticoes}
-              onChange={(v) => setFilters(prev => ({ ...prev, repeticoes: v }))}
-              placeholder="Todas"
-            />
-          </div>
-
-          {/* Mês filter */}
-          <div className="w-[160px]">
-            <LabeledMultiSelect
-              label="Mês"
-              options={meses}
-              selected={filters.meses}
-              onChange={(v) => setFilters(prev => ({ ...prev, meses: v }))}
-              placeholder="Todos"
-            />
-          </div>
-
-          {/* Clear filters */}
-          {hasActiveFilters && (
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={clearFilters}
-              className="h-9 gap-1 text-destructive hover:text-destructive"
-            >
-              <X className="h-4 w-4" />
-              Limpar
-            </Button>
-          )}
-        </div>
-      </Card>
-
-      {/* Demands Table */}
-      <section>
-        <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
-          <ClipboardList className="h-5 w-5" />
-          Demandas Consolidadas
-          <Badge variant="outline" className="ml-2 font-normal">
-            {consolidatedDemands.length} únicas
-          </Badge>
-        </h2>
-        
-        <Card>
-          <div className="overflow-auto max-h-[60vh]">
-            <Table>
-              <TableHeader className="sticky top-0 bg-card z-10">
-                <TableRow>
-                  <TableHead className="cursor-pointer select-none" onClick={() => handleSort("descricao")}>
-                    <div className="flex items-center gap-1">
-                      Descrição
-                      {sortColumn === "descricao" ? (sortDirection === "asc" ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />) : <ArrowUpDown className="h-3 w-3 opacity-30" />}
-                    </div>
-                  </TableHead>
-                  <TableHead className="cursor-pointer select-none" onClick={() => handleSort("responsavel")}>
-                    <div className="flex items-center gap-1">
-                      Responsável
-                      {sortColumn === "responsavel" ? (sortDirection === "asc" ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />) : <ArrowUpDown className="h-3 w-3 opacity-30" />}
-                    </div>
-                  </TableHead>
-                  <TableHead className="cursor-pointer select-none" onClick={() => handleSort("setor")}>
-                    <div className="flex items-center gap-1">
-                      Setor
-                      {sortColumn === "setor" ? (sortDirection === "asc" ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />) : <ArrowUpDown className="h-3 w-3 opacity-30" />}
-                    </div>
-                  </TableHead>
-                  <TableHead className="text-center w-24 cursor-pointer select-none" onClick={() => handleSort("repeticao")}>
-                    <div className="flex items-center justify-center gap-1">
-                      Repetição
-                      {sortColumn === "repeticao" ? (sortDirection === "asc" ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />) : <ArrowUpDown className="h-3 w-3 opacity-30" />}
-                    </div>
-                  </TableHead>
-                  <TableHead className="w-20">Ações</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {sortedDemands.length === 0 ? (
-                  <TableRow>
-                    <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
-                      Nenhuma demanda encontrada
-                    </TableCell>
-                  </TableRow>
-                ) : (
-                  visibleDemands.map((demand) => (
-                    <ConsolidatedDemandRow key={demand.grupo_id || demand.siblings[0].id} demand={demand} />
-                  ))
+      {/* Table */}
+      <div className="rounded-lg border bg-card overflow-hidden">
+        <div className="overflow-auto max-h-[calc(100vh-280px)]">
+          <Table>
+            <TableHeader className="sticky top-0 bg-muted/60 backdrop-blur z-10">
+              <TableRow className="h-9 hover:bg-transparent border-b">
+                <TableHead className="w-[36px] py-0">
+                  <Checkbox checked={allSelected} onCheckedChange={toggleAll} aria-label="Selecionar tudo" />
+                </TableHead>
+                <TableHead className="py-0"><SortBtn col="descricao">Descrição</SortBtn></TableHead>
+                <TableHead className="w-[180px] py-0"><SortBtn col="responsavel">Responsável</SortBtn></TableHead>
+                <TableHead className="w-[160px] py-0"><SortBtn col="setor">Setor</SortBtn></TableHead>
+                <TableHead className="w-[140px] py-0"><SortBtn col="semana">Semanas</SortBtn></TableHead>
+                <TableHead className="w-[72px] py-0 text-center"><SortBtn col="repeticao" align="center">Rep.</SortBtn></TableHead>
+                <TableHead className="w-[64px] py-0 text-[11px] uppercase tracking-wide text-muted-foreground font-semibold">Flags</TableHead>
+                <TableHead className="w-[56px] py-0 text-[11px] uppercase tracking-wide text-muted-foreground font-semibold">Feito</TableHead>
+                {isGestorOrAdmin && (
+                  <TableHead className="w-[56px] py-0 text-[11px] uppercase tracking-wide text-muted-foreground font-semibold">Aprov.</TableHead>
                 )}
-              </TableBody>
-            </Table>
-          </div>
+                <TableHead className="w-[80px] py-0" />
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {grouped.length === 0 || consolidated.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={isGestorOrAdmin ? 10 : 9} className="text-center py-12 text-muted-foreground text-sm">
+                    Nenhuma demanda encontrada
+                  </TableCell>
+                </TableRow>
+              ) : (
+                grouped.map((g) => {
+                  if (groupBy === "nenhum") {
+                    return g.items.map((c) => <Fragment key={c.key}>{renderRow(c)}</Fragment>);
+                  }
+                  const collapsed = collapsedGroups.has(g.label);
+                  const groupAllSelected = g.items.every((c) => c.siblings.every((s) => selectedIds.has(s.id)));
+                  return (
+                    <Fragment key={`g-${g.label}`}>
+                      <TableRow className="bg-muted/40 hover:bg-muted/60 border-t border-b border-border/60">
+                        <TableCell className="py-1.5">
+                          <Checkbox checked={groupAllSelected} onCheckedChange={() => toggleGroup(g.items)} />
+                        </TableCell>
+                        <TableCell colSpan={isGestorOrAdmin ? 9 : 8} className="py-1.5">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const next = new Set(collapsedGroups);
+                              collapsed ? next.delete(g.label) : next.add(g.label);
+                              setCollapsedGroups(next);
+                            }}
+                            className="inline-flex items-center gap-1.5 text-sm font-semibold"
+                          >
+                            {collapsed ? <ChevronRight className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
+                            {g.label}
+                            <Badge variant="secondary" className="ml-2 h-5 text-[10px] font-normal">
+                              {g.count} grupo{g.count > 1 ? "s" : ""}
+                            </Badge>
+                          </button>
+                        </TableCell>
+                      </TableRow>
+                      {!collapsed && g.items.map((c) => <Fragment key={c.key}>{renderRow(c)}</Fragment>)}
+                    </Fragment>
+                  );
+                })
+              )}
+            </TableBody>
+          </Table>
+        </div>
+      </div>
 
-          {sortedDemands.length > 0 && (
-            <div className="flex flex-col gap-3 border-t px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
-              <p className="text-sm text-muted-foreground">
-                Mostrando <span className="font-medium text-foreground">{visibleDemands.length}</span> de{" "}
-                <span className="font-medium text-foreground">{sortedDemands.length}</span> demandas
-              </p>
-
-              <div className="flex items-center gap-2 self-start sm:self-auto">
-                <Label htmlFor="row-limit" className="text-sm text-muted-foreground">
-                  Exibir
-                </Label>
-                <Select value={String(rowLimit)} onValueChange={(value) => setRowLimit(Number(value))}>
-                  <SelectTrigger id="row-limit" className="h-9 w-[120px]">
-                    <SelectValue placeholder="50" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {rowLimitOptions.map((option) => (
-                      <SelectItem key={option} value={String(option)}>
-                        {option}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <span className="text-sm text-muted-foreground">linhas</span>
-              </div>
-            </div>
-          )}
-        </Card>
-      </section>
-
-      {/* Demand Detail Dialog */}
+      {/* Detail dialog */}
       <Dialog open={selectedDemand !== null} onOpenChange={() => setSelectedDemand(null)}>
         <DialogContent className="max-w-2xl">
-          <DialogHeader>
-            <DialogTitle>Detalhes da Demanda</DialogTitle>
-          </DialogHeader>
+          <DialogHeader><DialogTitle>Detalhes</DialogTitle></DialogHeader>
           {selectedDemand && (
             <div className="space-y-4">
               <p className="text-sm">{selectedDemand.descricao}</p>
-              <div className="flex gap-4 text-sm">
-                <div>
-                  <span className="text-muted-foreground">Responsável: </span>
-                  {getProfileById(selectedDemand.responsavel_id)?.nome || "Desconhecido"}
-                </div>
-                <div>
-                  <span className="text-muted-foreground">Setor: </span>
-                  {getSetorById(selectedDemand.setor_id)?.nome || "-"}
-                </div>
-              </div>
-              
               <Table>
                 <TableHeader>
                   <TableRow>
@@ -775,24 +711,12 @@ export default function GerenciamentoLista({
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {selectedDemand.siblings.map((sibling) => (
-                    <TableRow key={sibling.id}>
-                      <TableCell>#{sibling.numero}</TableCell>
-                      <TableCell>{sibling.semana_limite.join(", ")}ª</TableCell>
-                      <TableCell>
-                        <StatusBolinha
-                          status={sibling.status_responsavel}
-                          disabled={true}
-                        />
-                      </TableCell>
-                      {isGestorOrAdmin && (
-                        <TableCell>
-                          <StatusBolinha
-                            status={sibling.status_gestor}
-                            disabled={true}
-                          />
-                        </TableCell>
-                      )}
+                  {selectedDemand.siblings.map((s) => (
+                    <TableRow key={s.id}>
+                      <TableCell>#{s.numero}</TableCell>
+                      <TableCell>{s.semana_limite.join(", ")}ª</TableCell>
+                      <TableCell><StatusBolinha status={s.status_responsavel} disabled /></TableCell>
+                      {isGestorOrAdmin && <TableCell><StatusBolinha status={s.status_gestor} disabled /></TableCell>}
                     </TableRow>
                   ))}
                 </TableBody>
@@ -802,7 +726,28 @@ export default function GerenciamentoLista({
         </DialogContent>
       </Dialog>
 
-      {/* Edit Dialog */}
+      {/* Bulk bar */}
+      {!isColaborador && (
+        <BulkActionsBar
+          selectedCount={expandedSelectedIds.length}
+          selectedDemandaIds={expandedSelectedIds}
+          profileOptions={profileOptions.map(({ value, label }) => ({ value, label }))}
+          setorOptions={setorOptions}
+          onClear={() => setSelectedIds(new Set())}
+          onReassign={(rid) => bulk.reassignResponsavel(expandedSelectedIds, rid)}
+          onMoveSetor={(sid) => bulk.moveSetor(expandedSelectedIds, sid)}
+          onSetRepeticoes={(n) => bulk.runRepeticoes(expandedSelectedIds, n)}
+          onSetPrioridade={(v) => bulk.setPrioridade(expandedSelectedIds, v)}
+          onSetUrgencia={(v) => bulk.setUrgencia(expandedSelectedIds, v)}
+          onSetStatusResp={(s) => bulk.setStatusResponsavel(expandedSelectedIds, s)}
+          onSetStatusGestor={(s) => bulk.setStatusGestor(expandedSelectedIds, s)}
+          onDuplicate={() => setDuplicandoIds(expandedSelectedIds)}
+          onDelete={() => bulk.softDelete(expandedSelectedIds)}
+          canDelete={isGestorOrAdmin}
+        />
+      )}
+
+      {/* Existing dialogs */}
       {editingDemanda && (
         <EditarDemandaIrmaDialog
           open={!!editingDemanda}
@@ -810,12 +755,11 @@ export default function GerenciamentoLista({
           demanda={editingDemanda}
           profiles={profiles}
           setores={setores}
-          siblingCount={editingSiblingCount}
+          siblingCount={allDemandas.filter((d) => d.grupo_id && d.grupo_id === editingDemanda.grupo_id).length || 1}
           onDemandaEditada={handleDemandaChange}
         />
       )}
 
-      {/* Delete Dialog */}
       {deletingDemanda && (
         <ExcluirDemandaIrmaDialog
           open={!!deletingDemanda}
@@ -823,13 +767,12 @@ export default function GerenciamentoLista({
           demandaId={deletingDemanda.id}
           demandaNumero={deletingDemanda.numero}
           grupoId={deletingDemanda.grupo_id}
-          siblingCount={deletingSiblingCount}
-          siblings={deletingSiblings}
+          siblingCount={allDemandas.filter((d) => d.grupo_id && d.grupo_id === deletingDemanda.grupo_id).length || 1}
+          siblings={deletingDemanda.grupo_id ? allDemandas.filter((d) => d.grupo_id === deletingDemanda.grupo_id).map((d) => ({ id: d.id, numero: d.numero, descricao: d.descricao, semana_limite: d.semana_limite })) : []}
           onDemandaExcluida={handleDemandaChange}
         />
       )}
 
-      {/* Solicitar Exclusão Dialog (colaborador) */}
       {solicitandoExclusao && (
         <SolicitarExclusaoDialog
           open={!!solicitandoExclusao}
@@ -837,13 +780,22 @@ export default function GerenciamentoLista({
           demandaId={solicitandoExclusao.id}
           demandaNumero={solicitandoExclusao.numero}
           grupoId={solicitandoExclusao.grupo_id}
-          siblingCount={getSiblingCount(solicitandoExclusao.grupo_id)}
+          siblingCount={solicitandoExclusao.grupo_id ? allDemandas.filter((d) => d.grupo_id === solicitandoExclusao.grupo_id).length : 1}
           demandaDescricao={solicitandoExclusao.descricao}
           demandaResponsavelId={solicitandoExclusao.responsavel_id}
           demandaMes={solicitandoExclusao.mes}
           demandaAno={solicitandoExclusao.ano}
           demandaSemanasRepeticao={solicitandoExclusao.semanas_repeticao}
           onSolicitacaoEnviada={handleDemandaChange}
+        />
+      )}
+
+      {duplicandoIds && duplicandoIds.length > 0 && (
+        <DuplicarDemandasEmMassaDialog
+          open={!!duplicandoIds}
+          onOpenChange={(open) => !open && setDuplicandoIds(null)}
+          selectedIds={new Set(duplicandoIds)}
+          onComplete={handleDemandaChange}
         />
       )}
     </div>

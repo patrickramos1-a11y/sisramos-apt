@@ -26,25 +26,18 @@ export default function Gerenciamento() {
 
   return (
     <AppLayout>
-      <div className="p-3 md:p-4 lg:p-6 max-w-[1800px] mx-auto">
-        <div className="mb-3 md:mb-4">
-          <h1 className="text-lg md:text-2xl font-bold tracking-tight">
-            Gerenciamento
-          </h1>
-          <p className="text-xs md:text-sm text-muted-foreground mt-0.5">
-            Gestão estratégica de demandas e setores
-          </p>
-
-          <div className="flex gap-1 mt-3 p-1 bg-muted/50 rounded-lg w-fit md:hidden">
+      <div className="p-3 md:p-4 lg:px-6 lg:py-3 max-w-[1800px] mx-auto">
+        <div className="flex items-center justify-between gap-2 mb-3">
+          <div className="flex items-center gap-1 p-0.5 bg-muted/60 rounded-lg">
             {tabs.map((tab) => (
               <button
                 key={tab.key}
                 onClick={() => navigate(`/gerenciamento?tab=${tab.key}`)}
                 className={cn(
-                  "flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-all min-h-[36px] touch-feedback",
+                  "flex items-center gap-1.5 px-3 h-8 rounded-md text-xs font-medium transition-all",
                   currentTab === tab.key
-                    ? "bg-primary text-primary-foreground shadow-sm"
-                    : "text-muted-foreground hover:text-foreground hover:bg-muted"
+                    ? "bg-background text-foreground shadow-sm"
+                    : "text-muted-foreground hover:text-foreground"
                 )}
               >
                 <tab.icon className="h-3.5 w-3.5" />
