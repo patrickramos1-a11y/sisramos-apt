@@ -8,7 +8,14 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import { X, ChevronDown, Search, Filter } from "lucide-react";
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+  SheetTrigger,
+} from "@/components/ui/sheet";
+import { X, ChevronDown, Search, Filter, Flame, Star, SlidersHorizontal } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface Profile {
@@ -222,42 +229,23 @@ export default function APTHorizontalFilters({
   onClearFilters,
   showResponsavelFilter = true,
 }: APTHorizontalFiltersProps) {
-  // Draft state: changes here only apply when user clicks "Filtrar"
-  const [draft, setDraft] = useState<MultiFilters>(filters);
-
-  // Resync draft when applied filters change externally (clear, cross-filter, etc.)
-  useEffect(() => {
-    setDraft(filters);
-  }, [filters]);
-
-  const updateDraft = <K extends keyof MultiFilters>(key: K, value: MultiFilters[K]) => {
-    setDraft((prev) => ({ ...prev, [key]: value }));
+  // Auto-apply: every change immediately propagates upward
+  const update = <K extends keyof MultiFilters>(key: K, value: MultiFilters[K]) => {
+    onFiltersChange({ ...filters, [key]: value });
   };
-
-  // Busca textual continua aplicando ao vivo (digitação)
-  const updateBusca = (value: string) => {
-    setDraft((prev) => ({ ...prev, busca: value }));
-    onFiltersChange({ ...filters, busca: value });
-  };
-
-  const applyDraft = () => {
-    onFiltersChange(draft);
-  };
-
-  const isDirty = JSON.stringify(draft) !== JSON.stringify(filters);
 
   const hasActiveFilters =
-    draft.responsaveis.length > 0 ||
-    draft.setores.length > 0 ||
-    draft.meses.length > 0 ||
-    draft.anos.length > 0 ||
-    draft.semanas.length > 0 ||
-    draft.statusResponsavel.length > 0 ||
-    draft.statusGestor.length > 0 ||
-    draft.repeticoes.length > 0 ||
-    draft.busca !== "" ||
-    draft.urgente ||
-    draft.prioridade;
+    filters.responsaveis.length > 0 ||
+    filters.setores.length > 0 ||
+    filters.meses.length > 0 ||
+    filters.anos.length > 0 ||
+    filters.semanas.length > 0 ||
+    filters.statusResponsavel.length > 0 ||
+    filters.statusGestor.length > 0 ||
+    filters.repeticoes.length > 0 ||
+    filters.busca !== "" ||
+    filters.urgente ||
+    filters.prioridade;
 
   const responsavelOptions = profiles.map((p) => ({
     value: p.user_id,
@@ -269,146 +257,146 @@ export default function APTHorizontalFilters({
     label: s.nome,
   }));
 
+  // Build the "active chips" list
+  type Chip = { key: string; label: string; onRemove: () => void; tone?: "destructive" | "warning" };
+  const chips: Chip[] = [];
+  filters.meses.forEach((m) => {
+    const opt = meses.find((o) => o.value === m);
+    chips.push({ key: `mes-${m}`, label: `Mês: ${opt?.label || m}`, onRemove: () => update("meses", filters.meses.filter((x) => x !== m)) });
+  });
+  filters.anos.forEach((a) => {
+    chips.push({ key: `ano-${a}`, label: `Ano: ${a}`, onRemove: () => update("anos", filters.anos.filter((x) => x !== a)) });
+  });
+  filters.responsaveis.forEach((r) => {
+    const opt = responsavelOptions.find((o) => o.value === r);
+    chips.push({ key: `resp-${r}`, label: `Resp: ${opt?.label || "—"}`, onRemove: () => update("responsaveis", filters.responsaveis.filter((x) => x !== r)) });
+  });
+  filters.setores.forEach((s) => {
+    const opt = setorOptions.find((o) => o.value === s);
+    chips.push({ key: `set-${s}`, label: `Setor: ${opt?.label || "—"}`, onRemove: () => update("setores", filters.setores.filter((x) => x !== s)) });
+  });
+  filters.semanas.forEach((w) => chips.push({ key: `sem-${w}`, label: `${w}ª semana`, onRemove: () => update("semanas", filters.semanas.filter((x) => x !== w)) }));
+  filters.repeticoes.forEach((r) => chips.push({ key: `rep-${r}`, label: `Rep. ${r}x`, onRemove: () => update("repeticoes", filters.repeticoes.filter((x) => x !== r)) }));
+  filters.statusResponsavel.forEach((s) => {
+    const opt = statusOptions.find((o) => o.value === s);
+    chips.push({ key: `srs-${s}`, label: `Feito: ${opt?.label || s}`, onRemove: () => update("statusResponsavel", filters.statusResponsavel.filter((x) => x !== s)) });
+  });
+  filters.statusGestor.forEach((s) => {
+    const opt = statusOptions.find((o) => o.value === s);
+    chips.push({ key: `sgs-${s}`, label: `Aprovado: ${opt?.label || s}`, onRemove: () => update("statusGestor", filters.statusGestor.filter((x) => x !== s)) });
+  });
+  if (filters.urgente) chips.push({ key: "urg", label: "Urgente", tone: "destructive", onRemove: () => update("urgente", false) });
+  if (filters.prioridade) chips.push({ key: "pri", label: "Prioridade", tone: "warning", onRemove: () => update("prioridade", false) });
+  if (filters.busca) chips.push({ key: "busca", label: `“${filters.busca}”`, onRemove: () => update("busca", "") });
+
+  const advancedActiveCount =
+    filters.semanas.length +
+    filters.repeticoes.length +
+    filters.statusResponsavel.length +
+    filters.statusGestor.length +
+    (filters.urgente ? 1 : 0) +
+    (filters.prioridade ? 1 : 0);
+
   return (
-    <div className="bg-card border rounded-lg p-3 mb-4 shadow-sm">
-      <div className="flex flex-wrap items-end gap-3">
+    <div className="bg-card border rounded-xl p-2.5 mb-3 shadow-xs">
+      {/* Compact essentials row */}
+      <div className="flex flex-wrap items-center gap-2">
         {/* Search */}
-        <div className="flex flex-col gap-1 flex-1 min-w-[180px] max-w-[300px]">
-          <Label className="text-xs text-muted-foreground">Buscar demanda</Label>
-          <div className="relative">
-            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
-            <Input
-              placeholder="Pesquisar..."
-              value={draft.busca}
-              onChange={(e) => updateBusca(e.target.value)}
-              className="h-9 pl-8 text-xs"
-            />
-          </div>
-        </div>
-
-        {/* Responsável */}
-        {showResponsavelFilter && (
-          <CompactDropdown
-            label="Responsável"
-            options={responsavelOptions}
-            selected={draft.responsaveis}
-            onChange={(v) => updateDraft("responsaveis", v)}
+        <div className="relative flex-1 min-w-[200px] max-w-[340px]">
+          <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+          <Input
+            placeholder="Buscar demanda..."
+            value={filters.busca}
+            onChange={(e) => update("busca", e.target.value)}
+            className="h-9 pl-8 text-xs bg-background"
           />
-        )}
-
-        {/* Setor */}
-        <CompactDropdown
-          label="Setor"
-          options={setorOptions}
-          selected={draft.setores}
-          onChange={(v) => updateDraft("setores", v)}
-        />
-
-        {/* Repetições */}
-        <CompactDropdown
-          label="Repetições"
-          options={repeticaoOptions}
-          selected={draft.repeticoes}
-          onChange={(v) => updateDraft("repeticoes", v)}
-          placeholder="Todas"
-        />
-
-        {/* Mês */}
-        <CompactDropdown
-          label="Mês"
-          options={meses}
-          selected={draft.meses}
-          onChange={(v) => updateDraft("meses", v)}
-        />
-
-        {/* Ano */}
-        <CompactDropdown
-          label="Ano"
-          options={anos}
-          selected={draft.anos}
-          onChange={(v) => updateDraft("anos", v)}
-        />
-
-        {/* Semana */}
-        <CompactDropdown
-          label="Semana"
-          options={semanaOptions}
-          selected={draft.semanas}
-          onChange={(v) => updateDraft("semanas", v)}
-          placeholder="Todas"
-        />
-
-        {/* Status Responsável */}
-        <CompactDropdown
-          label="Status Feito"
-          options={statusOptions}
-          selected={draft.statusResponsavel}
-          onChange={(v) => updateDraft("statusResponsavel", v)}
-        />
-
-        {/* Status Gestor */}
-        <CompactDropdown
-          label="Status Aprovado"
-          options={statusOptions}
-          selected={draft.statusGestor}
-          onChange={(v) => updateDraft("statusGestor", v)}
-        />
-
-        {/* Urgente toggle */}
-        <div className="flex flex-col gap-1">
-          <Label className="text-xs text-muted-foreground">Urgente</Label>
-          <Button
-            variant={draft.urgente ? "default" : "outline"}
-            size="sm"
-            className={cn(
-              "h-9 text-xs",
-              draft.urgente && "bg-destructive hover:bg-destructive/90"
-            )}
-            onClick={() => updateDraft("urgente", !draft.urgente)}
-          >
-            Urgente
-          </Button>
         </div>
 
-        {/* Prioridade toggle */}
-        <div className="flex flex-col gap-1">
-          <Label className="text-xs text-muted-foreground">Prioridade</Label>
-          <Button
-            variant={draft.prioridade ? "default" : "outline"}
-            size="sm"
-            className={cn(
-              "h-9 text-xs",
-              draft.prioridade && "bg-warning hover:bg-warning/90 text-warning-foreground"
-            )}
-            onClick={() => updateDraft("prioridade", !draft.prioridade)}
-          >
-            Prioridade
-          </Button>
+        <div className="flex items-center gap-1.5">
+          <CompactDropdown label="" options={meses} selected={filters.meses} onChange={(v) => update("meses", v)} placeholder="Mês" />
+          <CompactDropdown label="" options={anos} selected={filters.anos} onChange={(v) => update("anos", v)} placeholder="Ano" />
+          {showResponsavelFilter && (
+            <CompactDropdown label="" options={responsavelOptions} selected={filters.responsaveis} onChange={(v) => update("responsaveis", v)} placeholder="Responsável" />
+          )}
+          <CompactDropdown label="" options={setorOptions} selected={filters.setores} onChange={(v) => update("setores", v)} placeholder="Setor" />
         </div>
 
-        {/* Apply filters button */}
-        <div className="flex flex-col gap-1">
-          <Label className="text-xs text-muted-foreground">&nbsp;</Label>
-          <Button
-            size="sm"
+        {/* Toggles: Urgente / Prioridade as pill toggles */}
+        <div className="flex items-center gap-1.5">
+          <button
+            type="button"
+            onClick={() => update("urgente", !filters.urgente)}
             className={cn(
-              "h-9 text-xs gap-1",
-              isDirty && "ring-2 ring-primary/50 animate-pulse"
+              "inline-flex items-center gap-1 h-9 px-2.5 rounded-md border text-xs font-medium transition-colors",
+              filters.urgente
+                ? "bg-destructive/10 border-destructive/40 text-destructive"
+                : "bg-background border-border text-muted-foreground hover:text-foreground"
             )}
-            onClick={applyDraft}
-            disabled={!isDirty}
           >
-            <Filter className="h-3.5 w-3.5" />
-            {isDirty ? "Aplicar filtros" : "Filtrar"}
-          </Button>
+            <Flame className="h-3.5 w-3.5" /> Urgente
+          </button>
+          <button
+            type="button"
+            onClick={() => update("prioridade", !filters.prioridade)}
+            className={cn(
+              "inline-flex items-center gap-1 h-9 px-2.5 rounded-md border text-xs font-medium transition-colors",
+              filters.prioridade
+                ? "bg-warning/10 border-warning/40 text-warning"
+                : "bg-background border-border text-muted-foreground hover:text-foreground"
+            )}
+          >
+            <Star className="h-3.5 w-3.5" /> Prioridade
+          </button>
         </div>
 
-        {/* Clear filters */}
+        {/* More filters drawer */}
+        <Sheet>
+          <SheetTrigger asChild>
+            <Button variant="outline" size="sm" className="h-9 text-xs gap-1.5">
+              <SlidersHorizontal className="h-3.5 w-3.5" />
+              Mais filtros
+              {advancedActiveCount > 0 && (
+                <span className="ml-1 rounded-full bg-primary text-primary-foreground text-[10px] font-semibold px-1.5 py-0.5 leading-none">
+                  {advancedActiveCount}
+                </span>
+              )}
+            </Button>
+          </SheetTrigger>
+          <SheetContent side="right" className="w-[340px] sm:w-[380px]">
+            <SheetHeader>
+              <SheetTitle>Filtros avançados</SheetTitle>
+            </SheetHeader>
+            <div className="mt-4 space-y-4">
+              <div className="space-y-1.5">
+                <Label className="text-xs text-muted-foreground">Semana</Label>
+                <CompactDropdown label="" options={semanaOptions} selected={filters.semanas} onChange={(v) => update("semanas", v)} placeholder="Todas" />
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs text-muted-foreground">Repetições</Label>
+                <CompactDropdown label="" options={repeticaoOptions} selected={filters.repeticoes} onChange={(v) => update("repeticoes", v)} placeholder="Todas" />
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs text-muted-foreground">Status Feito</Label>
+                <CompactDropdown label="" options={statusOptions} selected={filters.statusResponsavel} onChange={(v) => update("statusResponsavel", v)} placeholder="Todos" />
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs text-muted-foreground">Status Aprovado</Label>
+                <CompactDropdown label="" options={filters.statusGestor ? statusOptions : statusOptions} selected={filters.statusGestor} onChange={(v) => update("statusGestor", v)} placeholder="Todos" />
+              </div>
+              {hasActiveFilters && (
+                <Button variant="outline" size="sm" className="w-full gap-1.5 text-destructive" onClick={onClearFilters}>
+                  <X className="h-3.5 w-3.5" /> Limpar todos os filtros
+                </Button>
+              )}
+            </div>
+          </SheetContent>
+        </Sheet>
+
         {hasActiveFilters && (
           <Button
             variant="ghost"
             size="sm"
-            className="h-9 text-xs text-destructive hover:text-destructive gap-1"
+            className="h-9 text-xs text-muted-foreground hover:text-destructive gap-1 ml-auto"
             onClick={onClearFilters}
           >
             <X className="h-3.5 w-3.5" />
@@ -416,6 +404,27 @@ export default function APTHorizontalFilters({
           </Button>
         )}
       </div>
+
+      {/* Active filter chips */}
+      {chips.length > 0 && (
+        <div className="flex flex-wrap items-center gap-1.5 mt-2 pt-2 border-t border-border/60">
+          {chips.map((c) => (
+            <button
+              key={c.key}
+              onClick={c.onRemove}
+              className={cn(
+                "group inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[11px] transition-colors",
+                c.tone === "destructive" && "bg-destructive/10 border-destructive/30 text-destructive",
+                c.tone === "warning" && "bg-warning/10 border-warning/30 text-warning",
+                !c.tone && "bg-muted border-border text-foreground hover:bg-muted/70"
+              )}
+            >
+              {c.label}
+              <X className="h-2.5 w-2.5 opacity-60 group-hover:opacity-100" />
+            </button>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
