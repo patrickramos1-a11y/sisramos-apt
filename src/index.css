@@ -12,7 +12,7 @@
 
 @layer base {
   :root {
-    --background: 90 10% 97%;
+    --background: 80 14% 97%;
     --foreground: 100 20% 10%;
 
     --card: 0 0% 100%;
@@ -27,29 +27,29 @@
     --secondary: 90 12% 90%;
     --secondary-foreground: 100 20% 18%;
 
-    --muted: 90 8% 93%;
-    --muted-foreground: 100 8% 45%;
+    --muted: 90 12% 95%;
+    --muted-foreground: 100 8% 42%;
 
-    --accent: 90 25% 93%;
+    --accent: 90 25% 95%;
     --accent-foreground: 100 36% 21%;
 
     --destructive: 0 72% 50%;
     --destructive-foreground: 0 0% 100%;
 
-    --border: 90 10% 88%;
-    --input: 90 10% 88%;
+    --border: 90 10% 89%;
+    --input: 90 10% 89%;
     --ring: 90 58% 43%;
 
-    --radius: 0.75rem;
+    --radius: 0.625rem;
 
     /* APT specific colors */
-    --apt-pendente: 0 0% 95%;
+    --apt-pendente: 90 8% 92%;
     --apt-executado: 0 0% 10%;
     --apt-nao-realizado: 0 72% 50%;
-    --apt-prioritaria: 48 100% 60%;
-    --apt-muito-urgente: 0 85% 70%;
+    --apt-prioritaria: 38 92% 50%;
+    --apt-muito-urgente: 0 80% 55%;
     --apt-success: 90 58% 43%;
-    --apt-zebra: 90 8% 94%;
+    --apt-zebra: 90 14% 96%;
     --apt-header: 100 36% 21%;
     
     --warning: 38 92% 50%;
