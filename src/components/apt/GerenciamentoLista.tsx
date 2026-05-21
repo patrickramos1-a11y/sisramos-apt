@@ -28,7 +28,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import {
   Loader2, ChevronRight, MoreVertical, Pencil, Trash2,
-  ArrowUpDown, ArrowUp, ArrowDown, Flame, Star, Group, ChevronDown,
+  ArrowUpDown, ArrowUp, ArrowDown, Flame, Star, Group, ChevronDown, GripVertical,
 } from "lucide-react";
 import StatusBolinha from "@/components/apt/StatusBolinha";
 import EditarDemandaIrmaDialog from "@/components/apt/EditarDemandaIrmaDialog";
@@ -85,6 +85,9 @@ interface Props {
 }
 
 const STORAGE_KEY = "gerenciamento-lista-prefs";
+const DESC_MIN = 260;
+const DESC_MAX = 900;
+const DESC_DEFAULT = 520;
 
 const DEFAULT_FILTERS: ListaFilters = {
   busca: "",
@@ -112,6 +115,10 @@ export default function GerenciamentoLista({ profiles, setores, onDemandaChange 
 
   const [filters, setFilters] = useState<ListaFilters>({ ...DEFAULT_FILTERS, ...(prefs?.filters ?? {}) });
   const [groupBy, setGroupBy] = useState<GroupBy>(prefs?.groupBy ?? "nenhum");
+  const [descWidth, setDescWidth] = useState<number>(() => {
+    const w = Number(prefs?.descWidth);
+    return Number.isFinite(w) && w >= DESC_MIN && w <= DESC_MAX ? w : DESC_DEFAULT;
+  });
   const [sortColumn, setSortColumn] = useState<SortCol>(null);
   const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc");
   const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set());
@@ -131,9 +138,30 @@ export default function GerenciamentoLista({ profiles, setores, onDemandaChange 
   // persist prefs
   useEffect(() => {
     try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify({ filters, groupBy }));
+      localStorage.setItem(STORAGE_KEY, JSON.stringify({ filters, groupBy, descWidth }));
     } catch {}
-  }, [filters, groupBy]);
+  }, [filters, groupBy, descWidth]);
+
+  // Column resize drag
+  const startResize = (e: React.MouseEvent) => {
+    e.preventDefault();
+    const startX = e.clientX;
+    const startW = descWidth;
+    const onMove = (ev: MouseEvent) => {
+      const next = Math.min(DESC_MAX, Math.max(DESC_MIN, startW + (ev.clientX - startX)));
+      setDescWidth(next);
+    };
+    const onUp = () => {
+      window.removeEventListener("mousemove", onMove);
+      window.removeEventListener("mouseup", onUp);
+      document.body.style.cursor = "";
+      document.body.style.userSelect = "";
+    };
+    document.body.style.cursor = "col-resize";
+    document.body.style.userSelect = "none";
+    window.addEventListener("mousemove", onMove);
+    window.addEventListener("mouseup", onUp);
+  };
 
   const fetchAllDemandas = useCallback(async () => {
     setIsLoading(true);
@@ -379,7 +407,7 @@ export default function GerenciamentoLista({ profiles, setores, onDemandaChange 
         </TableCell>
 
         {/* Descrição */}
-        <TableCell className="py-1.5 max-w-[560px]">
+        <TableCell className="py-1.5 align-top" style={{ width: descWidth, maxWidth: descWidth }}>
           <div className="flex items-start gap-1.5 min-w-0">
             {c.muito_urgente && <Flame className="h-3.5 w-3.5 mt-0.5 text-destructive shrink-0" />}
             {c.prioritaria && !c.muito_urgente && <Star className="h-3.5 w-3.5 mt-0.5 text-warning shrink-0" />}
@@ -411,7 +439,7 @@ export default function GerenciamentoLista({ profiles, setores, onDemandaChange 
         </TableCell>
 
         {/* Responsável */}
-        <TableCell className="py-1 w-[180px]">
+        <TableCell className="py-1 w-[160px] align-top">
           <InlinePicker
             value={c.responsavel_id}
             options={profileOptions}
@@ -438,7 +466,7 @@ export default function GerenciamentoLista({ profiles, setores, onDemandaChange 
         </TableCell>
 
         {/* Setor */}
-        <TableCell className="py-1 w-[160px]">
+        <TableCell className="py-1 w-[140px] align-top">
           <InlinePicker
             value={c.setor_id}
             options={setorOptions}
@@ -448,38 +476,25 @@ export default function GerenciamentoLista({ profiles, setores, onDemandaChange 
             trigger={
               <button
                 type="button"
-                className="inline-flex items-center gap-1.5 text-sm hover:bg-muted rounded px-1 py-0.5 -mx-1 truncate max-w-full"
+                className="flex items-start gap-1.5 text-sm text-left hover:bg-muted rounded px-1 py-0.5 -mx-1 w-full min-w-0"
                 onClick={(e) => e.stopPropagation()}
               >
-                <span className="h-2 w-2 rounded-full shrink-0" style={{ backgroundColor: setor?.cor || "#E5E7EB" }} />
-                <span className="truncate">{setor?.nome ?? "—"}</span>
+                <span className="h-2 w-2 rounded-full shrink-0 mt-1.5" style={{ backgroundColor: setor?.cor || "#E5E7EB" }} />
+                <span className="line-clamp-2 leading-tight break-words">{setor?.nome ?? "—"}</span>
               </button>
             }
           />
         </TableCell>
 
         {/* Semanas */}
-        <TableCell className="py-1 w-[140px]">
-          <div className="flex items-center gap-0.5">
-            {[1, 2, 3, 4, 5].map((s) => {
-              const has = allSemanas.includes(s);
-              return (
-                <span
-                  key={s}
-                  className={cn(
-                    "inline-flex h-5 w-5 items-center justify-center rounded text-[10px] font-medium",
-                    has ? "bg-primary/15 text-primary border border-primary/30" : "text-muted-foreground/30"
-                  )}
-                >
-                  {s}
-                </span>
-              );
-            })}
+        <TableCell className="py-1 w-[88px] align-top">
+          <div className="inline-flex h-6 items-center px-2 rounded-md bg-muted/60 border border-border/50 text-[11px] font-semibold tabular-nums text-foreground/80">
+            {allSemanas.length > 0 ? allSemanas.join(",") : "—"}
           </div>
         </TableCell>
 
         {/* Repetições */}
-        <TableCell className="py-1 w-[72px] text-center">
+        <TableCell className="py-1 w-[52px] text-center align-top">
           <RepeticoesPicker
             value={c.siblings.length}
             onSelect={(n) => groupUpdate(c, { semanas_repeticao: n })}
@@ -487,7 +502,7 @@ export default function GerenciamentoLista({ profiles, setores, onDemandaChange 
               <button
                 type="button"
                 onClick={(e) => e.stopPropagation()}
-                className="inline-flex h-6 px-2 items-center rounded-md border bg-muted text-xs font-semibold hover:bg-accent"
+                className="inline-flex h-6 w-9 items-center justify-center rounded-md border bg-muted text-[11px] font-semibold hover:bg-accent"
               >
                 {c.siblings.length}X
               </button>
@@ -496,7 +511,7 @@ export default function GerenciamentoLista({ profiles, setores, onDemandaChange 
         </TableCell>
 
         {/* Flags */}
-        <TableCell className="py-1 w-[64px]">
+        <TableCell className="py-1 w-[60px] align-top">
           <div className="flex items-center gap-0.5">
             <button
               type="button"
@@ -518,7 +533,7 @@ export default function GerenciamentoLista({ profiles, setores, onDemandaChange 
         </TableCell>
 
         {/* Status Resp */}
-        <TableCell className="py-1 w-[56px]">
+        <TableCell className="py-1 w-[56px] align-top">
           <div className="flex items-center gap-1">
             <StatusBolinha
               size="sm"
@@ -535,7 +550,7 @@ export default function GerenciamentoLista({ profiles, setores, onDemandaChange 
 
         {/* Status Gestor */}
         {isGestorOrAdmin && (
-          <TableCell className="py-1 w-[56px]">
+          <TableCell className="py-1 w-[56px] align-top">
             <StatusBolinha
               size="sm"
               status={first.status_gestor}
@@ -549,7 +564,7 @@ export default function GerenciamentoLista({ profiles, setores, onDemandaChange 
         )}
 
         {/* Actions */}
-        <TableCell className="py-1 w-[80px]">
+        <TableCell className="py-1 w-[72px] align-top">
           <div className="flex items-center gap-0.5 opacity-60 group-hover:opacity-100">
             <DropdownMenu>
               <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
@@ -633,17 +648,32 @@ export default function GerenciamentoLista({ profiles, setores, onDemandaChange 
                 <TableHead className="w-[36px] py-0">
                   <Checkbox checked={allSelected} onCheckedChange={toggleAll} aria-label="Selecionar tudo" />
                 </TableHead>
-                <TableHead className="py-0"><SortBtn col="descricao">Descrição</SortBtn></TableHead>
-                <TableHead className="w-[180px] py-0"><SortBtn col="responsavel">Responsável</SortBtn></TableHead>
-                <TableHead className="w-[160px] py-0"><SortBtn col="setor">Setor</SortBtn></TableHead>
-                <TableHead className="w-[140px] py-0"><SortBtn col="semana">Semanas</SortBtn></TableHead>
-                <TableHead className="w-[72px] py-0 text-center"><SortBtn col="repeticao" align="center">Rep.</SortBtn></TableHead>
-                <TableHead className="w-[64px] py-0 text-[11px] uppercase tracking-wide text-muted-foreground font-semibold">Flags</TableHead>
+                <TableHead
+                  className="py-0 relative group/desc"
+                  style={{ width: descWidth, maxWidth: descWidth }}
+                >
+                  <div className="flex items-center justify-between pr-2">
+                    <SortBtn col="descricao">Descrição</SortBtn>
+                  </div>
+                  <div
+                    onMouseDown={startResize}
+                    onDoubleClick={() => setDescWidth(DESC_DEFAULT)}
+                    className="absolute top-0 right-0 h-full w-2 cursor-col-resize flex items-center justify-center group/handle"
+                    title="Arraste para redimensionar (duplo-clique para resetar)"
+                  >
+                    <span className="h-4 w-px bg-border group-hover/desc:bg-primary/60 transition-colors" />
+                  </div>
+                </TableHead>
+                <TableHead className="w-[160px] py-0"><SortBtn col="responsavel">Responsável</SortBtn></TableHead>
+                <TableHead className="w-[140px] py-0"><SortBtn col="setor">Setor</SortBtn></TableHead>
+                <TableHead className="w-[88px] py-0"><SortBtn col="semana">Semanas</SortBtn></TableHead>
+                <TableHead className="w-[52px] py-0 text-center"><SortBtn col="repeticao" align="center">Rep.</SortBtn></TableHead>
+                <TableHead className="w-[60px] py-0 text-[11px] uppercase tracking-wide text-muted-foreground font-semibold">Flags</TableHead>
                 <TableHead className="w-[56px] py-0 text-[11px] uppercase tracking-wide text-muted-foreground font-semibold">Feito</TableHead>
                 {isGestorOrAdmin && (
                   <TableHead className="w-[56px] py-0 text-[11px] uppercase tracking-wide text-muted-foreground font-semibold">Aprov.</TableHead>
                 )}
-                <TableHead className="w-[80px] py-0" />
+                <TableHead className="w-[72px] py-0" />
               </TableRow>
             </TableHeader>
             <TableBody>
