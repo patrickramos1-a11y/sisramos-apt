@@ -3,7 +3,7 @@ import { Badge } from "@/components/ui/badge";
 import StatusBolinha from "./StatusBolinha";
 import SwipeableCard from "./SwipeableCard";
 import { cn } from "@/lib/utils";
-import { User, RefreshCw, Calendar } from "lucide-react";
+import { User, RefreshCw, Calendar, Flame, Star } from "lucide-react";
 
 type StatusBolinha = "pendente" | "executado" | "nao_realizado";
 
@@ -61,14 +61,23 @@ export default function DemandaCard({
   const cardContent = (
     <Card
       className={cn(
-        "transition-all hover:shadow-md overflow-hidden",
-        muitoUrgente && "bg-[hsl(var(--apt-muito-urgente))] border-destructive/40",
-        prioritaria && !muitoUrgente && "bg-[hsl(var(--apt-prioritaria))] border-warning/30"
+        "transition-all hover:shadow-md overflow-hidden relative",
+        muitoUrgente && "border-destructive/30",
+        prioritaria && !muitoUrgente && "border-warning/30"
       )}
     >
+      {(muitoUrgente || prioritaria) && (
+        <span
+          aria-hidden
+          className={cn(
+            "absolute left-0 top-0 bottom-0 w-1",
+            muitoUrgente ? "bg-destructive" : "bg-warning"
+          )}
+        />
+      )}
       <CardContent className="p-0">
         {/* Header com número, setor e badges */}
-        <div className="flex items-center justify-between gap-2 px-3 py-2 bg-[hsl(var(--apt-header))] border-b-2 border-primary/20">
+        <div className="flex items-center justify-between gap-2 px-3 py-2 bg-muted/40 border-b border-border/60">
           <div className="flex items-center gap-2 flex-wrap">
             <Badge variant="outline" className="font-mono text-xs px-2 py-0.5">
               #{numero}
@@ -80,14 +89,14 @@ export default function DemandaCard({
               {setor}
             </Badge>
             {muitoUrgente && (
-              <Badge className="text-[10px] px-1.5 py-0 bg-destructive/80 text-destructive-foreground">
-                Urgente
-              </Badge>
+              <span className="inline-flex items-center gap-1 rounded-full bg-destructive/10 text-destructive border border-destructive/25 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide">
+                <Flame className="h-2.5 w-2.5" /> Urgente
+              </span>
             )}
             {prioritaria && !muitoUrgente && (
-              <Badge variant="destructive" className="text-[10px] px-1.5 py-0 bg-warning text-warning-foreground">
-                Prioritária
-              </Badge>
+              <span className="inline-flex items-center gap-1 rounded-full bg-warning/10 text-warning border border-warning/30 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide">
+                <Star className="h-2.5 w-2.5" /> Prioridade
+              </span>
             )}
           </div>
           
