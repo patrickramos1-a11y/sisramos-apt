@@ -1,6 +1,14 @@
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
+  DropdownMenu,
+  DropdownMenuCheckboxItem,
+  DropdownMenuContent,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
   Sheet,
   SheetContent,
   SheetHeader,
@@ -10,6 +18,7 @@ import {
 import {
   CalendarDays,
   CheckCircle2,
+  ChevronDown,
   Clock3,
   Search,
   SlidersHorizontal,
@@ -88,19 +97,38 @@ const semanaOptions = [
   { value: "5", label: "5a Semana" },
 ];
 
-const repeticaoOptions = [
-  { value: "1", label: "1X" },
-  { value: "2", label: "2X" },
-  { value: "3", label: "3X" },
-  { value: "4", label: "4X" },
-  { value: "5", label: "5X" },
-];
-
 const currentYear = new Date().getFullYear();
 const anos = Array.from({ length: 5 }, (_, index) => ({
   value: String(currentYear - 2 + index),
   label: String(currentYear - 2 + index),
 }));
+
+const collaboratorStyles = [
+  {
+    active: "border-sky-500 bg-sky-500 text-white shadow-sm",
+    idle: "border-sky-200 bg-sky-50/80 text-sky-900 hover:bg-sky-100",
+  },
+  {
+    active: "border-emerald-500 bg-emerald-500 text-white shadow-sm",
+    idle: "border-emerald-200 bg-emerald-50/80 text-emerald-900 hover:bg-emerald-100",
+  },
+  {
+    active: "border-fuchsia-500 bg-fuchsia-500 text-white shadow-sm",
+    idle: "border-fuchsia-200 bg-fuchsia-50/80 text-fuchsia-900 hover:bg-fuchsia-100",
+  },
+  {
+    active: "border-orange-500 bg-orange-500 text-white shadow-sm",
+    idle: "border-orange-200 bg-orange-50/80 text-orange-900 hover:bg-orange-100",
+  },
+  {
+    active: "border-violet-500 bg-violet-500 text-white shadow-sm",
+    idle: "border-violet-200 bg-violet-50/80 text-violet-900 hover:bg-violet-100",
+  },
+  {
+    active: "border-cyan-500 bg-cyan-500 text-white shadow-sm",
+    idle: "border-cyan-200 bg-cyan-50/80 text-cyan-900 hover:bg-cyan-100",
+  },
+];
 
 function SectionTitle({ children }: { children: React.ReactNode }) {
   return (
@@ -116,12 +144,14 @@ function FilterPill({
   onClick,
   tone = "neutral",
   icon,
+  className,
 }: {
   active: boolean;
   children: React.ReactNode;
   onClick: () => void;
   tone?: "neutral" | "blue" | "green" | "amber" | "red";
   icon?: React.ReactNode;
+  className?: string;
 }) {
   const tones = {
     neutral: active
@@ -147,7 +177,8 @@ function FilterPill({
       onClick={onClick}
       className={cn(
         "inline-flex h-7 items-center gap-1.5 rounded-full border px-2.5 text-[12px] font-medium transition-colors",
-        tones[tone]
+        tones[tone],
+        className
       )}
     >
       {icon}
@@ -202,47 +233,25 @@ export default function APTHorizontalFilters({
     filters.semanas.length > 0 ||
     filters.statusResponsavel.length > 0 ||
     filters.statusGestor.length > 0 ||
-    filters.repeticoes.length > 0 ||
     filters.busca !== "" ||
     filters.urgente ||
     filters.prioridade;
-
-  const advancedActiveCount =
-    filters.setores.length +
-    filters.anos.length +
-    filters.repeticoes.length +
-    (filters.urgente ? 1 : 0) +
-    (filters.prioridade ? 1 : 0);
-
-  const responsavelOptions = profiles.map((profile) => ({
-    value: profile.user_id,
-    label: profile.nome,
-  }));
-
-  const setorOptions = setores.map((setor) => ({
-    value: setor.id,
-    label: setor.nome,
-  }));
 
   const isMyQueueActive =
     !!currentUserId &&
     filters.responsaveis.length === 1 &&
     filters.responsaveis[0] === currentUserId;
-
   const isCurrentWeekActive =
     filters.semanas.length === 1 &&
     filters.semanas[0] === String(currentWeek);
-
   const isSuggestedWeekActive =
     suggestedWeek !== null &&
     filters.semanas.length === 1 &&
     filters.semanas[0] === String(suggestedWeek);
-
   const isPendingOnlyActive =
     filters.statusResponsavel.length === 1 &&
     filters.statusResponsavel[0] === "pendente" &&
     filters.statusGestor.length === 0;
-
   const isWaitingApprovalActive =
     filters.statusGestor.length === 1 &&
     filters.statusGestor[0] === "pendente" &&
@@ -250,10 +259,25 @@ export default function APTHorizontalFilters({
     filters.statusResponsavel.includes("executado") &&
     filters.statusResponsavel.includes("nao_realizado");
 
+  const responsavelOptions = profiles.map((profile, index) => ({
+    value: profile.user_id,
+    label: profile.nome,
+    style: collaboratorStyles[index % collaboratorStyles.length],
+  }));
+
+  const setorSummary =
+    filters.setores.length === 0
+      ? "Setores"
+      : filters.setores.length === 1
+        ? setores.find((setor) => setor.id === filters.setores[0])?.nome ?? "1 setor"
+        : `${filters.setores.length} setores`;
+
+  const advancedActiveCount = filters.anos.length;
+
   return (
     <div className="rounded-2xl border border-border/70 bg-card/95 p-2.5 shadow-sm backdrop-blur">
       <div className="flex flex-wrap items-center gap-2">
-        <div className="relative min-w-[220px] max-w-[300px] flex-1">
+        <div className="relative min-w-[190px] max-w-[240px] flex-1">
           <Search className="absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
           <Input
             placeholder="Buscar demanda..."
@@ -275,6 +299,44 @@ export default function APTHorizontalFilters({
                 {mes.label}
               </FilterPill>
             ))}
+
+            <FilterPill
+              active={filters.urgente}
+              tone="red"
+              onClick={() => update("urgente", !filters.urgente)}
+            >
+              Urgente
+            </FilterPill>
+
+            <FilterPill
+              active={filters.prioridade}
+              tone="amber"
+              onClick={() => update("prioridade", !filters.prioridade)}
+            >
+              Prioridade
+            </FilterPill>
+
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" size="sm" className="h-8 gap-1.5 rounded-full px-3">
+                  {setorSummary}
+                  <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start" className="w-56">
+                <DropdownMenuLabel>Setores</DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                {setores.map((setor) => (
+                  <DropdownMenuCheckboxItem
+                    key={setor.id}
+                    checked={filters.setores.includes(setor.id)}
+                    onCheckedChange={() => toggleValue("setores", setor.id)}
+                  >
+                    {setor.nome}
+                  </DropdownMenuCheckboxItem>
+                ))}
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
         </div>
 
@@ -313,72 +375,57 @@ export default function APTHorizontalFilters({
                 </div>
               </div>
 
-              {showResponsavelFilter && (
-                <div>
-                  <SectionTitle>Responsaveis</SectionTitle>
-                  <div className="flex flex-wrap gap-2">
-                    {responsavelOptions.map((option) => (
-                      <FilterPill
-                        key={option.value}
-                        active={filters.responsaveis.includes(option.value)}
-                        tone="blue"
-                        onClick={() => toggleValue("responsaveis", option.value)}
-                      >
-                        {option.label.split(" ")[0]}
-                      </FilterPill>
-                    ))}
-                  </div>
-                </div>
-              )}
-
               <div>
-                <SectionTitle>Setores</SectionTitle>
+                <SectionTitle>Visoes rapidas</SectionTitle>
                 <div className="flex flex-wrap gap-2">
-                  {setorOptions.map((option) => (
+                  {currentUserId && (
                     <FilterPill
-                      key={option.value}
-                      active={filters.setores.includes(option.value)}
-                      tone="green"
-                      onClick={() => toggleValue("setores", option.value)}
+                      active={isMyQueueActive}
+                      tone="blue"
+                      icon={<UserRound className="h-3.5 w-3.5" />}
+                      onClick={() => setExclusive("responsaveis", [currentUserId])}
                     >
-                      {option.label}
+                      Minha fila
                     </FilterPill>
-                  ))}
-                </div>
-              </div>
-
-              <div>
-                <SectionTitle>Repeticoes</SectionTitle>
-                <div className="flex flex-wrap gap-2">
-                  {repeticaoOptions.map((option) => (
-                    <FilterPill
-                      key={option.value}
-                      active={filters.repeticoes.includes(option.value)}
-                      tone="amber"
-                      onClick={() => toggleValue("repeticoes", option.value)}
-                    >
-                      {option.label}
-                    </FilterPill>
-                  ))}
-                </div>
-              </div>
-
-              <div>
-                <SectionTitle>Bandeiras</SectionTitle>
-                <div className="flex flex-wrap gap-2">
+                  )}
                   <FilterPill
-                    active={filters.urgente}
-                    tone="red"
-                    onClick={() => update("urgente", !filters.urgente)}
+                    active={isCurrentWeekActive}
+                    tone="green"
+                    icon={<CalendarDays className="h-3.5 w-3.5" />}
+                    onClick={() => setExclusive("semanas", [String(currentWeek)])}
                   >
-                    Urgente
+                    Semana atual
+                  </FilterPill>
+                  {suggestedWeek !== null && (
+                    <FilterPill
+                      active={isSuggestedWeekActive}
+                      tone="amber"
+                      icon={<Clock3 className="h-3.5 w-3.5" />}
+                      onClick={() => setExclusive("semanas", [String(suggestedWeek)])}
+                    >
+                      Foco APT
+                    </FilterPill>
+                  )}
+                  <FilterPill
+                    active={isPendingOnlyActive}
+                    tone="amber"
+                    onClick={() => setExclusive("statusResponsavel", ["pendente"])}
+                  >
+                    Pendentes
                   </FilterPill>
                   <FilterPill
-                    active={filters.prioridade}
-                    tone="amber"
-                    onClick={() => update("prioridade", !filters.prioridade)}
+                    active={isWaitingApprovalActive}
+                    tone="green"
+                    icon={<CheckCircle2 className="h-3.5 w-3.5" />}
+                    onClick={() =>
+                      updateMany({
+                        statusResponsavel:
+                          isWaitingApprovalActive ? [] : ["executado", "nao_realizado"],
+                        statusGestor: isWaitingApprovalActive ? [] : ["pendente"],
+                      })
+                    }
                   >
-                    Prioridade
+                    Aguardando aprovacao
                   </FilterPill>
                 </div>
               </div>
@@ -410,170 +457,109 @@ export default function APTHorizontalFilters({
         )}
       </div>
 
-      <div className="mt-2 border-t border-border/50 pt-2">
-        <div>
-          <SectionTitle>Visoes rapidas</SectionTitle>
+      <div
+        className={cn(
+          "mt-2 grid gap-2.5 border-t border-border/50 pt-2",
+          showResponsavelFilter
+            ? "lg:grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)_minmax(0,1.1fr)]"
+            : "lg:grid-cols-[minmax(0,1fr)_minmax(0,1.15fr)]"
+        )}
+      >
+        {showResponsavelFilter && (
+          <div className="min-w-0">
+            <SectionTitle>Colaboradores</SectionTitle>
+            <div className="flex flex-wrap gap-1.5">
+              {responsavelOptions.map((option) => {
+                const active = filters.responsaveis.includes(option.value);
+                return (
+                  <FilterPill
+                    key={option.value}
+                    active={active}
+                    tone="neutral"
+                    className={active ? option.style.active : option.style.idle}
+                    onClick={() => toggleValue("responsaveis", option.value)}
+                  >
+                    {option.label.split(" ")[0]}
+                  </FilterPill>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        <div className="min-w-0">
+          <SectionTitle>Semanas</SectionTitle>
           <div className="flex flex-wrap gap-1.5">
-            {currentUserId && (
+            {semanaOptions.map((option) => (
               <FilterPill
-                active={isMyQueueActive}
-                tone="blue"
-                icon={<UserRound className="h-3.5 w-3.5" />}
-                onClick={() => setExclusive("responsaveis", [currentUserId])}
+                key={option.value}
+                active={filters.semanas.includes(option.value)}
+                tone="green"
+                onClick={() => toggleValue("semanas", option.value)}
               >
-                Minha fila
+                {option.label}
               </FilterPill>
-            )}
+            ))}
+          </div>
+        </div>
 
+        <div className="min-w-0">
+          <SectionTitle>Status</SectionTitle>
+          <div className="flex flex-wrap gap-1.5">
             <FilterPill
-              active={isCurrentWeekActive}
-              tone="green"
-              icon={<CalendarDays className="h-3.5 w-3.5" />}
-              onClick={() => setExclusive("semanas", [String(currentWeek)])}
-            >
-              Semana atual
-            </FilterPill>
-
-            {suggestedWeek !== null && (
-              <FilterPill
-                active={isSuggestedWeekActive}
-                tone="amber"
-                icon={<Clock3 className="h-3.5 w-3.5" />}
-                onClick={() => setExclusive("semanas", [String(suggestedWeek)])}
-              >
-                Foco APT: {suggestedWeek}a semana
-              </FilterPill>
-            )}
-
-            <FilterPill
-              active={isPendingOnlyActive}
+              active={
+                filters.statusResponsavel.length === 1 &&
+                filters.statusResponsavel[0] === "pendente"
+              }
               tone="amber"
               onClick={() => setExclusive("statusResponsavel", ["pendente"])}
             >
               Pendentes
             </FilterPill>
-
             <FilterPill
-              active={isWaitingApprovalActive}
-              tone="green"
-              icon={<CheckCircle2 className="h-3.5 w-3.5" />}
-              onClick={() =>
-                updateMany({
-                  statusResponsavel:
-                    isWaitingApprovalActive ? [] : ["executado", "nao_realizado"],
-                  statusGestor: isWaitingApprovalActive ? [] : ["pendente"],
-                })
+              active={
+                filters.statusResponsavel.length === 1 &&
+                filters.statusResponsavel[0] === "executado"
               }
+              tone="green"
+              onClick={() => setExclusive("statusResponsavel", ["executado"])}
             >
-              Aguardando aprovacao
+              Feitas
             </FilterPill>
-          </div>
-        </div>
-
-        <div
-          className={cn(
-            "mt-2.5 grid gap-2.5",
-            showResponsavelFilter
-              ? "lg:grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)_minmax(0,1.1fr)]"
-              : "lg:grid-cols-[minmax(0,1fr)_minmax(0,1.15fr)]"
-          )}
-        >
-          {showResponsavelFilter && (
-            <div className="min-w-0">
-              <SectionTitle>Responsaveis</SectionTitle>
-              <div className="flex flex-wrap gap-1.5">
-                {responsavelOptions.map((option) => (
-                  <FilterPill
-                    key={option.value}
-                    active={filters.responsaveis.includes(option.value)}
-                    tone="blue"
-                    onClick={() => toggleValue("responsaveis", option.value)}
-                  >
-                    {option.label.split(" ")[0]}
-                  </FilterPill>
-                ))}
-              </div>
-            </div>
-          )}
-
-          <div className="min-w-0">
-            <SectionTitle>Semanas</SectionTitle>
-            <div className="flex flex-wrap gap-1.5">
-              {semanaOptions.map((option) => (
+            <FilterPill
+              active={
+                filters.statusResponsavel.length === 1 &&
+                filters.statusResponsavel[0] === "nao_realizado"
+              }
+              tone="red"
+              onClick={() => setExclusive("statusResponsavel", ["nao_realizado"])}
+            >
+              Nao feitas
+            </FilterPill>
+            {showResponsavelFilter && (
+              <>
                 <FilterPill
-                  key={option.value}
-                  active={filters.semanas.includes(option.value)}
-                  tone="green"
-                  onClick={() => toggleValue("semanas", option.value)}
+                  active={
+                    filters.statusGestor.length === 1 &&
+                    filters.statusGestor[0] === "executado"
+                  }
+                  tone="blue"
+                  onClick={() => setExclusive("statusGestor", ["executado"])}
                 >
-                  {option.label}
+                  Aprovadas
                 </FilterPill>
-              ))}
-            </div>
-          </div>
-
-          <div className="min-w-0">
-            <SectionTitle>Status</SectionTitle>
-            <div className="flex flex-wrap gap-1.5">
-              <FilterPill
-                active={
-                  filters.statusResponsavel.length === 1 &&
-                  filters.statusResponsavel[0] === "pendente"
-                }
-                tone="amber"
-                onClick={() => setExclusive("statusResponsavel", ["pendente"])}
-              >
-                Pendentes
-              </FilterPill>
-
-              <FilterPill
-                active={
-                  filters.statusResponsavel.length === 1 &&
-                  filters.statusResponsavel[0] === "executado"
-                }
-                tone="green"
-                onClick={() => setExclusive("statusResponsavel", ["executado"])}
-              >
-                Feitas
-              </FilterPill>
-
-              <FilterPill
-                active={
-                  filters.statusResponsavel.length === 1 &&
-                  filters.statusResponsavel[0] === "nao_realizado"
-                }
-                tone="red"
-                onClick={() => setExclusive("statusResponsavel", ["nao_realizado"])}
-              >
-                Nao feitas
-              </FilterPill>
-
-              {showResponsavelFilter && (
-                <>
-                  <FilterPill
-                    active={
-                      filters.statusGestor.length === 1 &&
-                      filters.statusGestor[0] === "executado"
-                    }
-                    tone="blue"
-                    onClick={() => setExclusive("statusGestor", ["executado"])}
-                  >
-                    Aprovadas
-                  </FilterPill>
-
-                  <FilterPill
-                    active={
-                      filters.statusGestor.length === 1 &&
-                      filters.statusGestor[0] === "pendente"
-                    }
-                    tone="amber"
-                    onClick={() => setExclusive("statusGestor", ["pendente"])}
-                  >
-                    Aguardando gestor
-                  </FilterPill>
-                </>
-              )}
-            </div>
+                <FilterPill
+                  active={
+                    filters.statusGestor.length === 1 &&
+                    filters.statusGestor[0] === "pendente"
+                  }
+                  tone="amber"
+                  onClick={() => setExclusive("statusGestor", ["pendente"])}
+                >
+                  Aguardando gestor
+                </FilterPill>
+              </>
+            )}
           </div>
         </div>
       </div>
