@@ -9,7 +9,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import StatusBolinha from "./StatusBolinha";
 import { cn } from "@/lib/utils";
-import { MoreVertical, Pencil, Trash2, Flame, Star, Repeat } from "lucide-react";
+import { MoreVertical, Pencil, Trash2, Flame, Star, Repeat, MessageCircle } from "lucide-react";
 
 type StatusBolinha = "pendente" | "executado" | "nao_realizado";
 
@@ -37,6 +37,7 @@ interface DemandaTableRowProps {
   isSelected?: boolean;
   showCheckbox?: boolean;
   pendingExclusao?: boolean;
+  whatsappHref?: string | null;
   onStatusResponsavelChange: () => void;
   onStatusGestorChange: () => void;
   onClick?: () => void;
@@ -69,6 +70,7 @@ export default function DemandaTableRow({
   isSelected,
   showCheckbox,
   pendingExclusao,
+  whatsappHref,
   onStatusResponsavelChange,
   onStatusGestorChange,
   onClick,
@@ -202,28 +204,47 @@ export default function DemandaTableRow({
         </span>
       </TableCell>
 
-      {canEditDemanda && (
-        <TableCell className="w-12 text-center" onClick={(e) => e.stopPropagation()}>
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="icon" className="h-8 w-8">
-                <MoreVertical className="h-4 w-4" />
+      {(canEditDemanda || whatsappHref) && (
+        <TableCell className="w-28 text-center" onClick={(e) => e.stopPropagation()}>
+          <div className="flex items-center justify-center gap-1">
+            {whatsappHref && (
+              <Button asChild variant="ghost" size="icon" className="h-8 w-8 text-emerald-600 hover:text-emerald-700">
+                <a
+                  href={whatsappHref}
+                  target="_blank"
+                  rel="noreferrer"
+                  onClick={(event) => event.stopPropagation()}
+                  aria-label="Enviar mensagem no WhatsApp"
+                  title="Tirar duvida no WhatsApp"
+                >
+                  <MessageCircle className="h-4 w-4" />
+                </a>
               </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuItem onClick={onEdit}>
-                <Pencil className="mr-2 h-4 w-4" />
-                Editar
-              </DropdownMenuItem>
-              <DropdownMenuItem
-                onClick={onDelete}
-                className="text-destructive focus:text-destructive"
-              >
-                <Trash2 className="mr-2 h-4 w-4" />
-                Excluir
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
+            )}
+
+            {canEditDemanda && (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" size="icon" className="h-8 w-8">
+                    <MoreVertical className="h-4 w-4" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuItem onClick={onEdit}>
+                    <Pencil className="mr-2 h-4 w-4" />
+                    Editar
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    onClick={onDelete}
+                    className="text-destructive focus:text-destructive"
+                  >
+                    <Trash2 className="mr-2 h-4 w-4" />
+                    Excluir
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            )}
+          </div>
         </TableCell>
       )}
     </TableRow>

@@ -1,9 +1,10 @@
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import StatusBolinha from "./StatusBolinha";
 import SwipeableCard from "./SwipeableCard";
 import { cn } from "@/lib/utils";
-import { User, RefreshCw, Calendar, Flame, Star } from "lucide-react";
+import { User, RefreshCw, Calendar, Flame, Star, MessageCircle } from "lucide-react";
 
 type StatusBolinha = "pendente" | "executado" | "nao_realizado";
 
@@ -26,6 +27,7 @@ interface DemandaCardProps {
   showGestorStatus?: boolean;
   showObservacoes?: boolean;
   pendingExclusao?: boolean;
+  whatsappHref?: string | null;
   onStatusResponsavelChange: () => void;
   onStatusGestorChange: () => void;
   onEdit?: () => void;
@@ -51,6 +53,7 @@ export default function DemandaCard({
   showGestorStatus = true,
   showObservacoes = true,
   pendingExclusao,
+  whatsappHref,
   onStatusResponsavelChange,
   onStatusGestorChange,
   onEdit,
@@ -111,6 +114,19 @@ export default function DemandaCard({
                 <span className="inline-flex items-center rounded-full border border-warning/30 bg-warning/15 px-2 py-0.5 text-[10px] font-medium text-warning">
                   Aguardando exclusao
                 </span>
+              )}
+              {whatsappHref && (
+                <Button
+                  asChild
+                  variant="outline"
+                  size="sm"
+                  className="h-7 rounded-full border-emerald-200 bg-emerald-50 px-2.5 text-[11px] text-emerald-700 hover:bg-emerald-100 hover:text-emerald-800"
+                >
+                  <a href={whatsappHref} target="_blank" rel="noreferrer">
+                    <MessageCircle className="mr-1.5 h-3.5 w-3.5" />
+                    WhatsApp
+                  </a>
+                </Button>
               )}
             </div>
           </div>

@@ -54,6 +54,7 @@ interface Setor {
   id: string;
   nome: string;
   cor: string;
+  acoes?: unknown;
 }
 
 export function useDemandas() {

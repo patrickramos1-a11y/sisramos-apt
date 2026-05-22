@@ -54,6 +54,7 @@ import { Loader2, AlertCircle, CheckCircle2, Trash2, Check, ThumbsUp, Copy, Filt
 import DuplicarDemandasEmMassaDialog from "@/components/apt/DuplicarDemandasEmMassaDialog";
 import TopSetoresBar from "@/components/apt/TopSetoresBar";
 import { useSolicitacoesExclusao } from "@/hooks/useSolicitacoesExclusao";
+import { buildSetorWhatsAppHref } from "@/lib/setor-actions";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -303,6 +304,22 @@ export default function APT() {
     } else {
       setSolicitandoExclusao(demanda);
     }
+  };
+
+  const getWhatsappHref = (demanda: Demanda) => {
+    const setor = getSetorById(demanda.setor_id);
+    const profile = getProfileById(demanda.responsavel_id);
+
+    return buildSetorWhatsAppHref(setor, {
+      numero: demanda.numero,
+      descricao: demanda.descricao,
+      observacoes: demanda.observacoes,
+      responsavel: profile?.nome || "Desconhecido",
+      setor: setor?.nome || "Sem setor",
+      semanas: demanda.semana_limite || [],
+      mes: demanda.mes,
+      ano: demanda.ano,
+    });
   };
 
   return (
@@ -568,6 +585,7 @@ export default function APT() {
                     {visibleDemandas.map((demanda) => {
                       const profile = getProfileById(demanda.responsavel_id);
                       const setor = getSetorById(demanda.setor_id);
+                      const whatsappHref = getWhatsappHref(demanda);
                       
                       // Check if this specific demand is in a past month
                       const demandaIsPastMonth = isPastMonth(demanda.mes, demanda.ano);
@@ -608,6 +626,7 @@ export default function APT() {
                           showGestorStatus={isGestorOrAdmin}
                           showObservacoes={!hideObservacoesColumn}
                           pendingExclusao={pendingDemandaIds.has(demanda.id)}
+                          whatsappHref={whatsappHref}
                           onStatusResponsavelChange={() =>
                             updateStatusResponsavel(
                               demanda.id,
@@ -733,7 +752,7 @@ export default function APT() {
                             <TableHead className="text-center w-20 text-primary-foreground font-semibold">
                               Semana
                             </TableHead>
-                            <TableHead className="text-center w-24 text-primary-foreground font-semibold">
+                            <TableHead className="text-center w-28 text-primary-foreground font-semibold">
                                 Ações
                               </TableHead>
                           </TableRow>
@@ -742,6 +761,7 @@ export default function APT() {
                           {visibleDemandas.map((demanda, index) => {
                             const profile = getProfileById(demanda.responsavel_id);
                             const setor = getSetorById(demanda.setor_id);
+                            const whatsappHref = getWhatsappHref(demanda);
                             
                             // Check if this specific demand is in a past month
                             const demandaStatusAllowed = isStatusUpdateAllowed(demanda.mes, demanda.ano);
@@ -787,6 +807,7 @@ export default function APT() {
                                 isSelected={selectedIds.has(demanda.id)}
                                 showCheckbox={true}
                                 pendingExclusao={pendingDemandaIds.has(demanda.id)}
+                                whatsappHref={whatsappHref}
                                 onStatusResponsavelChange={() =>
                                   updateStatusResponsavel(
                                     demanda.id,

@@ -500,18 +500,21 @@ export type Database = {
       }
       setores: {
         Row: {
+          acoes: Json
           cor: string | null
           created_at: string
           id: string
           nome: string
         }
         Insert: {
+          acoes?: Json
           cor?: string | null
           created_at?: string
           id?: string
           nome: string
         }
         Update: {
+          acoes?: Json
           cor?: string | null
           created_at?: string
           id?: string

@@ -1,6 +1,7 @@
 import { useState, useMemo, useEffect, useCallback, Fragment } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
+import { useToast } from "@/hooks/use-toast";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -28,7 +29,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import {
   Loader2, ChevronRight, MoreVertical, Pencil, Trash2,
-  ArrowUpDown, ArrowUp, ArrowDown, Flame, Star, Group, ChevronDown,
+  ArrowUpDown, ArrowUp, ArrowDown, Flame, Star, Group, ChevronDown, RefreshCw,
 } from "lucide-react";
 import StatusBolinha from "@/components/apt/StatusBolinha";
 import EditarDemandaIrmaDialog from "@/components/apt/EditarDemandaIrmaDialog";
@@ -105,6 +106,7 @@ const DEFAULT_FILTERS: ListaFilters = {
 
 export default function GerenciamentoLista({ profiles, setores, onDemandaChange }: Props) {
   const { user, isGestorOrAdmin, role } = useAuth();
+  const { toast } = useToast();
   const isColaborador = role === "colaborador";
 
   const prefs = useMemo(() => {
@@ -125,6 +127,9 @@ export default function GerenciamentoLista({ profiles, setores, onDemandaChange 
   const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set());
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [selectedDemand, setSelectedDemand] = useState<ConsolidatedDemand | null>(null);
+  const [manualOrderIds, setManualOrderIds] = useState<string[]>([]);
+  const [hasPendingReorder, setHasPendingReorder] = useState(false);
+  const [isRebalancing, setIsRebalancing] = useState(false);
 
   const [allDemandas, setAllDemandas] = useState<Demanda[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -246,6 +251,24 @@ export default function GerenciamentoLista({ profiles, setores, onDemandaChange 
 
   const getProfileById = useCallback((id: string) => profiles.find((p) => p.user_id === id), [profiles]);
   const getSetorById = useCallback((id: string | null) => (id ? setores.find((s) => s.id === id) ?? null : null), [setores]);
+  const getVisualOrderId = useCallback((demand: ConsolidatedDemand) => {
+    const numeroBase = Math.min(...demand.siblings.map((s) => s.numero));
+    return [
+      demand.descricao.trim().toLowerCase(),
+      demand.responsavel_id,
+      demand.setor_id ?? "",
+      demand.mes,
+      demand.ano,
+      numeroBase,
+    ].join("|");
+  }, []);
+
+  const shouldQueueReorder = (patch: Partial<Demanda>) =>
+    "descricao" in patch ||
+    "responsavel_id" in patch ||
+    "setor_id" in patch ||
+    "semana_limite" in patch ||
+    "semanas_repeticao" in patch;
 
   const sortFn = (a: ConsolidatedDemand, b: ConsolidatedDemand) => {
     let cmp = 0;
@@ -264,11 +287,50 @@ export default function GerenciamentoLista({ profiles, setores, onDemandaChange 
     return sortDirection === "asc" ? cmp : -cmp;
   };
 
-  const sortedFlat = useMemo(() => {
+  const baseSortedFlat = useMemo(() => {
     if (!sortColumn) return consolidated;
     return [...consolidated].sort(sortFn);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [consolidated, sortColumn, sortDirection]);
+
+  const orderResetSignature = useMemo(
+    () =>
+      JSON.stringify({
+        filters,
+        groupBy,
+        sortColumn,
+        sortDirection,
+      }),
+    [filters, groupBy, sortColumn, sortDirection]
+  );
+
+  useEffect(() => {
+    if (isLoading) return;
+    setManualOrderIds(baseSortedFlat.map(getVisualOrderId));
+    setHasPendingReorder(false);
+    // baseSortedFlat is intentionally read only when filters/sort reset or a refetch finishes.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [orderResetSignature, isLoading, getVisualOrderId]);
+
+  const applyCurrentOrdering = useCallback(() => {
+    setManualOrderIds(baseSortedFlat.map(getVisualOrderId));
+    setHasPendingReorder(false);
+  }, [baseSortedFlat, getVisualOrderId]);
+
+  const sortedFlat = useMemo(() => {
+    if (manualOrderIds.length === 0) return baseSortedFlat;
+
+    const rank = new Map(manualOrderIds.map((id, index) => [id, index]));
+    return [...baseSortedFlat].sort((a, b) => {
+      const rankA = rank.get(getVisualOrderId(a));
+      const rankB = rank.get(getVisualOrderId(b));
+
+      if (rankA !== undefined && rankB !== undefined) return rankA - rankB;
+      if (rankA !== undefined) return -1;
+      if (rankB !== undefined) return 1;
+      return 0;
+    });
+  }, [baseSortedFlat, manualOrderIds, getVisualOrderId]);
 
   // Group structure
   const grouped = useMemo(() => {
@@ -360,10 +422,16 @@ export default function GerenciamentoLista({ profiles, setores, onDemandaChange 
     updateLocalDemandas((prev) =>
       prev.map((demanda) => (demanda.id === id ? { ...demanda, ...patch } : demanda))
     );
+    if (shouldQueueReorder(patch)) {
+      setHasPendingReorder(true);
+    }
 
     const { error } = await supabase.from("demandas").update(patch).eq("id", id);
     if (error) {
       setAllDemandas(previousDemandas);
+      if (shouldQueueReorder(patch)) {
+        setHasPendingReorder(false);
+      }
     }
   };
 
@@ -376,26 +444,36 @@ export default function GerenciamentoLista({ profiles, setores, onDemandaChange 
         ids.includes(demanda.id) ? { ...demanda, ...patch } : demanda
       )
     );
+    if (shouldQueueReorder(patch)) {
+      setHasPendingReorder(true);
+    }
 
     const { error } = await supabase.from("demandas").update(patch).in("id", ids);
     if (error) {
       setAllDemandas(previousDemandas);
+      if (shouldQueueReorder(patch)) {
+        setHasPendingReorder(false);
+      }
     }
   };
 
-  const updateGroupWeeks = async (c: ConsolidatedDemand, semanas: number[]) => {
+  const updateGroupWeeks = async (
+    c: ConsolidatedDemand,
+    semanas: number[],
+    options?: { markPendingReorder?: boolean }
+  ) => {
     const previousDemandas = allDemandas;
+    const shouldMarkPending = options?.markPendingReorder ?? true;
     const orderedWeeks = [...new Set(semanas)].sort((a, b) => a - b);
-    const siblingIds = c.siblings.map((s) => s.id);
-    const keptSiblings = c.siblings
-      .filter((s) => orderedWeeks.includes(s.semana_limite?.[0]))
-      .sort((a, b) => (a.semana_limite?.[0] ?? 0) - (b.semana_limite?.[0] ?? 0));
-    const weeksToCreate = orderedWeeks.filter(
-      (semana) => !keptSiblings.some((s) => s.semana_limite?.[0] === semana)
+    const sortedSiblings = [...c.siblings].sort(
+      (a, b) => (a.semana_limite?.[0] ?? 0) - (b.semana_limite?.[0] ?? 0)
     );
     const count = orderedWeeks.length;
     const grupoId = count > 1 ? c.grupo_id ?? crypto.randomUUID() : null;
-    const template = keptSiblings[0] ?? c.siblings[0];
+    const template = sortedSiblings[0] ?? c.siblings[0];
+    const siblingsToReuse = sortedSiblings.slice(0, Math.min(sortedSiblings.length, count));
+    const siblingsToDeactivate = sortedSiblings.slice(count);
+    const weeksToCreate = orderedWeeks.slice(siblingsToReuse.length);
     const rowsToInsert = weeksToCreate.map((semana) => ({
       id: crypto.randomUUID(),
       numero: template.numero,
@@ -418,28 +496,37 @@ export default function GerenciamentoLista({ profiles, setores, onDemandaChange 
     updateLocalDemandas((prev) => {
       const next = prev
         .map((demanda) => {
-          if (!siblingIds.includes(demanda.id)) return demanda;
-          if (!orderedWeeks.includes(demanda.semana_limite?.[0])) {
+          const reusedIndex = siblingsToReuse.findIndex((sibling) => sibling.id === demanda.id);
+          if (reusedIndex !== -1) {
+            return {
+              ...demanda,
+              semana_limite: [orderedWeeks[reusedIndex]],
+              semanas_repeticao: count,
+              grupo_id: grupoId,
+            };
+          }
+
+          if (siblingsToDeactivate.some((sibling) => sibling.id === demanda.id)) {
             return { ...demanda, ativa: false };
           }
-          return {
-            ...demanda,
-            semanas_repeticao: count,
-            grupo_id: grupoId,
-          };
+
+          return demanda;
         })
         .filter((demanda) => demanda.ativa);
 
       return [...next, ...rowsToInsert];
     });
+    if (shouldMarkPending) {
+      setHasPendingReorder(true);
+    }
 
-    if (keptSiblings.length > 0) {
+    if (siblingsToReuse.length > 0) {
       const updateResults = await Promise.all(
-        keptSiblings.map((sibling) =>
+        siblingsToReuse.map((sibling, index) =>
           supabase
             .from("demandas")
             .update({
-              semana_limite: [sibling.semana_limite[0]],
+              semana_limite: [orderedWeeks[index]],
               semanas_repeticao: count,
               grupo_id: grupoId,
             })
@@ -450,21 +537,25 @@ export default function GerenciamentoLista({ profiles, setores, onDemandaChange 
       const updateError = updateResults.find((result) => result.error)?.error;
       if (updateError) {
         setAllDemandas(previousDemandas);
-        return;
+        if (shouldMarkPending) {
+          setHasPendingReorder(false);
+        }
+        return false;
       }
     }
 
-    const idsToDelete = siblingIds.filter(
-      (id) => !keptSiblings.some((sibling) => sibling.id === id)
-    );
-    if (idsToDelete.length > 0) {
+    const idsToDeactivate = siblingsToDeactivate.map((sibling) => sibling.id);
+    if (idsToDeactivate.length > 0) {
       const { error: deleteError } = await supabase
         .from("demandas")
         .update({ ativa: false })
-        .in("id", idsToDelete);
+        .in("id", idsToDeactivate);
       if (deleteError) {
         setAllDemandas(previousDemandas);
-        return;
+        if (shouldMarkPending) {
+          setHasPendingReorder(false);
+        }
+        return false;
       }
     }
 
@@ -489,9 +580,122 @@ export default function GerenciamentoLista({ profiles, setores, onDemandaChange 
       const { error: insertError } = await supabase.from("demandas").insert(rowsToPersist);
       if (insertError) {
         setAllDemandas(previousDemandas);
-        return;
+        if (shouldMarkPending) {
+          setHasPendingReorder(false);
+        }
+        return false;
       }
     }
+
+    return true;
+  };
+
+  const buildBalancedWeeks = (count: number, currentWeeks: number[], weekLoads: number[]) => {
+    const selected: number[] = [];
+
+    while (selected.length < count) {
+      const candidates = [1, 2, 3, 4, 5].filter((week) => !selected.includes(week));
+      candidates.sort((weekA, weekB) => {
+        const loadDiff = weekLoads[weekA - 1] - weekLoads[weekB - 1];
+        if (loadDiff !== 0) return loadDiff;
+
+        const currentPreferenceDiff =
+          Number(!currentWeeks.includes(weekA)) - Number(!currentWeeks.includes(weekB));
+        if (currentPreferenceDiff !== 0) return currentPreferenceDiff;
+
+        const spacingA =
+          selected.length === 0
+            ? 0
+            : Math.min(...selected.map((selectedWeek) => Math.abs(selectedWeek - weekA)));
+        const spacingB =
+          selected.length === 0
+            ? 0
+            : Math.min(...selected.map((selectedWeek) => Math.abs(selectedWeek - weekB)));
+        if (spacingA !== spacingB) return spacingB - spacingA;
+
+        return weekA - weekB;
+      });
+
+      const nextWeek = candidates[0];
+      selected.push(nextWeek);
+      weekLoads[nextWeek - 1] += 1;
+    }
+
+    return selected.sort((a, b) => a - b);
+  };
+
+  const handleRebalanceDemandas = async () => {
+    if (filters.responsaveis.length !== 1 || isRebalancing) return;
+
+    const targetGroups = consolidated.filter(
+      (group) => group.responsavel_id === filters.responsaveis[0]
+    );
+
+    if (targetGroups.length === 0) {
+      toast({
+        title: "Nada para reequalizar",
+        description: "Nao encontrei demandas para o responsavel filtrado.",
+      });
+      return;
+    }
+
+    setIsRebalancing(true);
+
+    const weekLoads = [0, 0, 0, 0, 0];
+    const plan = [...targetGroups]
+      .sort((groupA, groupB) => groupB.siblings.length - groupA.siblings.length)
+      .map((group) => {
+        const currentWeeks = Array.from(
+          new Set(group.siblings.flatMap((sibling) => sibling.semana_limite || []))
+        ).sort((a, b) => a - b);
+
+        const nextWeeks = buildBalancedWeeks(currentWeeks.length, currentWeeks, weekLoads);
+        return {
+          group,
+          currentWeeks,
+          nextWeeks,
+          changed: currentWeeks.join("|") !== nextWeeks.join("|"),
+        };
+      });
+
+    const changedGroups = plan.filter((item) => item.changed);
+
+    if (changedGroups.length === 0) {
+      setIsRebalancing(false);
+      toast({
+        title: "Demandas ja equilibradas",
+        description: "A distribuicao entre semanas ja estava balanceada.",
+      });
+      return;
+    }
+
+    let updatedGroups = 0;
+
+    for (const item of changedGroups) {
+      const success = await updateGroupWeeks(item.group, item.nextWeeks, {
+        markPendingReorder: false,
+      });
+
+      if (!success) {
+        setIsRebalancing(false);
+        await fetchAllDemandas();
+        toast({
+          variant: "destructive",
+          title: "Erro ao reequalizar",
+          description: "Nao consegui concluir a redistribuicao das demandas.",
+        });
+        return;
+      }
+
+      updatedGroups += 1;
+    }
+
+    setHasPendingReorder(true);
+    setIsRebalancing(false);
+    toast({
+      title: "Demandas reequalizadas",
+      description: `${updatedGroups} grupo(s) tiveram as semanas redistribuidas.`,
+    });
   };
 
   const profileOptions = profiles.map((p) => ({ value: p.user_id, label: p.nome, color: p.cor ?? null }));
@@ -798,6 +1002,35 @@ export default function GerenciamentoLista({ profiles, setores, onDemandaChange 
             {lbl}
           </button>
         ))}
+        {filters.responsaveis.length === 1 && !isColaborador && (
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            className="h-7 gap-1.5 px-2.5 text-[11px]"
+            onClick={() => void handleRebalanceDemandas()}
+            disabled={isRebalancing || consolidated.length === 0}
+          >
+            {isRebalancing ? (
+              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+            ) : (
+              <RefreshCw className="h-3.5 w-3.5" />
+            )}
+            Reequalizar demandas
+          </Button>
+        )}
+        {hasPendingReorder && (
+          <Button
+            type="button"
+            size="sm"
+            variant="secondary"
+            className="h-7 gap-1.5 px-2.5 text-[11px]"
+            onClick={applyCurrentOrdering}
+          >
+            <RefreshCw className="h-3.5 w-3.5" />
+            Atualizar lista
+          </Button>
+        )}
         <div className="flex-1" />
         <span className="text-xs text-muted-foreground">
           {consolidated.length} grupos · {filteredDemandas.length} demandas
