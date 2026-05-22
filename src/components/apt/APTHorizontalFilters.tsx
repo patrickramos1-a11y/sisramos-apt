@@ -1,8 +1,7 @@
-import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
-import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import {
   Popover,
   PopoverContent,
@@ -15,7 +14,17 @@ import {
   SheetTitle,
   SheetTrigger,
 } from "@/components/ui/sheet";
-import { X, ChevronDown, Search, Filter, Flame, Star, SlidersHorizontal } from "lucide-react";
+import {
+  CalendarDays,
+  CheckCircle2,
+  ChevronDown,
+  Clock3,
+  Search,
+  SlidersHorizontal,
+  UserRound,
+  Users,
+  X,
+} from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface Profile {
@@ -50,6 +59,9 @@ interface APTHorizontalFiltersProps {
   onFiltersChange: (filters: MultiFilters) => void;
   onClearFilters: () => void;
   showResponsavelFilter?: boolean;
+  currentWeek: number;
+  suggestedWeek?: number | null;
+  currentUserId?: string | null;
 }
 
 const meses = [
@@ -67,25 +79,19 @@ const meses = [
   { value: "12", label: "Dez" },
 ];
 
+const semanaOptions = [
+  { value: "1", label: "1ª Semana" },
+  { value: "2", label: "2ª Semana" },
+  { value: "3", label: "3ª Semana" },
+  { value: "4", label: "4ª Semana" },
+  { value: "5", label: "5ª Semana" },
+];
+
 const statusOptions = [
   { value: "pendente", label: "Pendente" },
   { value: "executado", label: "Executado" },
-  { value: "nao_realizado", label: "Não Realizado" },
+  { value: "nao_realizado", label: "Não realizado" },
 ];
-
-const semanaOptions = [
-  { value: "1", label: "1ª" },
-  { value: "2", label: "2ª" },
-  { value: "3", label: "3ª" },
-  { value: "4", label: "4ª" },
-  { value: "5", label: "5ª" },
-];
-
-const currentYear = new Date().getFullYear();
-const anos = Array.from({ length: 5 }, (_, i) => ({
-  value: String(currentYear - 2 + i),
-  label: String(currentYear - 2 + i),
-}));
 
 const repeticaoOptions = [
   { value: "1", label: "1X" },
@@ -94,6 +100,12 @@ const repeticaoOptions = [
   { value: "4", label: "4X" },
   { value: "5", label: "5X" },
 ];
+
+const currentYear = new Date().getFullYear();
+const anos = Array.from({ length: 5 }, (_, i) => ({
+  value: String(currentYear - 2 + i),
+  label: String(currentYear - 2 + i),
+}));
 
 interface CompactDropdownProps {
   label: string;
@@ -110,109 +122,74 @@ function CompactDropdown({
   onChange,
   placeholder = "Todos",
 }: CompactDropdownProps) {
-  const [search, setSearch] = useState("");
-
-  const filteredOptions = search
-    ? options.filter((o) => o.label.toLowerCase().includes(search.toLowerCase()))
-    : options;
-
   const toggleOption = (value: string) => {
     if (selected.includes(value)) {
-      onChange(selected.filter((v) => v !== value));
-    } else {
-      onChange([...selected, value]);
+      onChange(selected.filter((item) => item !== value));
+      return;
     }
+
+    onChange([...selected, value]);
   };
 
   const toggleAll = () => {
     if (selected.length === options.length) {
       onChange([]);
-    } else {
-      onChange(options.map((o) => o.value));
+      return;
     }
+
+    onChange(options.map((option) => option.value));
   };
 
-  const getDisplayText = () => {
-    if (selected.length === 0) return placeholder;
-    if (selected.length === 1) {
-      return options.find((o) => o.value === selected[0])?.label || selected[0];
-    }
-    return `${selected.length} sel.`;
-  };
+  const display =
+    selected.length === 0
+      ? placeholder
+      : selected.length === 1
+        ? options.find((option) => option.value === selected[0])?.label ?? selected[0]
+        : `${selected.length} selecionados`;
 
   return (
-    <div className="flex flex-col gap-1">
-      {label && <Label className="text-xs text-muted-foreground">{label}</Label>}
+    <div className="space-y-1.5">
+      <Label className="text-xs text-muted-foreground">{label}</Label>
       <Popover modal={false}>
         <PopoverTrigger asChild>
           <Button
             variant="outline"
-            role="combobox"
             size="sm"
             className={cn(
-              "h-9 min-w-[100px] justify-between font-normal text-xs",
-              selected.length > 0 && "text-foreground border-primary/50"
+              "h-9 w-full justify-between font-normal",
+              selected.length > 0 && "border-primary/40 text-foreground"
             )}
           >
-            <span className="truncate">{getDisplayText()}</span>
-            <ChevronDown className="ml-1 h-3 w-3 shrink-0 opacity-50" />
+            <span className="truncate">{display}</span>
+            <ChevronDown className="h-3.5 w-3.5 shrink-0 opacity-50" />
           </Button>
         </PopoverTrigger>
-        <PopoverContent 
-          className="w-auto min-w-[140px] p-0 bg-popover border shadow-lg z-50" 
+        <PopoverContent
           align="start"
-          onOpenAutoFocus={(e) => e.preventDefault()}
+          className="w-[220px] p-2"
+          onOpenAutoFocus={(event) => event.preventDefault()}
         >
-          {options.length > 5 && (
-            <div className="p-1.5 border-b">
-              <div className="relative">
-                <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3 w-3 text-muted-foreground" />
-                <Input
-                  placeholder="Pesquisar..."
-                  value={search}
-                  onChange={(e) => setSearch(e.target.value)}
-                  className="h-7 pl-7 text-xs"
-                  onMouseDown={(e) => e.stopPropagation()}
-                />
-              </div>
-            </div>
-          )}
-          <div className="max-h-48 overflow-y-auto p-1.5 space-y-0.5">
-            {!search && (
-              <>
-                <div
-                  className="flex items-center gap-2 px-2 py-1.5 rounded cursor-pointer hover:bg-muted text-xs"
-                  onMouseDown={(e) => e.preventDefault()}
-                  onClick={(e) => { e.preventDefault(); e.stopPropagation(); toggleAll(); }}
-                >
-                  <Checkbox checked={selected.length === options.length} className="pointer-events-none h-3.5 w-3.5" />
-                  <span className="font-medium">
-                    {selected.length === options.length ? "Desmarcar todos" : "Selecionar todos"}
-                  </span>
-                </div>
-                <div className="border-t my-0.5" />
-              </>
-            )}
-            {filteredOptions.length === 0 && (
-              <div className="text-xs text-muted-foreground text-center py-2">Nenhum resultado</div>
-            )}
-            {filteredOptions.map((option) => (
-              <div
+          <div className="mb-2 flex items-center justify-between">
+            <span className="text-xs font-medium text-muted-foreground">{label}</span>
+            <button
+              type="button"
+              onClick={toggleAll}
+              className="text-[11px] font-medium text-primary"
+            >
+              {selected.length === options.length ? "Limpar" : "Todos"}
+            </button>
+          </div>
+          <div className="space-y-1">
+            {options.map((option) => (
+              <button
                 key={option.value}
-                className="flex items-center gap-2 px-2 py-1.5 rounded cursor-pointer hover:bg-muted text-xs"
-                onMouseDown={(e) => e.preventDefault()}
-                onClick={(e) => {
-                  e.preventDefault();
-                  e.stopPropagation();
-                  toggleOption(option.value);
-                }}
+                type="button"
+                onClick={() => toggleOption(option.value)}
+                className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm hover:bg-muted"
               >
-                <Checkbox
-                  checked={selected.includes(option.value)}
-                  className="pointer-events-none h-3.5 w-3.5"
-                />
+                <Checkbox checked={selected.includes(option.value)} className="pointer-events-none h-3.5 w-3.5" />
                 <span>{option.label}</span>
-              </div>
+              </button>
             ))}
           </div>
         </PopoverContent>
@@ -221,6 +198,16 @@ function CompactDropdown({
   );
 }
 
+type ArrayFilterKey =
+  | "responsaveis"
+  | "setores"
+  | "meses"
+  | "anos"
+  | "semanas"
+  | "statusResponsavel"
+  | "statusGestor"
+  | "repeticoes";
+
 export default function APTHorizontalFilters({
   profiles,
   setores,
@@ -228,10 +215,33 @@ export default function APTHorizontalFilters({
   onFiltersChange,
   onClearFilters,
   showResponsavelFilter = true,
+  currentWeek,
+  suggestedWeek = null,
+  currentUserId = null,
 }: APTHorizontalFiltersProps) {
-  // Auto-apply: every change immediately propagates upward
   const update = <K extends keyof MultiFilters>(key: K, value: MultiFilters[K]) => {
     onFiltersChange({ ...filters, [key]: value });
+  };
+
+  const updateMany = (patch: Partial<MultiFilters>) => {
+    onFiltersChange({ ...filters, ...patch });
+  };
+
+  const toggleValue = (key: ArrayFilterKey, value: string) => {
+    const current = filters[key];
+    update(
+      key,
+      (current.includes(value)
+        ? current.filter((item) => item !== value)
+        : [...current, value]) as MultiFilters[ArrayFilterKey]
+    );
+  };
+
+  const setExclusive = (key: ArrayFilterKey, values: string[]) => {
+    const current = filters[key];
+    const normalizedCurrent = [...current].sort().join("|");
+    const normalizedNext = [...values].sort().join("|");
+    update(key, (normalizedCurrent === normalizedNext ? [] : values) as MultiFilters[ArrayFilterKey]);
   };
 
   const hasActiveFilters =
@@ -247,184 +257,383 @@ export default function APTHorizontalFilters({
     filters.urgente ||
     filters.prioridade;
 
-  const responsavelOptions = profiles.map((p) => ({
-    value: p.user_id,
-    label: p.nome,
-  }));
-
-  const setorOptions = setores.map((s) => ({
-    value: s.id,
-    label: s.nome,
-  }));
-
-  // Build the "active chips" list
-  type Chip = { key: string; label: string; onRemove: () => void; tone?: "destructive" | "warning" };
-  const chips: Chip[] = [];
-  filters.meses.forEach((m) => {
-    const opt = meses.find((o) => o.value === m);
-    chips.push({ key: `mes-${m}`, label: `Mês: ${opt?.label || m}`, onRemove: () => update("meses", filters.meses.filter((x) => x !== m)) });
-  });
-  filters.anos.forEach((a) => {
-    chips.push({ key: `ano-${a}`, label: `Ano: ${a}`, onRemove: () => update("anos", filters.anos.filter((x) => x !== a)) });
-  });
-  filters.responsaveis.forEach((r) => {
-    const opt = responsavelOptions.find((o) => o.value === r);
-    chips.push({ key: `resp-${r}`, label: `Resp: ${opt?.label || "—"}`, onRemove: () => update("responsaveis", filters.responsaveis.filter((x) => x !== r)) });
-  });
-  filters.setores.forEach((s) => {
-    const opt = setorOptions.find((o) => o.value === s);
-    chips.push({ key: `set-${s}`, label: `Setor: ${opt?.label || "—"}`, onRemove: () => update("setores", filters.setores.filter((x) => x !== s)) });
-  });
-  filters.semanas.forEach((w) => chips.push({ key: `sem-${w}`, label: `${w}ª semana`, onRemove: () => update("semanas", filters.semanas.filter((x) => x !== w)) }));
-  filters.repeticoes.forEach((r) => chips.push({ key: `rep-${r}`, label: `Rep. ${r}x`, onRemove: () => update("repeticoes", filters.repeticoes.filter((x) => x !== r)) }));
-  filters.statusResponsavel.forEach((s) => {
-    const opt = statusOptions.find((o) => o.value === s);
-    chips.push({ key: `srs-${s}`, label: `Feito: ${opt?.label || s}`, onRemove: () => update("statusResponsavel", filters.statusResponsavel.filter((x) => x !== s)) });
-  });
-  filters.statusGestor.forEach((s) => {
-    const opt = statusOptions.find((o) => o.value === s);
-    chips.push({ key: `sgs-${s}`, label: `Aprovado: ${opt?.label || s}`, onRemove: () => update("statusGestor", filters.statusGestor.filter((x) => x !== s)) });
-  });
-  if (filters.urgente) chips.push({ key: "urg", label: "Urgente", tone: "destructive", onRemove: () => update("urgente", false) });
-  if (filters.prioridade) chips.push({ key: "pri", label: "Prioridade", tone: "warning", onRemove: () => update("prioridade", false) });
-  if (filters.busca) chips.push({ key: "busca", label: `“${filters.busca}”`, onRemove: () => update("busca", "") });
-
   const advancedActiveCount =
-    filters.semanas.length +
+    filters.setores.length +
+    filters.anos.length +
     filters.repeticoes.length +
-    filters.statusResponsavel.length +
-    filters.statusGestor.length +
     (filters.urgente ? 1 : 0) +
     (filters.prioridade ? 1 : 0);
 
+  const responsavelOptions = profiles.map((profile) => ({
+    value: profile.user_id,
+    label: profile.nome,
+  }));
+
+  const setorOptions = setores.map((setor) => ({
+    value: setor.id,
+    label: setor.nome,
+  }));
+
+  const isMyQueueActive =
+    !!currentUserId &&
+    filters.responsaveis.length === 1 &&
+    filters.responsaveis[0] === currentUserId;
+  const isCurrentWeekActive =
+    filters.semanas.length === 1 &&
+    filters.semanas[0] === String(currentWeek);
+  const isSuggestedWeekActive =
+    suggestedWeek !== null &&
+    filters.semanas.length === 1 &&
+    filters.semanas[0] === String(suggestedWeek);
+  const isPendingOnlyActive =
+    filters.statusResponsavel.length === 1 &&
+    filters.statusResponsavel[0] === "pendente" &&
+    filters.statusGestor.length === 0;
+  const isWaitingApprovalActive =
+    filters.statusGestor.length === 1 &&
+    filters.statusGestor[0] === "pendente" &&
+    filters.statusResponsavel.length === 2 &&
+    filters.statusResponsavel.includes("executado") &&
+    filters.statusResponsavel.includes("nao_realizado");
+
   return (
-    <div className="bg-card border rounded-xl p-2.5 mb-3 shadow-xs">
-      {/* Compact essentials row */}
-      <div className="flex flex-wrap items-center gap-2">
-        {/* Search */}
-        <div className="relative flex-1 min-w-[200px] max-w-[340px]">
-          <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+    <div className="rounded-2xl border border-border/70 bg-card/95 p-3 shadow-sm backdrop-blur">
+      <div className="flex items-center gap-2">
+        <div className="relative min-w-[260px] flex-1">
+          <Search className="absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
           <Input
-            placeholder="Buscar demanda..."
+            placeholder="Buscar demanda, observação ou palavra-chave..."
             value={filters.busca}
-            onChange={(e) => update("busca", e.target.value)}
-            className="h-9 pl-8 text-xs bg-background"
+            onChange={(event) => update("busca", event.target.value)}
+            className="h-10 rounded-xl border-border/70 bg-background pl-9"
           />
         </div>
 
-        <div className="flex items-center gap-1.5">
-          <CompactDropdown label="" options={meses} selected={filters.meses} onChange={(v) => update("meses", v)} placeholder="Mês" />
-          <CompactDropdown label="" options={anos} selected={filters.anos} onChange={(v) => update("anos", v)} placeholder="Ano" />
-          {showResponsavelFilter && (
-            <CompactDropdown label="" options={responsavelOptions} selected={filters.responsaveis} onChange={(v) => update("responsaveis", v)} placeholder="Responsável" />
-          )}
-          <CompactDropdown label="" options={setorOptions} selected={filters.setores} onChange={(v) => update("setores", v)} placeholder="Setor" />
-        </div>
+        <div className="flex items-center gap-2">
+          <CompactDropdown
+            label="Mês"
+            options={meses}
+            selected={filters.meses}
+            onChange={(value) => update("meses", value)}
+            placeholder="Mês"
+          />
 
-        {/* Toggles: Urgente / Prioridade as pill toggles */}
-        <div className="flex items-center gap-1.5">
-          <button
-            type="button"
-            onClick={() => update("urgente", !filters.urgente)}
-            className={cn(
-              "inline-flex items-center gap-1 h-9 px-2.5 rounded-md border text-xs font-medium transition-colors",
-              filters.urgente
-                ? "bg-destructive/10 border-destructive/40 text-destructive"
-                : "bg-background border-border text-muted-foreground hover:text-foreground"
-            )}
-          >
-            <Flame className="h-3.5 w-3.5" /> Urgente
-          </button>
-          <button
-            type="button"
-            onClick={() => update("prioridade", !filters.prioridade)}
-            className={cn(
-              "inline-flex items-center gap-1 h-9 px-2.5 rounded-md border text-xs font-medium transition-colors",
-              filters.prioridade
-                ? "bg-warning/10 border-warning/40 text-warning"
-                : "bg-background border-border text-muted-foreground hover:text-foreground"
-            )}
-          >
-            <Star className="h-3.5 w-3.5" /> Prioridade
-          </button>
-        </div>
+          <Sheet>
+            <SheetTrigger asChild>
+              <Button variant="outline" size="sm" className="h-10 gap-2 rounded-xl">
+                <SlidersHorizontal className="h-3.5 w-3.5" />
+                Mais filtros
+                {advancedActiveCount > 0 && (
+                  <span className="rounded-full bg-primary px-1.5 py-0.5 text-[10px] font-semibold text-primary-foreground">
+                    {advancedActiveCount}
+                  </span>
+                )}
+              </Button>
+            </SheetTrigger>
+            <SheetContent side="right" className="w-[360px] sm:w-[400px]">
+              <SheetHeader>
+                <SheetTitle>Filtros avançados</SheetTitle>
+              </SheetHeader>
+              <div className="mt-5 space-y-4">
+                <CompactDropdown
+                  label="Ano"
+                  options={anos}
+                  selected={filters.anos}
+                  onChange={(value) => update("anos", value)}
+                  placeholder="Ano atual"
+                />
+                <CompactDropdown
+                  label="Setor"
+                  options={setorOptions}
+                  selected={filters.setores}
+                  onChange={(value) => update("setores", value)}
+                  placeholder="Todos os setores"
+                />
+                <CompactDropdown
+                  label="Repetições"
+                  options={repeticaoOptions}
+                  selected={filters.repeticoes}
+                  onChange={(value) => update("repeticoes", value)}
+                  placeholder="Todas"
+                />
+                <div className="space-y-2">
+                  <Label className="text-xs text-muted-foreground">Bandeiras</Label>
+                  <div className="flex flex-wrap gap-2">
+                    <button
+                      type="button"
+                      onClick={() => update("urgente", !filters.urgente)}
+                      className={cn(
+                        "rounded-xl border px-3 py-2 text-sm font-medium transition-colors",
+                        filters.urgente
+                          ? "border-destructive/40 bg-destructive/10 text-destructive"
+                          : "border-border/70 bg-background text-muted-foreground hover:text-foreground"
+                      )}
+                    >
+                      Urgente
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => update("prioridade", !filters.prioridade)}
+                      className={cn(
+                        "rounded-xl border px-3 py-2 text-sm font-medium transition-colors",
+                        filters.prioridade
+                          ? "border-warning/40 bg-warning/10 text-warning"
+                          : "border-border/70 bg-background text-muted-foreground hover:text-foreground"
+                      )}
+                    >
+                      Prioridade
+                    </button>
+                  </div>
+                </div>
+                {hasActiveFilters && (
+                  <Button
+                    variant="outline"
+                    className="w-full gap-2 text-destructive"
+                    onClick={onClearFilters}
+                  >
+                    <X className="h-3.5 w-3.5" />
+                    Limpar todos os filtros
+                  </Button>
+                )}
+              </div>
+            </SheetContent>
+          </Sheet>
 
-        {/* More filters drawer */}
-        <Sheet>
-          <SheetTrigger asChild>
-            <Button variant="outline" size="sm" className="h-9 text-xs gap-1.5">
-              <SlidersHorizontal className="h-3.5 w-3.5" />
-              Mais filtros
-              {advancedActiveCount > 0 && (
-                <span className="ml-1 rounded-full bg-primary text-primary-foreground text-[10px] font-semibold px-1.5 py-0.5 leading-none">
-                  {advancedActiveCount}
-                </span>
-              )}
+          {hasActiveFilters && (
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-10 gap-1.5 rounded-xl text-muted-foreground hover:text-destructive"
+              onClick={onClearFilters}
+            >
+              <X className="h-3.5 w-3.5" />
+              Limpar
             </Button>
-          </SheetTrigger>
-          <SheetContent side="right" className="w-[340px] sm:w-[380px]">
-            <SheetHeader>
-              <SheetTitle>Filtros avançados</SheetTitle>
-            </SheetHeader>
-            <div className="mt-4 space-y-4">
-              <div className="space-y-1.5">
-                <Label className="text-xs text-muted-foreground">Semana</Label>
-                <CompactDropdown label="" options={semanaOptions} selected={filters.semanas} onChange={(v) => update("semanas", v)} placeholder="Todas" />
-              </div>
-              <div className="space-y-1.5">
-                <Label className="text-xs text-muted-foreground">Repetições</Label>
-                <CompactDropdown label="" options={repeticaoOptions} selected={filters.repeticoes} onChange={(v) => update("repeticoes", v)} placeholder="Todas" />
-              </div>
-              <div className="space-y-1.5">
-                <Label className="text-xs text-muted-foreground">Status Feito</Label>
-                <CompactDropdown label="" options={statusOptions} selected={filters.statusResponsavel} onChange={(v) => update("statusResponsavel", v)} placeholder="Todos" />
-              </div>
-              <div className="space-y-1.5">
-                <Label className="text-xs text-muted-foreground">Status Aprovado</Label>
-                <CompactDropdown label="" options={filters.statusGestor ? statusOptions : statusOptions} selected={filters.statusGestor} onChange={(v) => update("statusGestor", v)} placeholder="Todos" />
-              </div>
-              {hasActiveFilters && (
-                <Button variant="outline" size="sm" className="w-full gap-1.5 text-destructive" onClick={onClearFilters}>
-                  <X className="h-3.5 w-3.5" /> Limpar todos os filtros
-                </Button>
-              )}
-            </div>
-          </SheetContent>
-        </Sheet>
-
-        {hasActiveFilters && (
-          <Button
-            variant="ghost"
-            size="sm"
-            className="h-9 text-xs text-muted-foreground hover:text-destructive gap-1 ml-auto"
-            onClick={onClearFilters}
-          >
-            <X className="h-3.5 w-3.5" />
-            Limpar
-          </Button>
-        )}
+          )}
+        </div>
       </div>
 
-      {/* Active filter chips */}
-      {chips.length > 0 && (
-        <div className="flex flex-wrap items-center gap-1.5 mt-2 pt-2 border-t border-border/60">
-          {chips.map((c) => (
+      <div className="mt-3 grid gap-3 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)]">
+        <div className="rounded-2xl border border-border/60 bg-background/70 p-3">
+          <div className="mb-2 flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+            <Clock3 className="h-3.5 w-3.5" />
+            Visões rápidas
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {currentUserId && (
+              <button
+                type="button"
+                onClick={() => setExclusive("responsaveis", [currentUserId])}
+                className={cn(
+                  "rounded-xl border px-3 py-2 text-sm font-medium transition-colors",
+                  isMyQueueActive
+                    ? "border-primary bg-primary text-primary-foreground"
+                    : "border-border/70 bg-background text-muted-foreground hover:text-foreground"
+                )}
+              >
+                <UserRound className="mr-1.5 inline h-3.5 w-3.5" />
+                Minha fila
+              </button>
+            )}
             <button
-              key={c.key}
-              onClick={c.onRemove}
+              type="button"
+              onClick={() => setExclusive("semanas", [String(currentWeek)])}
               className={cn(
-                "group inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[11px] transition-colors",
-                c.tone === "destructive" && "bg-destructive/10 border-destructive/30 text-destructive",
-                c.tone === "warning" && "bg-warning/10 border-warning/30 text-warning",
-                !c.tone && "bg-muted border-border text-foreground hover:bg-muted/70"
+                "rounded-xl border px-3 py-2 text-sm font-medium transition-colors",
+                isCurrentWeekActive
+                  ? "border-primary bg-primary text-primary-foreground"
+                  : "border-border/70 bg-background text-muted-foreground hover:text-foreground"
               )}
             >
-              {c.label}
-              <X className="h-2.5 w-2.5 opacity-60 group-hover:opacity-100" />
+              <CalendarDays className="mr-1.5 inline h-3.5 w-3.5" />
+              Semana atual
             </button>
-          ))}
+            {suggestedWeek !== null && (
+              <button
+                type="button"
+                onClick={() => setExclusive("semanas", [String(suggestedWeek)])}
+                className={cn(
+                  "rounded-xl border px-3 py-2 text-sm font-medium transition-colors",
+                  isSuggestedWeekActive
+                    ? "border-primary bg-primary text-primary-foreground"
+                    : "border-border/70 bg-background text-muted-foreground hover:text-foreground"
+                )}
+              >
+                Foco APT: {suggestedWeek}ª semana
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={() => setExclusive("statusResponsavel", ["pendente"])}
+              className={cn(
+                "rounded-xl border px-3 py-2 text-sm font-medium transition-colors",
+                isPendingOnlyActive
+                  ? "border-primary bg-primary text-primary-foreground"
+                  : "border-border/70 bg-background text-muted-foreground hover:text-foreground"
+              )}
+            >
+              Pendentes
+            </button>
+            <button
+              type="button"
+              onClick={() =>
+                updateMany({
+                  statusResponsavel:
+                    isWaitingApprovalActive ? [] : ["executado", "nao_realizado"],
+                  statusGestor: isWaitingApprovalActive ? [] : ["pendente"],
+                })
+              }
+              className={cn(
+                "rounded-xl border px-3 py-2 text-sm font-medium transition-colors",
+                isWaitingApprovalActive
+                  ? "border-primary bg-primary text-primary-foreground"
+                  : "border-border/70 bg-background text-muted-foreground hover:text-foreground"
+              )}
+            >
+              <CheckCircle2 className="mr-1.5 inline h-3.5 w-3.5" />
+              Aguardando aprovação
+            </button>
+          </div>
         </div>
-      )}
+
+        <div className="rounded-2xl border border-border/60 bg-background/70 p-3">
+          <div className="mb-2 flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+            <Users className="h-3.5 w-3.5" />
+            Responsáveis
+          </div>
+          {showResponsavelFilter ? (
+            <div className="overflow-x-auto">
+              <div className="flex min-w-max gap-2 pr-1">
+                {responsavelOptions.map((option) => {
+                  const firstName = option.label.split(" ")[0];
+                  const active = filters.responsaveis.includes(option.value);
+
+                  return (
+                    <button
+                      key={option.value}
+                      type="button"
+                      onClick={() => toggleValue("responsaveis", option.value)}
+                      className={cn(
+                        "rounded-xl border px-3 py-2 text-sm font-medium transition-colors",
+                        active
+                          ? "border-primary bg-primary text-primary-foreground"
+                          : "border-border/70 bg-background text-muted-foreground hover:text-foreground"
+                      )}
+                    >
+                      {firstName}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          ) : (
+            <p className="text-sm text-muted-foreground">
+              A lista já está focada no colaborador selecionado.
+            </p>
+          )}
+        </div>
+      </div>
+
+      <div className="mt-3 grid gap-3 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
+        <div className="rounded-2xl border border-border/60 bg-background/70 p-3">
+          <div className="mb-2 flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+            Semanas
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {semanaOptions.map((option) => {
+              const active = filters.semanas.includes(option.value);
+
+              return (
+                <button
+                  key={option.value}
+                  type="button"
+                  onClick={() => toggleValue("semanas", option.value)}
+                  className={cn(
+                    "rounded-xl border px-3 py-2 text-sm font-medium transition-colors",
+                    active
+                      ? "border-primary bg-primary text-primary-foreground"
+                      : "border-border/70 bg-background text-muted-foreground hover:text-foreground"
+                  )}
+                >
+                  {option.label}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        <div className="rounded-2xl border border-border/60 bg-background/70 p-3">
+          <div className="mb-2 flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+            Status
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <button
+              type="button"
+              onClick={() => setExclusive("statusResponsavel", ["pendente"])}
+              className={cn(
+                "rounded-xl border px-3 py-2 text-sm font-medium transition-colors",
+                filters.statusResponsavel.length === 1 && filters.statusResponsavel[0] === "pendente"
+                  ? "border-primary bg-primary text-primary-foreground"
+                  : "border-border/70 bg-background text-muted-foreground hover:text-foreground"
+              )}
+            >
+              Pendentes
+            </button>
+            <button
+              type="button"
+              onClick={() => setExclusive("statusResponsavel", ["executado"])}
+              className={cn(
+                "rounded-xl border px-3 py-2 text-sm font-medium transition-colors",
+                filters.statusResponsavel.length === 1 && filters.statusResponsavel[0] === "executado"
+                  ? "border-primary bg-primary text-primary-foreground"
+                  : "border-border/70 bg-background text-muted-foreground hover:text-foreground"
+              )}
+            >
+              Feitas
+            </button>
+            <button
+              type="button"
+              onClick={() => setExclusive("statusResponsavel", ["nao_realizado"])}
+              className={cn(
+                "rounded-xl border px-3 py-2 text-sm font-medium transition-colors",
+                filters.statusResponsavel.length === 1 && filters.statusResponsavel[0] === "nao_realizado"
+                  ? "border-primary bg-primary text-primary-foreground"
+                  : "border-border/70 bg-background text-muted-foreground hover:text-foreground"
+              )}
+            >
+              Não feitas
+            </button>
+            {showResponsavelFilter && (
+              <>
+                <button
+                  type="button"
+                  onClick={() => setExclusive("statusGestor", ["executado"])}
+                  className={cn(
+                    "rounded-xl border px-3 py-2 text-sm font-medium transition-colors",
+                    filters.statusGestor.length === 1 && filters.statusGestor[0] === "executado"
+                      ? "border-primary bg-primary text-primary-foreground"
+                      : "border-border/70 bg-background text-muted-foreground hover:text-foreground"
+                  )}
+                >
+                  Aprovadas
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setExclusive("statusGestor", ["pendente"])}
+                  className={cn(
+                    "rounded-xl border px-3 py-2 text-sm font-medium transition-colors",
+                    filters.statusGestor.length === 1 && filters.statusGestor[0] === "pendente"
+                      ? "border-primary bg-primary text-primary-foreground"
+                      : "border-border/70 bg-background text-muted-foreground hover:text-foreground"
+                  )}
+                >
+                  Aguardando gestor
+                </button>
+              </>
+            )}
+          </div>
+        </div>
+      </div>
     </div>
   );
 }

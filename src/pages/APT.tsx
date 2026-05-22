@@ -1,10 +1,11 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useSearchParams } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { useDemandas } from "@/hooks/useDemandas";
 import { useMonthSettings } from "@/hooks/useMonthSettings";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useMomentoAPT } from "@/hooks/useMomentoAPT";
+import { supabase } from "@/integrations/supabase/client";
 import AppLayout from "@/components/layout/AppLayout";
 import APTHorizontalFilters from "@/components/apt/APTHorizontalFilters";
 import APTFilters from "@/components/apt/APTFilters";
@@ -178,10 +179,40 @@ export default function APT() {
   
   // Top Setores card filter (client-side only, doesn't affect DB query)
   const [activeTopSetor, setActiveTopSetor] = useState<string | null>(null);
+  const [suggestedWeek, setSuggestedWeek] = useState<number | null>(null);
   
   const handleTopSetorClick = (setorId: string | null) => {
     setActiveTopSetor(setorId);
   };
+
+  const currentWeek = useMemo(() => {
+    const today = new Date();
+    return Math.min(5, Math.ceil(today.getDate() / 7));
+  }, []);
+
+  useEffect(() => {
+    const targetMes = viewedMes ?? new Date().getMonth() + 1;
+    const targetAno = viewedAno ?? new Date().getFullYear();
+
+    const fetchSuggestedWeek = async () => {
+      const { data, error } = await supabase
+        .from("checklist_timers")
+        .select("semana, stopped_at, paused_at, started_at")
+        .eq("mes", targetMes)
+        .eq("ano", targetAno)
+        .order("started_at", { ascending: false });
+
+      if (error || !data || data.length === 0) {
+        setSuggestedWeek(null);
+        return;
+      }
+
+      const activeTimer = data.find((timer) => !timer.stopped_at);
+      setSuggestedWeek(activeTimer?.semana ?? data[0].semana ?? null);
+    };
+
+    fetchSuggestedWeek();
+  }, [viewedMes, viewedAno]);
 
   // Apply the top setor card filter client-side
   const displayedDemandas = activeTopSetor
@@ -293,7 +324,7 @@ export default function APT() {
         {urlTab === "execucao" && (
           <div className="mt-0">
             {/* Status badges and actions */}
-            <div className="mb-3 md:mb-4 flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+            <div className="mb-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
               {/* Status badges */}
               <div className="flex flex-wrap items-center gap-2">
                 {visiblePendingCount > 0 && (
@@ -472,14 +503,19 @@ export default function APT() {
 
             {/* Horizontal Filters - Always visible on desktop */}
             <div className="hidden lg:block">
-              <APTHorizontalFilters
-                profiles={profiles}
-                setores={setores}
-                filters={filters}
-                onFiltersChange={(f) => { setFilters(f); setActiveTopSetor(null); }}
-                onClearFilters={() => { clearFilters(); setActiveTopSetor(null); }}
-                showResponsavelFilter={isGestorOrAdmin}
-              />
+              <div className="sticky top-[58px] z-30 -mx-2 bg-background/95 px-2 pb-3 pt-1 backdrop-blur supports-[backdrop-filter]:bg-background/85 md:-mx-4 md:px-4 lg:-mx-6 lg:px-6">
+                <APTHorizontalFilters
+                  profiles={profiles}
+                  setores={setores}
+                  filters={filters}
+                  onFiltersChange={(f) => { setFilters(f); setActiveTopSetor(null); }}
+                  onClearFilters={() => { clearFilters(); setActiveTopSetor(null); }}
+                  showResponsavelFilter={isGestorOrAdmin}
+                  currentWeek={currentWeek}
+                  suggestedWeek={suggestedWeek}
+                  currentUserId={user?.id ?? null}
+                />
+              </div>
             </div>
 
             {/* Mobile filters */}
