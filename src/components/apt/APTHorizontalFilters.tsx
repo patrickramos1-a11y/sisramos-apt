@@ -1,13 +1,12 @@
+import { useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
-  DropdownMenu,
-  DropdownMenuCheckboxItem,
-  DropdownMenuContent,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   Sheet,
   SheetContent,
@@ -20,8 +19,10 @@ import {
   CheckCircle2,
   ChevronDown,
   Clock3,
+  Flame,
   Search,
   SlidersHorizontal,
+  Star,
   UserRound,
   X,
 } from "lucide-react";
@@ -90,11 +91,11 @@ const meses = [
 ];
 
 const semanaOptions = [
-  { value: "1", label: "1a Semana" },
-  { value: "2", label: "2a Semana" },
-  { value: "3", label: "3a Semana" },
-  { value: "4", label: "4a Semana" },
-  { value: "5", label: "5a Semana" },
+  { value: "1", label: "1a", shortLabel: "Primeira", tone: "bg-emerald-50 border-emerald-200 text-emerald-800 hover:bg-emerald-100", activeTone: "border-emerald-500 bg-emerald-500 text-white shadow-sm" },
+  { value: "2", label: "2a", shortLabel: "Segunda", tone: "bg-sky-50 border-sky-200 text-sky-800 hover:bg-sky-100", activeTone: "border-sky-500 bg-sky-500 text-white shadow-sm" },
+  { value: "3", label: "3a", shortLabel: "Terceira", tone: "bg-amber-50 border-amber-200 text-amber-900 hover:bg-amber-100", activeTone: "border-amber-500 bg-amber-500 text-white shadow-sm" },
+  { value: "4", label: "4a", shortLabel: "4a", tone: "bg-violet-50 border-violet-200 text-violet-800 hover:bg-violet-100", activeTone: "border-violet-500 bg-violet-500 text-white shadow-sm" },
+  { value: "5", label: "5a", shortLabel: "5a", tone: "bg-rose-50 border-rose-200 text-rose-800 hover:bg-rose-100", activeTone: "border-rose-500 bg-rose-500 text-white shadow-sm" },
 ];
 
 const currentYear = new Date().getFullYear();
@@ -198,6 +199,8 @@ export default function APTHorizontalFilters({
   suggestedWeek = null,
   currentUserId = null,
 }: APTHorizontalFiltersProps) {
+  const [setorSearch, setSetorSearch] = useState("");
+
   const update = <K extends keyof MultiFilters>(key: K, value: MultiFilters[K]) => {
     onFiltersChange({ ...filters, [key]: value });
   };
@@ -265,6 +268,12 @@ export default function APTHorizontalFilters({
     style: collaboratorStyles[index % collaboratorStyles.length],
   }));
 
+  const filteredSetores = useMemo(() => {
+    const query = setorSearch.trim().toLowerCase();
+    if (!query) return setores;
+    return setores.filter((setor) => setor.nome.toLowerCase().includes(query));
+  }, [setorSearch, setores]);
+
   const setorSummary =
     filters.setores.length === 0
       ? "Setores"
@@ -288,7 +297,8 @@ export default function APTHorizontalFilters({
         </div>
 
         <div className="min-w-0 flex-1 overflow-x-auto">
-          <div className="flex min-w-max items-center gap-1.5 pr-1">
+          <div className="flex min-w-max items-center gap-2 pr-1">
+            <div className="flex items-center gap-1.5 rounded-full border border-border/60 bg-muted/20 px-1.5 py-1">
             {meses.map((mes) => (
               <FilterPill
                 key={mes.value}
@@ -299,10 +309,15 @@ export default function APTHorizontalFilters({
                 {mes.label}
               </FilterPill>
             ))}
+            </div>
 
+            <div className="h-7 w-px shrink-0 bg-border/70" />
+
+            <div className="flex items-center gap-1.5 rounded-full border border-border/60 bg-muted/20 px-1.5 py-1">
             <FilterPill
               active={filters.urgente}
               tone="red"
+              icon={<Flame className={cn("h-3 w-3", filters.urgente && "fill-current")} />}
               onClick={() => update("urgente", !filters.urgente)}
             >
               Urgente
@@ -311,32 +326,78 @@ export default function APTHorizontalFilters({
             <FilterPill
               active={filters.prioridade}
               tone="amber"
+              icon={<Star className={cn("h-3 w-3", filters.prioridade && "fill-current")} />}
               onClick={() => update("prioridade", !filters.prioridade)}
             >
               Prioridade
             </FilterPill>
+            </div>
 
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
+            <div className="h-7 w-px shrink-0 bg-border/70" />
+
+            <Popover>
+              <PopoverTrigger asChild>
                 <Button variant="outline" size="sm" className="h-8 gap-1.5 rounded-full px-3">
                   {setorSummary}
                   <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />
                 </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="start" className="w-56">
-                <DropdownMenuLabel>Setores</DropdownMenuLabel>
-                <DropdownMenuSeparator />
-                {setores.map((setor) => (
-                  <DropdownMenuCheckboxItem
-                    key={setor.id}
-                    checked={filters.setores.includes(setor.id)}
-                    onCheckedChange={() => toggleValue("setores", setor.id)}
-                  >
-                    {setor.nome}
-                  </DropdownMenuCheckboxItem>
-                ))}
-              </DropdownMenuContent>
-            </DropdownMenu>
+              </PopoverTrigger>
+              <PopoverContent align="start" className="w-[280px] p-0">
+                <div className="border-b border-border/60 p-3">
+                  <p className="mb-2 text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+                    Setores
+                  </p>
+                  <div className="relative">
+                    <Search className="absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
+                    <Input
+                      placeholder="Buscar setor..."
+                      value={setorSearch}
+                      onChange={(event) => setSetorSearch(event.target.value)}
+                      className="h-8 pl-9 text-sm"
+                    />
+                  </div>
+                </div>
+
+                <ScrollArea className="max-h-64">
+                  <div className="p-2">
+                    {filteredSetores.length === 0 ? (
+                      <div className="px-2 py-4 text-sm text-muted-foreground">
+                        Nenhum setor encontrado
+                      </div>
+                    ) : (
+                      filteredSetores.map((setor) => {
+                        const active = filters.setores.includes(setor.id);
+                        return (
+                          <button
+                            key={setor.id}
+                            type="button"
+                            onClick={() => toggleValue("setores", setor.id)}
+                            className={cn(
+                              "flex w-full items-center justify-between rounded-md px-2 py-2 text-left text-sm transition-colors",
+                              active
+                                ? "bg-primary/10 text-primary"
+                                : "text-foreground hover:bg-muted"
+                            )}
+                          >
+                            <span className="truncate">{setor.nome}</span>
+                            <span
+                              className={cn(
+                                "ml-3 inline-flex h-4 w-4 shrink-0 items-center justify-center rounded border text-[10px]",
+                                active
+                                  ? "border-primary bg-primary text-primary-foreground"
+                                  : "border-border bg-background"
+                              )}
+                            >
+                              {active ? "✓" : ""}
+                            </span>
+                          </button>
+                        );
+                      })
+                    )}
+                  </div>
+                </ScrollArea>
+              </PopoverContent>
+            </Popover>
           </div>
         </div>
 
@@ -468,7 +529,7 @@ export default function APTHorizontalFilters({
         {showResponsavelFilter && (
           <div className="min-w-0">
             <SectionTitle>Colaboradores</SectionTitle>
-            <div className="flex flex-wrap gap-1.5">
+            <div className="grid grid-cols-4 gap-1.5 xl:grid-cols-5">
               {responsavelOptions.map((option) => {
                 const active = filters.responsaveis.includes(option.value);
                 return (
@@ -476,7 +537,10 @@ export default function APTHorizontalFilters({
                     key={option.value}
                     active={active}
                     tone="neutral"
-                    className={active ? option.style.active : option.style.idle}
+                    className={cn(
+                      "w-full justify-center px-2",
+                      active ? option.style.active : option.style.idle
+                    )}
                     onClick={() => toggleValue("responsaveis", option.value)}
                   >
                     {option.label.split(" ")[0]}
@@ -490,16 +554,22 @@ export default function APTHorizontalFilters({
         <div className="min-w-0">
           <SectionTitle>Semanas</SectionTitle>
           <div className="flex flex-wrap gap-1.5">
-            {semanaOptions.map((option) => (
-              <FilterPill
-                key={option.value}
-                active={filters.semanas.includes(option.value)}
-                tone="green"
-                onClick={() => toggleValue("semanas", option.value)}
-              >
-                {option.label}
-              </FilterPill>
-            ))}
+            {semanaOptions.map((option) => {
+              const active = filters.semanas.includes(option.value);
+              return (
+                <button
+                  key={option.value}
+                  type="button"
+                  onClick={() => toggleValue("semanas", option.value)}
+                  className={cn(
+                    "inline-flex h-7 min-w-[64px] items-center justify-center rounded-full border px-2.5 text-[12px] font-medium transition-colors",
+                    active ? option.activeTone : option.tone
+                  )}
+                >
+                  {option.shortLabel}
+                </button>
+              );
+            })}
           </div>
         </div>
 
