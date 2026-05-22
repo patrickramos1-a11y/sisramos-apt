@@ -40,7 +40,7 @@ import { useBulkDemandaActions } from "@/hooks/useBulkDemandaActions";
 import { cn } from "@/lib/utils";
 import FiltersBar, { ListaFilters, MESES_FULL } from "./gerenciamento/FiltersBar";
 import BulkActionsBar from "./gerenciamento/BulkActionsBar";
-import { InlinePicker, SemanasPicker } from "./gerenciamento/InlinePickers";
+import { InlinePicker } from "./gerenciamento/InlinePickers";
 
 interface Profile { id: string; user_id: string; nome: string; cor?: string | null; }
 interface Setor { id: string; nome: string; cor: string; }
@@ -584,7 +584,7 @@ export default function GerenciamentoLista({ profiles, setores, onDemandaChange 
         </TableCell>
 
         {/* Responsável */}
-        <TableCell className="py-1 w-[160px] align-top">
+        <TableCell className="py-1 w-[132px] align-top">
           <InlinePicker
             value={c.responsavel_id}
             options={profileOptions}
@@ -632,21 +632,37 @@ export default function GerenciamentoLista({ profiles, setores, onDemandaChange 
         </TableCell>
 
         {/* Semanas */}
-        <TableCell className="py-1 w-[88px] align-top">
-          <SemanasPicker
-            value={allSemanas}
-            onSelect={(semanas) => updateGroupWeeks(c, semanas)}
-            trigger={
-              <button
-                type="button"
-                onClick={(e) => e.stopPropagation()}
-                className="inline-flex h-6 items-center rounded-md border border-border/50 bg-muted/60 px-2 text-[11px] font-semibold tabular-nums text-foreground/80 hover:bg-accent"
-                title="Editar semanas"
-              >
-                {allSemanas.length > 0 ? allSemanas.join(",") : "—"}
-              </button>
-            }
-          />
+        <TableCell className="py-1 w-[180px] align-top">
+          <div className="flex flex-wrap gap-1">
+            {[1, 2, 3, 4, 5].map((semana) => {
+              const isSelected = allSemanas.includes(semana);
+
+              return (
+                <button
+                  key={semana}
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    const nextSemanas = isSelected
+                      ? allSemanas.filter((value) => value !== semana)
+                      : [...allSemanas, semana].sort((a, b) => a - b);
+
+                    if (nextSemanas.length === 0) return;
+                    void updateGroupWeeks(c, nextSemanas);
+                  }}
+                  className={cn(
+                    "h-6 min-w-6 rounded-md border px-1.5 text-[11px] font-semibold transition-colors",
+                    isSelected
+                      ? "border-primary bg-primary text-primary-foreground"
+                      : "border-border/70 bg-background text-muted-foreground hover:bg-muted hover:text-foreground"
+                  )}
+                  title={`${semana}Âª semana`}
+                >
+                  {semana}
+                </button>
+              );
+            })}
+          </div>
         </TableCell>
 
         {/* Repetições */}
@@ -813,9 +829,9 @@ export default function GerenciamentoLista({ profiles, setores, onDemandaChange 
                     <span className="h-4 w-px bg-border group-hover/desc:bg-primary/60 transition-colors" />
                   </div>
                 </TableHead>
-                <TableHead className="w-[160px] py-0"><SortBtn col="responsavel">Responsável</SortBtn></TableHead>
+                <TableHead className="w-[132px] py-0"><SortBtn col="responsavel">Responsável</SortBtn></TableHead>
                 <TableHead className="w-[140px] py-0"><SortBtn col="setor">Setor</SortBtn></TableHead>
-                <TableHead className="w-[88px] py-0"><SortBtn col="semana">Semanas</SortBtn></TableHead>
+                <TableHead className="w-[180px] py-0"><SortBtn col="semana">Semanas</SortBtn></TableHead>
                 <TableHead className="w-[52px] py-0 text-center"><SortBtn col="repeticao" align="center">Rep.</SortBtn></TableHead>
                 <TableHead className="w-[60px] py-0 text-[11px] uppercase tracking-wide text-muted-foreground font-semibold">Flags</TableHead>
                 <TableHead className="w-[56px] py-0 text-[11px] uppercase tracking-wide text-muted-foreground font-semibold">Feito</TableHead>
