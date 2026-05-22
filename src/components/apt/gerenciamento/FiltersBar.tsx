@@ -1,15 +1,20 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
-  Sheet,
-  SheetContent,
-  SheetHeader,
-  SheetTitle,
-  SheetTrigger,
-} from "@/components/ui/sheet";
-import { Search, SlidersHorizontal, X, Flame, Star, CalendarRange } from "lucide-react";
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { ChevronDown, Flame, Search, Star, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export interface ListaFilters {
@@ -35,6 +40,39 @@ const MESES_FULL = [
   "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro",
 ];
 
+const SEMANA_OPTIONS = [
+  {
+    value: "1",
+    label: `1\u00AA`,
+    tone: "border-emerald-200 bg-emerald-50/80 text-emerald-900 hover:bg-emerald-100",
+    activeTone: "border-emerald-500 bg-emerald-500 text-white shadow-sm",
+  },
+  {
+    value: "2",
+    label: `2\u00AA`,
+    tone: "border-sky-200 bg-sky-50/80 text-sky-900 hover:bg-sky-100",
+    activeTone: "border-sky-500 bg-sky-500 text-white shadow-sm",
+  },
+  {
+    value: "3",
+    label: `3\u00AA`,
+    tone: "border-amber-200 bg-amber-50/80 text-amber-900 hover:bg-amber-100",
+    activeTone: "border-amber-500 bg-amber-500 text-white shadow-sm",
+  },
+  {
+    value: "4",
+    label: `4\u00AA`,
+    tone: "border-violet-200 bg-violet-50/80 text-violet-900 hover:bg-violet-100",
+    activeTone: "border-violet-500 bg-violet-500 text-white shadow-sm",
+  },
+  {
+    value: "5",
+    label: `5\u00AA`,
+    tone: "border-rose-200 bg-rose-50/80 text-rose-900 hover:bg-rose-100",
+    activeTone: "border-rose-500 bg-rose-500 text-white shadow-sm",
+  },
+];
+
 interface Props {
   filters: ListaFilters;
   onChange: (next: ListaFilters) => void;
@@ -56,12 +94,14 @@ function FilterPill({
   children,
   tone = "neutral",
   icon,
+  className,
 }: {
   active: boolean;
   onClick: () => void;
   children: React.ReactNode;
   tone?: "neutral" | "blue" | "green" | "amber" | "red";
   icon?: React.ReactNode;
+  className?: string;
 }) {
   const tones = {
     neutral: active
@@ -87,7 +127,8 @@ function FilterPill({
       onClick={onClick}
       className={cn(
         "inline-flex h-7 items-center gap-1.5 rounded-full border px-2.5 text-[12px] font-medium transition-colors",
-        tones[tone]
+        tones[tone],
+        className
       )}
     >
       {icon}
@@ -97,22 +138,9 @@ function FilterPill({
 }
 
 export default function FiltersBar({ filters, onChange, profileOptions, setorOptions }: Props) {
-  const [sheetOpen, setSheetOpen] = useState(false);
+  const [setorSearch, setSetorSearch] = useState("");
 
   const update = (patch: Partial<ListaFilters>) => onChange({ ...filters, ...patch });
-
-  const toggleMes = (mes: string) => {
-    if (filters.todosOsMeses) {
-      update({ todosOsMeses: false, meses: [mes] });
-      return;
-    }
-
-    update({
-      meses: filters.meses.includes(mes)
-        ? filters.meses.filter((value) => value !== mes)
-        : [...filters.meses, mes],
-    });
-  };
 
   const toggleSemana = (semana: string) =>
     update({
@@ -164,20 +192,28 @@ export default function FiltersBar({ filters, onChange, profileOptions, setorOpt
     filters.urgente ||
     filters.prioridade ||
     filters.pendenteAprovacao ||
-    filters.semanas.length > 0;
+    filters.semanas.length > 0 ||
+    filters.todosOsMeses;
 
-  const advancedActiveCount =
-    filters.responsaveis.length +
-    filters.setores.length +
-    filters.repeticoes.length +
-    filters.semanas.length +
-    (filters.urgente ? 1 : 0) +
-    (filters.prioridade ? 1 : 0);
+  const filteredSetores = useMemo(() => {
+    const query = setorSearch.trim().toLowerCase();
+    if (!query) return setorOptions;
+    return setorOptions.filter((setor) => setor.label.toLowerCase().includes(query));
+  }, [setorOptions, setorSearch]);
+
+  const setorSummary =
+    filters.setores.length === 0
+      ? "Setores"
+      : filters.setores.length === 1
+        ? setorOptions.find((setor) => setor.value === filters.setores[0])?.label ?? "1 setor"
+        : `${filters.setores.length} setores`;
+
+  const monthValue = filters.todosOsMeses ? "all" : filters.meses[0] ?? "";
 
   return (
     <div className="space-y-2.5 rounded-xl border bg-card p-2.5">
       <div className="flex flex-wrap items-center gap-2">
-        <div className="relative min-w-[190px] max-w-[300px] flex-1">
+        <div className="relative min-w-[180px] max-w-[260px] flex-1">
           <Search className="absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
           <Input
             placeholder="Buscar demanda..."
@@ -187,41 +223,32 @@ export default function FiltersBar({ filters, onChange, profileOptions, setorOpt
           />
         </div>
 
-        <div className="min-w-0 flex-1 overflow-x-auto">
-          <div className="flex min-w-max items-center gap-1.5 pr-1">
-            {MESES_SHORT.map((label, index) => {
-              const value = String(index + 1);
-              const active = !filters.todosOsMeses && filters.meses.includes(value);
-
-              return (
-                <FilterPill
-                  key={value}
-                  active={active}
-                  tone="green"
-                  onClick={() => toggleMes(value)}
-                >
+        <div className="flex flex-wrap items-center gap-2 rounded-full border border-border/60 bg-muted/20 px-2 py-1">
+          <Select
+            value={monthValue}
+            onValueChange={(value) =>
+              update(
+                value === "all"
+                  ? { todosOsMeses: true, meses: [] }
+                  : { todosOsMeses: false, meses: [value] }
+              )
+            }
+          >
+            <SelectTrigger className="h-7 w-[110px] rounded-full border-border/60 bg-background px-3 text-[12px]">
+              <SelectValue placeholder="Mes" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Todos os meses</SelectItem>
+              {MESES_SHORT.map((label, index) => (
+                <SelectItem key={label} value={String(index + 1)}>
                   {label}
-                </FilterPill>
-              );
-            })}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
 
-            <FilterPill
-              active={filters.todosOsMeses}
-              tone="neutral"
-              icon={<CalendarRange className="h-3 w-3" />}
-              onClick={() =>
-                update({
-                  todosOsMeses: !filters.todosOsMeses,
-                  meses: filters.todosOsMeses ? [String(new Date().getMonth() + 1)] : [],
-                })
-              }
-            >
-              Todos
-            </FilterPill>
-          </div>
-        </div>
+          <div className="h-6 w-px bg-border/70" />
 
-        <div className="flex items-center gap-1.5">
           <FilterPill
             active={filters.urgente}
             tone="red"
@@ -247,139 +274,165 @@ export default function FiltersBar({ filters, onChange, profileOptions, setorOpt
           >
             Aguardando aprovacao
           </FilterPill>
+        </div>
 
-          <Sheet open={sheetOpen} onOpenChange={setSheetOpen}>
-            <SheetTrigger asChild>
-              <Button variant="outline" size="sm" className="h-8 gap-2 rounded-full px-3">
-                <SlidersHorizontal className="h-3.5 w-3.5" />
-                Mais filtros
-                {advancedActiveCount > 0 && (
-                  <span className="rounded-full bg-primary px-1.5 py-0.5 text-[10px] font-semibold text-primary-foreground">
-                    {advancedActiveCount}
-                  </span>
-                )}
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={clearAll}
+          className="h-8 rounded-full px-2 text-muted-foreground hover:text-destructive"
+        >
+          <X className="mr-1 h-3.5 w-3.5" />
+          Limpar
+        </Button>
+      </div>
+
+      <div className="grid gap-2.5 border-t border-border/50 pt-2 lg:grid-cols-[minmax(0,1.45fr)_minmax(0,1fr)]">
+        <div className="min-w-0">
+          <SectionTitle>Responsaveis</SectionTitle>
+          <div className="flex flex-wrap gap-1.5">
+            {profileOptions.map((option) => (
+              <FilterPill
+                key={option.value}
+                active={filters.responsaveis.includes(option.value)}
+                tone="blue"
+                onClick={() => toggleCollection("responsaveis", option.value)}
+              >
+                {option.label.split(" ")[0]}
+              </FilterPill>
+            ))}
+          </div>
+        </div>
+
+        <div className="min-w-0">
+          <SectionTitle>Setores</SectionTitle>
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-8 w-full justify-between rounded-full px-3 text-sm"
+              >
+                <span className="truncate">{setorSummary}</span>
+                <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />
               </Button>
-            </SheetTrigger>
+            </PopoverTrigger>
+            <PopoverContent align="end" className="w-[320px] p-0">
+              <div className="border-b border-border/60 p-3">
+                <p className="mb-2 text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+                  Setores
+                </p>
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
+                  <Input
+                    placeholder="Buscar setor..."
+                    value={setorSearch}
+                    onChange={(event) => setSetorSearch(event.target.value)}
+                    className="h-8 pl-9 text-sm"
+                  />
+                </div>
+              </div>
 
-            <SheetContent className="w-[360px] sm:w-[400px]">
-              <SheetHeader>
-                <SheetTitle>Filtros avancados</SheetTitle>
-              </SheetHeader>
-
-              <div className="mt-5 space-y-5">
-                <div>
-                  <SectionTitle>Responsaveis</SectionTitle>
-                  <div className="flex flex-wrap gap-2">
-                    {profileOptions.map((option) => (
-                      <FilterPill
-                        key={option.value}
-                        active={filters.responsaveis.includes(option.value)}
-                        tone="blue"
-                        onClick={() => toggleCollection("responsaveis", option.value)}
+              <div className="max-h-64 overflow-y-auto p-2 pr-1">
+                {filteredSetores.length === 0 ? (
+                  <div className="px-2 py-4 text-sm text-muted-foreground">
+                    Nenhum setor encontrado
+                  </div>
+                ) : (
+                  filteredSetores.map((setor) => {
+                    const active = filters.setores.includes(setor.value);
+                    return (
+                      <button
+                        key={setor.value}
+                        type="button"
+                        onClick={() => toggleCollection("setores", setor.value)}
+                        className={cn(
+                          "flex w-full items-center justify-between rounded-md px-2 py-2 text-left text-sm transition-colors",
+                          active
+                            ? "bg-primary/10 text-primary"
+                            : "text-foreground hover:bg-muted"
+                        )}
                       >
-                        {option.label.split(" ")[0]}
-                      </FilterPill>
-                    ))}
-                  </div>
-                </div>
-
-                <div>
-                  <SectionTitle>Setores</SectionTitle>
-                  <div className="flex flex-wrap gap-2">
-                    {setorOptions.map((option) => (
-                      <FilterPill
-                        key={option.value}
-                        active={filters.setores.includes(option.value)}
-                        tone="green"
-                        onClick={() => toggleCollection("setores", option.value)}
-                      >
-                        {option.label}
-                      </FilterPill>
-                    ))}
-                  </div>
-                </div>
-
-                <div>
-                  <SectionTitle>Repeticoes</SectionTitle>
-                  <div className="flex flex-wrap gap-2">
-                    {[1, 2, 3, 4, 5].map((repeticao) => {
-                      const value = String(repeticao);
-                      return (
-                        <FilterPill
-                          key={value}
-                          active={filters.repeticoes.includes(value)}
-                          tone="amber"
-                          onClick={() => toggleCollection("repeticoes", value)}
+                        <span className="truncate">{setor.label}</span>
+                        <span
+                          className={cn(
+                            "ml-3 inline-flex h-4 w-4 shrink-0 items-center justify-center rounded border text-[10px]",
+                            active
+                              ? "border-primary bg-primary text-primary-foreground"
+                              : "border-border bg-background"
+                          )}
                         >
-                          {repeticao}X
-                        </FilterPill>
-                      );
-                    })}
-                  </div>
-                </div>
-
-                <div>
-                  <SectionTitle>Semanas</SectionTitle>
-                  <div className="flex flex-wrap gap-2">
-                    {[1, 2, 3, 4, 5].map((semana) => {
-                      const value = String(semana);
-                      return (
-                        <FilterPill
-                          key={value}
-                          active={filters.semanas.includes(value)}
-                          tone="green"
-                          onClick={() => toggleSemana(value)}
-                        >
-                          {semana}
-                        </FilterPill>
-                      );
-                    })}
-                  </div>
-                </div>
-
-                <div>
-                  <SectionTitle>Bandeiras</SectionTitle>
-                  <div className="flex flex-wrap gap-2">
-                    <FilterPill
-                      active={filters.urgente}
-                      tone="red"
-                      icon={<Flame className={cn("h-3 w-3", filters.urgente && "fill-current")} />}
-                      onClick={() => update({ urgente: !filters.urgente })}
-                    >
-                      Urgente
-                    </FilterPill>
-                    <FilterPill
-                      active={filters.prioridade}
-                      tone="amber"
-                      icon={<Star className={cn("h-3 w-3", filters.prioridade && "fill-current")} />}
-                      onClick={() => update({ prioridade: !filters.prioridade })}
-                    >
-                      Prioridade
-                    </FilterPill>
-                  </div>
-                </div>
-
-                {hasChips && (
-                  <Button
-                    variant="outline"
-                    className="w-full gap-2 text-destructive"
-                    onClick={clearAll}
-                  >
-                    <X className="h-3.5 w-3.5" />
-                    Limpar todos os filtros
-                  </Button>
+                          {active ? "✓" : ""}
+                        </span>
+                      </button>
+                    );
+                  })
                 )}
               </div>
-            </SheetContent>
-          </Sheet>
+            </PopoverContent>
+          </Popover>
+        </div>
+
+        <div className="min-w-0">
+          <SectionTitle>Repeticoes</SectionTitle>
+          <div className="flex flex-wrap gap-1.5">
+            {[1, 2, 3, 4, 5].map((repeticao) => {
+              const value = String(repeticao);
+              return (
+                <FilterPill
+                  key={value}
+                  active={filters.repeticoes.includes(value)}
+                  tone="amber"
+                  onClick={() => toggleCollection("repeticoes", value)}
+                >
+                  {repeticao}X
+                </FilterPill>
+              );
+            })}
+          </div>
+        </div>
+
+        <div className="min-w-0">
+          <SectionTitle>Semanas</SectionTitle>
+          <div className="flex flex-wrap gap-1.5">
+            {SEMANA_OPTIONS.map((option) => {
+              const active = filters.semanas.includes(option.value);
+              return (
+                <button
+                  key={option.value}
+                  type="button"
+                  onClick={() => toggleSemana(option.value)}
+                  className={cn(
+                    "inline-flex h-7 min-w-[42px] items-center justify-center rounded-full border px-2.5 text-[12px] font-medium transition-colors",
+                    active ? option.activeTone : option.tone
+                  )}
+                >
+                  {option.label}
+                </button>
+              );
+            })}
+          </div>
         </div>
       </div>
 
       {hasChips && (
         <div className="flex flex-wrap items-center gap-1.5 border-t border-border/40 pt-1">
+          {filters.todosOsMeses && (
+            <Chip
+              onRemove={() =>
+                update({
+                  todosOsMeses: false,
+                  meses: [String(new Date().getMonth() + 1)],
+                })
+              }
+            >
+              Todos os meses
+            </Chip>
+          )}
+
           {filters.semanas.map((semana) => (
             <Chip key={`s${semana}`} onRemove={() => toggleSemana(semana)}>
-              Semana {semana}
+              {SEMANA_OPTIONS.find((option) => option.value === semana)?.label ?? semana}
             </Chip>
           ))}
 
@@ -416,15 +469,6 @@ export default function FiltersBar({ filters, onChange, profileOptions, setorOpt
               Aguardando aprovacao
             </Chip>
           )}
-
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={clearAll}
-            className="h-6 px-2 text-[11px] text-muted-foreground hover:text-destructive"
-          >
-            Limpar tudo
-          </Button>
         </div>
       )}
     </div>

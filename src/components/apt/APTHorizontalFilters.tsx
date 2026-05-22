@@ -6,7 +6,6 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   Sheet,
   SheetContent,
@@ -91,11 +90,11 @@ const meses = [
 ];
 
 const semanaOptions = [
-  { value: "1", label: "1a", shortLabel: "Primeira", tone: "bg-emerald-50 border-emerald-200 text-emerald-800 hover:bg-emerald-100", activeTone: "border-emerald-500 bg-emerald-500 text-white shadow-sm" },
-  { value: "2", label: "2a", shortLabel: "Segunda", tone: "bg-sky-50 border-sky-200 text-sky-800 hover:bg-sky-100", activeTone: "border-sky-500 bg-sky-500 text-white shadow-sm" },
-  { value: "3", label: "3a", shortLabel: "Terceira", tone: "bg-amber-50 border-amber-200 text-amber-900 hover:bg-amber-100", activeTone: "border-amber-500 bg-amber-500 text-white shadow-sm" },
-  { value: "4", label: "4a", shortLabel: "4a", tone: "bg-violet-50 border-violet-200 text-violet-800 hover:bg-violet-100", activeTone: "border-violet-500 bg-violet-500 text-white shadow-sm" },
-  { value: "5", label: "5a", shortLabel: "5a", tone: "bg-rose-50 border-rose-200 text-rose-800 hover:bg-rose-100", activeTone: "border-rose-500 bg-rose-500 text-white shadow-sm" },
+  { value: "1", label: "1ª", tone: "bg-emerald-50 border-emerald-200 text-emerald-800 hover:bg-emerald-100", activeTone: "border-emerald-500 bg-emerald-500 text-white shadow-sm" },
+  { value: "2", label: "2ª", tone: "bg-sky-50 border-sky-200 text-sky-800 hover:bg-sky-100", activeTone: "border-sky-500 bg-sky-500 text-white shadow-sm" },
+  { value: "3", label: "3ª", tone: "bg-amber-50 border-amber-200 text-amber-900 hover:bg-amber-100", activeTone: "border-amber-500 bg-amber-500 text-white shadow-sm" },
+  { value: "4", label: "4ª", tone: "bg-violet-50 border-violet-200 text-violet-800 hover:bg-violet-100", activeTone: "border-violet-500 bg-violet-500 text-white shadow-sm" },
+  { value: "5", label: "5ª", tone: "bg-rose-50 border-rose-200 text-rose-800 hover:bg-rose-100", activeTone: "border-rose-500 bg-rose-500 text-white shadow-sm" },
 ];
 
 const currentYear = new Date().getFullYear();
@@ -358,8 +357,7 @@ export default function APTHorizontalFilters({
                   </div>
                 </div>
 
-                <ScrollArea className="max-h-64">
-                  <div className="p-2">
+                <div className="max-h-64 overflow-y-auto p-2 pr-1">
                     {filteredSetores.length === 0 ? (
                       <div className="px-2 py-4 text-sm text-muted-foreground">
                         Nenhum setor encontrado
@@ -394,8 +392,7 @@ export default function APTHorizontalFilters({
                         );
                       })
                     )}
-                  </div>
-                </ScrollArea>
+                </div>
               </PopoverContent>
             </Popover>
           </div>
@@ -566,7 +563,7 @@ export default function APTHorizontalFilters({
                     active ? option.activeTone : option.tone
                   )}
                 >
-                  {option.shortLabel}
+                  {option.label}
                 </button>
               );
             })}
