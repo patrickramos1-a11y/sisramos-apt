@@ -81,8 +81,7 @@ export default function DemandaTableRow({
   return (
     <TableRow
       className={cn(
-        "cursor-pointer transition-colors relative",
-        // Subtle tint instead of full saturated row
+        "relative cursor-pointer transition-colors",
         muitoUrgente && "bg-destructive/[0.04] hover:bg-destructive/[0.07]",
         prioritaria && !muitoUrgente && "bg-warning/[0.05] hover:bg-warning/[0.08]",
         !prioritaria && !muitoUrgente && isAlternateRow && "bg-[hsl(var(--apt-zebra))]",
@@ -93,11 +92,11 @@ export default function DemandaTableRow({
       onClick={onClick}
     >
       {showCheckbox && (
-        <TableCell className="w-10 relative" onClick={(e) => e.stopPropagation()}>
+        <TableCell className="relative w-10" onClick={(e) => e.stopPropagation()}>
           {(muitoUrgente || prioritaria) && (
             <span
               className={cn(
-                "absolute left-0 top-0 bottom-0 w-[3px]",
+                "absolute bottom-0 left-0 top-0 w-[3px]",
                 muitoUrgente ? "bg-destructive" : "bg-warning"
               )}
               aria-hidden
@@ -109,11 +108,17 @@ export default function DemandaTableRow({
           />
         </TableCell>
       )}
-      <TableCell className={cn("font-mono text-center w-16 relative", !showCheckbox && (muitoUrgente || prioritaria) && "pl-3")}>
+
+      <TableCell
+        className={cn(
+          "relative w-16 text-center font-mono",
+          !showCheckbox && (muitoUrgente || prioritaria) && "pl-3"
+        )}
+      >
         {!showCheckbox && (muitoUrgente || prioritaria) && (
           <span
             className={cn(
-              "absolute left-0 top-0 bottom-0 w-[3px]",
+              "absolute bottom-0 left-0 top-0 w-[3px]",
               muitoUrgente ? "bg-destructive" : "bg-warning"
             )}
             aria-hidden
@@ -121,42 +126,47 @@ export default function DemandaTableRow({
         )}
         {numero}
       </TableCell>
+
       <TableCell className="w-24">
         <span
-          className="inline-block px-2 py-0.5 rounded-md text-[11px] font-medium"
+          className="inline-block rounded-md px-2 py-0.5 text-[11px] font-medium"
           style={{ backgroundColor: setorCor }}
         >
           {setor}
         </span>
       </TableCell>
-      <TableCell className="w-32 truncate">{responsavel}</TableCell>
+
+      <TableCell className="w-28 truncate">{responsavel}</TableCell>
+
       <TableCell className="whitespace-normal break-words">
-        <div className="flex items-center gap-2 flex-wrap">
-          {muitoUrgente && (
-            <span className="inline-flex items-center gap-1 rounded-full bg-destructive/10 text-destructive border border-destructive/25 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide whitespace-nowrap">
-              <Flame className="h-2.5 w-2.5" /> Urgente
-            </span>
-          )}
-          {prioritaria && !muitoUrgente && (
-            <span className="inline-flex items-center gap-1 rounded-full bg-warning/10 text-warning border border-warning/30 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide whitespace-nowrap">
-              <Star className="h-2.5 w-2.5" /> Prioridade
-            </span>
-          )}
-          <span>{descricao}</span>
-          {pendingExclusao && (
-            <span className="inline-flex items-center rounded-full bg-warning/20 text-warning border border-warning/30 px-2 py-0.5 text-[10px] font-medium whitespace-nowrap">
-              Aguardando exclusão
-            </span>
-          )}
+        <div className="flex items-start gap-2">
+          <span className="flex h-5 w-5 shrink-0 items-center justify-center pt-0.5">
+            {muitoUrgente ? (
+              <Flame className="h-3.5 w-3.5 fill-destructive text-destructive" />
+            ) : prioritaria ? (
+              <Star className="h-3.5 w-3.5 fill-warning text-warning" />
+            ) : null}
+          </span>
+
+          <div className="min-w-0 space-y-1">
+            <p className="leading-snug text-foreground">{descricao}</p>
+            {pendingExclusao && (
+              <span className="inline-flex items-center whitespace-nowrap rounded-full border border-warning/30 bg-warning/15 px-2 py-0.5 text-[10px] font-medium text-warning">
+                Aguardando exclusao
+              </span>
+            )}
+          </div>
         </div>
       </TableCell>
+
       {showObservacoesColumn && (
-        <TableCell className="whitespace-normal break-words text-sm text-muted-foreground w-48 align-top">
-          {observacoes ? observacoes : <span className="text-muted-foreground/50">—</span>}
+        <TableCell className="w-48 whitespace-normal break-words align-top text-sm text-muted-foreground">
+          {observacoes ? observacoes : <span className="text-muted-foreground/50">-</span>}
         </TableCell>
       )}
+
       {showResponsavelColumn && (
-        <TableCell className="text-center w-20" onClick={(e) => e.stopPropagation()}>
+        <TableCell className="w-20 text-center" onClick={(e) => e.stopPropagation()}>
           <div className="flex justify-center">
             <StatusBolinha
               status={statusResponsavel}
@@ -166,8 +176,9 @@ export default function DemandaTableRow({
           </div>
         </TableCell>
       )}
+
       {showGestorColumn && (
-        <TableCell className="text-center w-20" onClick={(e) => e.stopPropagation()}>
+        <TableCell className="w-20 text-center" onClick={(e) => e.stopPropagation()}>
           <div className="flex justify-center">
             <StatusBolinha
               status={statusGestor}
@@ -177,19 +188,22 @@ export default function DemandaTableRow({
           </div>
         </TableCell>
       )}
-      <TableCell className="text-center w-12">
+
+      <TableCell className="w-12 text-center">
         <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
           <Repeat className="h-3 w-3 opacity-60" />
           {semanasRepeticao}x
         </span>
       </TableCell>
-      <TableCell className="text-center w-20">
-        <span className="inline-flex items-center justify-center min-w-[28px] px-2 py-0.5 rounded-full bg-muted text-foreground/80 text-xs font-medium">
-          {semanaOrdenacao}ª
+
+      <TableCell className="w-20 text-center">
+        <span className="inline-flex min-w-[28px] items-center justify-center rounded-full bg-muted px-2 py-0.5 text-xs font-medium text-foreground/80">
+          {semanaOrdenacao}a
         </span>
       </TableCell>
+
       {canEditDemanda && (
-        <TableCell className="text-center w-12" onClick={(e) => e.stopPropagation()}>
+        <TableCell className="w-12 text-center" onClick={(e) => e.stopPropagation()}>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="ghost" size="icon" className="h-8 w-8">
@@ -198,14 +212,14 @@ export default function DemandaTableRow({
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
               <DropdownMenuItem onClick={onEdit}>
-                <Pencil className="h-4 w-4 mr-2" />
+                <Pencil className="mr-2 h-4 w-4" />
                 Editar
               </DropdownMenuItem>
-              <DropdownMenuItem 
+              <DropdownMenuItem
                 onClick={onDelete}
                 className="text-destructive focus:text-destructive"
               >
-                <Trash2 className="h-4 w-4 mr-2" />
+                <Trash2 className="mr-2 h-4 w-4" />
                 Excluir
               </DropdownMenuItem>
             </DropdownMenuContent>

@@ -2,7 +2,6 @@ import { useState } from "react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Label } from "@/components/ui/label";
 import {
   Sheet,
   SheetContent,
@@ -10,13 +9,12 @@ import {
   SheetTitle,
   SheetTrigger,
 } from "@/components/ui/sheet";
-import { MultiSelectDropdown } from "@/components/ui/multi-select-dropdown";
 import { Search, SlidersHorizontal, X, Flame, Star, CalendarRange } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export interface ListaFilters {
   busca: string;
-  meses: string[]; // empty = all
+  meses: string[];
   semanas: string[];
   responsaveis: string[];
   setores: string[];
@@ -31,8 +29,9 @@ const MESES_SHORT = [
   "Jan", "Fev", "Mar", "Abr", "Mai", "Jun",
   "Jul", "Ago", "Set", "Out", "Nov", "Dez",
 ];
+
 const MESES_FULL = [
-  "Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho",
+  "Janeiro", "Fevereiro", "Marco", "Abril", "Maio", "Junho",
   "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro",
 ];
 
@@ -43,34 +42,105 @@ interface Props {
   setorOptions: { value: string; label: string }[];
 }
 
+function SectionTitle({ children }: { children: React.ReactNode }) {
+  return (
+    <div className="mb-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-muted-foreground/85">
+      {children}
+    </div>
+  );
+}
+
+function FilterPill({
+  active,
+  onClick,
+  children,
+  tone = "neutral",
+  icon,
+}: {
+  active: boolean;
+  onClick: () => void;
+  children: React.ReactNode;
+  tone?: "neutral" | "blue" | "green" | "amber" | "red";
+  icon?: React.ReactNode;
+}) {
+  const tones = {
+    neutral: active
+      ? "border-foreground bg-foreground text-background shadow-sm"
+      : "border-border/70 bg-background text-muted-foreground hover:bg-muted/70 hover:text-foreground",
+    blue: active
+      ? "border-sky-500 bg-sky-500 text-white shadow-sm"
+      : "border-sky-200 bg-sky-50/70 text-sky-900 hover:bg-sky-100",
+    green: active
+      ? "border-primary bg-primary text-primary-foreground shadow-sm"
+      : "border-primary/20 bg-primary/10 text-primary hover:bg-primary/15",
+    amber: active
+      ? "border-amber-500 bg-amber-500 text-white shadow-sm"
+      : "border-amber-200 bg-amber-50/80 text-amber-900 hover:bg-amber-100",
+    red: active
+      ? "border-destructive bg-destructive text-destructive-foreground shadow-sm"
+      : "border-destructive/20 bg-destructive/10 text-destructive hover:bg-destructive/15",
+  } as const;
+
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={cn(
+        "inline-flex h-7 items-center gap-1.5 rounded-full border px-2.5 text-[12px] font-medium transition-colors",
+        tones[tone]
+      )}
+    >
+      {icon}
+      {children}
+    </button>
+  );
+}
+
 export default function FiltersBar({ filters, onChange, profileOptions, setorOptions }: Props) {
   const [sheetOpen, setSheetOpen] = useState(false);
 
   const update = (patch: Partial<ListaFilters>) => onChange({ ...filters, ...patch });
 
-  const toggleMes = (m: string) => {
+  const toggleMes = (mes: string) => {
     if (filters.todosOsMeses) {
-      update({ todosOsMeses: false, meses: [m] });
+      update({ todosOsMeses: false, meses: [mes] });
       return;
     }
+
     update({
-      meses: filters.meses.includes(m)
-        ? filters.meses.filter((x) => x !== m)
-        : [...filters.meses, m],
+      meses: filters.meses.includes(mes)
+        ? filters.meses.filter((value) => value !== mes)
+        : [...filters.meses, mes],
     });
   };
 
-  const toggleSemana = (s: string) =>
+  const toggleSemana = (semana: string) =>
     update({
-      semanas: filters.semanas.includes(s)
-        ? filters.semanas.filter((x) => x !== s)
-        : [...filters.semanas, s],
+      semanas: filters.semanas.includes(semana)
+        ? filters.semanas.filter((value) => value !== semana)
+        : [...filters.semanas, semana],
     });
 
+  const toggleCollection = (
+    key: "responsaveis" | "setores" | "repeticoes",
+    value: string
+  ) =>
+    update({
+      [key]: filters[key].includes(value)
+        ? filters[key].filter((item) => item !== value)
+        : [...filters[key], value],
+    } as Partial<ListaFilters>);
+
   const removeChip = (kind: "responsavel" | "setor" | "rep", value: string) => {
-    if (kind === "responsavel") update({ responsaveis: filters.responsaveis.filter((v) => v !== value) });
-    if (kind === "setor") update({ setores: filters.setores.filter((v) => v !== value) });
-    if (kind === "rep") update({ repeticoes: filters.repeticoes.filter((v) => v !== value) });
+    if (kind === "responsavel") {
+      update({ responsaveis: filters.responsaveis.filter((item) => item !== value) });
+    }
+    if (kind === "setor") {
+      update({ setores: filters.setores.filter((item) => item !== value) });
+    }
+    if (kind === "rep") {
+      update({ repeticoes: filters.repeticoes.filter((item) => item !== value) });
+    }
   };
 
   const clearAll = () =>
@@ -96,188 +166,257 @@ export default function FiltersBar({ filters, onChange, profileOptions, setorOpt
     filters.pendenteAprovacao ||
     filters.semanas.length > 0;
 
+  const advancedActiveCount =
+    filters.responsaveis.length +
+    filters.setores.length +
+    filters.repeticoes.length +
+    filters.semanas.length +
+    (filters.urgente ? 1 : 0) +
+    (filters.prioridade ? 1 : 0);
+
   return (
-    <div className="rounded-lg border bg-card p-3 space-y-2.5">
-      {/* Row 1: search + month pills + actions */}
+    <div className="space-y-2.5 rounded-xl border bg-card p-2.5">
       <div className="flex flex-wrap items-center gap-2">
-        <div className="relative flex-1 min-w-[200px] max-w-sm">
-          <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+        <div className="relative min-w-[190px] max-w-[300px] flex-1">
+          <Search className="absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
           <Input
             placeholder="Buscar demanda..."
             value={filters.busca}
-            onChange={(e) => update({ busca: e.target.value })}
-            className="pl-8 h-8 text-sm"
+            onChange={(event) => update({ busca: event.target.value })}
+            className="h-8 rounded-full pl-9 text-sm"
           />
         </div>
 
-        <div className="flex items-center gap-1 flex-wrap">
-          <span className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground mr-1">Mês</span>
-          {MESES_SHORT.map((label, i) => {
-            const v = String(i + 1);
-            const active = !filters.todosOsMeses && filters.meses.includes(v);
-            return (
-              <button
-                key={v}
-                type="button"
-                onClick={() => toggleMes(v)}
-                className={cn(
-                  "h-7 px-2 rounded-md text-[11px] font-medium border transition-colors",
-                  active
-                    ? "bg-primary text-primary-foreground border-primary"
-                    : "bg-background hover:bg-muted border-border/70 text-foreground/70"
-                )}
-              >
-                {label}
-              </button>
-            );
-          })}
-          <button
-            type="button"
-            onClick={() => update({ todosOsMeses: !filters.todosOsMeses, meses: filters.todosOsMeses ? [String(new Date().getMonth() + 1)] : [] })}
-            className={cn(
-              "h-7 px-2 rounded-md text-[11px] font-medium border inline-flex items-center gap-1 transition-colors",
-              filters.todosOsMeses
-                ? "bg-accent text-accent-foreground border-accent"
-                : "bg-background hover:bg-muted border-border/70 text-foreground/70"
-            )}
-          >
-            <CalendarRange className="h-3 w-3" /> Todos
-          </button>
+        <div className="min-w-0 flex-1 overflow-x-auto">
+          <div className="flex min-w-max items-center gap-1.5 pr-1">
+            {MESES_SHORT.map((label, index) => {
+              const value = String(index + 1);
+              const active = !filters.todosOsMeses && filters.meses.includes(value);
+
+              return (
+                <FilterPill
+                  key={value}
+                  active={active}
+                  tone="green"
+                  onClick={() => toggleMes(value)}
+                >
+                  {label}
+                </FilterPill>
+              );
+            })}
+
+            <FilterPill
+              active={filters.todosOsMeses}
+              tone="neutral"
+              icon={<CalendarRange className="h-3 w-3" />}
+              onClick={() =>
+                update({
+                  todosOsMeses: !filters.todosOsMeses,
+                  meses: filters.todosOsMeses ? [String(new Date().getMonth() + 1)] : [],
+                })
+              }
+            >
+              Todos
+            </FilterPill>
+          </div>
         </div>
 
-        <div className="flex-1" />
+        <div className="flex items-center gap-1.5">
+          <FilterPill
+            active={filters.urgente}
+            tone="red"
+            icon={<Flame className={cn("h-3 w-3", filters.urgente && "fill-current")} />}
+            onClick={() => update({ urgente: !filters.urgente })}
+          >
+            Urgente
+          </FilterPill>
 
-        <div className="flex items-center gap-1">
-          {(["urgente", "prioridade", "pendenteAprovacao"] as const).map((key) => {
-            const cfg = {
-              urgente: { icon: Flame, activeCls: "bg-destructive text-destructive-foreground border-destructive shadow-sm" },
-              prioridade: { icon: Star, activeCls: "bg-warning text-warning-foreground border-warning shadow-sm" },
-              pendenteAprovacao: { icon: null, activeCls: "bg-primary text-primary-foreground border-primary shadow-sm" },
-            }[key];
-            const labels = { urgente: "Urgente", prioridade: "Prioritária", pendenteAprovacao: "Aguardando aprovação" };
-            const Icon = cfg.icon;
-            const active = filters[key];
-            return (
-              <button
-                key={key}
-                type="button"
-                onClick={() => update({ [key]: !active } as Partial<ListaFilters>)}
-                className={cn(
-                  "h-7 px-3 rounded-full text-[11px] font-medium border inline-flex items-center gap-1.5 transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-ring/40",
-                  active
-                    ? cfg.activeCls
-                    : "bg-background hover:bg-muted border-border/70 text-muted-foreground"
-                )}
-              >
-                {Icon && <Icon className={cn("h-3 w-3", active && "fill-current")} />}
-                {labels[key]}
-              </button>
-            );
-          })}
+          <FilterPill
+            active={filters.prioridade}
+            tone="amber"
+            icon={<Star className={cn("h-3 w-3", filters.prioridade && "fill-current")} />}
+            onClick={() => update({ prioridade: !filters.prioridade })}
+          >
+            Prioridade
+          </FilterPill>
+
+          <FilterPill
+            active={filters.pendenteAprovacao}
+            tone="blue"
+            onClick={() => update({ pendenteAprovacao: !filters.pendenteAprovacao })}
+          >
+            Aguardando aprovacao
+          </FilterPill>
 
           <Sheet open={sheetOpen} onOpenChange={setSheetOpen}>
             <SheetTrigger asChild>
-              <Button variant="outline" size="sm" className="h-7 gap-1 text-xs">
-                <SlidersHorizontal className="h-3 w-3" />
+              <Button variant="outline" size="sm" className="h-8 gap-2 rounded-full px-3">
+                <SlidersHorizontal className="h-3.5 w-3.5" />
                 Mais filtros
+                {advancedActiveCount > 0 && (
+                  <span className="rounded-full bg-primary px-1.5 py-0.5 text-[10px] font-semibold text-primary-foreground">
+                    {advancedActiveCount}
+                  </span>
+                )}
               </Button>
             </SheetTrigger>
-            <SheetContent className="w-[360px]">
+
+            <SheetContent className="w-[360px] sm:w-[400px]">
               <SheetHeader>
-                <SheetTitle>Filtros avançados</SheetTitle>
+                <SheetTitle>Filtros avancados</SheetTitle>
               </SheetHeader>
-              <div className="mt-6 space-y-4">
-                <div className="space-y-1.5">
-                  <Label className="text-xs">Responsáveis</Label>
-                  <MultiSelectDropdown
-                    options={profileOptions}
-                    selected={filters.responsaveis}
-                    onChange={(v) => update({ responsaveis: v })}
-                    placeholder="Todos"
-                  />
+
+              <div className="mt-5 space-y-5">
+                <div>
+                  <SectionTitle>Responsaveis</SectionTitle>
+                  <div className="flex flex-wrap gap-2">
+                    {profileOptions.map((option) => (
+                      <FilterPill
+                        key={option.value}
+                        active={filters.responsaveis.includes(option.value)}
+                        tone="blue"
+                        onClick={() => toggleCollection("responsaveis", option.value)}
+                      >
+                        {option.label.split(" ")[0]}
+                      </FilterPill>
+                    ))}
+                  </div>
                 </div>
-                <div className="space-y-1.5">
-                  <Label className="text-xs">Setores</Label>
-                  <MultiSelectDropdown
-                    options={setorOptions}
-                    selected={filters.setores}
-                    onChange={(v) => update({ setores: v })}
-                    placeholder="Todos"
-                  />
+
+                <div>
+                  <SectionTitle>Setores</SectionTitle>
+                  <div className="flex flex-wrap gap-2">
+                    {setorOptions.map((option) => (
+                      <FilterPill
+                        key={option.value}
+                        active={filters.setores.includes(option.value)}
+                        tone="green"
+                        onClick={() => toggleCollection("setores", option.value)}
+                      >
+                        {option.label}
+                      </FilterPill>
+                    ))}
+                  </div>
                 </div>
-                <div className="space-y-1.5">
-                  <Label className="text-xs">Repetições</Label>
-                  <MultiSelectDropdown
-                    options={[1, 2, 3, 4, 5].map((n) => ({ value: String(n), label: `${n}X` }))}
-                    selected={filters.repeticoes}
-                    onChange={(v) => update({ repeticoes: v })}
-                    placeholder="Todas"
-                  />
-                </div>
-                <div className="space-y-1.5">
-                  <Label className="text-xs">Semanas</Label>
-                  <div className="flex gap-1.5">
-                    {[1, 2, 3, 4, 5].map((s) => {
-                      const v = String(s);
-                      const active = filters.semanas.includes(v);
+
+                <div>
+                  <SectionTitle>Repeticoes</SectionTitle>
+                  <div className="flex flex-wrap gap-2">
+                    {[1, 2, 3, 4, 5].map((repeticao) => {
+                      const value = String(repeticao);
                       return (
-                        <button
-                          key={v}
-                          type="button"
-                          onClick={() => toggleSemana(v)}
-                          className={cn(
-                            "h-8 w-8 rounded-md text-xs font-semibold border transition-colors",
-                            active
-                              ? "bg-primary text-primary-foreground border-primary"
-                              : "bg-background hover:bg-muted border-border/70"
-                          )}
+                        <FilterPill
+                          key={value}
+                          active={filters.repeticoes.includes(value)}
+                          tone="amber"
+                          onClick={() => toggleCollection("repeticoes", value)}
                         >
-                          {s}
-                        </button>
+                          {repeticao}X
+                        </FilterPill>
                       );
                     })}
                   </div>
                 </div>
+
+                <div>
+                  <SectionTitle>Semanas</SectionTitle>
+                  <div className="flex flex-wrap gap-2">
+                    {[1, 2, 3, 4, 5].map((semana) => {
+                      const value = String(semana);
+                      return (
+                        <FilterPill
+                          key={value}
+                          active={filters.semanas.includes(value)}
+                          tone="green"
+                          onClick={() => toggleSemana(value)}
+                        >
+                          {semana}
+                        </FilterPill>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                <div>
+                  <SectionTitle>Bandeiras</SectionTitle>
+                  <div className="flex flex-wrap gap-2">
+                    <FilterPill
+                      active={filters.urgente}
+                      tone="red"
+                      icon={<Flame className={cn("h-3 w-3", filters.urgente && "fill-current")} />}
+                      onClick={() => update({ urgente: !filters.urgente })}
+                    >
+                      Urgente
+                    </FilterPill>
+                    <FilterPill
+                      active={filters.prioridade}
+                      tone="amber"
+                      icon={<Star className={cn("h-3 w-3", filters.prioridade && "fill-current")} />}
+                      onClick={() => update({ prioridade: !filters.prioridade })}
+                    >
+                      Prioridade
+                    </FilterPill>
+                  </div>
+                </div>
+
+                {hasChips && (
+                  <Button
+                    variant="outline"
+                    className="w-full gap-2 text-destructive"
+                    onClick={clearAll}
+                  >
+                    <X className="h-3.5 w-3.5" />
+                    Limpar todos os filtros
+                  </Button>
+                )}
               </div>
             </SheetContent>
           </Sheet>
         </div>
       </div>
 
-      {/* Row 2: active chips */}
       {hasChips && (
-        <div className="flex flex-wrap items-center gap-1.5 pt-1 border-t border-border/40">
-          {filters.semanas.map((s) => (
-            <Chip key={`s${s}`} onRemove={() => toggleSemana(s)}>
-              Semana {s}
+        <div className="flex flex-wrap items-center gap-1.5 border-t border-border/40 pt-1">
+          {filters.semanas.map((semana) => (
+            <Chip key={`s${semana}`} onRemove={() => toggleSemana(semana)}>
+              Semana {semana}
             </Chip>
           ))}
+
           {filters.responsaveis.map((id) => {
-            const opt = profileOptions.find((o) => o.value === id);
+            const option = profileOptions.find((item) => item.value === id);
             return (
               <Chip key={`r${id}`} onRemove={() => removeChip("responsavel", id)}>
-                {opt?.label ?? id}
+                {option?.label ?? id}
               </Chip>
             );
           })}
+
           {filters.setores.map((id) => {
-            const opt = setorOptions.find((o) => o.value === id);
+            const option = setorOptions.find((item) => item.value === id);
             return (
               <Chip key={`st${id}`} onRemove={() => removeChip("setor", id)}>
-                {opt?.label ?? id}
+                {option?.label ?? id}
               </Chip>
             );
           })}
-          {filters.repeticoes.map((r) => (
-            <Chip key={`rep${r}`} onRemove={() => removeChip("rep", r)}>
-              {r}X
+
+          {filters.repeticoes.map((repeticao) => (
+            <Chip key={`rep${repeticao}`} onRemove={() => removeChip("rep", repeticao)}>
+              {repeticao}X
             </Chip>
           ))}
+
           {filters.urgente && <Chip onRemove={() => update({ urgente: false })}>Urgente</Chip>}
-          {filters.prioridade && <Chip onRemove={() => update({ prioridade: false })}>Prioritária</Chip>}
-          {filters.pendenteAprovacao && (
-            <Chip onRemove={() => update({ pendenteAprovacao: false })}>Aguardando aprovação</Chip>
+          {filters.prioridade && (
+            <Chip onRemove={() => update({ prioridade: false })}>Prioridade</Chip>
           )}
+          {filters.pendenteAprovacao && (
+            <Chip onRemove={() => update({ pendenteAprovacao: false })}>
+              Aguardando aprovacao
+            </Chip>
+          )}
+
           <Button
             variant="ghost"
             size="sm"
@@ -296,7 +435,7 @@ function Chip({ children, onRemove }: { children: React.ReactNode; onRemove: () 
   return (
     <Badge
       variant="secondary"
-      className="h-6 gap-1 pl-2 pr-1 text-[11px] font-medium bg-muted hover:bg-muted/80"
+      className="h-6 gap-1 bg-muted pl-2 pr-1 text-[11px] font-medium hover:bg-muted/80"
     >
       {children}
       <button
