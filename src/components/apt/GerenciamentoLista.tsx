@@ -186,6 +186,13 @@ export default function GerenciamentoLista({ profiles, setores, onDemandaChange 
     setSelectedIds(new Set());
   };
 
+  const updateLocalDemandas = useCallback(
+    (updater: (prev: Demanda[]) => Demanda[]) => {
+      setAllDemandas((prev) => updater(prev));
+    },
+    []
+  );
+
   const bulk = useBulkDemandaActions(handleDemandaChange);
 
   // Client-side filtering
@@ -285,6 +292,18 @@ export default function GerenciamentoLista({ profiles, setores, onDemandaChange 
       .map(([label, items]) => ({ label, count: items.length, items }));
   }, [sortedFlat, groupBy, getProfileById, getSetorById]);
 
+  useEffect(() => {
+    if (groupBy === "nenhum") {
+      setCollapsedGroups(new Set());
+      return;
+    }
+
+    setCollapsedGroups(new Set(grouped.map((group) => group.label)));
+    // grouped is intentionally read from the render where groupBy changed,
+    // so we don't re-collapse everything after every small inline update.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [groupBy]);
+
   const handleSort = (c: NonNullable<SortCol>) => {
     if (sortColumn === c) {
       if (sortDirection === "asc") setSortDirection("desc");
@@ -337,16 +356,35 @@ export default function GerenciamentoLista({ profiles, setores, onDemandaChange 
 
   // Inline cell edits
   const inlineUpdate = async (id: string, patch: Partial<Demanda>) => {
+    const previousDemandas = allDemandas;
+    updateLocalDemandas((prev) =>
+      prev.map((demanda) => (demanda.id === id ? { ...demanda, ...patch } : demanda))
+    );
+
     const { error } = await supabase.from("demandas").update(patch).eq("id", id);
-    if (!error) handleDemandaChange();
+    if (error) {
+      setAllDemandas(previousDemandas);
+    }
   };
+
   const groupUpdate = async (c: ConsolidatedDemand, patch: Partial<Demanda>) => {
     const ids = c.siblings.map((s) => s.id);
+    const previousDemandas = allDemandas;
+
+    updateLocalDemandas((prev) =>
+      prev.map((demanda) =>
+        ids.includes(demanda.id) ? { ...demanda, ...patch } : demanda
+      )
+    );
+
     const { error } = await supabase.from("demandas").update(patch).in("id", ids);
-    if (!error) handleDemandaChange();
+    if (error) {
+      setAllDemandas(previousDemandas);
+    }
   };
 
   const updateGroupWeeks = async (c: ConsolidatedDemand, semanas: number[]) => {
+    const previousDemandas = allDemandas;
     const orderedWeeks = [...new Set(semanas)].sort((a, b) => a - b);
     const siblingIds = c.siblings.map((s) => s.id);
     const keptSiblings = c.siblings
@@ -357,6 +395,43 @@ export default function GerenciamentoLista({ profiles, setores, onDemandaChange 
     );
     const count = orderedWeeks.length;
     const grupoId = count > 1 ? c.grupo_id ?? crypto.randomUUID() : null;
+    const template = keptSiblings[0] ?? c.siblings[0];
+    const rowsToInsert = weeksToCreate.map((semana) => ({
+      id: crypto.randomUUID(),
+      numero: template.numero,
+      responsavel_id: template.responsavel_id,
+      setor_id: template.setor_id,
+      descricao: template.descricao,
+      observacoes: template.observacoes ?? null,
+      status_responsavel: template.status_responsavel,
+      status_gestor: template.status_gestor,
+      semanas_repeticao: count,
+      semana_limite: [semana],
+      mes: template.mes,
+      ano: template.ano,
+      prioritaria: template.prioritaria,
+      muito_urgente: template.muito_urgente ?? false,
+      grupo_id: grupoId,
+      ativa: true,
+    }));
+
+    updateLocalDemandas((prev) => {
+      const next = prev
+        .map((demanda) => {
+          if (!siblingIds.includes(demanda.id)) return demanda;
+          if (!orderedWeeks.includes(demanda.semana_limite?.[0])) {
+            return { ...demanda, ativa: false };
+          }
+          return {
+            ...demanda,
+            semanas_repeticao: count,
+            grupo_id: grupoId,
+          };
+        })
+        .filter((demanda) => demanda.ativa);
+
+      return [...next, ...rowsToInsert];
+    });
 
     if (keptSiblings.length > 0) {
       const updateResults = await Promise.all(
@@ -373,7 +448,10 @@ export default function GerenciamentoLista({ profiles, setores, onDemandaChange 
       );
 
       const updateError = updateResults.find((result) => result.error)?.error;
-      if (updateError) return;
+      if (updateError) {
+        setAllDemandas(previousDemandas);
+        return;
+      }
     }
 
     const idsToDelete = siblingIds.filter(
@@ -384,12 +462,14 @@ export default function GerenciamentoLista({ profiles, setores, onDemandaChange 
         .from("demandas")
         .update({ ativa: false })
         .in("id", idsToDelete);
-      if (deleteError) return;
+      if (deleteError) {
+        setAllDemandas(previousDemandas);
+        return;
+      }
     }
 
     if (weeksToCreate.length > 0) {
-      const template = keptSiblings[0] ?? c.siblings[0];
-      const rowsToInsert = weeksToCreate.map((semana) => ({
+      const rowsToPersist = weeksToCreate.map((semana) => ({
         responsavel_id: template.responsavel_id,
         setor_id: template.setor_id,
         descricao: template.descricao,
@@ -406,11 +486,12 @@ export default function GerenciamentoLista({ profiles, setores, onDemandaChange 
         ativa: true,
       }));
 
-      const { error: insertError } = await supabase.from("demandas").insert(rowsToInsert);
-      if (insertError) return;
+      const { error: insertError } = await supabase.from("demandas").insert(rowsToPersist);
+      if (insertError) {
+        setAllDemandas(previousDemandas);
+        return;
+      }
     }
-
-    handleDemandaChange();
   };
 
   const profileOptions = profiles.map((p) => ({ value: p.user_id, label: p.nome, color: p.cor ?? null }));
