@@ -5,6 +5,7 @@ import { useDemandas } from "@/hooks/useDemandas";
 import { useMonthSettings } from "@/hooks/useMonthSettings";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useMomentoAPT } from "@/hooks/useMomentoAPT";
+import { useAptMomentos } from "@/hooks/useAptMomentos";
 import { supabase } from "@/integrations/supabase/client";
 import AppLayout from "@/components/layout/AppLayout";
 import APTHorizontalFilters from "@/components/apt/APTHorizontalFilters";
@@ -19,6 +20,8 @@ import AtualizarStatusEmMassaDialog from "@/components/apt/AtualizarStatusEmMass
 import ExportDemandasButton from "@/components/apt/ExportDemandasButton";
 import RolloverDemandasDialog from "@/components/apt/RolloverDemandasDialog";
 import MonthSettingsControl, { PastMonthWarningBanner } from "@/components/apt/MonthSettingsControl";
+import AptMomentosNavigator from "@/components/apt/AptMomentosNavigator";
+import ConfigurarAptDialog from "@/components/apt/ConfigurarAptDialog";
 import DemandaCard from "@/components/apt/DemandaCard";
 import DemandaTableRow from "@/components/apt/DemandaTableRow";
 import DemandaSortHeader from "@/components/apt/DemandaSortHeader";
@@ -181,6 +184,32 @@ export default function APT() {
   // Top Setores card filter (client-side only, doesn't affect DB query)
   const [activeTopSetor, setActiveTopSetor] = useState<string | null>(null);
   const [suggestedWeek, setSuggestedWeek] = useState<number | null>(null);
+
+  // Momentos APT
+  const [showConfigMomentosDialog, setShowConfigMomentosDialog] = useState(false);
+  const [momentoSelecionado, setMomentoSelecionado] = useState<number | null>(null);
+  const [isSavingMomentos, setIsSavingMomentos] = useState(false);
+  const {
+    config: momentosConfig,
+    saveConfig: saveMomentos,
+    semanasDoMomento,
+  } = useAptMomentos(viewedMes, viewedAno);
+
+  // Quando o momento selecionado muda, atualiza o filtro de semanas
+  const handleSelecionarMomento = (numero: number) => {
+    setMomentoSelecionado(numero);
+    const semanas = semanasDoMomento(numero);
+    if (semanas.length > 0) {
+      setFilters((prev) => ({ ...prev, semanas: semanas.map(String) }));
+    }
+  };
+
+  const handleSaveMomentos = async (momentos: import("@/hooks/useAptMomentos").AptMomento[], momentoAtivo: number | null) => {
+    setIsSavingMomentos(true);
+    const ok = await saveMomentos(momentos, momentoAtivo);
+    setIsSavingMomentos(false);
+    return ok;
+  };
   
   const handleTopSetorClick = (setorId: string | null) => {
     setActiveTopSetor(setorId);
@@ -422,6 +451,19 @@ export default function APT() {
                         </DropdownMenuContent>
                       </DropdownMenu>
 
+                      {/* Configurar Momentos APT (admin only) */}
+                      {viewedMes !== null && viewedAno !== null && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="gap-2 border-blue-200 text-blue-700 hover:bg-blue-50"
+                          onClick={() => setShowConfigMomentosDialog(true)}
+                        >
+                          <Settings2 className="h-4 w-4" />
+                          <span className="hidden md:inline">Config. APT</span>
+                        </Button>
+                      )}
+
                       {/* Momento APT Lock Button */}
                       {viewedMes !== null && viewedAno !== null && (
                         <Button
@@ -504,6 +546,21 @@ export default function APT() {
                   isPastMonth={isViewingPastMonth}
                   isStatusActive={isCurrentMonthStatusActive}
                   isCollaborator={!isGestorOrAdmin}
+                />
+              </div>
+            )}
+
+            {/* Momentos APT Navigator */}
+            {viewedMes !== null && viewedAno !== null && (
+              <div className="mb-3">
+                <AptMomentosNavigator
+                  mes={viewedMes}
+                  ano={viewedAno}
+                  config={momentosConfig}
+                  isGestorOrAdmin={isGestorOrAdmin}
+                  momentoSelecionado={momentoSelecionado}
+                  onSelecionarMomento={handleSelecionarMomento}
+                  onAbrirConfig={() => setShowConfigMomentosDialog(true)}
                 />
               </div>
             )}
@@ -872,76 +929,10 @@ export default function APT() {
         {/* Gerenciamento agora está em /gerenciamento */}
       </div>
 
-      {/* Dialogs */}
-      <EditarDemandaIrmaDialog
-        open={!!editingDemanda}
-        onOpenChange={(open) => !open && setEditingDemanda(null)}
-        demanda={editingDemanda}
-        profiles={profiles}
-        setores={setores}
-        siblingCount={editingSiblingCount}
-        onDemandaEditada={fetchDemandas}
-      />
-
-      <ExcluirDemandaIrmaDialog
-        open={!!deletingDemanda}
-        onOpenChange={(open) => !open && setDeletingDemanda(null)}
-        demandaId={deletingDemanda?.id || null}
-        demandaNumero={deletingDemanda?.numero || null}
-        grupoId={deletingDemanda?.grupo_id || null}
-        siblingCount={deletingSiblingCount}
-        onDemandaExcluida={fetchDemandas}
-        demandaDescricao={deletingFullDemanda?.descricao}
-        demandaResponsavelId={deletingFullDemanda?.responsavel_id}
-        demandaMes={deletingFullDemanda?.mes}
-        demandaAno={deletingFullDemanda?.ano}
-        demandaSemanasRepeticao={deletingFullDemanda?.semanas_repeticao}
-      />
-
-      <SolicitarExclusaoDialog
-        open={!!solicitandoExclusao}
-        onOpenChange={(open) => !open && setSolicitandoExclusao(null)}
-        demandaId={solicitandoExclusao?.id || null}
-        demandaNumero={solicitandoExclusao?.numero || null}
-        grupoId={solicitandoExclusao?.grupo_id || null}
-        siblingCount={
-          solicitandoExclusao
-            ? (() => {
-                const d = demandas.find((x) => x.id === solicitandoExclusao.id);
-                return d ? getSiblingCount(d) : 1;
-              })()
-            : 1
-        }
-        demandaDescricao={solicitandoExclusao?.descricao}
-        demandaResponsavelId={solicitandoExclusao?.responsavel_id}
-        demandaMes={solicitandoExclusao?.mes}
-        demandaAno={solicitandoExclusao?.ano}
-        demandaSemanasRepeticao={solicitandoExclusao?.semanas_repeticao}
-        onSolicitacaoEnviada={() => { fetchDemandas(); refetchSolicitacoes(); }}
-      />
-
-      <ExcluirDemandasEmMassaDialog
-        open={showBulkDeleteDialog}
-        onOpenChange={setShowBulkDeleteDialog}
-        demandaIds={Array.from(selectedIds)}
-        allDemandas={demandas}
-        onDemandasExcluidas={handleBulkOperationComplete}
-      />
-
-      <AtualizarStatusEmMassaDialog
-        open={showBulkStatusDialog !== null}
-        onOpenChange={(open) => !open && setShowBulkStatusDialog(null)}
-        demandaIds={Array.from(selectedIds)}
-        type={showBulkStatusDialog || "responsavel"}
-        onStatusAtualizado={handleBulkOperationComplete}
-      />
-
-      <DuplicarDemandasEmMassaDialog
-        open={showBulkDuplicateDialog}
-        onOpenChange={setShowBulkDuplicateDialog}
-        selectedIds={selectedIds}
-        onComplete={handleBulkOperationComplete}
-      />
-    </AppLayout>
-  );
-}
+      {/* Dialog: Configurar Momentos APT */}
+      {viewedMes !== null && viewedAno !== null && (
+        <ConfigurarAptDialog
+          open={showConfigMomentosDialog}
+          onOpenChange={setShowConfigMomentosDialog}
+          mes={viewedMes}
+          ano
