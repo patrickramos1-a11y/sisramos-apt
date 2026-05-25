@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { Fragment, useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import AppLayout from "@/components/layout/AppLayout";
 import { useAuth } from "@/contexts/AuthContext";
@@ -13,7 +13,7 @@ import AptMomentosNavigator from "@/components/apt/AptMomentosNavigator";
 import ConfigurarAptDialog from "@/components/apt/ConfigurarAptDialog";
 import TopSetoresBar from "@/components/apt/TopSetoresBar";
 import StatusBolinha from "@/components/apt/StatusBolinha";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -21,7 +21,6 @@ import { buildSetorWhatsAppHref } from "@/lib/setor-actions";
 import {
   CalendarDays,
   CheckCircle2,
-  ChevronDown,
   ChevronRight,
   ClipboardCheck,
   Flame,
@@ -100,6 +99,19 @@ function getExecutionStatusSummary(group: ExecutionGroup) {
   return { total, feitas, naoFeitas, pendentes, aguardandoGestor };
 }
 
+function getGroupStatus(group: ExecutionGroup, field: "status_responsavel" | "status_gestor") {
+  const statuses = group.siblings.map((item) => item[field]);
+  if (statuses.every((status) => status === "executado")) return "executado";
+  if (statuses.every((status) => status === "nao_realizado")) return "nao_realizado";
+  return "pendente";
+}
+
+function nextStatus(status: Demanda["status_responsavel"]) {
+  if (status === "pendente") return "executado";
+  if (status === "executado") return "nao_realizado";
+  return "pendente";
+}
+
 export default function Execucao() {
   const { user, role, isGestorOrAdmin } = useAuth();
   const isColaborador = role === "colaborador";
@@ -112,8 +124,6 @@ export default function Execucao() {
     setFilters,
     clearFilters,
     fetchDemandas,
-    updateStatusResponsavel,
-    updateStatusGestor,
     getProfileById,
     getSetorById,
   } = useDemandas();
@@ -126,7 +136,6 @@ export default function Execucao() {
   const [momentoSelecionado, setMomentoSelecionado] = useState<number | null>(null);
   const [isSavingMomentos, setIsSavingMomentos] = useState(false);
   const [suggestedWeek, setSuggestedWeek] = useState<number | null>(null);
-  const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set());
   const [executionDefaultsApplied, setExecutionDefaultsApplied] = useState(false);
 
   const now = new Date();
@@ -293,6 +302,48 @@ export default function Execucao() {
     }
   };
 
+  const canEditGroupResponsavel = (group: ExecutionGroup) =>
+    group.siblings.every((demanda) => isStatusUpdateAllowed(demanda.mes, demanda.ano)) &&
+    (!isColaborador || !isMomentoBloqueado) &&
+    (role === "admin" || user?.id === group.responsavel_id);
+
+  const canEditGroupGestor = (group: ExecutionGroup) =>
+    isGestorOrAdmin && group.siblings.every((demanda) => isStatusUpdateAllowed(demanda.mes, demanda.ano));
+
+  const updateGroupResponsavelStatus = async (group: ExecutionGroup) => {
+    if (!canEditGroupResponsavel(group)) return;
+
+    const next = nextStatus(getGroupStatus(group, "status_responsavel"));
+    const { error } = await supabase
+      .from("demandas")
+      .update({ status_responsavel: next })
+      .in("id", group.siblings.map((demanda) => demanda.id));
+
+    if (error) {
+      console.error("Erro ao atualizar grupo de execução:", error);
+      return;
+    }
+
+    await fetchDemandas();
+  };
+
+  const updateGroupGestorStatus = async (group: ExecutionGroup) => {
+    if (!canEditGroupGestor(group)) return;
+
+    const next = nextStatus(getGroupStatus(group, "status_gestor"));
+    const { error } = await supabase
+      .from("demandas")
+      .update({ status_gestor: next })
+      .in("id", group.siblings.map((demanda) => demanda.id));
+
+    if (error) {
+      console.error("Erro ao atualizar aprovação do grupo de execução:", error);
+      return;
+    }
+
+    await fetchDemandas();
+  };
+
   const filteredByTopSetor = activeTopSetor
     ? demandas.filter((item) => item.setor_id === activeTopSetor)
     : demandas;
@@ -428,14 +479,7 @@ export default function Execucao() {
     });
   };
 
-  const toggleExpanded = (key: string) => {
-    setExpandedGroups((prev) => {
-      const next = new Set(prev);
-      if (next.has(key)) next.delete(key);
-      else next.add(key);
-      return next;
-    });
-  };
+  const executionTableColumnCount = isGestorOrAdmin ? 9 : 7;
 
   return (
     <AppLayout>
@@ -598,9 +642,9 @@ export default function Execucao() {
           )}
         </div>
 
-        {!isLoading && isGestorOrAdmin && filteredByTopSetor.length > 0 && (
+        {!isLoading && demandas.length > 0 && (
           <TopSetoresBar
-            demandas={filteredByTopSetor}
+            demandas={demandas}
             setores={setores}
             activeSetorId={activeTopSetor}
             onSetorClick={setActiveTopSetor}
@@ -618,54 +662,95 @@ export default function Execucao() {
             </CardContent>
           </Card>
         ) : (
-          <div className="space-y-4">
-            {groupsByResponsavel.map((section) => {
-              const profile = getProfileById(section.responsavelId);
-              const sectionCount = section.groups.reduce((acc, group) => acc + group.siblings.length, 0);
+          <div className="overflow-hidden rounded-2xl border border-border/70 bg-card shadow-sm">
+            <div className="overflow-x-auto">
+              <table className="min-w-full border-collapse text-sm">
+                <thead className="bg-primary text-primary-foreground">
+                  <tr className="[&>th]:whitespace-nowrap [&>th]:px-3 [&>th]:py-3 [&>th]:text-left [&>th]:text-xs [&>th]:font-semibold">
+                    <th className="w-20">Nº</th>
+                    <th className="w-40">Setor</th>
+                    {isGestorOrAdmin && <th className="w-44">Responsável</th>}
+                    <th className="min-w-[420px]">Descrição</th>
+                    <th className="w-32">Semanas</th>
+                    <th className="w-20 text-center">Rep.</th>
+                    <th className="w-24 text-center">Feito?</th>
+                    {isGestorOrAdmin && <th className="w-28 text-center">Aprovado?</th>}
+                    <th className="w-20 text-center">Ações</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {groupsByResponsavel.map((section) => {
+                    const profile = getProfileById(section.responsavelId);
+                    const sectionCount = section.groups.reduce((acc, group) => acc + group.siblings.length, 0);
 
-              return (
-                <section key={section.responsavelId} className="space-y-3">
-                  {isGestorOrAdmin && (
-                    <div className="flex items-center gap-3 rounded-2xl border border-border/60 bg-card/80 px-4 py-3">
-                      <div
-                        className="flex h-10 w-10 items-center justify-center rounded-full text-sm font-semibold"
-                        style={{
-                          backgroundColor: `${profile?.cor || "#84cc16"}20`,
-                          color: profile?.cor || "#65a30d",
-                        }}
-                      >
-                        {(profile?.nome || "?").charAt(0).toUpperCase()}
-                      </div>
-                      <div className="min-w-0">
-                        <p className="font-semibold">{profile?.nome || "Sem responsável"}</p>
-                        <p className="text-xs text-muted-foreground">
-                          {section.groups.length} metas agrupadas · {sectionCount} ocorrências do momento
-                        </p>
-                      </div>
-                    </div>
-                  )}
+                    return (
+                      <Fragment key={section.responsavelId}>
+                        {isGestorOrAdmin && (
+                          <tr key={`${section.responsavelId}-header`} className="border-b border-border/70 bg-muted/60">
+                            <td colSpan={executionTableColumnCount} className="px-3 py-2">
+                              <div className="flex items-center gap-2">
+                                <div
+                                  className="flex h-7 w-7 items-center justify-center rounded-full text-xs font-semibold"
+                                  style={{
+                                    backgroundColor: `${profile?.cor || "#84cc16"}20`,
+                                    color: profile?.cor || "#65a30d",
+                                  }}
+                                >
+                                  {(profile?.nome || "?").charAt(0).toUpperCase()}
+                                </div>
+                                <span className="font-semibold">{profile?.nome || "Sem responsável"}</span>
+                                <span className="text-xs text-muted-foreground">
+                                  {section.groups.length} metas aglutinadas · {sectionCount} ocorrências
+                                </span>
+                              </div>
+                            </td>
+                          </tr>
+                        )}
 
-                  <div className="grid gap-3">
-                    {section.groups.map((group) => {
-                      const setor = getSetorById(group.setor_id);
-                      const summary = getExecutionStatusSummary(group);
-                      const allWeeks = [...new Set(group.siblings.flatMap((item) => item.semana_limite))].sort((a, b) => a - b);
-                      const firstWhatsappHref = getWhatsappHref(group.siblings[0]);
-                      const isExpanded = expandedGroups.has(group.key);
+                        {section.groups.map((group) => {
+                          const setor = getSetorById(group.setor_id);
+                          const summary = getExecutionStatusSummary(group);
+                          const allWeeks = [...new Set(group.siblings.flatMap((item) => item.semana_limite))].sort((a, b) => a - b);
+                          const whatsappHref = getWhatsappHref(group.siblings[0]);
+                          const firstNumber = group.siblings[0]?.numero;
+                          const responsavel = getProfileById(group.responsavel_id);
+                          const responsavelStatus = getGroupStatus(group, "status_responsavel");
+                          const gestorStatus = getGroupStatus(group, "status_gestor");
+                          const repeatedLabel =
+                            group.siblings.length > 1 ? `${group.siblings.length}x` : `${group.siblings[0]?.semanas_repeticao ?? 1}x`;
 
-                      return (
-                        <Card
-                          key={group.key}
-                          className={cn(
-                            "overflow-hidden border-border/60",
-                            group.muito_urgente && "border-destructive/30 bg-destructive/[0.03]",
-                            group.prioritaria && !group.muito_urgente && "border-warning/30 bg-warning/[0.03]"
-                          )}
-                        >
-                          <CardHeader className="px-4 py-3">
-                            <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
-                              <div className="min-w-0 space-y-2">
-                                <div className="flex items-start gap-2">
+                          return (
+                            <tr
+                              key={group.key}
+                              className={cn(
+                                "border-b border-border/60 transition-colors hover:bg-muted/40",
+                                group.muito_urgente && "bg-destructive/[0.04]",
+                                group.prioritaria && !group.muito_urgente && "bg-warning/[0.04]"
+                              )}
+                            >
+                              <td className="whitespace-nowrap px-3 py-3 align-middle font-medium">
+                                <div className="flex items-center gap-1.5">
+                                  <span>{firstNumber}</span>
+                                  {group.siblings.length > 1 && (
+                                    <Badge variant="outline" className="rounded-full px-1.5 py-0 text-[10px]">
+                                      +{group.siblings.length - 1}
+                                    </Badge>
+                                  )}
+                                </div>
+                              </td>
+                              <td className="whitespace-nowrap px-3 py-3 align-middle">
+                                <Badge variant="secondary" className="gap-1.5 rounded-full px-2.5 py-1">
+                                  <span className="h-2 w-2 rounded-full" style={{ backgroundColor: setor?.cor || "#CBD5E1" }} />
+                                  {setor?.nome || "Sem setor"}
+                                </Badge>
+                              </td>
+                              {isGestorOrAdmin && (
+                                <td className="whitespace-nowrap px-3 py-3 align-middle">
+                                  {responsavel?.nome || "Sem responsável"}
+                                </td>
+                              )}
+                              <td className="px-3 py-3 align-middle">
+                                <div className="flex min-w-0 items-start gap-2">
                                   <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center">
                                     {group.muito_urgente ? (
                                       <Flame className="h-4 w-4 fill-destructive text-destructive" />
@@ -674,134 +759,69 @@ export default function Execucao() {
                                     ) : null}
                                   </span>
                                   <div className="min-w-0">
-                                    <CardTitle className="text-base leading-snug">{group.descricao}</CardTitle>
+                                    <p className="font-medium leading-snug">{group.descricao}</p>
                                     {group.observacoes.length > 0 && (
-                                      <p className="mt-1 text-xs text-muted-foreground line-clamp-2">
-                                        {group.observacoes[0]}
-                                      </p>
+                                      <p className="mt-0.5 line-clamp-1 text-xs text-muted-foreground">{group.observacoes[0]}</p>
                                     )}
                                   </div>
                                 </div>
-
-                                <div className="flex flex-wrap items-center gap-2">
-                                  <Badge variant="secondary" className="gap-1.5 rounded-full px-2.5 py-1">
-                                    <span
-                                      className="h-2 w-2 rounded-full"
-                                      style={{ backgroundColor: setor?.cor || "#CBD5E1" }}
-                                    />
-                                    {setor?.nome || "Sem setor"}
-                                  </Badge>
-                                  <Badge variant="outline" className="rounded-full px-2.5 py-1">
-                                    {allWeeks.length > 1 ? `Aglutinada em ${allWeeks.length} semanas` : "Meta pontual do ciclo"}
-                                  </Badge>
-                                  <Badge variant="outline" className="rounded-full px-2.5 py-1">
-                                    {semanasCompactas(allWeeks)}
-                                  </Badge>
+                              </td>
+                              <td className="whitespace-nowrap px-3 py-3 align-middle">
+                                <Badge variant="outline" className="rounded-full px-2.5 py-1">
+                                  {semanasCompactas(allWeeks)}
+                                </Badge>
+                              </td>
+                              <td className="whitespace-nowrap px-3 py-3 text-center align-middle">
+                                <Badge variant="outline" className="rounded-full px-2.5 py-1">
+                                  {repeatedLabel}
+                                </Badge>
+                              </td>
+                              <td className="px-3 py-3 text-center align-middle">
+                                <div className="inline-flex items-center gap-2">
+                                  <StatusBolinha
+                                    status={responsavelStatus}
+                                    onClick={() => updateGroupResponsavelStatus(group)}
+                                    disabled={!canEditGroupResponsavel(group)}
+                                  />
+                                  <span className="text-xs text-muted-foreground">
+                                    {summary.feitas}/{summary.total}
+                                  </span>
                                 </div>
-                              </div>
-
-                              <div className="flex flex-wrap items-center gap-2 lg:justify-end">
-                                <Badge className="rounded-full bg-warning/10 px-2.5 py-1 text-warning hover:bg-warning/10">
-                                  {summary.pendentes} pend.
-                                </Badge>
-                                <Badge className="rounded-full bg-emerald-500/10 px-2.5 py-1 text-emerald-700 hover:bg-emerald-500/10">
-                                  {summary.feitas}/{summary.total} feitas
-                                </Badge>
-                                {summary.aguardandoGestor > 0 && (
-                                  <Badge className="rounded-full bg-sky-500/10 px-2.5 py-1 text-sky-700 hover:bg-sky-500/10">
-                                    {summary.aguardandoGestor} aguardando gestor
-                                  </Badge>
+                              </td>
+                              {isGestorOrAdmin && (
+                                <td className="px-3 py-3 text-center align-middle">
+                                  <div className="inline-flex items-center gap-2">
+                                    <StatusBolinha
+                                      status={gestorStatus}
+                                      onClick={() => updateGroupGestorStatus(group)}
+                                      disabled={!canEditGroupGestor(group)}
+                                    />
+                                    {summary.aguardandoGestor > 0 && (
+                                      <span className="text-xs text-sky-700">{summary.aguardandoGestor}</span>
+                                    )}
+                                  </div>
+                                </td>
+                              )}
+                              <td className="px-3 py-3 text-center align-middle">
+                                {whatsappHref ? (
+                                  <Button asChild variant="ghost" size="icon" className="h-8 w-8 text-emerald-600 hover:text-emerald-700">
+                                    <a href={whatsappHref} target="_blank" rel="noreferrer" aria-label="Enviar mensagem no WhatsApp">
+                                      <MessageCircle className="h-4 w-4" />
+                                    </a>
+                                  </Button>
+                                ) : (
+                                  <span className="text-xs text-muted-foreground">-</span>
                                 )}
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  className="gap-1.5"
-                                  onClick={() => toggleExpanded(group.key)}
-                                >
-                                  {isExpanded ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
-                                  {isExpanded ? "Ocultar semanas" : "Ver semanas"}
-                                </Button>
-                              </div>
-                            </div>
-                          </CardHeader>
-
-                          {isExpanded && (
-                            <CardContent className="border-t border-border/60 px-4 py-3">
-                              <div className="space-y-2">
-                                {group.siblings.map((demanda) => {
-                                  const whatsappHref = getWhatsappHref(demanda) || firstWhatsappHref;
-                                  const canEditResponsavel =
-                                    isStatusUpdateAllowed(demanda.mes, demanda.ano) &&
-                                    (!isColaborador || !isMomentoBloqueado) &&
-                                    (role === "admin" || user?.id === demanda.responsavel_id);
-                                  const canEditGestor =
-                                    isStatusUpdateAllowed(demanda.mes, demanda.ano) && isGestorOrAdmin;
-
-                                  return (
-                                    <div
-                                      key={demanda.id}
-                                      className="flex flex-col gap-2 rounded-xl border border-border/60 bg-background/70 px-3 py-2 md:flex-row md:items-center md:justify-between"
-                                    >
-                                      <div className="min-w-0 space-y-1">
-                                        <div className="flex flex-wrap items-center gap-2">
-                                          <Badge variant="outline" className="rounded-full px-2 py-0.5 text-[11px]">
-                                            {semanaLabel(Math.min(...demanda.semana_limite))}
-                                          </Badge>
-                                          <span className="text-xs text-muted-foreground">Demanda #{demanda.numero}</span>
-                                        </div>
-                                        {demanda.observacoes && (
-                                          <p className="text-xs text-muted-foreground line-clamp-2">{demanda.observacoes}</p>
-                                        )}
-                                      </div>
-
-                                      <div className="flex flex-wrap items-center gap-3">
-                                        <div className="flex items-center gap-2">
-                                          <span className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
-                                            Feito
-                                          </span>
-                                          <StatusBolinha
-                                            size="sm"
-                                            status={demanda.status_responsavel}
-                                            onClick={() => updateStatusResponsavel(demanda.id, demanda.status_responsavel)}
-                                            disabled={!canEditResponsavel}
-                                          />
-                                        </div>
-
-                                        {isGestorOrAdmin && (
-                                          <div className="flex items-center gap-2">
-                                            <span className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
-                                              Aprov.
-                                            </span>
-                                            <StatusBolinha
-                                              size="sm"
-                                              status={demanda.status_gestor}
-                                              onClick={() => updateStatusGestor(demanda.id, demanda.status_gestor)}
-                                              disabled={!canEditGestor}
-                                            />
-                                          </div>
-                                        )}
-
-                                        {whatsappHref && (
-                                          <Button asChild variant="ghost" size="icon" className="h-8 w-8 text-emerald-600 hover:text-emerald-700">
-                                            <a href={whatsappHref} target="_blank" rel="noreferrer" aria-label="Enviar mensagem no WhatsApp">
-                                              <MessageCircle className="h-4 w-4" />
-                                            </a>
-                                          </Button>
-                                        )}
-                                      </div>
-                                    </div>
-                                  );
-                                })}
-                              </div>
-                            </CardContent>
-                          )}
-                        </Card>
-                      );
-                    })}
-                  </div>
-                </section>
-              );
-            })}
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </Fragment>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
           </div>
         )}
 
