@@ -53,11 +53,18 @@ export function useAptMomentos(mes: number | null, ano: number | null) {
 
     if (error) {
       console.error("Erro ao buscar configuração de momentos APT:", error);
+      if (error.code === "42P01") {
+        toast({
+          variant: "destructive",
+          title: "Momentos APT indisponível",
+          description: "A tabela apt_momentos_config ainda não foi criada no Supabase.",
+        });
+      }
     } else {
       setConfig(data as AptMomentosConfig | null);
     }
     setIsLoading(false);
-  }, [mes, ano, user]);
+  }, [mes, ano, user, toast]);
 
   useEffect(() => {
     fetchConfig();
@@ -97,10 +104,16 @@ export function useAptMomentos(mes: number | null, ano: number | null) {
           .eq("id", config.id);
 
         if (error) {
+          console.error("Erro ao salvar configuração de momentos APT:", error);
           toast({
             variant: "destructive",
             title: "Erro",
-            description: "Erro ao salvar configuração de momentos",
+            description:
+              error.code === "42501"
+                ? "Seu usuário não tem permissão para salvar esta configuração."
+                : error.code === "42P01"
+                  ? "A tabela apt_momentos_config ainda não foi criada no Supabase."
+                  : "Erro ao salvar configuração de momentos",
           });
           return false;
         }
@@ -110,10 +123,16 @@ export function useAptMomentos(mes: number | null, ano: number | null) {
           .insert(payload);
 
         if (error) {
+          console.error("Erro ao criar configuração de momentos APT:", error);
           toast({
             variant: "destructive",
             title: "Erro",
-            description: "Erro ao criar configuração de momentos",
+            description:
+              error.code === "42501"
+                ? "Seu usuário não tem permissão para criar esta configuração."
+                : error.code === "42P01"
+                  ? "A tabela apt_momentos_config ainda não foi criada no Supabase."
+                  : "Erro ao criar configuração de momentos",
           });
           return false;
         }

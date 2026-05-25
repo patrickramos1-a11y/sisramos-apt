@@ -140,6 +140,9 @@ export default function Execucao() {
   const {
     config: momentosConfig,
     saveConfig: saveMomentos,
+    avancarMomento,
+    reabrirMomento,
+    ativarMomento,
     semanasDoMomento,
     semanasDoMomentoAtivo,
   } = useAptMomentos(viewedMes, viewedAno);
@@ -316,6 +319,10 @@ export default function Execucao() {
       : suggestedWeek !== null
         ? `Semana sugerida ${semanaLabel(suggestedWeek)}`
         : `Semana atual ${semanaLabel(currentWeek)}`;
+  const momentos = momentosConfig?.momentos ?? [];
+  const selectedMomento = activeMomentNumber !== null
+    ? momentos.find((momento) => momento.numero === activeMomentNumber)
+    : null;
 
   const contextCards = [
     {
@@ -392,7 +399,7 @@ export default function Execucao() {
               </Link>
             </Button>
             <Button asChild size="sm" className="gap-2">
-              <Link to="/apt-planejamento">
+              <Link to="/apt">
                 <Layers3 className="h-4 w-4" />
                 Planejamento APT
               </Link>
@@ -502,7 +509,54 @@ export default function Execucao() {
               {isMomentoBloqueado ? "Momento APT ativo" : "Iniciar Momento APT"}
             </Button>
           )}
+          {isGestorOrAdmin && momentosConfig && activeMomentNumber !== null && (
+            <Button size="sm" className="gap-2" onClick={() => avancarMomento()}>
+              <ChevronRight className="h-4 w-4" />
+              Fechar e avançar
+            </Button>
+          )}
         </div>
+
+        {momentos.length > 0 && (
+          <div className="mb-4 flex flex-wrap items-center gap-2 rounded-xl border border-border/60 bg-card/80 px-3 py-2">
+            {momentos.map((momento) => {
+              const isSelected = momento.numero === activeMomentNumber;
+              const isActive = momento.numero === momentosConfig?.momento_ativo;
+              return (
+                <button
+                  key={momento.numero}
+                  type="button"
+                  onClick={() => handleSelecionarMomento(momento.numero)}
+                  className={cn(
+                    "inline-flex h-8 items-center gap-2 rounded-full border px-3 text-xs font-semibold transition-colors",
+                    isSelected
+                      ? "border-primary bg-primary text-primary-foreground"
+                      : momento.concluido
+                        ? "border-emerald-200 bg-emerald-50 text-emerald-800 hover:bg-emerald-100"
+                        : isActive
+                          ? "border-sky-200 bg-sky-50 text-sky-800 hover:bg-sky-100"
+                          : "border-border bg-background text-muted-foreground hover:bg-muted"
+                  )}
+                >
+                  {momento.concluido ? <CheckCircle2 className="h-3.5 w-3.5" /> : <Layers3 className="h-3.5 w-3.5" />}
+                  {momento.label}
+                  <span className="font-normal opacity-80">{semanasCompactas(momento.semanas)}</span>
+                </button>
+              );
+            })}
+            <div className="flex-1" />
+            {isGestorOrAdmin && selectedMomento?.concluido && (
+              <Button variant="outline" size="sm" className="h-8" onClick={() => reabrirMomento(selectedMomento.numero)}>
+                Reabrir momento
+              </Button>
+            )}
+            {isGestorOrAdmin && selectedMomento && selectedMomento.numero !== momentosConfig?.momento_ativo && !selectedMomento.concluido && (
+              <Button variant="outline" size="sm" className="h-8" onClick={() => ativarMomento(selectedMomento.numero)}>
+                Ativar momento
+              </Button>
+            )}
+          </div>
+        )}
 
         {!isLoading && isGestorOrAdmin && filteredByTopSetor.length > 0 && (
           <TopSetoresBar
