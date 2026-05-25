@@ -392,7 +392,7 @@ export default function Execucao() {
               </Link>
             </Button>
             <Button asChild size="sm" className="gap-2">
-              <Link to="/apt">
+              <Link to="/apt-planejamento">
                 <Layers3 className="h-4 w-4" />
                 Planejamento APT
               </Link>

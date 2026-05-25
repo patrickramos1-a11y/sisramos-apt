@@ -11,7 +11,10 @@ export default function APTDropdownMenu({ isMobile = false, onItemClick }: APTDr
   const location = useLocation();
   const navigate = useNavigate();
 
-  const isAPTActive = location.pathname === "/apt" || location.pathname === "/execucao";
+  const isAPTActive =
+    location.pathname === "/apt" ||
+    location.pathname === "/execucao" ||
+    location.pathname === "/apt-planejamento";
 
   const handleNavigation = () => {
     navigate("/execucao");

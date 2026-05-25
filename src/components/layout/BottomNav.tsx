@@ -27,7 +27,8 @@ export default function BottomNav() {
         {navItems.map((item) => {
           const isActive =
             location.pathname === item.matchPath ||
-            (item.matchPath === "/execucao" && location.pathname === "/apt");
+            (item.matchPath === "/execucao" &&
+              (location.pathname === "/apt" || location.pathname === "/apt-planejamento"));
           return (
             <button
               key={item.name}

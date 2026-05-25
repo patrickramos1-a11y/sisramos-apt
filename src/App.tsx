@@ -38,6 +38,14 @@ const App = () => (
               path="/apt"
               element={
                 <ProtectedRoute>
+                  <Execucao />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/apt-planejamento"
+              element={
+                <ProtectedRoute>
                   <APT />
                 </ProtectedRoute>
               }
