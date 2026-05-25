@@ -5,7 +5,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useDemandas } from "@/hooks/useDemandas";
 import { useMonthSettings } from "@/hooks/useMonthSettings";
 import { useMomentoAPT } from "@/hooks/useMomentoAPT";
-import { useAptMomentos } from "@/hooks/useAptMomentos";
+import { defaultMomentos, useAptMomentos } from "@/hooks/useAptMomentos";
 import { supabase } from "@/integrations/supabase/client";
 import APTHorizontalFilters from "@/components/apt/APTHorizontalFilters";
 import APTFilters from "@/components/apt/APTFilters";
@@ -147,15 +147,32 @@ export default function Execucao() {
     semanasDoMomentoAtivo,
   } = useAptMomentos(viewedMes, viewedAno);
 
+  const defaultMomentosConfig = useMemo(() => defaultMomentos(5), []);
+  const visualMomentosConfig = useMemo(
+    () =>
+      momentosConfig ?? {
+        id: "visual-default",
+        mes: viewedMes,
+        ano: viewedAno,
+        momentos: defaultMomentosConfig,
+        momento_ativo: suggestedWeek ?? currentWeek,
+        created_at: "",
+        updated_at: "",
+      },
+    [currentWeek, defaultMomentosConfig, momentosConfig, suggestedWeek, viewedAno, viewedMes]
+  );
+
   const activeMomentWeeks = useMemo(() => {
     if (momentoSelecionado !== null) {
-      return semanasDoMomento(momentoSelecionado);
+      const semanasConfiguradas = semanasDoMomento(momentoSelecionado);
+      if (semanasConfiguradas.length > 0) return semanasConfiguradas;
+      return visualMomentosConfig.momentos.find((momento) => momento.numero === momentoSelecionado)?.semanas ?? [];
     }
     const weeks = semanasDoMomentoAtivo();
     if (weeks.length > 0) return weeks;
     if (suggestedWeek !== null) return [suggestedWeek];
     return [currentWeek];
-  }, [momentoSelecionado, semanasDoMomento, semanasDoMomentoAtivo, suggestedWeek, currentWeek]);
+  }, [currentWeek, momentoSelecionado, semanasDoMomento, semanasDoMomentoAtivo, suggestedWeek, visualMomentosConfig]);
 
   useEffect(() => {
     if (executionDefaultsApplied) return;
@@ -195,9 +212,14 @@ export default function Execucao() {
     if (!executionDefaultsApplied) return;
     if (filters.semanas.length > 0) return;
 
-    if (momentosConfig?.momento_ativo) {
-      const weeks = semanasDoMomento(momentosConfig.momento_ativo);
-      setMomentoSelecionado(momentosConfig.momento_ativo);
+    const momentoAtivo = momentosConfig?.momento_ativo ?? suggestedWeek ?? currentWeek;
+    const weeks =
+      momentosConfig?.momento_ativo
+        ? semanasDoMomento(momentosConfig.momento_ativo)
+        : visualMomentosConfig.momentos.find((momento) => momento.numero === momentoAtivo)?.semanas ?? [];
+
+    if (weeks.length > 0) {
+      setMomentoSelecionado(momentoAtivo);
       setFilters((prev) => ({ ...prev, semanas: weeks.map(String) }));
       return;
     }
@@ -212,11 +234,16 @@ export default function Execucao() {
     semanasDoMomento,
     setFilters,
     suggestedWeek,
+    visualMomentosConfig,
   ]);
 
   const handleSelecionarMomento = (numero: number) => {
     setMomentoSelecionado(numero);
-    const semanas = semanasDoMomento(numero);
+    const semanasConfiguradas = semanasDoMomento(numero);
+    const semanas =
+      semanasConfiguradas.length > 0
+        ? semanasConfiguradas
+        : visualMomentosConfig.momentos.find((momento) => momento.numero === numero)?.semanas ?? [];
     if (semanas.length > 0) {
       setFilters((prev) => ({ ...prev, semanas: semanas.map(String) }));
     }
@@ -311,15 +338,15 @@ export default function Execucao() {
   ).length;
 
   const isMomentoBloqueado = isAPTBloqueado(viewedMes, viewedAno);
-  const activeMomentNumber = momentoSelecionado ?? momentosConfig?.momento_ativo ?? null;
+  const activeMomentNumber = momentoSelecionado ?? visualMomentosConfig.momento_ativo ?? null;
   const activeMomentLabel =
     activeMomentNumber !== null
-      ? momentosConfig?.momentos.find((momento) => momento.numero === activeMomentNumber)?.label ??
+      ? visualMomentosConfig.momentos.find((momento) => momento.numero === activeMomentNumber)?.label ??
         `Momento ${activeMomentNumber}`
       : suggestedWeek !== null
         ? `Semana sugerida ${semanaLabel(suggestedWeek)}`
         : `Semana atual ${semanaLabel(currentWeek)}`;
-  const momentos = momentosConfig?.momentos ?? [];
+  const momentos = visualMomentosConfig.momentos;
   const selectedMomento = activeMomentNumber !== null
     ? momentos.find((momento) => momento.numero === activeMomentNumber)
     : null;
@@ -476,12 +503,17 @@ export default function Execucao() {
           <AptMomentosNavigator
             mes={viewedMes}
             ano={viewedAno}
-            config={momentosConfig}
+            config={visualMomentosConfig}
             isGestorOrAdmin={isGestorOrAdmin}
             momentoSelecionado={activeMomentNumber}
             onSelecionarMomento={handleSelecionarMomento}
             onAbrirConfig={() => setShowConfigMomentosDialog(true)}
           />
+          {!momentosConfig && (
+            <p className="mt-2 text-[11px] text-muted-foreground">
+              Exibindo a sequência padrão de 5 momentos até a configuração do mês ser salva.
+            </p>
+          )}
         </div>
 
         <div className="mb-4 flex flex-wrap items-center gap-2">
@@ -521,7 +553,7 @@ export default function Execucao() {
           <div className="mb-4 flex flex-wrap items-center gap-2 rounded-xl border border-border/60 bg-card/80 px-3 py-2">
             {momentos.map((momento) => {
               const isSelected = momento.numero === activeMomentNumber;
-              const isActive = momento.numero === momentosConfig?.momento_ativo;
+              const isActive = momento.numero === visualMomentosConfig.momento_ativo;
               return (
                 <button
                   key={momento.numero}
@@ -550,7 +582,7 @@ export default function Execucao() {
                 Reabrir momento
               </Button>
             )}
-            {isGestorOrAdmin && selectedMomento && selectedMomento.numero !== momentosConfig?.momento_ativo && !selectedMomento.concluido && (
+            {isGestorOrAdmin && momentosConfig && selectedMomento && selectedMomento.numero !== momentosConfig?.momento_ativo && !selectedMomento.concluido && (
               <Button variant="outline" size="sm" className="h-8" onClick={() => ativarMomento(selectedMomento.numero)}>
                 Ativar momento
               </Button>
