@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
@@ -22,7 +22,72 @@ export interface AptMomentosConfig {
   updated_at: string;
 }
 
-// Gera a configuração padrão para um mês (1 momento por semana, semanas 1-5)
+const LOCAL_STORAGE_PREFIX = "apt_momentos_config";
+
+function storageKey(mes: number, ano: number) {
+  return `${LOCAL_STORAGE_PREFIX}:${ano}:${mes}`;
+}
+
+function canUseLocalStorage() {
+  return typeof window !== "undefined" && typeof window.localStorage !== "undefined";
+}
+
+function readLocalConfig(mes: number, ano: number): AptMomentosConfig | null {
+  if (!canUseLocalStorage()) return null;
+
+  try {
+    const raw = window.localStorage.getItem(storageKey(mes, ano));
+    if (!raw) return null;
+    return JSON.parse(raw) as AptMomentosConfig;
+  } catch (error) {
+    console.error("Erro ao ler config local de momentos APT:", error);
+    return null;
+  }
+}
+
+function writeLocalConfig(config: AptMomentosConfig) {
+  if (!canUseLocalStorage()) return;
+  window.localStorage.setItem(storageKey(config.mes, config.ano), JSON.stringify(config));
+}
+
+function removeLocalConfig(mes: number, ano: number) {
+  if (!canUseLocalStorage()) return;
+  window.localStorage.removeItem(storageKey(mes, ano));
+}
+
+function buildConfig(
+  mes: number,
+  ano: number,
+  momentos: AptMomento[],
+  momentoAtivo: number | null,
+  current?: AptMomentosConfig | null
+): AptMomentosConfig {
+  const now = new Date().toISOString();
+  return {
+    id: current?.id ?? `local-${ano}-${mes}`,
+    mes,
+    ano,
+    momentos,
+    momento_ativo: momentoAtivo,
+    created_at: current?.created_at ?? now,
+    updated_at: now,
+  };
+}
+
+function getSaveErrorMessage(code?: string) {
+  if (code === "42P01") {
+    return "A tabela apt_momentos_config ainda nao foi criada no Supabase.";
+  }
+  if (code === "42501") {
+    return "A regra de seguranca do Supabase bloqueou o salvamento.";
+  }
+  if (code === "42703") {
+    return "A regra atual do Supabase referencia uma coluna que nao existe.";
+  }
+  return "Nao foi possivel salvar no Supabase agora.";
+}
+
+// Gera a configuracao padrao para um mes: 1 momento por semana.
 export function defaultMomentos(totalSemanas: 4 | 5 = 5): AptMomento[] {
   return Array.from({ length: totalSemanas }, (_, i) => ({
     numero: i + 1,
@@ -37,34 +102,43 @@ export function defaultMomentos(totalSemanas: 4 | 5 = 5): AptMomento[] {
 export function useAptMomentos(mes: number | null, ano: number | null) {
   const [config, setConfig] = useState<AptMomentosConfig | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [isLocalFallback, setIsLocalFallback] = useState(false);
   const { user, isGestorOrAdmin } = useAuth();
   const { toast } = useToast();
+
+  const table = () => (supabase as any).from("apt_momentos_config");
 
   const fetchConfig = useCallback(async () => {
     if (!mes || !ano || !user) return;
     setIsLoading(true);
 
-    const { data, error } = await supabase
-      .from("apt_momentos_config")
+    const { data, error } = await table()
       .select("*")
       .eq("mes", mes)
       .eq("ano", ano)
       .maybeSingle();
 
     if (error) {
-      console.error("Erro ao buscar configuração de momentos APT:", error);
-      if (error.code === "42P01") {
-        toast({
-          variant: "destructive",
-          title: "Momentos APT indisponível",
-          description: "A tabela apt_momentos_config ainda não foi criada no Supabase.",
-        });
-      }
-    } else {
-      setConfig(data as AptMomentosConfig | null);
+      console.error("Erro ao buscar configuracao de momentos APT:", error);
+      const localConfig = readLocalConfig(mes, ano);
+      setConfig(localConfig);
+      setIsLocalFallback(Boolean(localConfig));
+      setIsLoading(false);
+      return;
     }
+
+    if (data) {
+      setConfig(data as AptMomentosConfig);
+      setIsLocalFallback(false);
+      removeLocalConfig(mes, ano);
+    } else {
+      const localConfig = readLocalConfig(mes, ano);
+      setConfig(localConfig);
+      setIsLocalFallback(Boolean(localConfig));
+    }
+
     setIsLoading(false);
-  }, [mes, ano, user, toast]);
+  }, [ano, mes, user]);
 
   useEffect(() => {
     fetchConfig();
@@ -88,74 +162,59 @@ export function useAptMomentos(mes: number | null, ano: number | null) {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [fetchConfig, mes, ano]);
+  }, [ano, fetchConfig, mes]);
 
-  // Salva (cria ou atualiza) a configuração completa
   const saveConfig = useCallback(
     async (momentos: AptMomento[], momentoAtivo: number | null) => {
-      if (!isGestorOrAdmin || !mes || !ano) return;
-
-      const payload = { mes, ano, momentos, momento_ativo: momentoAtivo };
-
-      if (config?.id) {
-        const { error } = await supabase
-          .from("apt_momentos_config")
-          .update({ momentos, momento_ativo: momentoAtivo })
-          .eq("id", config.id);
-
-        if (error) {
-          console.error("Erro ao salvar configuração de momentos APT:", error);
-          toast({
-            variant: "destructive",
-            title: "Erro",
-            description:
-              error.code === "42501"
-                ? "Seu usuário não tem permissão para salvar esta configuração."
-                : error.code === "42P01"
-                  ? "A tabela apt_momentos_config ainda não foi criada no Supabase."
-                  : "Erro ao salvar configuração de momentos",
-          });
-          return false;
-        }
-      } else {
-        const { error } = await supabase
-          .from("apt_momentos_config")
-          .insert(payload);
-
-        if (error) {
-          console.error("Erro ao criar configuração de momentos APT:", error);
-          toast({
-            variant: "destructive",
-            title: "Erro",
-            description:
-              error.code === "42501"
-                ? "Seu usuário não tem permissão para criar esta configuração."
-                : error.code === "42P01"
-                  ? "A tabela apt_momentos_config ainda não foi criada no Supabase."
-                  : "Erro ao criar configuração de momentos",
-          });
-          return false;
-        }
+      if (!isGestorOrAdmin || !mes || !ano) {
+        toast({
+          variant: "destructive",
+          title: "Sem permissao",
+          description: "Apenas gestores e administradores podem configurar os momentos.",
+        });
+        return false;
       }
 
-      await fetchConfig();
+      const nextConfig = buildConfig(mes, ano, momentos, momentoAtivo, config);
+      const payload = {
+        mes,
+        ano,
+        momentos,
+        momento_ativo: momentoAtivo,
+      };
+
+      const { data, error } = await table()
+        .upsert(payload, { onConflict: "mes,ano" })
+        .select("*")
+        .single();
+
+      if (error) {
+        console.error("Erro ao salvar configuracao de momentos APT:", error);
+        writeLocalConfig(nextConfig);
+        setConfig(nextConfig);
+        setIsLocalFallback(true);
+        toast({
+          title: "Configuração salva localmente",
+          description: `${getSaveErrorMessage(error.code)} A tela foi destravada neste navegador.`,
+        });
+        return true;
+      }
+
+      setConfig(data as AptMomentosConfig);
+      setIsLocalFallback(false);
+      removeLocalConfig(mes, ano);
       return true;
     },
-    [config, mes, ano, isGestorOrAdmin, toast, fetchConfig]
+    [ano, config, isGestorOrAdmin, mes, toast]
   );
 
-  // Avança para o próximo momento (conclui o atual e ativa o próximo)
   const avancarMomento = useCallback(async () => {
     if (!isGestorOrAdmin || !config || !user) return;
 
     const momentos = [...config.momentos];
-    const atualIdx = momentos.findIndex(
-      (m) => m.numero === config.momento_ativo
-    );
-
+    const atualIdx = momentos.findIndex((m) => m.numero === config.momento_ativo);
     if (atualIdx === -1) return;
 
-    // Marca o atual como concluído
     momentos[atualIdx] = {
       ...momentos[atualIdx],
       concluido: true,
@@ -163,27 +222,18 @@ export function useAptMomentos(mes: number | null, ano: number | null) {
       concluidoPor: user.id,
     };
 
-    // Próximo momento não concluído
-    const proximo = momentos.find(
-      (m) => m.numero > momentos[atualIdx].numero && !m.concluido
-    );
-
+    const proximo = momentos.find((m) => m.numero > momentos[atualIdx].numero && !m.concluido);
     const novoAtivo = proximo?.numero ?? null;
     const ok = await saveConfig(momentos, novoAtivo);
 
     if (ok) {
       toast({
-        title: proximo
-          ? `Momento ${momentos[atualIdx].numero} encerrado`
-          : "Todos os momentos concluídos",
-        description: proximo
-          ? `${proximo.label} está agora ativo`
-          : "APT do mês finalizada",
+        title: proximo ? `Momento ${momentos[atualIdx].numero} encerrado` : "Todos os momentos concluidos",
+        description: proximo ? `${proximo.label} esta agora ativo` : "APT do mes finalizada",
       });
     }
-  }, [config, isGestorOrAdmin, user, saveConfig, toast]);
+  }, [config, isGestorOrAdmin, saveConfig, toast, user]);
 
-  // Reabre um momento concluído (volta o status para não concluído)
   const reabrirMomento = useCallback(
     async (numeroMomento: number) => {
       if (!isGestorOrAdmin || !config) return;
@@ -199,27 +249,26 @@ export function useAptMomentos(mes: number | null, ano: number | null) {
     [config, isGestorOrAdmin, saveConfig]
   );
 
-  // Ativa um momento específico (sem concluir o anterior)
   const ativarMomento = useCallback(
     async (numeroMomento: number) => {
       if (!isGestorOrAdmin || !config) return;
-      await saveConfig(config.momentos, numeroMomento);
-      toast({
-        title: `Momento ${numeroMomento} ativado`,
-        description: `Colaboradores verão as demandas deste momento`,
-      });
+      const ok = await saveConfig(config.momentos, numeroMomento);
+
+      if (ok) {
+        toast({
+          title: `Momento ${numeroMomento} ativado`,
+          description: "A visualizacao de execucao foi atualizada para este momento.",
+        });
+      }
     },
     [config, isGestorOrAdmin, saveConfig, toast]
   );
 
-  // Retorna as semanas do momento ativo (para filtrar demandas)
   const semanasDoMomentoAtivo = useCallback((): number[] => {
     if (!config || config.momento_ativo === null) return [];
-    const m = config.momentos.find((m) => m.numero === config.momento_ativo);
-    return m?.semanas ?? [];
+    return config.momentos.find((m) => m.numero === config.momento_ativo)?.semanas ?? [];
   }, [config]);
 
-  // Retorna as semanas de um momento específico
   const semanasDoMomento = useCallback(
     (numero: number): number[] => {
       if (!config) return [];
@@ -231,6 +280,7 @@ export function useAptMomentos(mes: number | null, ano: number | null) {
   return {
     config,
     isLoading,
+    isLocalFallback,
     fetchConfig,
     saveConfig,
     avancarMomento,

@@ -1,5 +1,5 @@
--- Configuracao de momentos APT por mes/ano.
--- Cada momento pode agrupar uma ou mais semanas.
+-- Reparo idempotente para ambientes onde a primeira migration dos Momentos APT
+-- ficou parcial ou com politicas incompatíveis com o login simplificado do app.
 
 CREATE TABLE IF NOT EXISTS public.apt_momentos_config (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -37,8 +37,6 @@ DROP POLICY IF EXISTS "Insercao publica de apt_momentos_config" ON public.apt_mo
 DROP POLICY IF EXISTS "Atualizacao publica de apt_momentos_config" ON public.apt_momentos_config;
 DROP POLICY IF EXISTS "Exclusao publica de apt_momentos_config" ON public.apt_momentos_config;
 
--- O app usa selecao local de usuario e chave anonima, como outras tabelas
--- operacionais ja fazem. A permissao fina fica na interface do gestor/admin.
 CREATE POLICY "Leitura publica de apt_momentos_config"
   ON public.apt_momentos_config FOR SELECT
   TO anon, authenticated

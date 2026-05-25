@@ -1,5 +1,5 @@
 import { useLocation, useNavigate } from "react-router-dom";
-import { BarChart3, ClipboardList, CheckSquare, Settings, BarChart2 } from "lucide-react";
+import { BarChart2, BarChart3, CheckSquare, ClipboardList, Layers3, Settings } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface NavItem {
@@ -10,9 +10,10 @@ interface NavItem {
 }
 
 const navItems: NavItem[] = [
-  { name: "Dashboard", href: "/dashboard", icon: BarChart3, matchPath: "/dashboard" },
+  { name: "Dash", href: "/dashboard", icon: BarChart3, matchPath: "/dashboard" },
   { name: "Exec.", href: "/execucao", icon: ClipboardList, matchPath: "/execucao" },
-  { name: "Checklist", href: "/checklist", icon: CheckSquare, matchPath: "/checklist" },
+  { name: "APT", href: "/apt", icon: Layers3, matchPath: "/apt" },
+  { name: "Check", href: "/checklist", icon: CheckSquare, matchPath: "/checklist" },
   { name: "Gestão", href: "/gerenciamento?tab=painel", icon: BarChart2, matchPath: "/gerenciamento" },
   { name: "Config", href: "/configuracoes", icon: Settings, matchPath: "/configuracoes" },
 ];
@@ -22,32 +23,28 @@ export default function BottomNav() {
   const navigate = useNavigate();
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 z-50 border-t bg-card/95 backdrop-blur-xl md:hidden safe-area-bottom">
-      <div className="flex items-stretch justify-around h-[56px]">
+    <nav className="safe-area-bottom fixed bottom-0 left-0 right-0 z-50 border-t bg-card/95 backdrop-blur-xl md:hidden">
+      <div className="flex h-[58px] items-stretch justify-around">
         {navItems.map((item) => {
           const isActive =
             location.pathname === item.matchPath ||
-            (item.matchPath === "/execucao" &&
-              (location.pathname === "/apt" || location.pathname === "/apt-planejamento"));
+            (item.matchPath === "/apt" && location.pathname === "/apt-planejamento");
+
           return (
             <button
               key={item.name}
               onClick={() => navigate(item.href)}
               className={cn(
-                "relative flex flex-col items-center justify-center flex-1 gap-0.5 min-h-[44px] transition-colors touch-feedback",
-                isActive
-                  ? "text-primary"
-                  : "text-muted-foreground active:text-foreground"
+                "touch-feedback relative flex min-h-[44px] flex-1 flex-col items-center justify-center gap-0.5 transition-colors",
+                isActive ? "text-primary" : "text-muted-foreground active:text-foreground"
               )}
             >
               {isActive && (
-                <div className="absolute top-0 left-1/2 -translate-x-1/2 w-8 h-[3px] rounded-b-full bg-primary" />
+                <div className="absolute left-1/2 top-0 h-[3px] w-8 -translate-x-1/2 rounded-b-full bg-primary" />
               )}
-              {isActive && (
-                <div className="absolute inset-x-1 inset-y-1 rounded-xl bg-primary/8" />
-              )}
-              <item.icon className={cn("h-5 w-5 relative z-10", isActive && "stroke-[2.5]")} />
-              <span className={cn("text-[10px] leading-tight relative z-10", isActive ? "font-semibold" : "font-normal")}>
+              {isActive && <div className="absolute inset-x-1 inset-y-1 rounded-xl bg-primary/8" />}
+              <item.icon className={cn("relative z-10 h-5 w-5", isActive && "stroke-[2.5]")} />
+              <span className={cn("relative z-10 text-[10px] leading-tight", isActive ? "font-semibold" : "font-normal")}>
                 {item.name}
               </span>
             </button>
