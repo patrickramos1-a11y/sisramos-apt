@@ -11,7 +11,7 @@ interface NavItem {
 
 const navItems: NavItem[] = [
   { name: "Dashboard", href: "/dashboard", icon: BarChart3, matchPath: "/dashboard" },
-  { name: "APT", href: "/apt?tab=execucao", icon: ClipboardList, matchPath: "/apt" },
+  { name: "Exec.", href: "/execucao", icon: ClipboardList, matchPath: "/execucao" },
   { name: "Checklist", href: "/checklist", icon: CheckSquare, matchPath: "/checklist" },
   { name: "Gestão", href: "/gerenciamento?tab=painel", icon: BarChart2, matchPath: "/gerenciamento" },
   { name: "Config", href: "/configuracoes", icon: Settings, matchPath: "/configuracoes" },
@@ -25,7 +25,9 @@ export default function BottomNav() {
     <nav className="fixed bottom-0 left-0 right-0 z-50 border-t bg-card/95 backdrop-blur-xl md:hidden safe-area-bottom">
       <div className="flex items-stretch justify-around h-[56px]">
         {navItems.map((item) => {
-          const isActive = location.pathname === item.matchPath;
+          const isActive =
+            location.pathname === item.matchPath ||
+            (item.matchPath === "/execucao" && location.pathname === "/apt");
           return (
             <button
               key={item.name}

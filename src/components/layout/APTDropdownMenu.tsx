@@ -11,10 +11,10 @@ export default function APTDropdownMenu({ isMobile = false, onItemClick }: APTDr
   const location = useLocation();
   const navigate = useNavigate();
 
-  const isAPTActive = location.pathname === "/apt";
+  const isAPTActive = location.pathname === "/apt" || location.pathname === "/execucao";
 
   const handleNavigation = () => {
-    navigate("/apt?tab=execucao");
+    navigate("/execucao");
     onItemClick?.();
   };
 
@@ -30,7 +30,7 @@ export default function APTDropdownMenu({ isMobile = false, onItemClick }: APTDr
         )}
       >
         <ClipboardList className="h-5 w-5" />
-        APT - Execução
+        Execução
       </button>
     );
   }
@@ -46,7 +46,7 @@ export default function APTDropdownMenu({ isMobile = false, onItemClick }: APTDr
       )}
     >
       <ClipboardList className="h-4 w-4" />
-      APT
+      Execução
     </button>
   );
 }

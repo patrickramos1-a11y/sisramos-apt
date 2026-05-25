@@ -7,6 +7,7 @@ import { AuthProvider } from "@/contexts/AuthContext";
 import ProtectedRoute from "@/components/ProtectedRoute";
 import Login from "./pages/Login";
 import APT from "./pages/APT";
+import Execucao from "./pages/Execucao";
 import Dashboard from "./pages/Dashboard";
 import Checklist from "./pages/Checklist";
 import Configuracoes from "./pages/Configuracoes";
@@ -23,8 +24,16 @@ const App = () => (
       <BrowserRouter>
         <AuthProvider>
           <Routes>
-            <Route path="/" element={<Navigate to="/apt" replace />} />
+            <Route path="/" element={<Navigate to="/execucao" replace />} />
             <Route path="/login" element={<Login />} />
+            <Route
+              path="/execucao"
+              element={
+                <ProtectedRoute>
+                  <Execucao />
+                </ProtectedRoute>
+              }
+            />
             <Route
               path="/apt"
               element={
