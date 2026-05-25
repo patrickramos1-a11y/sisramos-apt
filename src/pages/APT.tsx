@@ -935,4 +935,83 @@ export default function APT() {
           open={showConfigMomentosDialog}
           onOpenChange={setShowConfigMomentosDialog}
           mes={viewedMes}
-          ano
+          ano={viewedAno}
+          config={momentosConfig}
+          onSave={handleSaveMomentos}
+          isSaving={isSavingMomentos}
+        />
+      )}
+
+      {/* Dialogs */}
+      <EditarDemandaIrmaDialog
+        open={!!editingDemanda}
+        onOpenChange={(open) => !open && setEditingDemanda(null)}
+        demanda={editingDemanda}
+        profiles={profiles}
+        setores={setores}
+        siblingCount={editingSiblingCount}
+        onDemandaEditada={fetchDemandas}
+      />
+
+      <ExcluirDemandaIrmaDialog
+        open={!!deletingDemanda}
+        onOpenChange={(open) => !open && setDeletingDemanda(null)}
+        demandaId={deletingDemanda?.id || null}
+        demandaNumero={deletingDemanda?.numero || null}
+        grupoId={deletingDemanda?.grupo_id || null}
+        siblingCount={deletingSiblingCount}
+        onDemandaExcluida={fetchDemandas}
+        demandaDescricao={deletingFullDemanda?.descricao}
+        demandaResponsavelId={deletingFullDemanda?.responsavel_id}
+        demandaMes={deletingFullDemanda?.mes}
+        demandaAno={deletingFullDemanda?.ano}
+        demandaSemanasRepeticao={deletingFullDemanda?.semanas_repeticao}
+      />
+
+      <SolicitarExclusaoDialog
+        open={!!solicitandoExclusao}
+        onOpenChange={(open) => !open && setSolicitandoExclusao(null)}
+        demandaId={solicitandoExclusao?.id || null}
+        demandaNumero={solicitandoExclusao?.numero || null}
+        grupoId={solicitandoExclusao?.grupo_id || null}
+        siblingCount={
+          solicitandoExclusao
+            ? (() => {
+                const d = demandas.find((x) => x.id === solicitandoExclusao.id);
+                return d ? getSiblingCount(d) : 1;
+              })()
+            : 1
+        }
+        demandaDescricao={solicitandoExclusao?.descricao}
+        demandaResponsavelId={solicitandoExclusao?.responsavel_id}
+        demandaMes={solicitandoExclusao?.mes}
+        demandaAno={solicitandoExclusao?.ano}
+        demandaSemanasRepeticao={solicitandoExclusao?.semanas_repeticao}
+        onSolicitacaoEnviada={() => { fetchDemandas(); refetchSolicitacoes(); }}
+      />
+
+      <ExcluirDemandasEmMassaDialog
+        open={showBulkDeleteDialog}
+        onOpenChange={setShowBulkDeleteDialog}
+        demandaIds={Array.from(selectedIds)}
+        allDemandas={demandas}
+        onDemandasExcluidas={handleBulkOperationComplete}
+      />
+
+      <AtualizarStatusEmMassaDialog
+        open={showBulkStatusDialog !== null}
+        onOpenChange={(open) => !open && setShowBulkStatusDialog(null)}
+        demandaIds={Array.from(selectedIds)}
+        type={showBulkStatusDialog || "responsavel"}
+        onStatusAtualizado={handleBulkOperationComplete}
+      />
+
+      <DuplicarDemandasEmMassaDialog
+        open={showBulkDuplicateDialog}
+        onOpenChange={setShowBulkDuplicateDialog}
+        selectedIds={selectedIds}
+        onComplete={handleBulkOperationComplete}
+      />
+    </AppLayout>
+  );
+}
