@@ -62,6 +62,9 @@ interface ExecutionGroup {
   siblings: Demanda[];
 }
 
+type ExecutionSortKey = "numero" | "responsavel" | "setor" | "descricao" | "semana";
+type ExecutionStatusFilter = "todos" | "pendentes" | "aguardando" | "feitas" | "nao_realizadas";
+
 const MONTH_NAMES = [
   "Janeiro",
   "Fevereiro",
@@ -136,6 +139,9 @@ export default function Execucao() {
   const [momentoSelecionado, setMomentoSelecionado] = useState<number | null>(null);
   const [isSavingMomentos, setIsSavingMomentos] = useState(false);
   const [suggestedWeek, setSuggestedWeek] = useState<number | null>(null);
+  const [selectedGroupKeys, setSelectedGroupKeys] = useState<Set<string>>(new Set());
+  const [executionSortKey, setExecutionSortKey] = useState<ExecutionSortKey>("responsavel");
+  const [executionStatusFilter, setExecutionStatusFilter] = useState<ExecutionStatusFilter>("todos");
   const [executionDefaultsApplied, setExecutionDefaultsApplied] = useState(false);
 
   const now = new Date();
@@ -220,7 +226,6 @@ export default function Execucao() {
 
   useEffect(() => {
     if (!executionDefaultsApplied) return;
-    if (filters.semanas.length > 0) return;
 
     const momentoAtivo = momentosConfig?.momento_ativo ?? suggestedWeek ?? currentWeek;
     const weeks =
@@ -229,8 +234,15 @@ export default function Execucao() {
         : visualMomentosConfig.momentos.find((momento) => momento.numero === momentoAtivo)?.semanas ?? [];
 
     if (weeks.length > 0) {
+      const nextWeeks = weeks.map(String);
+      const sameWeeks =
+        filters.semanas.length === nextWeeks.length &&
+        [...filters.semanas].sort().join("|") === [...nextWeeks].sort().join("|");
+
       setMomentoSelecionado(momentoAtivo);
-      setFilters((prev) => ({ ...prev, semanas: weeks.map(String) }));
+      if (!sameWeeks) {
+        setFilters((prev) => ({ ...prev, semanas: nextWeeks }));
+      }
       return;
     }
 
@@ -240,6 +252,7 @@ export default function Execucao() {
     currentWeek,
     executionDefaultsApplied,
     filters.semanas.length,
+    filters.semanas,
     momentosConfig,
     semanasDoMomento,
     setFilters,
@@ -344,6 +357,47 @@ export default function Execucao() {
     await fetchDemandas();
   };
 
+  const toggleGroupSelection = (groupKey: string) => {
+    setSelectedGroupKeys((prev) => {
+      const next = new Set(prev);
+      if (next.has(groupKey)) next.delete(groupKey);
+      else next.add(groupKey);
+      return next;
+    });
+  };
+
+  const toggleAllVisibleGroups = () => {
+    setSelectedGroupKeys((prev) => {
+      const next = new Set(prev);
+      if (allVisibleSelected) {
+        visibleGroupKeys.forEach((key) => next.delete(key));
+      } else {
+        visibleGroupKeys.forEach((key) => next.add(key));
+      }
+      return next;
+    });
+  };
+
+  const updateSelectedGestorStatus = async (status: Demanda["status_gestor"]) => {
+    if (!isGestorOrAdmin || selectedVisibleGroups.length === 0) return;
+
+    const ids = selectedVisibleGroups
+      .filter(canEditGroupGestor)
+      .flatMap((group) => group.siblings.map((demanda) => demanda.id));
+
+    if (ids.length === 0) return;
+
+    const { error } = await supabase.from("demandas").update({ status_gestor: status }).in("id", ids);
+
+    if (error) {
+      console.error("Erro ao atualizar aprovação em massa:", error);
+      return;
+    }
+
+    setSelectedGroupKeys(new Set());
+    await fetchDemandas();
+  };
+
   const filteredByTopSetor = activeTopSetor
     ? demandas.filter((item) => item.setor_id === activeTopSetor)
     : demandas;
@@ -379,15 +433,47 @@ export default function Execucao() {
       });
     });
 
-    return Array.from(map.values())
+    const groups = Array.from(map.values())
       .map((group) => ({
         ...group,
         siblings: [...group.siblings].sort(
           (a, b) => (Math.min(...a.semana_limite) || 99) - (Math.min(...b.semana_limite) || 99)
         ),
-      }))
-      .sort((a, b) => a.descricao.localeCompare(b.descricao, "pt-BR"));
-  }, [filteredByTopSetor]);
+      }));
+
+    const filteredGroups = groups.filter((group) => {
+      const responsavelStatus = getGroupStatus(group, "status_responsavel");
+      const gestorStatus = getGroupStatus(group, "status_gestor");
+
+      if (executionStatusFilter === "pendentes") return responsavelStatus === "pendente";
+      if (executionStatusFilter === "feitas") return responsavelStatus === "executado";
+      if (executionStatusFilter === "nao_realizadas") return responsavelStatus === "nao_realizado";
+      if (executionStatusFilter === "aguardando") {
+        return responsavelStatus !== "pendente" && gestorStatus === "pendente";
+      }
+      return true;
+    });
+
+    return filteredGroups.sort((a, b) => {
+      if (executionSortKey === "numero") return (a.siblings[0]?.numero ?? 0) - (b.siblings[0]?.numero ?? 0);
+      if (executionSortKey === "responsavel") {
+        const nomeA = getProfileById(a.responsavel_id)?.nome ?? "";
+        const nomeB = getProfileById(b.responsavel_id)?.nome ?? "";
+        return nomeA.localeCompare(nomeB, "pt-BR") || a.descricao.localeCompare(b.descricao, "pt-BR");
+      }
+      if (executionSortKey === "setor") {
+        const setorA = getSetorById(a.setor_id)?.nome ?? "";
+        const setorB = getSetorById(b.setor_id)?.nome ?? "";
+        return setorA.localeCompare(setorB, "pt-BR") || a.descricao.localeCompare(b.descricao, "pt-BR");
+      }
+      if (executionSortKey === "semana") {
+        const semanaA = Math.min(...a.siblings.flatMap((item) => item.semana_limite));
+        const semanaB = Math.min(...b.siblings.flatMap((item) => item.semana_limite));
+        return semanaA - semanaB || a.descricao.localeCompare(b.descricao, "pt-BR");
+      }
+      return a.descricao.localeCompare(b.descricao, "pt-BR");
+    });
+  }, [executionSortKey, executionStatusFilter, filteredByTopSetor, getProfileById, getSetorById]);
 
   const groupsByResponsavel = useMemo(() => {
     if (!isGestorOrAdmin) {
@@ -412,8 +498,24 @@ export default function Execucao() {
         const nomeA = getProfileById(a.responsavelId)?.nome ?? "";
         const nomeB = getProfileById(b.responsavelId)?.nome ?? "";
         return nomeA.localeCompare(nomeB, "pt-BR");
-      });
+    });
   }, [executionGroups, getProfileById, isGestorOrAdmin, user?.id]);
+
+  const visibleGroupKeys = useMemo(() => executionGroups.map((group) => group.key), [executionGroups]);
+  const selectedVisibleGroups = useMemo(
+    () => executionGroups.filter((group) => selectedGroupKeys.has(group.key)),
+    [executionGroups, selectedGroupKeys]
+  );
+  const allVisibleSelected =
+    visibleGroupKeys.length > 0 && visibleGroupKeys.every((key) => selectedGroupKeys.has(key));
+
+  useEffect(() => {
+    setSelectedGroupKeys((prev) => {
+      const visible = new Set(visibleGroupKeys);
+      const next = new Set([...prev].filter((key) => visible.has(key)));
+      return next.size === prev.size ? prev : next;
+    });
+  }, [visibleGroupKeys]);
 
   const pendingCount = filteredByTopSetor.filter((item) => item.status_responsavel === "pendente").length;
   const waitingApprovalCount = filteredByTopSetor.filter(
@@ -479,7 +581,7 @@ export default function Execucao() {
     });
   };
 
-  const executionTableColumnCount = isGestorOrAdmin ? 9 : 7;
+  const executionTableColumnCount = isGestorOrAdmin ? 10 : 8;
 
   return (
     <AppLayout>
@@ -662,11 +764,119 @@ export default function Execucao() {
             </CardContent>
           </Card>
         ) : (
+          <div className="space-y-3">
+            {isGestorOrAdmin && (
+              <div className="rounded-2xl border border-border/70 bg-card px-3 py-3 shadow-sm">
+                <div className="mb-2 text-[10px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+                  Colaboradores
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  {groupsByResponsavel.map((section) => {
+                    const profile = getProfileById(section.responsavelId);
+                    const active = filters.responsaveis.includes(section.responsavelId);
+                    return (
+                      <button
+                        key={section.responsavelId}
+                        type="button"
+                        onClick={() =>
+                          setFilters((prev) => ({
+                            ...prev,
+                            responsaveis: active ? [] : [section.responsavelId],
+                          }))
+                        }
+                        className={cn(
+                          "inline-flex h-8 items-center gap-2 rounded-full border px-3 text-xs font-semibold transition-colors",
+                          active ? "border-primary bg-primary text-primary-foreground" : "border-border bg-background hover:bg-muted"
+                        )}
+                      >
+                        <span
+                          className="h-2.5 w-2.5 rounded-full"
+                          style={{ backgroundColor: profile?.cor || "#65a30d" }}
+                        />
+                        {profile?.nome || "Sem responsável"}
+                        <span className={cn("font-normal", active ? "text-primary-foreground/80" : "text-muted-foreground")}>
+                          {section.groups.length}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
           <div className="overflow-hidden rounded-2xl border border-border/70 bg-card shadow-sm">
+            <div className="flex flex-col gap-3 border-b border-border/70 bg-muted/30 px-3 py-3 lg:flex-row lg:items-center lg:justify-between">
+              <div>
+                <p className="text-sm font-semibold">Planilha de execução</p>
+                <p className="text-xs text-muted-foreground">
+                  {executionGroups.length} linhas aglutinadas · {filteredByTopSetor.length} ocorrências do momento
+                </p>
+              </div>
+              <div className="flex flex-wrap items-center gap-2">
+                {isGestorOrAdmin && (
+                  <>
+                    <Button variant="outline" size="sm" onClick={toggleAllVisibleGroups}>
+                      {allVisibleSelected ? "Limpar seleção" : "Selecionar todos"}
+                    </Button>
+                    <Button
+                      size="sm"
+                      className="bg-emerald-600 hover:bg-emerald-700"
+                      disabled={selectedVisibleGroups.length === 0}
+                      onClick={() => updateSelectedGestorStatus("executado")}
+                    >
+                      Aprovar selecionados
+                    </Button>
+                    <Button
+                      variant="destructive"
+                      size="sm"
+                      disabled={selectedVisibleGroups.length === 0}
+                      onClick={() => updateSelectedGestorStatus("nao_realizado")}
+                    >
+                      Rejeitar selecionados
+                    </Button>
+                  </>
+                )}
+                <select
+                  value={executionSortKey}
+                  onChange={(event) => setExecutionSortKey(event.target.value as ExecutionSortKey)}
+                  className="h-9 rounded-md border border-input bg-background px-3 text-xs"
+                  aria-label="Ordenar planilha"
+                >
+                  <option value="responsavel">Ordenar: Responsável</option>
+                  <option value="numero">Ordenar: Nº</option>
+                  <option value="setor">Ordenar: Setor</option>
+                  <option value="descricao">Ordenar: Descrição</option>
+                  <option value="semana">Ordenar: Semana</option>
+                </select>
+                <select
+                  value={executionStatusFilter}
+                  onChange={(event) => setExecutionStatusFilter(event.target.value as ExecutionStatusFilter)}
+                  className="h-9 rounded-md border border-input bg-background px-3 text-xs"
+                  aria-label="Filtrar planilha"
+                >
+                  <option value="todos">Filtro: Todos</option>
+                  <option value="pendentes">Filtro: Pendentes</option>
+                  <option value="aguardando">Filtro: Aguardando aprovação</option>
+                  <option value="feitas">Filtro: Feitas</option>
+                  <option value="nao_realizadas">Filtro: Não feitas</option>
+                </select>
+              </div>
+            </div>
             <div className="overflow-x-auto">
               <table className="min-w-full border-collapse text-sm">
                 <thead className="bg-primary text-primary-foreground">
                   <tr className="[&>th]:whitespace-nowrap [&>th]:px-3 [&>th]:py-3 [&>th]:text-left [&>th]:text-xs [&>th]:font-semibold">
+                    <th className="w-10 text-center">
+                      {isGestorOrAdmin && (
+                        <input
+                          type="checkbox"
+                          checked={allVisibleSelected}
+                          onChange={toggleAllVisibleGroups}
+                          aria-label="Selecionar todas as linhas visíveis"
+                          className="h-4 w-4 rounded border-primary-foreground/50"
+                        />
+                      )}
+                    </th>
                     <th className="w-20">Nº</th>
                     <th className="w-40">Setor</th>
                     {isGestorOrAdmin && <th className="w-44">Responsável</th>}
@@ -728,6 +938,17 @@ export default function Execucao() {
                                 group.prioritaria && !group.muito_urgente && "bg-warning/[0.04]"
                               )}
                             >
+                              <td className="px-3 py-3 text-center align-middle">
+                                {isGestorOrAdmin && (
+                                  <input
+                                    type="checkbox"
+                                    checked={selectedGroupKeys.has(group.key)}
+                                    onChange={() => toggleGroupSelection(group.key)}
+                                    aria-label={`Selecionar ${group.descricao}`}
+                                    className="h-4 w-4 rounded border-border"
+                                  />
+                                )}
+                              </td>
                               <td className="whitespace-nowrap px-3 py-3 align-middle font-medium">
                                 <div className="flex items-center gap-1.5">
                                   <span>{firstNumber}</span>
@@ -746,7 +967,13 @@ export default function Execucao() {
                               </td>
                               {isGestorOrAdmin && (
                                 <td className="whitespace-nowrap px-3 py-3 align-middle">
-                                  {responsavel?.nome || "Sem responsável"}
+                                  <span className="inline-flex items-center gap-2 rounded-full border border-border/70 bg-background px-2.5 py-1 text-xs font-semibold">
+                                    <span
+                                      className="h-2.5 w-2.5 rounded-full"
+                                      style={{ backgroundColor: responsavel?.cor || "#65a30d" }}
+                                    />
+                                    {responsavel?.nome || "Sem responsável"}
+                                  </span>
                                 </td>
                               )}
                               <td className="px-3 py-3 align-middle">
@@ -822,6 +1049,7 @@ export default function Execucao() {
                 </tbody>
               </table>
             </div>
+          </div>
           </div>
         )}
 
