@@ -311,7 +311,7 @@ export default function Execucao() {
   const [suggestedWeek, setSuggestedWeek] = useState<number | null>(null);
   const [selectedGroupKeys, setSelectedGroupKeys] = useState<Set<string>>(new Set());
   const [executionSortKey, setExecutionSortKey] = useState<ExecutionSortKey>("responsavel");
-  const [executionStatusFilter, setExecutionStatusFilter] = useState<ExecutionStatusFilter>("todos");
+  const [executionStatusFilter, setExecutionStatusFilter] = useState<ExecutionStatusFilter>("pendentes");
   const [executionDefaultsApplied, setExecutionDefaultsApplied] = useState(false);
   const [responsavelChipStats, setResponsavelChipStats] = useState<Record<string, { groups: number; total: number }>>({});
 
@@ -881,11 +881,40 @@ export default function Execucao() {
   }, [visibleGroupKeys]);
 
   const pendingCount = filteredByTopSetor.filter((item) => item.status_responsavel === "pendente").length;
+  const doneCount = filteredByTopSetor.filter((item) => item.status_responsavel === "executado").length;
+  const notDoneCount = filteredByTopSetor.filter((item) => item.status_responsavel === "nao_realizado").length;
   const waitingApprovalCount = filteredByTopSetor.filter(
     (item) =>
       (item.status_responsavel === "executado" || item.status_responsavel === "nao_realizado") &&
       item.status_gestor === "pendente"
   ).length;
+  const allMomentItemsProcessed = filteredByTopSetor.length > 0 && pendingCount === 0;
+
+  const mobileSetorStats = useMemo(() => {
+    const countMap: Record<string, { total: number; pending: number; done: number }> = {};
+
+    demandas.forEach((demanda) => {
+      const setorId = demanda.setor_id || "sem_setor";
+      if (!countMap[setorId]) countMap[setorId] = { total: 0, pending: 0, done: 0 };
+      countMap[setorId].total += 1;
+      if (demanda.status_responsavel === "pendente") countMap[setorId].pending += 1;
+      if (demanda.status_responsavel === "executado") countMap[setorId].done += 1;
+    });
+
+    return Object.entries(countMap)
+      .map(([setorId, stats]) => {
+        const setor = setores.find((item) => item.id === setorId);
+        return {
+          setorId,
+          nome: setor?.nome || "Sem Setor",
+          cor: setor?.cor || "#6B7280",
+          ...stats,
+          pctDone: stats.total > 0 ? Math.round((stats.done / stats.total) * 100) : 0,
+        };
+      })
+      .filter((item) => item.total > 0)
+      .sort((a, b) => b.pending - a.pending || a.nome.localeCompare(b.nome, "pt-BR"));
+  }, [demandas, setores]);
 
   const isMomentoBloqueado = isAPTBloqueado(viewedMes, viewedAno);
   const activeMomentNumber = momentoSelecionado ?? visualMomentosConfig.momento_ativo ?? null;
@@ -1095,6 +1124,74 @@ export default function Execucao() {
           })}
         </div>
 
+        <div className="mb-3 space-y-2 lg:hidden">
+          <div className="flex gap-2 overflow-x-auto pb-1">
+            {[
+              { key: "pendentes" as ExecutionStatusFilter, label: "Pend.", count: pendingCount, tone: "border-warning/40 bg-warning/10 text-warning" },
+              { key: "feitas" as ExecutionStatusFilter, label: "Feitas", count: doneCount, tone: "border-emerald-500/40 bg-emerald-500/10 text-emerald-700" },
+              { key: "nao_realizadas" as ExecutionStatusFilter, label: "Não feitas", count: notDoneCount, tone: "border-destructive/40 bg-destructive/10 text-destructive" },
+              { key: "aguardando" as ExecutionStatusFilter, label: "Aprov.", count: waitingApprovalCount, tone: "border-primary/40 bg-primary/10 text-primary" },
+            ].map((item) => {
+              const active = executionStatusFilter === item.key;
+              return (
+                <button
+                  key={item.key}
+                  type="button"
+                  onClick={() => setExecutionStatusFilter(active ? "todos" : item.key)}
+                  className={cn(
+                    "min-w-fit rounded-full border px-3 py-1.5 text-xs font-semibold transition-all",
+                    active ? item.tone : "border-border bg-card text-muted-foreground"
+                  )}
+                >
+                  {item.label} <span className="ml-1 font-bold">{item.count}</span>
+                </button>
+              );
+            })}
+          </div>
+
+          <div className="flex gap-2 overflow-x-auto pb-1">
+            {mobileSetorStats.slice(0, 8).map((setor) => {
+              const active = activeTopSetor === setor.setorId;
+              const dimmed = activeTopSetor !== null && !active;
+              return (
+                <button
+                  key={setor.setorId}
+                  type="button"
+                  onClick={() => setActiveTopSetor(active ? null : setor.setorId)}
+                  className={cn(
+                    "relative min-w-[132px] overflow-hidden rounded-xl border bg-card p-2 text-left transition-all",
+                    active && "scale-[1.02] ring-2 ring-offset-1 ring-offset-background",
+                    dimmed && "opacity-35"
+                  )}
+                  style={active ? { borderColor: setor.cor, ["--tw-ring-color" as any]: setor.cor } : undefined}
+                >
+                  <div
+                    className="absolute inset-0 opacity-10"
+                    style={{ background: `linear-gradient(90deg, ${setor.cor} ${setor.pctDone}%, transparent ${setor.pctDone}%)` }}
+                  />
+                  <div className="relative">
+                    <div className="mb-1 flex items-center gap-1.5">
+                      <span className="h-2 w-2 rounded-full" style={{ backgroundColor: setor.cor }} />
+                      <span className="truncate text-[11px] font-semibold">{setor.nome}</span>
+                    </div>
+                    <div className="flex items-end justify-between">
+                      <span className="text-lg font-bold leading-none">{setor.pending}</span>
+                      <span className="text-[10px] font-semibold" style={{ color: setor.cor }}>{setor.pctDone}%</span>
+                    </div>
+                    <p className="mt-0.5 text-[10px] text-muted-foreground">{setor.total} dem.</p>
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+
+          {allMomentItemsProcessed && executionStatusFilter === "pendentes" && (
+            <div className="rounded-2xl border border-emerald-500/30 bg-emerald-500/10 px-3 py-2 text-xs font-semibold text-emerald-700">
+              Tudo certo por aqui. Não há pendências neste momento.
+            </div>
+          )}
+        </div>
+
         <div className="mb-4 hidden lg:block">
           <AptMomentosNavigator
             mes={viewedMes}
@@ -1178,7 +1275,16 @@ export default function Execucao() {
         ) : executionGroups.length === 0 ? (
           <Card>
             <CardContent className="py-14 text-center">
-              <p className="text-muted-foreground">Nenhuma meta encontrada para o ciclo selecionado.</p>
+              <p className="font-semibold text-foreground">
+                {allMomentItemsProcessed && executionStatusFilter === "pendentes"
+                  ? "Tudo certo. Não há pendências neste momento."
+                  : "Nenhuma meta encontrada para o ciclo selecionado."}
+              </p>
+              {allMomentItemsProcessed && executionStatusFilter === "pendentes" && (
+                <p className="mt-1 text-sm text-muted-foreground">
+                  Use os filtros de Feitas ou Não feitas para revisar ou corrigir uma marcação.
+                </p>
+              )}
             </CardContent>
           </Card>
         ) : (
