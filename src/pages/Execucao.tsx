@@ -16,6 +16,7 @@ import StatusBolinha from "@/components/apt/StatusBolinha";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
 import { buildSetorWhatsAppHref } from "@/lib/setor-actions";
 import {
@@ -113,6 +114,172 @@ function nextStatus(status: Demanda["status_responsavel"]) {
   if (status === "pendente") return "executado";
   if (status === "executado") return "nao_realizado";
   return "pendente";
+}
+
+function GroupWeeksEditor({
+  weeks,
+  disabled,
+  onSave,
+}: {
+  weeks: number[];
+  disabled: boolean;
+  onSave: (weeks: number[]) => Promise<void>;
+}) {
+  const normalizedWeeks = useMemo(() => [...new Set(weeks)].sort((a, b) => a - b), [weeks]);
+  const [draftWeeks, setDraftWeeks] = useState<number[]>(normalizedWeeks);
+  const [open, setOpen] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+
+  useEffect(() => {
+    if (!open) setDraftWeeks(normalizedWeeks);
+  }, [normalizedWeeks, open]);
+
+  const toggleWeek = (week: number) => {
+    setDraftWeeks((prev) => {
+      if (prev.includes(week)) {
+        const next = prev.filter((item) => item !== week);
+        return next.length > 0 ? next : prev;
+      }
+      return [...prev, week].sort((a, b) => a - b);
+    });
+  };
+
+  const handleSave = async () => {
+    setIsSaving(true);
+    await onSave(draftWeeks);
+    setIsSaving(false);
+    setOpen(false);
+  };
+
+  const display = normalizedWeeks.length > 0 ? semanasCompactas(normalizedWeeks) : "-";
+
+  if (disabled) {
+    return (
+      <Badge variant="outline" className="rounded-full px-2.5 py-1">
+        {display}
+      </Badge>
+    );
+  }
+
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <button
+          type="button"
+          className="inline-flex items-center rounded-full border border-primary/25 bg-primary/5 px-2.5 py-1 text-xs font-semibold text-primary transition-colors hover:bg-primary/10"
+          aria-label="Editar semanas da demanda"
+        >
+          {display}
+        </button>
+      </PopoverTrigger>
+      <PopoverContent align="start" className="w-72 rounded-2xl p-3">
+        <div className="mb-3">
+          <p className="text-sm font-semibold">Editar semanas</p>
+          <p className="text-xs text-muted-foreground">A repetição será igual ao total selecionado.</p>
+        </div>
+        <div className="grid grid-cols-5 gap-2">
+          {[1, 2, 3, 4, 5].map((week) => {
+            const active = draftWeeks.includes(week);
+            return (
+              <button
+                key={week}
+                type="button"
+                onClick={() => toggleWeek(week)}
+                className={cn(
+                  "h-9 rounded-xl border text-sm font-bold transition-colors",
+                  active
+                    ? "border-primary bg-primary text-primary-foreground shadow-sm"
+                    : "border-border bg-muted/40 text-muted-foreground hover:bg-muted"
+                )}
+              >
+                {week}
+              </button>
+            );
+          })}
+        </div>
+        <div className="mt-3 flex items-center justify-between gap-2">
+          <span className="text-xs text-muted-foreground">Repetição: {draftWeeks.length}x</span>
+          <Button size="sm" onClick={handleSave} disabled={isSaving}>
+            {isSaving ? "Salvando..." : "Aplicar"}
+          </Button>
+        </div>
+      </PopoverContent>
+    </Popover>
+  );
+}
+
+function ResponsavelEditor({
+  currentProfile,
+  profiles,
+  disabled,
+  onChange,
+}: {
+  currentProfile?: { user_id: string; nome: string; cor?: string | null } | null;
+  profiles: Array<{ user_id: string; nome: string; cor?: string | null }>;
+  disabled: boolean;
+  onChange: (responsavelId: string) => Promise<void>;
+}) {
+  const [open, setOpen] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+
+  const handleChange = async (responsavelId: string) => {
+    if (responsavelId === currentProfile?.user_id) {
+      setOpen(false);
+      return;
+    }
+
+    setIsSaving(true);
+    await onChange(responsavelId);
+    setIsSaving(false);
+    setOpen(false);
+  };
+
+  const chip = (
+    <span className="inline-flex items-center gap-2 rounded-full border border-border/70 bg-background px-2.5 py-1 text-xs font-semibold">
+      <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: currentProfile?.cor || "#65a30d" }} />
+      {currentProfile?.nome || "Sem responsável"}
+    </span>
+  );
+
+  if (disabled) return chip;
+
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <button type="button" className="text-left" aria-label="Alterar responsável da demanda">
+          {chip}
+        </button>
+      </PopoverTrigger>
+      <PopoverContent align="start" className="max-h-80 w-72 overflow-y-auto rounded-2xl p-3">
+        <div className="mb-3">
+          <p className="text-sm font-semibold">Trocar colaborador</p>
+          <p className="text-xs text-muted-foreground">A alteração vale para a meta aglutinada inteira.</p>
+        </div>
+        <div className="grid gap-2">
+          {profiles.map((profile) => (
+            <button
+              key={profile.user_id}
+              type="button"
+              disabled={isSaving}
+              onClick={() => handleChange(profile.user_id)}
+              className={cn(
+                "flex items-center justify-between rounded-xl border px-3 py-2 text-sm transition-colors",
+                profile.user_id === currentProfile?.user_id
+                  ? "border-primary bg-primary/10 text-primary"
+                  : "border-border bg-background hover:bg-muted"
+              )}
+            >
+              <span className="inline-flex items-center gap-2">
+                <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: profile.cor || "#65a30d" }} />
+                {profile.nome}
+              </span>
+              {profile.user_id === currentProfile?.user_id && <span className="text-xs font-semibold">Atual</span>}
+            </button>
+          ))}
+        </div>
+      </PopoverContent>
+    </Popover>
+  );
 }
 
 export default function Execucao() {
@@ -395,6 +562,54 @@ export default function Execucao() {
     }
 
     setSelectedGroupKeys(new Set());
+    await fetchDemandas();
+  };
+
+  const updateGroupResponsavel = async (group: ExecutionGroup, responsavelId: string) => {
+    if (!isGestorOrAdmin) return;
+
+    const { error } = await supabase
+      .from("demandas")
+      .update({ responsavel_id: responsavelId })
+      .in("id", group.siblings.map((demanda) => demanda.id));
+
+    if (error) {
+      console.error("Erro ao trocar responsável do grupo de execução:", error);
+      return;
+    }
+
+    setSelectedGroupKeys((prev) => {
+      const next = new Set(prev);
+      next.delete(group.key);
+      return next;
+    });
+    await fetchDemandas();
+  };
+
+  const updateGroupWeeks = async (group: ExecutionGroup, weeks: number[]) => {
+    if (!isGestorOrAdmin) return;
+
+    const nextWeeks = [...new Set(weeks)].filter((week) => week >= 1 && week <= 5).sort((a, b) => a - b);
+    if (nextWeeks.length === 0) return;
+
+    const { error } = await supabase
+      .from("demandas")
+      .update({
+        semana_limite: nextWeeks,
+        semanas_repeticao: nextWeeks.length,
+      })
+      .in("id", group.siblings.map((demanda) => demanda.id));
+
+    if (error) {
+      console.error("Erro ao editar semanas do grupo de execução:", error);
+      return;
+    }
+
+    setSelectedGroupKeys((prev) => {
+      const next = new Set(prev);
+      next.delete(group.key);
+      return next;
+    });
     await fetchDemandas();
   };
 
@@ -967,13 +1182,12 @@ export default function Execucao() {
                               </td>
                               {isGestorOrAdmin && (
                                 <td className="whitespace-nowrap px-3 py-3 align-middle">
-                                  <span className="inline-flex items-center gap-2 rounded-full border border-border/70 bg-background px-2.5 py-1 text-xs font-semibold">
-                                    <span
-                                      className="h-2.5 w-2.5 rounded-full"
-                                      style={{ backgroundColor: responsavel?.cor || "#65a30d" }}
-                                    />
-                                    {responsavel?.nome || "Sem responsável"}
-                                  </span>
+                                  <ResponsavelEditor
+                                    currentProfile={responsavel}
+                                    profiles={profiles}
+                                    disabled={!isGestorOrAdmin}
+                                    onChange={(responsavelId) => updateGroupResponsavel(group, responsavelId)}
+                                  />
                                 </td>
                               )}
                               <td className="px-3 py-3 align-middle">
@@ -994,9 +1208,11 @@ export default function Execucao() {
                                 </div>
                               </td>
                               <td className="whitespace-nowrap px-3 py-3 align-middle">
-                                <Badge variant="outline" className="rounded-full px-2.5 py-1">
-                                  {semanasCompactas(allWeeks)}
-                                </Badge>
+                                <GroupWeeksEditor
+                                  weeks={allWeeks}
+                                  disabled={!isGestorOrAdmin}
+                                  onSave={(weeks) => updateGroupWeeks(group, weeks)}
+                                />
                               </td>
                               <td className="whitespace-nowrap px-3 py-3 text-center align-middle">
                                 <Badge variant="outline" className="rounded-full px-2.5 py-1">
