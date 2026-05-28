@@ -21,6 +21,7 @@ import { cn } from "@/lib/utils";
 import { buildSetorWhatsAppHref } from "@/lib/setor-actions";
 import {
   CalendarDays,
+  Check,
   CheckCircle2,
   ChevronRight,
   ClipboardCheck,
@@ -32,6 +33,7 @@ import {
   MessageCircle,
   Settings2,
   Star,
+  X,
 } from "lucide-react";
 
 interface Demanda {
@@ -302,6 +304,7 @@ export default function Execucao() {
 
   const [activeTopSetor, setActiveTopSetor] = useState<string | null>(null);
   const [showFilters, setShowFilters] = useState(true);
+  const [showMobileFilters, setShowMobileFilters] = useState(false);
   const [showConfigMomentosDialog, setShowConfigMomentosDialog] = useState(false);
   const [momentoSelecionado, setMomentoSelecionado] = useState<number | null>(null);
   const [isSavingMomentos, setIsSavingMomentos] = useState(false);
@@ -502,6 +505,25 @@ export default function Execucao() {
 
     if (error) {
       console.error("Erro ao atualizar grupo de execução:", error);
+      return;
+    }
+
+    await fetchDemandas();
+  };
+
+  const updateGroupResponsavelToStatus = async (
+    group: ExecutionGroup,
+    status: Demanda["status_responsavel"]
+  ) => {
+    if (!canEditGroupResponsavel(group)) return;
+
+    const { error } = await supabase
+      .from("demandas")
+      .update({ status_responsavel: status })
+      .in("id", group.siblings.map((demanda) => demanda.id));
+
+    if (error) {
+      console.error("Erro ao atualizar status do grupo de execução:", error);
       return;
     }
 
@@ -936,9 +958,16 @@ export default function Execucao() {
           </div>
 
           <div className="flex flex-wrap gap-2">
-            <Button variant="outline" size="sm" className="gap-2" onClick={() => setShowFilters((prev) => !prev)}>
+            <Button variant="outline" size="sm" className="hidden gap-2 lg:inline-flex" onClick={() => setShowFilters((prev) => !prev)}>
               <Settings2 className="h-4 w-4" />
               {showFilters ? "Recolher filtros" : "Mostrar filtros"}
+            </Button>
+            <Button variant="outline" size="sm" className="gap-2 lg:hidden" onClick={() => setShowMobileFilters((prev) => !prev)}>
+              <Settings2 className="h-4 w-4" />
+              Filtros
+              {(filters.responsaveis.length + filters.setores.length + filters.semanas.length + filters.statusResponsavel.length + filters.statusGestor.length + (filters.urgente ? 1 : 0) + (filters.prioridade ? 1 : 0)) > 0 && (
+                <span className="ml-1 rounded-full bg-primary px-1.5 text-[10px] text-primary-foreground">!</span>
+              )}
             </Button>
             <Button asChild variant="outline" size="sm" className="gap-2">
               <Link to="/checklist">
@@ -955,7 +984,26 @@ export default function Execucao() {
           </div>
         </div>
 
-        <div className="mb-4 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+        <div className="mb-3 grid grid-cols-4 overflow-hidden rounded-2xl border border-border/70 bg-card shadow-sm lg:hidden">
+          <div className="border-r border-border/60 p-2">
+            <p className="text-[9px] font-semibold uppercase tracking-wide text-muted-foreground">Mês</p>
+            <p className="truncate text-xs font-bold">{MONTH_NAMES[viewedMes - 1].slice(0, 3)} {viewedAno}</p>
+          </div>
+          <div className="border-r border-border/60 p-2">
+            <p className="text-[9px] font-semibold uppercase tracking-wide text-muted-foreground">Momento</p>
+            <p className="truncate text-xs font-bold">{activeMomentLabel}</p>
+          </div>
+          <div className="border-r border-border/60 p-2">
+            <p className="text-[9px] font-semibold uppercase tracking-wide text-muted-foreground">Pend.</p>
+            <p className="text-sm font-bold text-warning">{pendingCount}</p>
+          </div>
+          <div className="p-2">
+            <p className="text-[9px] font-semibold uppercase tracking-wide text-muted-foreground">Aprov.</p>
+            <p className="text-sm font-bold text-primary">{waitingApprovalCount}</p>
+          </div>
+        </div>
+
+        <div className="mb-4 hidden gap-3 md:grid-cols-2 lg:grid xl:grid-cols-4">
           {contextCards.map((card) => (
             <Card key={card.label} className="border-border/60">
               <CardContent className="flex items-start gap-3 p-4">
@@ -1003,6 +1051,7 @@ export default function Execucao() {
               </div>
             </div>
 
+            {showMobileFilters && (
             <div className="mb-4 lg:hidden">
               <APTFilters
                 profiles={profiles}
@@ -1017,10 +1066,36 @@ export default function Execucao() {
                 showResponsavelFilter={isGestorOrAdmin}
               />
             </div>
+            )}
           </>
         )}
 
-        <div className="mb-4">
+        <div className="mb-3 flex gap-2 overflow-x-auto pb-1 lg:hidden">
+          {momentos.map((momento) => {
+            const isActive = momento.numero === activeMomentNumber;
+            const semanas = momento.semanas.length > 0 ? momento.semanas : [momento.numero];
+            return (
+              <button
+                key={momento.numero}
+                type="button"
+                onClick={() => handleSelecionarMomento(momento.numero)}
+                className={cn(
+                  "min-w-[104px] rounded-2xl border px-3 py-2 text-left text-xs transition-all",
+                  isActive
+                    ? "border-primary bg-primary text-primary-foreground shadow-sm"
+                    : "border-border bg-card text-foreground"
+                )}
+              >
+                <span className="block font-bold">Mom. {momento.numero}</span>
+                <span className={cn("block text-[10px]", isActive ? "text-primary-foreground/80" : "text-muted-foreground")}>
+                  {semanasCompactas(semanas)}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+
+        <div className="mb-4 hidden lg:block">
           <AptMomentosNavigator
             mes={viewedMes}
             ano={viewedAno}
@@ -1042,7 +1117,7 @@ export default function Execucao() {
           )}
         </div>
 
-        <div className="mb-4 flex flex-wrap items-center gap-2">
+        <div className="mb-4 hidden flex-wrap items-center gap-2 lg:flex">
           {pendingCount > 0 && (
             <div className="flex items-center gap-2 rounded-xl border border-warning/40 bg-warning/10 px-4 py-2">
               <span className="text-lg font-bold text-warning">{pendingCount}</span>
@@ -1086,12 +1161,14 @@ export default function Execucao() {
         </div>
 
         {!isLoading && demandas.length > 0 && (
-          <TopSetoresBar
-            demandas={demandas}
-            setores={setores}
-            activeSetorId={activeTopSetor}
-            onSetorClick={setActiveTopSetor}
-          />
+          <div className="hidden lg:block">
+            <TopSetoresBar
+              demandas={demandas}
+              setores={setores}
+              activeSetorId={activeTopSetor}
+              onSetorClick={setActiveTopSetor}
+            />
+          </div>
         )}
 
         {isLoading ? (
@@ -1107,7 +1184,7 @@ export default function Execucao() {
         ) : (
           <div className="space-y-3">
             {isGestorOrAdmin && (
-              <div className="rounded-2xl border border-border/70 bg-card px-3 py-3 shadow-sm">
+              <div className="hidden rounded-2xl border border-border/70 bg-card px-3 py-3 shadow-sm lg:block">
                 <div className="mb-2 text-[10px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
                   Colaboradores
                 </div>
@@ -1148,7 +1225,176 @@ export default function Execucao() {
               </div>
             )}
 
-          <div className="overflow-hidden rounded-2xl border border-border/70 bg-card shadow-sm">
+            <div className="space-y-3 lg:hidden">
+              {isGestorOrAdmin && selectedVisibleGroups.length > 0 && (
+                <div className="sticky top-[58px] z-40 flex items-center gap-2 rounded-2xl border border-primary/30 bg-background/95 p-2 shadow-lg backdrop-blur">
+                  <span className="flex-1 text-xs font-semibold text-primary">
+                    {selectedVisibleGroups.length} selecionada{selectedVisibleGroups.length === 1 ? "" : "s"}
+                  </span>
+                  <Button size="sm" className="h-8 bg-emerald-600 px-3 text-xs hover:bg-emerald-700" onClick={() => updateSelectedGestorStatus("executado")}>
+                    Aprovar
+                  </Button>
+                  <Button variant="destructive" size="sm" className="h-8 px-3 text-xs" onClick={() => updateSelectedGestorStatus("nao_realizado")}>
+                    Rejeitar
+                  </Button>
+                  <Button variant="ghost" size="sm" className="h-8 px-2 text-xs" onClick={() => setSelectedGroupKeys(new Set())}>
+                    Limpar
+                  </Button>
+                </div>
+              )}
+
+              <div className="flex items-center justify-between px-1">
+                <div>
+                  <p className="text-sm font-bold">Demandas do momento</p>
+                  <p className="text-xs text-muted-foreground">
+                    {executionGroups.length} linhas · {filteredByTopSetor.length} ocorrências
+                  </p>
+                </div>
+                {isGestorOrAdmin && (
+                  <Button variant="outline" size="sm" className="h-8 text-xs" onClick={toggleAllVisibleGroups}>
+                    {allVisibleSelected ? "Limpar" : "Selecionar"}
+                  </Button>
+                )}
+              </div>
+
+              {groupsByResponsavel.map((section) => {
+                const sectionProfile = getProfileById(section.responsavelId);
+                return (
+                  <div key={`mobile-${section.responsavelId}`} className="space-y-2">
+                    {isGestorOrAdmin && (
+                      <div className="flex items-center gap-2 px-1 pt-1">
+                        <span
+                          className="h-2.5 w-2.5 rounded-full"
+                          style={{ backgroundColor: sectionProfile?.cor || "#65a30d" }}
+                        />
+                        <span className="text-xs font-bold">{sectionProfile?.nome || "Sem responsável"}</span>
+                        <span className="text-[11px] text-muted-foreground">{section.groups.length} metas</span>
+                      </div>
+                    )}
+
+                    {section.groups.map((group) => {
+                      const setor = getSetorById(group.setor_id);
+                      const summary = getExecutionStatusSummary(group);
+                      const allWeeks = [...new Set(group.siblings.flatMap((item) => item.semana_limite))].sort((a, b) => a - b);
+                      const whatsappHref = getWhatsappHref(group.siblings[0]);
+                      const responsavel = getProfileById(group.responsavel_id);
+                      const responsavelStatus = getGroupStatus(group, "status_responsavel");
+                      const gestorStatus = getGroupStatus(group, "status_gestor");
+                      const canEditResponsavel = canEditGroupResponsavel(group);
+
+                      return (
+                        <article
+                          key={`mobile-card-${group.key}`}
+                          className={cn(
+                            "rounded-2xl border bg-card p-3 shadow-sm",
+                            group.muito_urgente && "border-destructive/30 bg-destructive/[0.04]",
+                            group.prioritaria && !group.muito_urgente && "border-warning/30 bg-warning/[0.04]",
+                            selectedGroupKeys.has(group.key) && "ring-2 ring-primary/30"
+                          )}
+                        >
+                          <div className="flex items-start gap-2">
+                            {isGestorOrAdmin && (
+                              <input
+                                type="checkbox"
+                                checked={selectedGroupKeys.has(group.key)}
+                                onChange={() => toggleGroupSelection(group.key)}
+                                aria-label={`Selecionar ${group.descricao}`}
+                                className="mt-1 h-4 w-4 rounded border-border"
+                              />
+                            )}
+                            <div className="min-w-0 flex-1">
+                              <div className="mb-2 flex flex-wrap items-center gap-1.5">
+                                <Badge variant="secondary" className="gap-1 rounded-full px-2 py-0.5 text-[10px]">
+                                  <span className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: setor?.cor || "#CBD5E1" }} />
+                                  {setor?.nome || "Sem setor"}
+                                </Badge>
+                                <Badge variant="outline" className="rounded-full px-2 py-0.5 text-[10px]">
+                                  {semanasCompactas(allWeeks)}
+                                </Badge>
+                                {isGestorOrAdmin && (
+                                  <Badge variant="outline" className="gap-1 rounded-full px-2 py-0.5 text-[10px]">
+                                    <span className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: responsavel?.cor || "#65a30d" }} />
+                                    {responsavel?.nome || "Sem responsável"}
+                                  </Badge>
+                                )}
+                                {whatsappHref && (
+                                  <Button asChild variant="ghost" size="icon" className="ml-auto h-7 w-7 text-emerald-600">
+                                    <a href={whatsappHref} target="_blank" rel="noreferrer" aria-label="Enviar mensagem no WhatsApp">
+                                      <MessageCircle className="h-4 w-4" />
+                                    </a>
+                                  </Button>
+                                )}
+                              </div>
+
+                              <div className="flex items-start gap-2">
+                                <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center">
+                                  {group.muito_urgente ? (
+                                    <Flame className="h-4 w-4 fill-destructive text-destructive" />
+                                  ) : group.prioritaria ? (
+                                    <Star className="h-4 w-4 fill-warning text-warning" />
+                                  ) : null}
+                                </span>
+                                <p className="text-sm font-semibold leading-snug">{group.descricao}</p>
+                              </div>
+
+                              {group.observacoes.length > 0 && (
+                                <p className="mt-2 line-clamp-2 text-xs text-muted-foreground">{group.observacoes[0]}</p>
+                              )}
+
+                              <div className="mt-3 flex items-center gap-2">
+                                {isGestorOrAdmin ? (
+                                  <>
+                                    <div className="flex flex-1 items-center gap-2 rounded-xl border px-2.5 py-2">
+                                      <StatusBolinha status={responsavelStatus} disabled size="sm" />
+                                      <span className="text-[11px] text-muted-foreground">
+                                        Colaborador {summary.feitas}/{summary.total}
+                                      </span>
+                                    </div>
+                                    <div className="flex flex-1 items-center gap-2 rounded-xl border px-2.5 py-2">
+                                      <StatusBolinha status={gestorStatus} disabled size="sm" />
+                                      <span className="text-[11px] text-muted-foreground">Gestor</span>
+                                    </div>
+                                  </>
+                                ) : (
+                                  <>
+                                    <Button
+                                      size="sm"
+                                      className={cn(
+                                        "h-9 flex-1 gap-1 rounded-xl text-xs",
+                                        responsavelStatus === "executado"
+                                          ? "bg-emerald-600 hover:bg-emerald-700"
+                                          : "bg-emerald-600/90 hover:bg-emerald-700"
+                                      )}
+                                      disabled={!canEditResponsavel}
+                                      onClick={() => updateGroupResponsavelToStatus(group, "executado")}
+                                    >
+                                      <Check className="h-3.5 w-3.5" />
+                                      Feito {summary.feitas > 0 ? `${summary.feitas}/${summary.total}` : ""}
+                                    </Button>
+                                    <Button
+                                      variant={responsavelStatus === "nao_realizado" ? "destructive" : "outline"}
+                                      size="sm"
+                                      className="h-9 flex-1 gap-1 rounded-xl text-xs"
+                                      disabled={!canEditResponsavel}
+                                      onClick={() => updateGroupResponsavelToStatus(group, "nao_realizado")}
+                                    >
+                                      <X className="h-3.5 w-3.5" />
+                                      Não feito
+                                    </Button>
+                                  </>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        </article>
+                      );
+                    })}
+                  </div>
+                );
+              })}
+            </div>
+
+          <div className="hidden overflow-hidden rounded-2xl border border-border/70 bg-card shadow-sm lg:block">
             <div className="flex flex-col gap-3 border-b border-border/70 bg-muted/30 px-3 py-3 lg:flex-row lg:items-center lg:justify-between">
               <div>
                 <p className="text-sm font-semibold">Planilha de execução</p>
