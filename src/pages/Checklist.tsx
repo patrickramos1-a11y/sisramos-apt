@@ -3,6 +3,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useChecklistV2, type TipoItem } from "@/hooks/useChecklistV2";
 import { useChecklistTimer } from "@/hooks/useChecklistTimer";
 import { useMonthSettings } from "@/hooks/useMonthSettings";
+import { useAptMomentos } from "@/hooks/useAptMomentos";
 import { supabase } from "@/integrations/supabase/client";
 import AppLayout from "@/components/layout/AppLayout";
 import ChecklistSummaryCard from "@/components/checklist/ChecklistSummaryCard";
@@ -117,6 +118,16 @@ export default function Checklist() {
     localStorage.setItem(getMergeKey(currentMes, currentAno), JSON.stringify(weeks));
   }, [currentMes, currentAno]);
 
+  const { config: aptMomentosConfig, semanasDoMomentoAtivo } = useAptMomentos(currentMes, currentAno);
+
+  const aptMomentWeeks = useMemo(() => {
+    const weeks = semanasDoMomentoAtivo();
+    return [...new Set(weeks)].filter((week) => week >= 1 && week <= 5).sort((a, b) => a - b);
+  }, [semanasDoMomentoAtivo]);
+
+  const isUsingAptMoment = Boolean(aptMomentosConfig?.momento_ativo && aptMomentWeeks.length > 0);
+  const effectiveMergedWeeks = isUsingAptMoment ? aptMomentWeeks : mergedWeeks;
+
   useEffect(() => {
     const fetchProfiles = async () => {
       const { data } = await supabase.from("profiles").select("*");
@@ -200,6 +211,7 @@ export default function Checklist() {
 
   // Auto-unmerge: when all items in merged weeks are processed
   useEffect(() => {
+    if (isUsingAptMoment) return;
     if (mergedWeeks.length < 2) return;
     const allMergedItems = mergedWeeks.flatMap((sem) => getInstancesByWeek(sem));
     const totalItems = allMergedItems.filter((i) => !i.parent_id).length;
@@ -207,7 +219,12 @@ export default function Checklist() {
     if (totalItems > 0 && processedItems === totalItems) {
       handleUnmerge();
     }
-  }, [mergedWeeks, instances, getInstancesByWeek, handleUnmerge]);
+  }, [isUsingAptMoment, mergedWeeks, instances, getInstancesByWeek, handleUnmerge]);
+
+  useEffect(() => {
+    if (!isUsingAptMoment || aptMomentWeeks.length === 0) return;
+    setSelectedWeek((prev) => (prev && aptMomentWeeks.includes(prev) ? prev : aptMomentWeeks[0]));
+  }, [aptMomentWeeks, isUsingAptMoment]);
 
   // Month navigation
   const goToPrevMonth = () => {
@@ -253,7 +270,9 @@ export default function Checklist() {
   // Week filter
   const semanasToShow = weekFilter.length > 0
     ? weekFilter.map((s) => parseInt(s))
-    : SEMANAS;
+    : isUsingAptMoment
+      ? aptMomentWeeks
+      : SEMANAS;
 
   // Week stats
   const weekStats = useMemo(() => {
@@ -274,19 +293,19 @@ export default function Checklist() {
   }, [currentMes, currentAno]);
 
   // Determine what weeks are merged vs individual for display
-  const isMergedWeek = (sem: number) => mergedWeeks.includes(sem);
+  const isMergedWeek = (sem: number) => effectiveMergedWeeks.includes(sem);
 
   // Build display cards: merged weeks become one card, others remain individual
   const displayCards = useMemo(() => {
     const cards: Array<{ type: "single"; semana: number } | { type: "merged"; semanas: number[] }> = [];
-    const mergedSet = new Set(mergedWeeks);
+    const mergedSet = new Set(effectiveMergedWeeks);
     let mergedCardAdded = false;
 
     semanasToShow.forEach((sem) => {
       if (mergedSet.has(sem)) {
         if (!mergedCardAdded) {
           // Only add merged card once, with semanas that are in semanasToShow
-          const visibleMerged = mergedWeeks.filter((w) => semanasToShow.includes(w));
+          const visibleMerged = effectiveMergedWeeks.filter((w) => semanasToShow.includes(w));
           if (visibleMerged.length >= 2) {
             cards.push({ type: "merged", semanas: visibleMerged });
           } else if (visibleMerged.length === 1) {
@@ -299,7 +318,7 @@ export default function Checklist() {
       }
     });
     return cards;
-  }, [semanasToShow, mergedWeeks]);
+  }, [semanasToShow, effectiveMergedWeeks]);
 
   // Merged stats
   const getMergedStats = (semanas: number[]) => {
@@ -325,13 +344,13 @@ export default function Checklist() {
   // Build duplicate map for merged view: descricao → [ids across weeks]
   const { deduplicatedItems, duplicateMap } = useMemo(() => {
     const emptyResult = { deduplicatedItems: [] as ReturnType<typeof getInstancesByWeek>, duplicateMap: new Map<string, { ids: string[]; semanas: number[] }>() };
-    if (!selectedWeek || !mergedWeeks.includes(selectedWeek) || mergedWeeks.length < 2) {
+    if (!selectedWeek || !effectiveMergedWeeks.includes(selectedWeek) || effectiveMergedWeeks.length < 2) {
       return emptyResult;
     }
 
     // Get items per week sorted by ordem
     const itemsByWeek: Record<number, ReturnType<typeof getInstancesByWeek>> = {};
-    mergedWeeks.forEach((sem) => {
+    effectiveMergedWeeks.forEach((sem) => {
       itemsByWeek[sem] = getInstancesByWeek(sem)
         .filter((i) => !i.parent_id)
         .sort((a, b) => a.ordem - b.ordem);
@@ -341,7 +360,7 @@ export default function Checklist() {
     const maxLen = Math.max(...Object.values(itemsByWeek).map((arr) => arr.length));
     const interleaved: ReturnType<typeof getInstancesByWeek> = [];
     for (let pos = 0; pos < maxLen; pos++) {
-      mergedWeeks.forEach((sem) => {
+      effectiveMergedWeeks.forEach((sem) => {
         const item = itemsByWeek[sem]?.[pos];
         if (item) interleaved.push(item);
       });
@@ -372,20 +391,20 @@ export default function Checklist() {
     // Children are already nested inside each instance, no dedup needed for them
 
     return { deduplicatedItems: deduped, duplicateMap: dupMap };
-  }, [selectedWeek, mergedWeeks, getInstancesByWeek, instances]);
+  }, [selectedWeek, effectiveMergedWeeks, getInstancesByWeek, instances]);
 
   // Selected week items — support merged with dedup + interleave
   const selectedWeekItems = useMemo(() => {
     if (!selectedWeek) return [];
-    if (mergedWeeks.includes(selectedWeek) && mergedWeeks.length >= 2) {
+    if (effectiveMergedWeeks.includes(selectedWeek) && effectiveMergedWeeks.length >= 2) {
       return deduplicatedItems;
     }
     return getInstancesByWeek(selectedWeek);
-  }, [selectedWeek, mergedWeeks, getInstancesByWeek, instances, deduplicatedItems]);
+  }, [selectedWeek, effectiveMergedWeeks, getInstancesByWeek, instances, deduplicatedItems]);
 
   // Wrapper for status update that propagates to all duplicates
   const handleUpdateStatus = useCallback(async (id: string, status: any) => {
-    if (mergedWeeks.length >= 2 && duplicateMap.has(id)) {
+    if (effectiveMergedWeeks.length >= 2 && duplicateMap.has(id)) {
       const entry = duplicateMap.get(id)!;
       for (const dupId of entry.ids) {
         await updateInstanceStatus(dupId, status);
@@ -393,21 +412,21 @@ export default function Checklist() {
     } else {
       await updateInstanceStatus(id, status);
     }
-  }, [mergedWeeks, duplicateMap, updateInstanceStatus]);
+  }, [effectiveMergedWeeks, duplicateMap, updateInstanceStatus]);
 
   // For the table, determine the semanas to pass
   const tableWeeks = useMemo(() => {
     if (!selectedWeek) return [];
-    if (mergedWeeks.includes(selectedWeek) && mergedWeeks.length >= 2) {
-      return mergedWeeks;
+    if (effectiveMergedWeeks.includes(selectedWeek) && effectiveMergedWeeks.length >= 2) {
+      return effectiveMergedWeeks;
     }
     return [selectedWeek];
-  }, [selectedWeek, mergedWeeks]);
+  }, [selectedWeek, effectiveMergedWeeks]);
 
   // Timer: when starting for merged weeks, pass mergedWeeks
   const handleStartTimer = (semana: number) => {
-    if (mergedWeeks.length >= 2 && mergedWeeks.includes(semana)) {
-      startTimer(mergedWeeks[0], mergedWeeks);
+    if (effectiveMergedWeeks.length >= 2 && effectiveMergedWeeks.includes(semana)) {
+      startTimer(effectiveMergedWeeks[0], effectiveMergedWeeks);
     } else {
       startTimer(semana);
     }
@@ -415,8 +434,8 @@ export default function Checklist() {
 
   // Timer: when stopping, pass mergedWeeks so duplicates are created
   const handleStopTimer = () => {
-    if (mergedWeeks.length >= 2 && timerActiveWeek && mergedWeeks.includes(timerActiveWeek)) {
-      stopTimer(mergedWeeks);
+    if (effectiveMergedWeeks.length >= 2 && timerActiveWeek && effectiveMergedWeeks.includes(timerActiveWeek)) {
+      stopTimer(effectiveMergedWeeks);
     } else {
       stopTimer();
     }
@@ -512,11 +531,13 @@ export default function Checklist() {
 
                 {/* Desktop: all actions visible */}
                 <div className="hidden sm:contents">
-                  <MergeWeeksDialog
-                    currentMerged={mergedWeeks}
-                    onMerge={handleMerge}
-                    onUnmerge={handleUnmerge}
-                  />
+                  {!isUsingAptMoment && (
+                    <MergeWeeksDialog
+                      currentMerged={mergedWeeks}
+                      onMerge={handleMerge}
+                      onUnmerge={handleUnmerge}
+                    />
+                  )}
 
                   <AlertDialog>
                     <AlertDialogTrigger asChild>
@@ -588,11 +609,17 @@ export default function Checklist() {
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end" className="w-48">
                       <DropdownMenuItem asChild>
-                        <MergeWeeksDialog
-                          currentMerged={mergedWeeks}
-                          onMerge={handleMerge}
-                          onUnmerge={handleUnmerge}
-                        />
+                        {!isUsingAptMoment ? (
+                          <MergeWeeksDialog
+                            currentMerged={mergedWeeks}
+                            onMerge={handleMerge}
+                            onUnmerge={handleUnmerge}
+                          />
+                        ) : (
+                          <span className="px-2 py-1.5 text-xs text-muted-foreground">
+                            Semanas definidas pelo Momento APT
+                          </span>
+                        )}
                       </DropdownMenuItem>
                       <DropdownMenuItem
                         onClick={() => rolloverToNextMonth(currentMes, currentAno)}
@@ -642,6 +669,15 @@ export default function Checklist() {
           </Alert>
         )}
 
+        {isUsingAptMoment && (
+          <Alert className="border-primary/25 bg-primary/5 py-2">
+            <Info className="h-3.5 w-3.5 text-primary" />
+            <AlertDescription className="text-xs text-primary/90">
+              Checklist integrado ao Momento APT: semanas {aptMomentWeeks.map((week) => `${week}ª`).join(" e ")} serão exibidas juntas. Itens repetidos aparecem uma vez e a marcação replica nas semanas correspondentes.
+            </AlertDescription>
+          </Alert>
+        )}
+
         {/* Content */}
         {isLoading ? (
           <div className="flex items-center justify-center py-12">
@@ -657,7 +693,7 @@ export default function Checklist() {
               activeWeek={timerActiveWeek}
               elapsedSeconds={elapsedSeconds}
               isGestorOrAdmin={isGestorOrAdmin}
-              mergedWeeks={mergedWeeks}
+              mergedWeeks={effectiveMergedWeeks}
               onStart={handleStartTimer}
               onPause={pauseTimer}
               onResume={resumeTimer}
