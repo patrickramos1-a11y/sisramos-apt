@@ -48,6 +48,7 @@ interface Profile {
   user_id: string;
   nome: string;
   email: string;
+  cor?: string | null;
 }
 
 interface Setor {
