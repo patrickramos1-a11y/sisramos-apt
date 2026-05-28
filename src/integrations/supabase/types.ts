@@ -14,6 +14,36 @@ export type Database = {
   }
   public: {
     Tables: {
+      apt_momentos_config: {
+        Row: {
+          ano: number
+          created_at: string
+          id: string
+          mes: number
+          momento_ativo: number | null
+          momentos: Json
+          updated_at: string
+        }
+        Insert: {
+          ano: number
+          created_at?: string
+          id?: string
+          mes: number
+          momento_ativo?: number | null
+          momentos?: Json
+          updated_at?: string
+        }
+        Update: {
+          ano?: number
+          created_at?: string
+          id?: string
+          mes?: number
+          momento_ativo?: number | null
+          momentos?: Json
+          updated_at?: string
+        }
+        Relationships: []
+      }
       checklist_instance_assignees: {
         Row: {
           created_at: string
@@ -500,21 +530,18 @@ export type Database = {
       }
       setores: {
         Row: {
-          acoes: Json
           cor: string | null
           created_at: string
           id: string
           nome: string
         }
         Insert: {
-          acoes?: Json
           cor?: string | null
           created_at?: string
           id?: string
           nome: string
         }
         Update: {
-          acoes?: Json
           cor?: string | null
           created_at?: string
           id?: string

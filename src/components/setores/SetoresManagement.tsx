@@ -46,6 +46,7 @@ import {
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { cn } from "@/lib/utils";
 import {
   DEFAULT_SETOR_WHATSAPP_TEMPLATE,
   normalizeSetorActions,
