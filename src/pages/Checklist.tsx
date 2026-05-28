@@ -80,6 +80,10 @@ const SEMANAS_OPTIONS = [
   { value: "5", label: "5ª Semana" },
 ];
 
+type ChecklistDisplayCard =
+  | { type: "single"; semana: number; momentoNumero?: number; isActiveMoment?: boolean }
+  | { type: "merged"; semanas: number[]; momentoNumero?: number; isActiveMoment?: boolean };
+
 function getMergeKey(mes: number, ano: number) {
   return `checklist-merged-weeks-${ano}-${mes}`;
 }
@@ -90,6 +94,7 @@ export default function Checklist() {
 
   const [profiles, setProfiles] = useState<Profile[]>([]);
   const [selectedWeek, setSelectedWeek] = useState<number | null>(null);
+  const [selectedMomentWeeks, setSelectedMomentWeeks] = useState<number[]>([]);
   const [currentMes, setCurrentMes] = useState(now.getMonth() + 1);
   const [currentAno, setCurrentAno] = useState(now.getFullYear());
   const [weekFilter, setWeekFilter] = useState<string[]>([]);
@@ -126,7 +131,8 @@ export default function Checklist() {
   }, [semanasDoMomentoAtivo]);
 
   const isUsingAptMoment = Boolean(aptMomentosConfig?.momento_ativo && aptMomentWeeks.length > 0);
-  const effectiveMergedWeeks = isUsingAptMoment ? aptMomentWeeks : mergedWeeks;
+  const selectedEffectiveWeeks = isUsingAptMoment && selectedMomentWeeks.length > 0 ? selectedMomentWeeks : aptMomentWeeks;
+  const effectiveMergedWeeks = isUsingAptMoment ? selectedEffectiveWeeks : mergedWeeks;
 
   useEffect(() => {
     const fetchProfiles = async () => {
@@ -223,24 +229,33 @@ export default function Checklist() {
 
   useEffect(() => {
     if (!isUsingAptMoment || aptMomentWeeks.length === 0) return;
+    setSelectedMomentWeeks((prev) => {
+      const sameSelection =
+        prev.length === aptMomentWeeks.length &&
+        prev.every((week, index) => week === aptMomentWeeks[index]);
+      return sameSelection ? prev : aptMomentWeeks;
+    });
     setSelectedWeek((prev) => (prev && aptMomentWeeks.includes(prev) ? prev : aptMomentWeeks[0]));
   }, [aptMomentWeeks, isUsingAptMoment]);
 
   // Month navigation
   const goToPrevMonth = () => {
     setSelectedWeek(null);
+    setSelectedMomentWeeks([]);
     if (currentMes === 1) { setCurrentMes(12); setCurrentAno(currentAno - 1); }
     else setCurrentMes(currentMes - 1);
   };
 
   const goToNextMonth = () => {
     setSelectedWeek(null);
+    setSelectedMomentWeeks([]);
     if (currentMes === 12) { setCurrentMes(1); setCurrentAno(currentAno + 1); }
     else setCurrentMes(currentMes + 1);
   };
 
   const goToToday = () => {
     setSelectedWeek(null);
+    setSelectedMomentWeeks([]);
     setCurrentMes(now.getMonth() + 1);
     setCurrentAno(now.getFullYear());
   };
@@ -267,12 +282,33 @@ export default function Checklist() {
     localStorage.setItem("checklist-info-dismissed", "true");
   };
 
+  const aptMomentCards = useMemo<ChecklistDisplayCard[]>(() => {
+    if (!aptMomentosConfig) return [];
+
+    return aptMomentosConfig.momentos
+      .map((momento) => {
+        const semanas = [...new Set(momento.semanas)]
+          .filter((week) => week >= 1 && week <= 5)
+          .sort((a, b) => a - b);
+
+        if (semanas.length === 0) return null;
+
+        const base = {
+          momentoNumero: momento.numero,
+          isActiveMoment: momento.numero === aptMomentosConfig.momento_ativo,
+        };
+
+        if (semanas.length >= 2) {
+          return { ...base, type: "merged" as const, semanas };
+        }
+
+        return { ...base, type: "single" as const, semana: semanas[0] };
+      })
+      .filter((card): card is ChecklistDisplayCard => Boolean(card));
+  }, [aptMomentosConfig]);
+
   // Week filter
-  const semanasToShow = weekFilter.length > 0
-    ? weekFilter.map((s) => parseInt(s))
-    : isUsingAptMoment
-      ? aptMomentWeeks
-      : SEMANAS;
+  const semanasToShow = weekFilter.length > 0 ? weekFilter.map((s) => parseInt(s)) : SEMANAS;
 
   // Week stats
   const weekStats = useMemo(() => {
@@ -297,7 +333,11 @@ export default function Checklist() {
 
   // Build display cards: merged weeks become one card, others remain individual
   const displayCards = useMemo(() => {
-    const cards: Array<{ type: "single"; semana: number } | { type: "merged"; semanas: number[] }> = [];
+    if (isUsingAptMoment && weekFilter.length === 0 && aptMomentCards.length > 0) {
+      return aptMomentCards;
+    }
+
+    const cards: ChecklistDisplayCard[] = [];
     const mergedSet = new Set(effectiveMergedWeeks);
     let mergedCardAdded = false;
 
@@ -318,7 +358,7 @@ export default function Checklist() {
       }
     });
     return cards;
-  }, [semanasToShow, effectiveMergedWeeks]);
+  }, [aptMomentCards, effectiveMergedWeeks, isUsingAptMoment, semanasToShow, weekFilter.length]);
 
   // Merged stats
   const getMergedStats = (semanas: number[]) => {
@@ -673,7 +713,7 @@ export default function Checklist() {
           <Alert className="border-primary/25 bg-primary/5 py-2">
             <Info className="h-3.5 w-3.5 text-primary" />
             <AlertDescription className="text-xs text-primary/90">
-              Checklist integrado ao Momento APT: semanas {aptMomentWeeks.map((week) => `${week}ª`).join(" e ")} serão exibidas juntas. Itens repetidos aparecem uma vez e a marcação replica nas semanas correspondentes.
+              Checklist integrado ao Momento APT: o momento ativo abre por padrão, mas os outros momentos do mês continuam disponíveis nos cards abaixo. Ao selecionar semanas aglutinadas, itens repetidos aparecem uma vez e a marcação replica nas semanas correspondentes.
             </AlertDescription>
           </Alert>
         )}
@@ -709,14 +749,22 @@ export default function Checklist() {
                   const isSelected = selectedWeek !== null && card.semanas.includes(selectedWeek);
                   return (
                     <ChecklistSummaryCard
-                      key={`merged-${card.semanas.join("-")}`}
+                      key={card.momentoNumero ? `momento-${card.momentoNumero}` : `merged-${card.semanas.join("-")}`}
                       semana={card.semanas[0]}
                       mergedWeeks={card.semanas}
                       totalItems={stats.total}
                       completedItems={stats.completed}
                       notDoneItems={stats.notDone}
                       duration={dur}
-                      onClick={() => setSelectedWeek(isSelected ? null : card.semanas[0])}
+                      onClick={() => {
+                        if (isSelected) {
+                          setSelectedWeek(null);
+                          if (isUsingAptMoment) setSelectedMomentWeeks([]);
+                          return;
+                        }
+                        if (isUsingAptMoment) setSelectedMomentWeeks(card.semanas);
+                        setSelectedWeek(card.semanas[0]);
+                      }}
                       isSelected={isSelected}
                     />
                   );
@@ -724,13 +772,22 @@ export default function Checklist() {
                 const sem = card.semana;
                 return (
                   <ChecklistSummaryCard
-                    key={sem}
+                    key={card.momentoNumero ? `momento-${card.momentoNumero}` : sem}
                     semana={sem}
                     totalItems={weekStats[sem]?.total || 0}
                     completedItems={weekStats[sem]?.completed || 0}
                     notDoneItems={weekStats[sem]?.notDone || 0}
                     duration={weekDurations[sem] || null}
-                    onClick={() => setSelectedWeek(selectedWeek === sem ? null : sem)}
+                    onClick={() => {
+                      const isSelectedSingle = selectedWeek === sem;
+                      if (isSelectedSingle) {
+                        setSelectedWeek(null);
+                        if (isUsingAptMoment) setSelectedMomentWeeks([]);
+                        return;
+                      }
+                      if (isUsingAptMoment) setSelectedMomentWeeks([sem]);
+                      setSelectedWeek(sem);
+                    }}
                     isSelected={selectedWeek === sem}
                   />
                 );
