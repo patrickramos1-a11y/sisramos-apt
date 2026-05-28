@@ -310,6 +310,7 @@ export default function Execucao() {
   const [executionSortKey, setExecutionSortKey] = useState<ExecutionSortKey>("responsavel");
   const [executionStatusFilter, setExecutionStatusFilter] = useState<ExecutionStatusFilter>("todos");
   const [executionDefaultsApplied, setExecutionDefaultsApplied] = useState(false);
+  const [responsavelChipStats, setResponsavelChipStats] = useState<Record<string, { groups: number; total: number }>>({});
 
   const now = new Date();
   const currentMonth = now.getMonth() + 1;
@@ -548,9 +549,17 @@ export default function Execucao() {
   const updateSelectedGestorStatus = async (status: Demanda["status_gestor"]) => {
     if (!isGestorOrAdmin || selectedVisibleGroups.length === 0) return;
 
-    const ids = selectedVisibleGroups
-      .filter(canEditGroupGestor)
-      .flatMap((group) => group.siblings.map((demanda) => demanda.id));
+    await updateGroupsGestorStatus(selectedVisibleGroups, status, true);
+  };
+
+  const updateGroupsGestorStatus = async (
+    groups: ExecutionGroup[],
+    status: Demanda["status_gestor"],
+    clearSelected = false
+  ) => {
+    if (!isGestorOrAdmin || groups.length === 0) return;
+
+    const ids = groups.filter(canEditGroupGestor).flatMap((group) => group.siblings.map((demanda) => demanda.id));
 
     if (ids.length === 0) return;
 
@@ -561,8 +570,34 @@ export default function Execucao() {
       return;
     }
 
-    setSelectedGroupKeys(new Set());
+    if (clearSelected) {
+      setSelectedGroupKeys(new Set());
+    }
     await fetchDemandas();
+  };
+
+  const getSectionSelectedState = (groups: ExecutionGroup[]) => {
+    const keys = groups.map((group) => group.key);
+    const selectedCount = keys.filter((key) => selectedGroupKeys.has(key)).length;
+    return {
+      keys,
+      selectedCount,
+      allSelected: keys.length > 0 && selectedCount === keys.length,
+      someSelected: selectedCount > 0 && selectedCount < keys.length,
+    };
+  };
+
+  const toggleSectionSelection = (groups: ExecutionGroup[]) => {
+    const sectionState = getSectionSelectedState(groups);
+    setSelectedGroupKeys((prev) => {
+      const next = new Set(prev);
+      if (sectionState.allSelected) {
+        sectionState.keys.forEach((key) => next.delete(key));
+      } else {
+        sectionState.keys.forEach((key) => next.add(key));
+      }
+      return next;
+    });
   };
 
   const updateGroupResponsavel = async (group: ExecutionGroup, responsavelId: string) => {
@@ -616,6 +651,84 @@ export default function Execucao() {
   const filteredByTopSetor = activeTopSetor
     ? demandas.filter((item) => item.setor_id === activeTopSetor)
     : demandas;
+
+  useEffect(() => {
+    const fetchResponsavelChipStats = async () => {
+      if (!user || !isGestorOrAdmin) {
+        setResponsavelChipStats({});
+        return;
+      }
+
+      let query = supabase.from("demandas").select("*").eq("ativa", true);
+
+      if (filters.meses.length > 0) query = query.in("mes", filters.meses.map((m) => parseInt(m, 10)));
+      if (filters.anos.length > 0) query = query.in("ano", filters.anos.map((a) => parseInt(a, 10)));
+      if (filters.setores.length > 0) query = query.in("setor_id", filters.setores);
+      if (activeTopSetor) query = query.eq("setor_id", activeTopSetor);
+      if (filters.statusResponsavel.length > 0) {
+        query = query.in("status_responsavel", filters.statusResponsavel as Demanda["status_responsavel"][]);
+      }
+      if (filters.statusGestor.length > 0) {
+        query = query.in("status_gestor", filters.statusGestor as Demanda["status_gestor"][]);
+      }
+      if (filters.busca) query = query.ilike("descricao", `%${filters.busca}%`);
+
+      const { data, error } = await query;
+
+      if (error) {
+        console.error("Erro ao buscar contadores por colaborador:", error);
+        setResponsavelChipStats({});
+        return;
+      }
+
+      let filteredData = (data ?? []) as Demanda[];
+
+      if (filters.semanas.length > 0) {
+        const semanaNumbers = filters.semanas.map((s) => parseInt(s, 10));
+        filteredData = filteredData.filter((demanda) =>
+          demanda.semana_limite.some((semana) => semanaNumbers.includes(semana))
+        );
+      }
+
+      if (filters.repeticoes.length > 0) {
+        const repeticaoNumbers = filters.repeticoes.map((r) => parseInt(r, 10));
+        filteredData = filteredData.filter((demanda) => repeticaoNumbers.includes(demanda.semanas_repeticao));
+      }
+
+      if (filters.urgente) filteredData = filteredData.filter((demanda) => demanda.muito_urgente);
+      if (filters.prioridade) filteredData = filteredData.filter((demanda) => demanda.prioritaria);
+
+      const groupKeysByResponsavel = new Map<string, Set<string>>();
+      const totalByResponsavel = new Map<string, number>();
+
+      filteredData.forEach((demanda) => {
+        const responsavelId = demanda.responsavel_id;
+        const key = [
+          demanda.descricao.trim().toLowerCase(),
+          demanda.responsavel_id,
+          demanda.setor_id ?? "",
+          demanda.prioritaria ? "1" : "0",
+          demanda.muito_urgente ? "1" : "0",
+        ].join("|");
+
+        if (!groupKeysByResponsavel.has(responsavelId)) groupKeysByResponsavel.set(responsavelId, new Set());
+        groupKeysByResponsavel.get(responsavelId)?.add(key);
+        totalByResponsavel.set(responsavelId, (totalByResponsavel.get(responsavelId) ?? 0) + 1);
+      });
+
+      const nextStats: Record<string, { groups: number; total: number }> = {};
+      groupKeysByResponsavel.forEach((keys, responsavelId) => {
+        nextStats[responsavelId] = {
+          groups: keys.size,
+          total: totalByResponsavel.get(responsavelId) ?? 0,
+        };
+      });
+
+      setResponsavelChipStats(nextStats);
+    };
+
+    fetchResponsavelChipStats();
+  }, [activeTopSetor, filters, isGestorOrAdmin, user]);
 
   const executionGroups = useMemo(() => {
     const map = new Map<string, ExecutionGroup>();
@@ -715,6 +828,19 @@ export default function Execucao() {
         return nomeA.localeCompare(nomeB, "pt-BR");
     });
   }, [executionGroups, getProfileById, isGestorOrAdmin, user?.id]);
+
+  const responsavelChips = useMemo(() => {
+    if (!isGestorOrAdmin) return [];
+
+    return profiles
+      .map((profile) => ({
+        profile,
+        stats: responsavelChipStats[profile.user_id] ?? { groups: 0, total: 0 },
+        active: filters.responsaveis.includes(profile.user_id),
+      }))
+      .filter((item) => item.stats.total > 0 || item.active)
+      .sort((a, b) => a.profile.nome.localeCompare(b.profile.nome, "pt-BR"));
+  }, [filters.responsaveis, isGestorOrAdmin, profiles, responsavelChipStats]);
 
   const visibleGroupKeys = useMemo(() => executionGroups.map((group) => group.key), [executionGroups]);
   const selectedVisibleGroups = useMemo(
@@ -986,31 +1112,34 @@ export default function Execucao() {
                   Colaboradores
                 </div>
                 <div className="flex flex-wrap gap-2">
-                  {groupsByResponsavel.map((section) => {
-                    const profile = getProfileById(section.responsavelId);
-                    const active = filters.responsaveis.includes(section.responsavelId);
+                  {responsavelChips.map(({ profile, stats, active }) => {
+                    const hasResponsibleFilter = filters.responsaveis.length > 0;
+                    const isDimmed = hasResponsibleFilter && !active;
                     return (
                       <button
-                        key={section.responsavelId}
+                        key={profile.user_id}
                         type="button"
                         onClick={() =>
                           setFilters((prev) => ({
                             ...prev,
-                            responsaveis: active ? [] : [section.responsavelId],
+                            responsaveis: active ? [] : [profile.user_id],
                           }))
                         }
                         className={cn(
-                          "inline-flex h-8 items-center gap-2 rounded-full border px-3 text-xs font-semibold transition-colors",
-                          active ? "border-primary bg-primary text-primary-foreground" : "border-border bg-background hover:bg-muted"
+                          "inline-flex h-8 items-center gap-2 rounded-full border px-3 text-xs font-semibold transition-all duration-200",
+                          active
+                            ? "scale-[1.03] border-primary bg-primary text-primary-foreground shadow-sm"
+                            : "border-border bg-background hover:bg-muted",
+                          isDimmed && "opacity-35 hover:opacity-80"
                         )}
                       >
                         <span
                           className="h-2.5 w-2.5 rounded-full"
-                          style={{ backgroundColor: profile?.cor || "#65a30d" }}
+                          style={{ backgroundColor: profile.cor || "#65a30d" }}
                         />
-                        {profile?.nome || "Sem responsável"}
+                        {profile.nome || "Sem responsável"}
                         <span className={cn("font-normal", active ? "text-primary-foreground/80" : "text-muted-foreground")}>
-                          {section.groups.length}
+                          {stats.groups}
                         </span>
                       </button>
                     );
@@ -1107,26 +1236,69 @@ export default function Execucao() {
                   {groupsByResponsavel.map((section) => {
                     const profile = getProfileById(section.responsavelId);
                     const sectionCount = section.groups.reduce((acc, group) => acc + group.siblings.length, 0);
+                    const sectionSelection = getSectionSelectedState(section.groups);
 
                     return (
                       <Fragment key={section.responsavelId}>
                         {isGestorOrAdmin && (
                           <tr key={`${section.responsavelId}-header`} className="border-b border-border/70 bg-muted/60">
                             <td colSpan={executionTableColumnCount} className="px-3 py-2">
-                              <div className="flex items-center gap-2">
-                                <div
-                                  className="flex h-7 w-7 items-center justify-center rounded-full text-xs font-semibold"
-                                  style={{
-                                    backgroundColor: `${profile?.cor || "#84cc16"}20`,
-                                    color: profile?.cor || "#65a30d",
-                                  }}
-                                >
-                                  {(profile?.nome || "?").charAt(0).toUpperCase()}
+                              <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
+                                <div className="flex items-center gap-2">
+                                  <input
+                                    type="checkbox"
+                                    checked={sectionSelection.allSelected}
+                                    ref={(input) => {
+                                      if (input) input.indeterminate = sectionSelection.someSelected;
+                                    }}
+                                    onChange={() => toggleSectionSelection(section.groups)}
+                                    aria-label={`Selecionar demandas de ${profile?.nome || "responsável"}`}
+                                    className="h-4 w-4 rounded border-border"
+                                  />
+                                  <div
+                                    className="flex h-7 w-7 items-center justify-center rounded-full text-xs font-semibold"
+                                    style={{
+                                      backgroundColor: `${profile?.cor || "#84cc16"}20`,
+                                      color: profile?.cor || "#65a30d",
+                                    }}
+                                  >
+                                    {(profile?.nome || "?").charAt(0).toUpperCase()}
+                                  </div>
+                                  <span className="font-semibold">{profile?.nome || "Sem responsável"}</span>
+                                  <span className="text-xs text-muted-foreground">
+                                    {section.groups.length} metas aglutinadas · {sectionCount} ocorrências
+                                  </span>
+                                  {sectionSelection.selectedCount > 0 && (
+                                    <Badge variant="outline" className="rounded-full px-2 py-0.5 text-[10px]">
+                                      {sectionSelection.selectedCount} selecionadas
+                                    </Badge>
+                                  )}
                                 </div>
-                                <span className="font-semibold">{profile?.nome || "Sem responsável"}</span>
-                                <span className="text-xs text-muted-foreground">
-                                  {section.groups.length} metas aglutinadas · {sectionCount} ocorrências
-                                </span>
+                                <div className="flex flex-wrap gap-2">
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    className="h-7 px-2 text-xs"
+                                    onClick={() => toggleSectionSelection(section.groups)}
+                                  >
+                                    {sectionSelection.allSelected ? "Limpar do colaborador" : "Selecionar colaborador"}
+                                  </Button>
+                                  <Button
+                                    size="sm"
+                                    className="h-7 bg-emerald-600 px-2 text-xs hover:bg-emerald-700"
+                                    onClick={() => updateGroupsGestorStatus(section.groups, "executado")}
+                                  >
+                                    Aprovar
+                                  </Button>
+                                  <Button
+                                    variant="destructive"
+                                    size="sm"
+                                    className="h-7 px-2 text-xs"
+                                    onClick={() => updateGroupsGestorStatus(section.groups, "nao_realizado")}
+                                  >
+                                    Rejeitar
+                                  </Button>
+                                </div>
                               </div>
                             </td>
                           </tr>
