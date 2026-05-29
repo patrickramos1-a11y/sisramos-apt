@@ -113,7 +113,7 @@ export default function Dashboard() {
       query = query.in("status_gestor", filters.statusAprovado as StatusBolinha[]);
     }
 
-    let { data: demandasData, error: demandasError } = await query;
+    let { data: demandasData, error: demandasError } = (await query) as any;
 
     if (demandasError && /demanda_tags|tags/i.test(demandasError.message)) {
       let fallbackQuery = supabase.from("demandas").select("*").eq("ativa", true);

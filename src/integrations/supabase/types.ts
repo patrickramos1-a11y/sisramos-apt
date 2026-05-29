@@ -361,6 +361,42 @@ export type Database = {
         }
         Relationships: []
       }
+      demanda_tags: {
+        Row: {
+          created_at: string
+          demanda_id: string
+          id: string
+          tag_id: string
+        }
+        Insert: {
+          created_at?: string
+          demanda_id: string
+          id?: string
+          tag_id: string
+        }
+        Update: {
+          created_at?: string
+          demanda_id?: string
+          id?: string
+          tag_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "demanda_tags_demanda_id_fkey"
+            columns: ["demanda_id"]
+            isOneToOne: false
+            referencedRelation: "demandas"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "demanda_tags_tag_id_fkey"
+            columns: ["tag_id"]
+            isOneToOne: false
+            referencedRelation: "tags"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       demandas: {
         Row: {
           ano: number
@@ -601,6 +637,33 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      tags: {
+        Row: {
+          cor: string
+          created_at: string
+          id: string
+          nome: string
+          slug: string
+          updated_at: string
+        }
+        Insert: {
+          cor?: string
+          created_at?: string
+          id?: string
+          nome: string
+          slug: string
+          updated_at?: string
+        }
+        Update: {
+          cor?: string
+          created_at?: string
+          id?: string
+          nome?: string
+          slug?: string
+          updated_at?: string
+        }
+        Relationships: []
       }
       user_roles: {
         Row: {

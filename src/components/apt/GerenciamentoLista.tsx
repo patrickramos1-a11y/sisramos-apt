@@ -186,7 +186,7 @@ export default function GerenciamentoLista({ profiles, setores, onDemandaChange 
       query = query.in("mes", filters.meses.map((m) => parseInt(m)));
     }
     if (isColaborador && user?.id) query = query.eq("responsavel_id", user.id);
-    let { data, error } = await query;
+    let { data, error } = (await query) as any;
 
     if (error && /demanda_tags|tags/i.test(error.message)) {
       let fallbackQuery = supabase.from("demandas").select("*").eq("ativa", true).order("numero", { ascending: true });

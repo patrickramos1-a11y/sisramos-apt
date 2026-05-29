@@ -132,7 +132,7 @@ export function useDemandas() {
       query = query.ilike("descricao", `%${filters.busca}%`);
     }
 
-    let { data, error } = await query;
+    let { data, error } = (await query) as any;
 
     if (error && /demanda_tags|tags/i.test(error.message)) {
       let fallbackQuery = supabase

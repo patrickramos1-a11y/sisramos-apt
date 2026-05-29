@@ -49,7 +49,7 @@ export async function ensureTagsByName(names: string[]) {
 
   const slugs = uniqueBySlug.map((tag) => tag.slug);
   const { data: existing, error: existingError } = await supabase
-    .from("tags" as any)
+    .from("tags")
     .select("id,nome,slug,cor")
     .in("slug", slugs);
 
@@ -64,7 +64,7 @@ export async function ensureTagsByName(names: string[]) {
   if (toCreate.length === 0) return existingTags;
 
   const { data: created, error: createError } = await supabase
-    .from("tags" as any)
+    .from("tags")
     .insert(toCreate)
     .select("id,nome,slug,cor");
 
@@ -86,7 +86,7 @@ export async function syncDemandTags(demandaIds: string[], tagNames: string[]) {
   const tagIds = tags.map((tag) => tag.id);
 
   const { error: deleteError } = await supabase
-    .from("demanda_tags" as any)
+    .from("demanda_tags")
     .delete()
     .in("demanda_id", uniqueDemandIds);
 
@@ -101,7 +101,7 @@ export async function syncDemandTags(demandaIds: string[], tagNames: string[]) {
     tagIds.map((tag_id) => ({ demanda_id, tag_id }))
   );
 
-  const { error: insertError } = await supabase.from("demanda_tags" as any).insert(rows);
+  const { error: insertError } = await supabase.from("demanda_tags").insert(rows);
   if (insertError) {
     if (/demanda_tags|schema cache/i.test(insertError.message || "")) return [];
     throw insertError;
