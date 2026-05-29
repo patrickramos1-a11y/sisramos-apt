@@ -96,7 +96,7 @@ export default function EditarDemandaIrmaDialog({
   useEffect(() => {
     if (!open) return;
     supabase
-      .from("tags" as any)
+      .from("tags")
       .select("id,nome,slug,cor")
       .order("nome")
       .then(({ data }) => setAvailableTags((data || []) as AptTag[]));
