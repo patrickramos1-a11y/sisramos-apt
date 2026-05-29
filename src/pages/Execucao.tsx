@@ -315,7 +315,8 @@ export default function Execucao() {
   const [suggestedWeek, setSuggestedWeek] = useState<number | null>(null);
   const [selectedGroupKeys, setSelectedGroupKeys] = useState<Set<string>>(new Set());
   const [executionSortKey, setExecutionSortKey] = useState<ExecutionSortKey>("responsavel");
-  const [executionStatusFilter, setExecutionStatusFilter] = useState<ExecutionStatusFilter>("pendentes");
+  const [executionStatusFilter, setExecutionStatusFilter] = useState<ExecutionStatusFilter>("todos");
+  const [executionStatusDefaultApplied, setExecutionStatusDefaultApplied] = useState(false);
   const [executionDefaultsApplied, setExecutionDefaultsApplied] = useState(false);
   const [responsavelChipStats, setResponsavelChipStats] = useState<Record<string, { groups: number; total: number }>>({});
 
@@ -326,6 +327,12 @@ export default function Execucao() {
 
   const viewedMes = filters.meses.length === 1 ? parseInt(filters.meses[0], 10) : currentMonth;
   const viewedAno = filters.anos.length === 1 ? parseInt(filters.anos[0], 10) : currentYear;
+
+  useEffect(() => {
+    if (executionStatusDefaultApplied || !user) return;
+    setExecutionStatusFilter(isGestorOrAdmin ? "todos" : "pendentes");
+    setExecutionStatusDefaultApplied(true);
+  }, [executionStatusDefaultApplied, isGestorOrAdmin, user]);
 
   const {
     config: momentosConfig,
