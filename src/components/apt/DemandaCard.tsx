@@ -5,6 +5,7 @@ import StatusBolinha from "./StatusBolinha";
 import SwipeableCard from "./SwipeableCard";
 import { cn } from "@/lib/utils";
 import { User, RefreshCw, Calendar, Flame, Star, MessageCircle } from "lucide-react";
+import type { AptTag } from "@/lib/tags";
 
 type StatusBolinha = "pendente" | "executado" | "nao_realizado";
 
@@ -28,6 +29,7 @@ interface DemandaCardProps {
   showObservacoes?: boolean;
   pendingExclusao?: boolean;
   whatsappHref?: string | null;
+  tags?: AptTag[];
   onStatusResponsavelChange: () => void;
   onStatusGestorChange: () => void;
   onEdit?: () => void;

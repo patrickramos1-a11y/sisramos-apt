@@ -307,7 +307,7 @@ export default function Checklist() {
 
         return { ...base, type: "single" as const, semana: semanas[0] };
       })
-      .filter((card): card is ChecklistDisplayCard => Boolean(card));
+      .filter(Boolean) as ChecklistDisplayCard[];
   }, [aptMomentosConfig]);
 
   // Week filter
