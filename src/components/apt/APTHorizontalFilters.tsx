@@ -61,6 +61,7 @@ interface APTHorizontalFiltersProps {
   onFiltersChange: (filters: MultiFilters) => void;
   onClearFilters: () => void;
   showResponsavelFilter?: boolean;
+  showStatusFilters?: boolean;
   currentWeek: number;
   suggestedWeek?: number | null;
   currentUserId?: string | null;
@@ -198,6 +199,7 @@ export default function APTHorizontalFilters({
   onFiltersChange,
   onClearFilters,
   showResponsavelFilter = true,
+  showStatusFilters = true,
   currentWeek,
   suggestedWeek = null,
   currentUserId = null,
@@ -238,8 +240,8 @@ export default function APTHorizontalFilters({
     filters.meses.length > 0 ||
     filters.anos.length > 0 ||
     filters.semanas.length > 0 ||
-    filters.statusResponsavel.length > 0 ||
-    filters.statusGestor.length > 0 ||
+    (showStatusFilters && filters.statusResponsavel.length > 0) ||
+    (showStatusFilters && filters.statusGestor.length > 0) ||
     filters.busca !== "" ||
     filters.urgente ||
     filters.prioridade ||
@@ -498,27 +500,31 @@ export default function APTHorizontalFilters({
                       Foco APT
                     </FilterPill>
                   )}
-                  <FilterPill
-                    active={isPendingOnlyActive}
-                    tone="amber"
-                    onClick={() => setExclusive("statusResponsavel", ["pendente"])}
-                  >
-                    Pendentes
-                  </FilterPill>
-                  <FilterPill
-                    active={isWaitingApprovalActive}
-                    tone="green"
-                    icon={<CheckCircle2 className="h-3.5 w-3.5" />}
-                    onClick={() =>
-                      updateMany({
-                        statusResponsavel:
-                          isWaitingApprovalActive ? [] : ["executado", "nao_realizado"],
-                        statusGestor: isWaitingApprovalActive ? [] : ["pendente"],
-                      })
-                    }
-                  >
-                    Aguardando aprovacao
-                  </FilterPill>
+                  {showStatusFilters && (
+                    <>
+                      <FilterPill
+                        active={isPendingOnlyActive}
+                        tone="amber"
+                        onClick={() => setExclusive("statusResponsavel", ["pendente"])}
+                      >
+                        Pendentes
+                      </FilterPill>
+                      <FilterPill
+                        active={isWaitingApprovalActive}
+                        tone="green"
+                        icon={<CheckCircle2 className="h-3.5 w-3.5" />}
+                        onClick={() =>
+                          updateMany({
+                            statusResponsavel:
+                              isWaitingApprovalActive ? [] : ["executado", "nao_realizado"],
+                            statusGestor: isWaitingApprovalActive ? [] : ["pendente"],
+                          })
+                        }
+                      >
+                        Aguardando aprovacao
+                      </FilterPill>
+                    </>
+                  )}
                 </div>
               </div>
 
@@ -552,9 +558,13 @@ export default function APTHorizontalFilters({
       <div
         className={cn(
           "mt-2 grid gap-2.5 border-t border-border/50 pt-2",
-          showResponsavelFilter
+          showResponsavelFilter && showStatusFilters
             ? "lg:grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)_minmax(0,1.1fr)]"
-            : "lg:grid-cols-[minmax(0,1fr)_minmax(0,1.15fr)]"
+            : showResponsavelFilter
+              ? "lg:grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)]"
+              : showStatusFilters
+                ? "lg:grid-cols-[minmax(0,1fr)_minmax(0,1.15fr)]"
+                : "lg:grid-cols-1"
         )}
       >
         {showResponsavelFilter && (
@@ -604,6 +614,7 @@ export default function APTHorizontalFilters({
           </div>
         </div>
 
+        {showStatusFilters && (
         <div className="min-w-0">
           <SectionTitle>Status</SectionTitle>
           <div className="flex flex-wrap gap-1.5">
@@ -663,6 +674,7 @@ export default function APTHorizontalFilters({
             )}
           </div>
         </div>
+        )}
       </div>
     </div>
   );

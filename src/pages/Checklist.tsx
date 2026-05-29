@@ -3,7 +3,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useChecklistV2, type TipoItem } from "@/hooks/useChecklistV2";
 import { useChecklistTimer } from "@/hooks/useChecklistTimer";
 import { useMonthSettings } from "@/hooks/useMonthSettings";
-import { useAptMomentos } from "@/hooks/useAptMomentos";
+import { useAptContext } from "@/hooks/useAptContext";
 import { supabase } from "@/integrations/supabase/client";
 import AppLayout from "@/components/layout/AppLayout";
 import ChecklistSummaryCard from "@/components/checklist/ChecklistSummaryCard";
@@ -123,12 +123,15 @@ export default function Checklist() {
     localStorage.setItem(getMergeKey(currentMes, currentAno), JSON.stringify(weeks));
   }, [currentMes, currentAno]);
 
-  const { config: aptMomentosConfig, semanasDoMomentoAtivo } = useAptMomentos(currentMes, currentAno);
-
-  const aptMomentWeeks = useMemo(() => {
-    const weeks = semanasDoMomentoAtivo();
-    return [...new Set(weeks)].filter((week) => week >= 1 && week <= 5).sort((a, b) => a - b);
-  }, [semanasDoMomentoAtivo]);
+  const currentWeek = Math.min(5, Math.ceil(now.getDate() / 7));
+  const {
+    config: aptMomentosConfig,
+    activeMomentWeeks: aptMomentWeeks,
+  } = useAptContext({
+    mes: currentMes,
+    ano: currentAno,
+    currentWeek,
+  });
 
   const isUsingAptMoment = Boolean(aptMomentosConfig?.momento_ativo && aptMomentWeeks.length > 0);
   const selectedEffectiveWeeks = isUsingAptMoment && selectedMomentWeeks.length > 0 ? selectedMomentWeeks : aptMomentWeeks;

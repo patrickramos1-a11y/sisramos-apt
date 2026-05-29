@@ -6,6 +6,7 @@ import { useMonthSettings } from "@/hooks/useMonthSettings";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useMomentoAPT } from "@/hooks/useMomentoAPT";
 import { useAptMomentos } from "@/hooks/useAptMomentos";
+import { resolveAptViewDate } from "@/hooks/useAptContext";
 import { supabase } from "@/integrations/supabase/client";
 import AppLayout from "@/components/layout/AppLayout";
 import APTHorizontalFilters from "@/components/apt/APTHorizontalFilters";
@@ -132,9 +133,11 @@ export default function APT() {
   const urlTab = searchParams.get("tab") || "execucao";
   const urlSubTab = searchParams.get("subtab") || "painel";
 
-  // Determine the currently viewed month/year from filters
-  const viewedMes = filters.meses.length === 1 ? parseInt(filters.meses[0]) : null;
-  const viewedAno = filters.anos.length === 1 ? parseInt(filters.anos[0]) : null;
+  // Determine the currently viewed month/year from the shared APT context rules.
+  const hasSingleViewDate = filters.meses.length === 1 && filters.anos.length === 1;
+  const { mes: contextMes, ano: contextAno } = resolveAptViewDate(filters.meses, filters.anos);
+  const viewedMes = hasSingleViewDate ? contextMes : null;
+  const viewedAno = hasSingleViewDate ? contextAno : null;
 
   // Check if currently viewing a single past month
   const isViewingPastMonth = viewedMes !== null && viewedAno !== null && isPastMonth(viewedMes, viewedAno);
@@ -248,7 +251,9 @@ export default function APT() {
 
   // Apply the top setor card filter client-side
   const displayedDemandas = activeTopSetor
-    ? demandas.filter((d) => d.setor_id === activeTopSetor)
+    ? demandas.filter((d) =>
+        activeTopSetor === "sem_setor" ? d.setor_id === null : d.setor_id === activeTopSetor
+      )
     : demandas;
 
   const visibleDemandas = useMemo(

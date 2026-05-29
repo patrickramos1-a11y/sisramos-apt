@@ -5,7 +5,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useDemandas } from "@/hooks/useDemandas";
 import { useMonthSettings } from "@/hooks/useMonthSettings";
 import { useMomentoAPT } from "@/hooks/useMomentoAPT";
-import { defaultMomentos, useAptMomentos } from "@/hooks/useAptMomentos";
+import { resolveAptViewDate, useAptContext } from "@/hooks/useAptContext";
 import { supabase } from "@/integrations/supabase/client";
 import APTHorizontalFilters from "@/components/apt/APTHorizontalFilters";
 import APTFilters from "@/components/apt/APTFilters";
@@ -325,8 +325,12 @@ export default function Execucao() {
   const currentYear = now.getFullYear();
   const currentWeek = Math.min(5, Math.ceil(now.getDate() / 7));
 
-  const viewedMes = filters.meses.length === 1 ? parseInt(filters.meses[0], 10) : currentMonth;
-  const viewedAno = filters.anos.length === 1 ? parseInt(filters.anos[0], 10) : currentYear;
+  const { mes: viewedMes, ano: viewedAno } = resolveAptViewDate(
+    filters.meses,
+    filters.anos,
+    currentMonth,
+    currentYear
+  );
 
   useEffect(() => {
     if (executionStatusDefaultApplied || !user) return;
@@ -342,35 +346,17 @@ export default function Execucao() {
     reabrirMomento,
     ativarMomento,
     semanasDoMomento,
-    semanasDoMomentoAtivo,
-  } = useAptMomentos(viewedMes, viewedAno);
-
-  const defaultMomentosConfig = useMemo(() => defaultMomentos(5), []);
-  const visualMomentosConfig = useMemo(
-    () =>
-      momentosConfig ?? {
-        id: "visual-default",
-        mes: viewedMes,
-        ano: viewedAno,
-        momentos: defaultMomentosConfig,
-        momento_ativo: momentoSelecionado ?? suggestedWeek ?? currentWeek,
-        created_at: "",
-        updated_at: "",
-      },
-    [currentWeek, defaultMomentosConfig, momentoSelecionado, momentosConfig, suggestedWeek, viewedAno, viewedMes]
-  );
-
-  const activeMomentWeeks = useMemo(() => {
-    if (momentoSelecionado !== null) {
-      const semanasConfiguradas = semanasDoMomento(momentoSelecionado);
-      if (semanasConfiguradas.length > 0) return semanasConfiguradas;
-      return visualMomentosConfig.momentos.find((momento) => momento.numero === momentoSelecionado)?.semanas ?? [];
-    }
-    const weeks = semanasDoMomentoAtivo();
-    if (weeks.length > 0) return weeks;
-    if (suggestedWeek !== null) return [suggestedWeek];
-    return [currentWeek];
-  }, [currentWeek, momentoSelecionado, semanasDoMomento, semanasDoMomentoAtivo, suggestedWeek, visualMomentosConfig]);
+    visualMomentosConfig,
+    activeMomentNumber,
+    activeMomentWeeks,
+    isAptFinalizada,
+  } = useAptContext({
+    mes: viewedMes,
+    ano: viewedAno,
+    momentoSelecionado,
+    suggestedWeek,
+    currentWeek,
+  });
 
   useEffect(() => {
     if (executionDefaultsApplied) return;
@@ -461,11 +447,20 @@ export default function Execucao() {
   useEffect(() => {
     if (!executionDefaultsApplied) return;
 
+    if (momentosConfig && momentosConfig.momento_ativo === null) {
+      if (momentoSelecionado !== null) {
+        setMomentoSelecionado(null);
+      }
+      if (filters.semanas.length > 0) {
+        setFilters((prev) => ({ ...prev, semanas: [] }));
+      }
+      return;
+    }
+
     const momentoAtivo = momentosConfig?.momento_ativo ?? suggestedWeek ?? currentWeek;
-    const weeks =
-      momentosConfig?.momento_ativo
-        ? semanasDoMomento(momentosConfig.momento_ativo)
-        : visualMomentosConfig.momentos.find((momento) => momento.numero === momentoAtivo)?.semanas ?? [];
+    const weeks = momentosConfig?.momento_ativo
+      ? semanasDoMomento(momentosConfig.momento_ativo)
+      : visualMomentosConfig.momentos.find((momento) => momento.numero === momentoAtivo)?.semanas ?? [];
 
     if (weeks.length > 0) {
       const nextWeeks = weeks.map(String);
@@ -487,6 +482,7 @@ export default function Execucao() {
     executionDefaultsApplied,
     filters.semanas.length,
     filters.semanas,
+    momentoSelecionado,
     momentosConfig,
     semanasDoMomento,
     setFilters,
@@ -520,7 +516,16 @@ export default function Execucao() {
     if (!isGestorOrAdmin || activeMomentNumber === null || !user) return;
 
     if (momentosConfig) {
+      const momentos = [...momentosConfig.momentos];
+      const atualIdx = momentos.findIndex((momento) => momento.numero === activeMomentNumber);
+      const proximo = atualIdx >= 0
+        ? momentos.find((momento) => momento.numero > momentos[atualIdx].numero && !momento.concluido)
+        : null;
       await avancarMomento();
+      if (!proximo) {
+        setMomentoSelecionado(null);
+        setFilters((prev) => ({ ...prev, semanas: [] }));
+      }
       return;
     }
 
@@ -540,11 +545,16 @@ export default function Execucao() {
     const novoAtivo = proximoMomento?.numero ?? null;
     const ok = await saveMomentos(momentosAtualizados, novoAtivo);
 
-    if (ok && novoAtivo !== null) {
-      setMomentoSelecionado(novoAtivo);
-      const semanas = proximoMomento?.semanas ?? [];
-      if (semanas.length > 0) {
-        setFilters((prev) => ({ ...prev, semanas: semanas.map(String) }));
+    if (ok) {
+      if (novoAtivo !== null) {
+        setMomentoSelecionado(novoAtivo);
+        const semanas = proximoMomento?.semanas ?? [];
+        if (semanas.length > 0) {
+          setFilters((prev) => ({ ...prev, semanas: semanas.map(String) }));
+        }
+      } else {
+        setMomentoSelecionado(null);
+        setFilters((prev) => ({ ...prev, semanas: [] }));
       }
     }
   };
@@ -734,7 +744,9 @@ export default function Execucao() {
   };
 
   const filteredByTopSetor = activeTopSetor
-    ? demandas.filter((item) => item.setor_id === activeTopSetor)
+    ? demandas.filter((item) =>
+        activeTopSetor === "sem_setor" ? item.setor_id === null : item.setor_id === activeTopSetor
+      )
     : demandas;
 
   useEffect(() => {
@@ -749,13 +761,8 @@ export default function Execucao() {
       if (filters.meses.length > 0) query = query.in("mes", filters.meses.map((m) => parseInt(m, 10)));
       if (filters.anos.length > 0) query = query.in("ano", filters.anos.map((a) => parseInt(a, 10)));
       if (filters.setores.length > 0) query = query.in("setor_id", filters.setores);
-      if (activeTopSetor) query = query.eq("setor_id", activeTopSetor);
-      if (filters.statusResponsavel.length > 0) {
-        query = query.in("status_responsavel", filters.statusResponsavel as Demanda["status_responsavel"][]);
-      }
-      if (filters.statusGestor.length > 0) {
-        query = query.in("status_gestor", filters.statusGestor as Demanda["status_gestor"][]);
-      }
+      if (activeTopSetor === "sem_setor") query = query.is("setor_id", null);
+      else if (activeTopSetor) query = query.eq("setor_id", activeTopSetor);
       if (filters.busca) query = query.ilike("descricao", `%${filters.busca}%`);
 
       const { data, error } = await query;
@@ -982,9 +989,10 @@ export default function Execucao() {
   }, [demandas, setores]);
 
   const isMomentoBloqueado = isAPTBloqueado(viewedMes, viewedAno);
-  const activeMomentNumber = momentoSelecionado ?? visualMomentosConfig.momento_ativo ?? null;
   const activeMomentLabel =
-    activeMomentNumber !== null
+    isAptFinalizada && activeMomentNumber === null
+      ? "APT finalizada"
+      : activeMomentNumber !== null
       ? visualMomentosConfig.momentos.find((momento) => momento.numero === activeMomentNumber)?.label ??
         `Momento ${activeMomentNumber}`
       : suggestedWeek !== null
@@ -1005,7 +1013,7 @@ export default function Execucao() {
     {
       label: "Momento rodando",
       value: activeMomentLabel,
-      helper: `Semanas ${semanasCompactas(activeMomentWeeks)}`,
+      helper: activeMomentWeeks.length > 0 ? `Semanas ${semanasCompactas(activeMomentWeeks)}` : "Nenhum momento em andamento",
       icon: Layers3,
     },
     {
@@ -1059,7 +1067,7 @@ export default function Execucao() {
             <Button variant="outline" size="sm" className="gap-2 lg:hidden" onClick={() => setShowMobileFilters((prev) => !prev)}>
               <Settings2 className="h-4 w-4" />
               Filtros
-              {(filters.responsaveis.length + filters.setores.length + filters.semanas.length + filters.statusResponsavel.length + filters.statusGestor.length + (filters.urgente ? 1 : 0) + (filters.prioridade ? 1 : 0)) > 0 && (
+              {(filters.responsaveis.length + filters.setores.length + filters.semanas.length + (filters.urgente ? 1 : 0) + (filters.prioridade ? 1 : 0)) > 0 && (
                 <span className="ml-1 rounded-full bg-primary px-1.5 text-[10px] text-primary-foreground">!</span>
               )}
             </Button>
@@ -1139,6 +1147,7 @@ export default function Execucao() {
                     setMomentoSelecionado(null);
                   }}
                   showResponsavelFilter={isGestorOrAdmin}
+                  showStatusFilters={false}
                   currentWeek={currentWeek}
                   suggestedWeek={suggestedWeek}
                   currentUserId={user?.id ?? null}
@@ -1159,6 +1168,7 @@ export default function Execucao() {
                   setMomentoSelecionado(null);
                 }}
                 showResponsavelFilter={isGestorOrAdmin}
+                showStatusFilters={false}
               />
             </div>
             )}

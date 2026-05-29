@@ -222,6 +222,9 @@ export default function GerenciamentoLista({ profiles, setores, onDemandaChange 
     onDemandaChange();
     refetchSolicitacoes();
     setSelectedIds(new Set());
+    if (frozenVisibleIds !== null) {
+      setHasPendingReorder(true);
+    }
   };
 
   const updateLocalDemandas = useCallback(

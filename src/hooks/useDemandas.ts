@@ -295,8 +295,8 @@ export function useDemandas() {
     setFilters({
       responsaveis: [],
       setores: [],
-      meses: [],
-      anos: [],
+      meses: [String(new Date().getMonth() + 1)],
+      anos: [String(new Date().getFullYear())],
       semanas: [],
       statusResponsavel: [],
       statusGestor: [],

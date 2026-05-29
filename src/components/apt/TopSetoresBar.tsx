@@ -54,7 +54,6 @@ export default function TopSetoresBar({
           pctConcluido: data.total > 0 ? Math.round((data.concluidos / data.total) * 100) : 0,
         };
       })
-      .filter((s) => s.pendentes > 0)
       .sort((a, b) => b.pendentes - a.pendentes)
       .slice(0, 10);
   }, [demandas, setores, statusField]);

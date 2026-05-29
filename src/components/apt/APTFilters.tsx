@@ -53,6 +53,7 @@ interface APTFiltersProps {
   onFiltersChange: (filters: MultiFilters) => void;
   onClearFilters: () => void;
   showResponsavelFilter?: boolean;
+  showStatusFilters?: boolean;
 }
 
 const meses = [
@@ -237,6 +238,7 @@ export default function APTFilters({
   onFiltersChange,
   onClearFilters,
   showResponsavelFilter = true,
+  showStatusFilters = true,
 }: APTFiltersProps) {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
@@ -273,8 +275,8 @@ export default function APTFilters({
     draft.meses.length > 0 ||
     draft.anos.length > 0 ||
     draft.semanas.length > 0 ||
-    draft.statusResponsavel.length > 0 ||
-    draft.statusGestor.length > 0 ||
+    (showStatusFilters && draft.statusResponsavel.length > 0) ||
+    (showStatusFilters && draft.statusGestor.length > 0) ||
     draft.repeticoes.length > 0 ||
     draft.busca !== "";
 
@@ -346,21 +348,25 @@ export default function APTFilters({
         placeholder="Todas"
       />
 
-      <MultiSelectDropdown
-        label="Status Responsável"
-        options={statusOptions}
-        selected={draft.statusResponsavel}
-        onChange={(v) => updateDraft("statusResponsavel", v)}
-        placeholder="Todos"
-      />
+      {showStatusFilters && (
+        <>
+          <MultiSelectDropdown
+            label="Status Responsável"
+            options={statusOptions}
+            selected={draft.statusResponsavel}
+            onChange={(v) => updateDraft("statusResponsavel", v)}
+            placeholder="Todos"
+          />
 
-      <MultiSelectDropdown
-        label="Status Gestor"
-        options={statusOptions}
-        selected={draft.statusGestor}
-        onChange={(v) => updateDraft("statusGestor", v)}
-        placeholder="Todos"
-      />
+          <MultiSelectDropdown
+            label="Status Gestor"
+            options={statusOptions}
+            selected={draft.statusGestor}
+            onChange={(v) => updateDraft("statusGestor", v)}
+            placeholder="Todos"
+          />
+        </>
+      )}
 
       <MultiSelectDropdown
         label="Repetição (X)"
