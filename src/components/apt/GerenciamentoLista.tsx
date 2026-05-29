@@ -134,6 +134,8 @@ export default function GerenciamentoLista({ profiles, setores, onDemandaChange 
   const [manualOrderIds, setManualOrderIds] = useState<string[]>([]);
   const [hasPendingReorder, setHasPendingReorder] = useState(false);
   const [isRebalancing, setIsRebalancing] = useState(false);
+  const [frozenVisibleIds, setFrozenVisibleIds] = useState<Set<string> | null>(null);
+  const [appliedFilterSignature, setAppliedFilterSignature] = useState("");
 
   const [allDemandas, setAllDemandas] = useState<Demanda[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -231,8 +233,10 @@ export default function GerenciamentoLista({ profiles, setores, onDemandaChange 
 
   const bulk = useBulkDemandaActions(handleDemandaChange);
 
-  // Client-side filtering
-  const filteredDemandas = useMemo(() => {
+  const filterSignature = useMemo(() => JSON.stringify(filters), [filters]);
+
+  // Client-side filtering used only when filters are applied/refreshed.
+  const freshFilteredDemandas = useMemo(() => {
     let result = allDemandas;
     if (filters.responsaveis.length > 0) result = result.filter((d) => filters.responsaveis.includes(d.responsavel_id));
     if (filters.setores.length > 0) result = result.filter((d) => d.setor_id && filters.setores.includes(d.setor_id));
@@ -247,12 +251,30 @@ export default function GerenciamentoLista({ profiles, setores, onDemandaChange 
     if (filters.urgente) result = result.filter((d) => d.muito_urgente);
     if (filters.prioridade) result = result.filter((d) => d.prioritaria);
     if (filters.pendenteAprovacao) result = result.filter((d) => d.status_responsavel === "executado" && d.status_gestor === "pendente");
+    if (filters.repeticoes.length > 0) {
+      const reps = filters.repeticoes.map((r) => parseInt(r));
+      result = result.filter((d) => reps.includes(d.semanas_repeticao));
+    }
     if (filters.tags.length > 0) {
       const selected = new Set(filters.tags);
       result = result.filter((d) => (d.tags || []).some((tag) => selected.has(tag.id)));
     }
     return result;
   }, [allDemandas, filters]);
+
+  useEffect(() => {
+    if (isLoading) return;
+    if (appliedFilterSignature === filterSignature && frozenVisibleIds !== null) return;
+
+    setFrozenVisibleIds(new Set(freshFilteredDemandas.map((demanda) => demanda.id)));
+    setAppliedFilterSignature(filterSignature);
+    setHasPendingReorder(false);
+  }, [appliedFilterSignature, filterSignature, freshFilteredDemandas, frozenVisibleIds, isLoading]);
+
+  const filteredDemandas = useMemo(() => {
+    if (!frozenVisibleIds) return freshFilteredDemandas;
+    return allDemandas.filter((demanda) => frozenVisibleIds.has(demanda.id));
+  }, [allDemandas, freshFilteredDemandas, frozenVisibleIds]);
 
   // Consolidate
   const consolidated = useMemo(() => {
@@ -277,13 +299,8 @@ export default function GerenciamentoLista({ profiles, setores, onDemandaChange 
         });
       }
     });
-    let result = Array.from(map.values());
-    if (filters.repeticoes.length > 0) {
-      const reps = filters.repeticoes.map((r) => parseInt(r));
-      result = result.filter((d) => reps.includes(d.siblings.length));
-    }
-    return result;
-  }, [filteredDemandas, filters.repeticoes]);
+    return Array.from(map.values());
+  }, [filteredDemandas]);
 
   const getProfileById = useCallback((id: string) => profiles.find((p) => p.user_id === id), [profiles]);
   const getSetorById = useCallback((id: string | null) => (id ? setores.find((s) => s.id === id) ?? null : null), [setores]);
@@ -304,7 +321,11 @@ export default function GerenciamentoLista({ profiles, setores, onDemandaChange 
     "responsavel_id" in patch ||
     "setor_id" in patch ||
     "semana_limite" in patch ||
-    "semanas_repeticao" in patch;
+    "semanas_repeticao" in patch ||
+    "prioritaria" in patch ||
+    "muito_urgente" in patch ||
+    "status_responsavel" in patch ||
+    "status_gestor" in patch;
 
   const sortFn = (a: ConsolidatedDemand, b: ConsolidatedDemand) => {
     let cmp = 0;
@@ -349,9 +370,11 @@ export default function GerenciamentoLista({ profiles, setores, onDemandaChange 
   }, [orderResetSignature, isLoading, getVisualOrderId]);
 
   const applyCurrentOrdering = useCallback(() => {
-    setManualOrderIds(baseSortedFlat.map(getVisualOrderId));
+    setFrozenVisibleIds(new Set(freshFilteredDemandas.map((demanda) => demanda.id)));
+    setAppliedFilterSignature(filterSignature);
+    setManualOrderIds([]);
     setHasPendingReorder(false);
-  }, [baseSortedFlat, getVisualOrderId]);
+  }, [filterSignature, freshFilteredDemandas]);
 
   const sortedFlat = useMemo(() => {
     if (manualOrderIds.length === 0) return baseSortedFlat;
