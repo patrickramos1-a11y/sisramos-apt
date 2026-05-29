@@ -83,6 +83,7 @@ interface Demanda {
   prioritaria: boolean;
   muito_urgente?: boolean;
   grupo_id: string | null;
+  tags?: import("@/lib/tags").AptTag[];
 }
 
 const rowLimitOptions = [50, 100, 500, 1000, 2000];
@@ -97,6 +98,7 @@ export default function APT() {
     demandas,
     profiles,
     setores,
+    availableTags,
     isLoading,
     filters,
     setFilters,
@@ -581,6 +583,7 @@ export default function APT() {
                 <APTHorizontalFilters
                   profiles={profiles}
                   setores={setores}
+                  availableTags={availableTags}
                   filters={filters}
                   onFiltersChange={(f) => { setFilters(f); setActiveTopSetor(null); }}
                   onClearFilters={() => { clearFilters(); setActiveTopSetor(null); }}
@@ -683,6 +686,7 @@ export default function APT() {
                           showGestorStatus={isGestorOrAdmin}
                           showObservacoes={!hideObservacoesColumn}
                           pendingExclusao={pendingDemandaIds.has(demanda.id)}
+                          tags={demanda.tags}
                           whatsappHref={whatsappHref}
                           onStatusResponsavelChange={() =>
                             updateStatusResponsavel(
@@ -864,6 +868,7 @@ export default function APT() {
                                 isSelected={selectedIds.has(demanda.id)}
                                 showCheckbox={true}
                                 pendingExclusao={pendingDemandaIds.has(demanda.id)}
+                                tags={demanda.tags}
                                 whatsappHref={whatsappHref}
                                 onStatusResponsavelChange={() =>
                                   updateStatusResponsavel(

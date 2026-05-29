@@ -3,6 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import { SortConfig, SortDirection } from "@/components/apt/DemandaSortHeader";
+import { AptTag, uniqueTags } from "@/lib/tags";
 
 
 type StatusBolinha = "pendente" | "executado" | "nao_realizado";
@@ -19,9 +20,10 @@ export interface MultiFilters {
   busca: string;
   urgente: boolean;
   prioridade: boolean;
+  tags: string[];
 }
 
-interface Demanda {
+export interface Demanda {
   id: string;
   numero: number;
   setor_id: string | null;
@@ -41,6 +43,7 @@ interface Demanda {
   grupo_id: string | null;
   created_at: string;
   updated_at: string;
+  tags?: AptTag[];
 }
 
 interface Profile {
@@ -62,6 +65,7 @@ export function useDemandas() {
   const [demandas, setDemandas] = useState<Demanda[]>([]);
   const [profiles, setProfiles] = useState<Profile[]>([]);
   const [setores, setSetores] = useState<Setor[]>([]);
+  const [availableTags, setAvailableTags] = useState<AptTag[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [filters, setFilters] = useState<MultiFilters>({
     responsaveis: [],
@@ -75,6 +79,7 @@ export function useDemandas() {
     busca: "",
     urgente: false,
     prioridade: false,
+    tags: [],
   });
   const [sortConfig, setSortConfig] = useState<SortConfig>({
     numero: null,
@@ -94,7 +99,7 @@ export function useDemandas() {
 
     let query = supabase
       .from("demandas")
-      .select("*")
+      .select("*, demanda_tags(tag:tags(id,nome,slug,cor))")
       .eq("ativa", true)
       // ordem estável (e global) baseada na numeração persistida no banco
       .order("numero", { ascending: true });
@@ -127,7 +132,28 @@ export function useDemandas() {
       query = query.ilike("descricao", `%${filters.busca}%`);
     }
 
-    const { data, error } = await query;
+    let { data, error } = await query;
+
+    if (error && /demanda_tags|tags/i.test(error.message)) {
+      let fallbackQuery = supabase
+        .from("demandas")
+        .select("*")
+        .eq("ativa", true)
+        .order("numero", { ascending: true });
+
+      if (!isGestorOrAdmin) fallbackQuery = fallbackQuery.eq("responsavel_id", user.id);
+      if (filters.meses.length > 0) fallbackQuery = fallbackQuery.in("mes", filters.meses.map((m) => parseInt(m)));
+      if (filters.anos.length > 0) fallbackQuery = fallbackQuery.in("ano", filters.anos.map((a) => parseInt(a)));
+      if (filters.responsaveis.length > 0) fallbackQuery = fallbackQuery.in("responsavel_id", filters.responsaveis);
+      if (filters.setores.length > 0) fallbackQuery = fallbackQuery.in("setor_id", filters.setores);
+      if (filters.statusResponsavel.length > 0) fallbackQuery = fallbackQuery.in("status_responsavel", filters.statusResponsavel as StatusBolinha[]);
+      if (filters.statusGestor.length > 0) fallbackQuery = fallbackQuery.in("status_gestor", filters.statusGestor as StatusBolinha[]);
+      if (filters.busca) fallbackQuery = fallbackQuery.ilike("descricao", `%${filters.busca}%`);
+
+      const fallback = await fallbackQuery;
+      data = fallback.data;
+      error = fallback.error;
+    }
 
     if (error) {
       console.error("Error fetching demandas:", error);
@@ -139,7 +165,15 @@ export function useDemandas() {
       setDemandas([]);
     } else {
       // Filter semanas client-side since it's an array column
-      let filteredData = data || [];
+      let filteredData = ((data || []) as any[]).map((demanda) => ({
+        ...demanda,
+        tags: (demanda.demanda_tags || [])
+          .map((item: any) => item.tag)
+          .filter(Boolean),
+      })) as Demanda[];
+
+      setAvailableTags(uniqueTags(filteredData.flatMap((demanda) => demanda.tags || [])));
+
       if (filters.semanas.length > 0) {
         const semanaNumbers = filters.semanas.map((s) => parseInt(s));
         filteredData = filteredData.filter((d) =>
@@ -163,6 +197,13 @@ export function useDemandas() {
       // Filter by prioridade (prioritaria)
       if (filters.prioridade) {
         filteredData = filteredData.filter((d) => d.prioritaria);
+      }
+
+      if (filters.tags.length > 0) {
+        const selectedTagIds = new Set(filters.tags);
+        filteredData = filteredData.filter((d) =>
+          (d.tags || []).some((tag) => selectedTagIds.has(tag.id))
+        );
       }
       
       setDemandas(filteredData);
@@ -263,6 +304,7 @@ export function useDemandas() {
       busca: "",
       urgente: false,
       prioridade: false,
+      tags: [],
     });
   };
 
@@ -372,6 +414,7 @@ export function useDemandas() {
     demandas: sortedDemandas,
     profiles,
     setores,
+    availableTags,
     isLoading,
     filters,
     setFilters,

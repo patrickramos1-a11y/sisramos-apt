@@ -173,7 +173,7 @@ Deno.serve(async (req) => {
     }
 
     // Prepare new demands for current month (filter out duplicates)
-    const newDemandas = sourceDemandas
+    const sourceDemandasToCopy = (sourceDemandas as Demanda[])
       .filter((d: Demanda) => {
         // Skip multi-month recurrence groups: their future occurrences are pre-scheduled
         if (d.grupo_id && multiMonthGroupIds.has(d.grupo_id)) return false;
@@ -181,8 +181,9 @@ Deno.serve(async (req) => {
         if (d.grupo_id && existingGrupoIds.has(d.grupo_id)) return false;
         const signature = `${d.descricao}-${d.responsavel_id}`;
         return !existingSignatures.has(signature);
-      })
-      .map((d: Demanda) => ({
+      });
+
+    const newDemandas = sourceDemandasToCopy.map((d: Demanda) => ({
         setor_id: d.setor_id,
         responsavel_id: d.responsavel_id,
         descricao: d.descricao,
@@ -226,6 +227,37 @@ Deno.serve(async (req) => {
       }
 
       copied = insertedData?.length || 0;
+
+      if (insertedData && insertedData.length > 0) {
+        const sourceIds = sourceDemandasToCopy.map((d) => d.id);
+        const sourceToTarget = new Map<string, string>();
+        sourceIds.forEach((sourceId, index) => {
+          const targetId = insertedData[index]?.id;
+          if (targetId) sourceToTarget.set(sourceId, targetId);
+        });
+
+        const { data: sourceTags, error: tagsError } = await supabase
+          .from("demanda_tags")
+          .select("demanda_id, tag_id")
+          .in("demanda_id", sourceIds);
+
+        if (tagsError) throw tagsError;
+
+        const tagRows = (sourceTags || [])
+          .map((row: any) => ({
+            demanda_id: sourceToTarget.get(row.demanda_id),
+            tag_id: row.tag_id,
+          }))
+          .filter((row: any) => row.demanda_id);
+
+        if (tagRows.length > 0) {
+          const { error: insertTagsError } = await supabase
+            .from("demanda_tags")
+            .insert(tagRows);
+          if (insertTagsError) throw insertTagsError;
+        }
+      }
+
       console.log(`✅ Successfully copied ${copied} demands`);
       console.log(`📈 Summary: ${copied} copied, ${skipped} skipped (duplicates)`);
     }

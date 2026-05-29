@@ -10,6 +10,7 @@ import {
 import StatusBolinha from "./StatusBolinha";
 import { cn } from "@/lib/utils";
 import { MoreVertical, Pencil, Trash2, Flame, Star, Repeat, MessageCircle } from "lucide-react";
+import { AptTag } from "@/lib/tags";
 
 type StatusBolinha = "pendente" | "executado" | "nao_realizado";
 
@@ -38,6 +39,7 @@ interface DemandaTableRowProps {
   showCheckbox?: boolean;
   pendingExclusao?: boolean;
   whatsappHref?: string | null;
+  tags?: AptTag[];
   onStatusResponsavelChange: () => void;
   onStatusGestorChange: () => void;
   onClick?: () => void;
@@ -71,6 +73,7 @@ export default function DemandaTableRow({
   showCheckbox,
   pendingExclusao,
   whatsappHref,
+  tags = [],
   onStatusResponsavelChange,
   onStatusGestorChange,
   onClick,
@@ -152,6 +155,19 @@ export default function DemandaTableRow({
 
           <div className="min-w-0 space-y-1">
             <p className="leading-snug text-foreground">{descricao}</p>
+            {tags.length > 0 && (
+              <div className="flex flex-wrap gap-1">
+                {tags.map((tag) => (
+                  <span
+                    key={tag.id}
+                    className="inline-flex rounded-full border px-1.5 py-0.5 text-[10px] font-semibold text-foreground/80"
+                    style={{ backgroundColor: `${tag.cor}66`, borderColor: tag.cor }}
+                  >
+                    #{tag.nome}
+                  </span>
+                ))}
+              </div>
+            )}
             {pendingExclusao && (
               <span className="inline-flex items-center whitespace-nowrap rounded-full border border-warning/30 bg-warning/15 px-2 py-0.5 text-[10px] font-medium text-warning">
                 Aguardando exclusao

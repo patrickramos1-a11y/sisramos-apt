@@ -20,6 +20,7 @@ import { X, Filter, SlidersHorizontal, ChevronDown, Search } from "lucide-react"
 import { cn } from "@/lib/utils";
 import { DashboardFilters as FiltersType, CrossFilter } from "@/hooks/useDashboardFilters";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { AptTag } from "@/lib/tags";
 
 interface Profile {
   id: string;
@@ -35,6 +36,7 @@ interface Setor {
 interface DashboardFiltersProps {
   profiles: Profile[];
   setores: Setor[];
+  tags?: AptTag[];
   filters: FiltersType;
   crossFilter: CrossFilter | null;
   onFilterChange: <K extends keyof FiltersType>(key: K, value: FiltersType[K]) => void;
@@ -210,6 +212,7 @@ function MultiSelectDropdown({
 function FilterFields({
   profiles,
   setores,
+  tags = [],
   filters,
   onFilterChange,
   onClearFilters,
@@ -258,6 +261,16 @@ function FilterFields({
         onChange={(v) => onFilterChange("setores", v)}
         className={vertical ? "" : "w-[150px]"}
       />
+      {tags.length > 0 && (
+        <MultiSelectDropdown
+          label="Tags"
+          options={tags.map((tag) => ({ value: tag.id, label: `#${tag.nome}` }))}
+          selected={filters.tags}
+          onChange={(v) => onFilterChange("tags", v)}
+          placeholder="Todas"
+          className={vertical ? "" : "w-[140px]"}
+        />
+      )}
       <MultiSelectDropdown
         label="Status Feito"
         options={statusOptions}

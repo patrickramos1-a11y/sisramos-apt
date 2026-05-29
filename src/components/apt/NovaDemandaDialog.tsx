@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -29,6 +29,8 @@ import { Plus, Loader2, X, ChevronDown, Check } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
+import TagSelector from "@/components/apt/TagSelector";
+import { AptTag, syncDemandTags } from "@/lib/tags";
 
 interface Profile {
   id: string;
@@ -57,6 +59,7 @@ export default function NovaDemandaDialog({
   const [open, setOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [responsaveisPopoverOpen, setResponsaveisPopoverOpen] = useState(false);
+  const [availableTags, setAvailableTags] = useState<AptTag[]>([]);
   const { toast } = useToast();
 
   const [formData, setFormData] = useState({
@@ -73,6 +76,7 @@ export default function NovaDemandaDialog({
     repetir_meses: false,
     intervalo_meses: "1",
     ocorrencias_meses: "2",
+    tags: [] as string[],
   });
 
   const resetForm = () => {
@@ -90,8 +94,18 @@ export default function NovaDemandaDialog({
       repetir_meses: false,
       intervalo_meses: "1",
       ocorrencias_meses: "2",
+      tags: [],
     });
   };
+
+  useEffect(() => {
+    if (!open) return;
+    supabase
+      .from("tags" as any)
+      .select("id,nome,slug,cor")
+      .order("nome")
+      .then(({ data }) => setAvailableTags((data || []) as AptTag[]));
+  }, [open]);
 
   const isSetorLocked = !!lockedSetorId;
 
@@ -194,7 +208,10 @@ export default function NovaDemandaDialog({
       }
     }
 
-    const { error } = await supabase.from("demandas").insert(allDemandas);
+    const { data: insertedDemandas, error } = await supabase
+      .from("demandas")
+      .insert(allDemandas)
+      .select("id");
 
     if (error) {
       toast({
@@ -203,6 +220,8 @@ export default function NovaDemandaDialog({
         description: error.message,
       });
     } else {
+      await syncDemandTags((insertedDemandas || []).map((item) => item.id), formData.tags);
+
       const totalDemandas = allDemandas.length;
       const numResponsaveis = formData.responsavel_ids.length;
       const numSemanas = formData.semana_limite.length;
@@ -427,6 +446,12 @@ export default function NovaDemandaDialog({
               rows={2}
             />
           </div>
+
+          <TagSelector
+            tags={formData.tags}
+            availableTags={availableTags}
+            onChange={(tags) => setFormData((prev) => ({ ...prev, tags }))}
+          />
 
           <div className="space-y-2">
             <Label htmlFor="semanas">Repetições</Label>

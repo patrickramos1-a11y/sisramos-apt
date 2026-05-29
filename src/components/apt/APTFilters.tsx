@@ -43,6 +43,7 @@ export interface MultiFilters {
   busca: string;
   urgente: boolean;
   prioridade: boolean;
+  tags: string[];
 }
 
 interface APTFiltersProps {

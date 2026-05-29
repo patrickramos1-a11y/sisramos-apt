@@ -16,6 +16,7 @@ import {
 } from "@/components/ui/select";
 import { ChevronDown, Flame, Search, Star, X } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { AptTag } from "@/lib/tags";
 
 export interface ListaFilters {
   busca: string;
@@ -28,6 +29,7 @@ export interface ListaFilters {
   prioridade: boolean;
   pendenteAprovacao: boolean;
   todosOsMeses: boolean;
+  tags: string[];
 }
 
 const MESES_SHORT = [
@@ -78,6 +80,7 @@ interface Props {
   onChange: (next: ListaFilters) => void;
   profileOptions: { value: string; label: string }[];
   setorOptions: { value: string; label: string }[];
+  tagOptions?: AptTag[];
 }
 
 function SectionTitle({ children }: { children: React.ReactNode }) {
@@ -137,7 +140,7 @@ function FilterPill({
   );
 }
 
-export default function FiltersBar({ filters, onChange, profileOptions, setorOptions }: Props) {
+export default function FiltersBar({ filters, onChange, profileOptions, setorOptions, tagOptions = [] }: Props) {
   const [setorSearch, setSetorSearch] = useState("");
 
   const update = (patch: Partial<ListaFilters>) => onChange({ ...filters, ...patch });
@@ -183,6 +186,7 @@ export default function FiltersBar({ filters, onChange, profileOptions, setorOpt
       prioridade: false,
       pendenteAprovacao: false,
       todosOsMeses: false,
+      tags: [],
     });
 
   const hasChips =
@@ -193,7 +197,8 @@ export default function FiltersBar({ filters, onChange, profileOptions, setorOpt
     filters.prioridade ||
     filters.pendenteAprovacao ||
     filters.semanas.length > 0 ||
-    filters.todosOsMeses;
+    filters.todosOsMeses ||
+    filters.tags.length > 0;
 
   const filteredSetores = useMemo(() => {
     const query = setorSearch.trim().toLowerCase();
@@ -413,6 +418,40 @@ export default function FiltersBar({ filters, onChange, profileOptions, setorOpt
             })}
           </div>
         </div>
+
+        {tagOptions.length > 0 && (
+          <div className="min-w-0 lg:col-span-2">
+            <SectionTitle>Tags</SectionTitle>
+            <div className="flex flex-wrap gap-1.5">
+              {tagOptions.map((tag) => {
+                const active = filters.tags.includes(tag.id);
+                return (
+                  <button
+                    key={tag.id}
+                    type="button"
+                    onClick={() =>
+                      update({
+                        tags: active
+                          ? filters.tags.filter((id) => id !== tag.id)
+                          : [...filters.tags, tag.id],
+                      })
+                    }
+                    className={cn(
+                      "inline-flex h-7 items-center rounded-full border px-2.5 text-[12px] font-semibold transition-colors",
+                      active ? "shadow-sm" : "opacity-80 hover:opacity-100"
+                    )}
+                    style={{
+                      backgroundColor: active ? tag.cor : `${tag.cor}66`,
+                      borderColor: tag.cor,
+                    }}
+                  >
+                    #{tag.nome}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        )}
       </div>
 
       {hasChips && (
@@ -469,6 +508,14 @@ export default function FiltersBar({ filters, onChange, profileOptions, setorOpt
               Aguardando aprovacao
             </Chip>
           )}
+          {filters.tags.map((id) => {
+            const tag = tagOptions.find((item) => item.id === id);
+            return (
+              <Chip key={`tag${id}`} onRemove={() => update({ tags: filters.tags.filter((item) => item !== id) })}>
+                #{tag?.nome ?? id}
+              </Chip>
+            );
+          })}
         </div>
       )}
     </div>

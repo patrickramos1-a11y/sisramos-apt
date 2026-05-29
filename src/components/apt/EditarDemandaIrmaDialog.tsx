@@ -22,6 +22,8 @@ import {
 import { Loader2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import TagSelector from "@/components/apt/TagSelector";
+import { AptTag, syncDemandTags } from "@/lib/tags";
 
 interface Profile {
   id: string;
@@ -48,6 +50,7 @@ interface Demanda {
   prioritaria: boolean;
   muito_urgente?: boolean;
   grupo_id: string | null;
+  tags?: AptTag[];
 }
 
 interface EditarDemandaIrmaDialogProps {
@@ -74,6 +77,7 @@ export default function EditarDemandaIrmaDialog({
   const [actualSiblingCount, setActualSiblingCount] = useState(siblingCount);
   const [resolvedGrupoId, setResolvedGrupoId] = useState<string | null>(null);
   const [siblingMonths, setSiblingMonths] = useState<{ mes: number; ano: number }[]>([]);
+  const [availableTags, setAvailableTags] = useState<AptTag[]>([]);
   const { toast } = useToast();
 
   const [formData, setFormData] = useState({
@@ -86,7 +90,17 @@ export default function EditarDemandaIrmaDialog({
     ano: String(new Date().getFullYear()),
     prioritaria: false,
     muito_urgente: false,
+    tags: [] as string[],
   });
+
+  useEffect(() => {
+    if (!open) return;
+    supabase
+      .from("tags" as any)
+      .select("id,nome,slug,cor")
+      .order("nome")
+      .then(({ data }) => setAvailableTags((data || []) as AptTag[]));
+  }, [open]);
 
   // Fetch actual sibling count from database when dialog opens (ignoring filters)
   // Uses heuristic fallback when grupo_id is null but semanas_repeticao > 1
@@ -204,6 +218,7 @@ export default function EditarDemandaIrmaDialog({
         ano: String(demanda.ano),
         prioritaria: demanda.prioritaria,
         muito_urgente: demanda.muito_urgente || false,
+        tags: (demanda.tags || []).map((tag) => tag.nome),
       });
       setEditScope("single");
     }
@@ -233,6 +248,7 @@ export default function EditarDemandaIrmaDialog({
     setIsLoading(true);
 
     try {
+      let tagSyncGroupId = resolvedGrupoId ?? demanda?.grupo_id ?? null;
       const isMultiMonthGroup =
         new Set(siblingMonths.map((m) => `${m.mes}-${m.ano}`)).size > 1;
 
@@ -301,6 +317,7 @@ export default function EditarDemandaIrmaDialog({
           if (!grupoId && newWeeks.length > 1) {
             grupoId = crypto.randomUUID();
           }
+          tagSyncGroupId = grupoId;
 
           // Update the current demand with the first selected week
           const { error: updateError } = await supabase
@@ -398,6 +415,21 @@ export default function EditarDemandaIrmaDialog({
           });
         }
       }
+
+      const tagTargetIds = await (async () => {
+        const groupId = tagSyncGroupId;
+        if (groupId) {
+          const { data, error } = await supabase
+            .from("demandas")
+            .select("id")
+            .eq("grupo_id", groupId)
+            .eq("ativa", true);
+          if (error) throw error;
+          return (data || []).map((item) => item.id);
+        }
+        return demanda?.id ? [demanda.id] : [];
+      })();
+      await syncDemandTags(tagTargetIds, formData.tags);
 
       onOpenChange(false);
       // Small delay to ensure DB updates are processed
@@ -571,6 +603,12 @@ export default function EditarDemandaIrmaDialog({
               rows={2}
             />
           </div>
+
+          <TagSelector
+            tags={formData.tags}
+            availableTags={availableTags}
+            onChange={(tags) => setFormData((prev) => ({ ...prev, tags }))}
+          />
 
           <div className="space-y-2">
             <Label htmlFor="semanas">Repetições</Label>

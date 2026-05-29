@@ -11,6 +11,7 @@ export interface DashboardFilters {
   repeticoes: string[];
   urgente: boolean;
   prioridade: boolean;
+  tags: string[];
 }
 
 export interface CrossFilter {
@@ -32,6 +33,7 @@ const defaultFilters: DashboardFilters = {
   repeticoes: [],
   urgente: false,
   prioridade: false,
+  tags: [],
 };
 
 export function useDashboardFilters() {
@@ -65,6 +67,7 @@ export function useDashboardFilters() {
       filters.statusFeito.length > 0 ||
       filters.statusAprovado.length > 0 ||
       filters.repeticoes.length > 0 ||
+      filters.tags.length > 0 ||
       filters.urgente ||
       filters.prioridade ||
       crossFilter !== null

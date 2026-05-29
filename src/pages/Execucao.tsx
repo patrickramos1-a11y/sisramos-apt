@@ -19,6 +19,7 @@ import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
 import { buildSetorWhatsAppHref } from "@/lib/setor-actions";
+import { AptTag, uniqueTags } from "@/lib/tags";
 import {
   CalendarDays,
   Check,
@@ -52,6 +53,7 @@ interface Demanda {
   prioritaria: boolean;
   muito_urgente?: boolean;
   grupo_id: string | null;
+  tags?: AptTag[];
 }
 
 interface ExecutionGroup {
@@ -63,6 +65,7 @@ interface ExecutionGroup {
   muito_urgente: boolean;
   observacoes: string[];
   siblings: Demanda[];
+  tags: AptTag[];
 }
 
 type ExecutionSortKey = "numero" | "responsavel" | "setor" | "descricao" | "semana";
@@ -291,6 +294,7 @@ export default function Execucao() {
     demandas,
     profiles,
     setores,
+    availableTags,
     isLoading,
     filters,
     setFilters,
@@ -768,6 +772,7 @@ export default function Execucao() {
       if (existing) {
         existing.siblings.push(demanda);
         if (demanda.observacoes) existing.observacoes.push(demanda.observacoes);
+        existing.tags = uniqueTags([...existing.tags, ...(demanda.tags || [])]);
         return;
       }
 
@@ -780,6 +785,7 @@ export default function Execucao() {
         muito_urgente: demanda.muito_urgente ?? false,
         observacoes: demanda.observacoes ? [demanda.observacoes] : [],
         siblings: [demanda],
+        tags: demanda.tags || [],
       });
     });
 
@@ -1065,6 +1071,7 @@ export default function Execucao() {
                 <APTHorizontalFilters
                   profiles={profiles}
                   setores={setores}
+                  availableTags={availableTags}
                   filters={filters}
                   onFiltersChange={setFilters}
                   onClearFilters={() => {
@@ -1443,6 +1450,20 @@ export default function Execucao() {
                                 <p className="text-sm font-semibold leading-snug">{group.descricao}</p>
                               </div>
 
+                              {group.tags.length > 0 && (
+                                <div className="mt-2 flex flex-wrap gap-1">
+                                  {group.tags.map((tag) => (
+                                    <span
+                                      key={tag.id}
+                                      className="rounded-full border px-1.5 py-0.5 text-[10px] font-semibold"
+                                      style={{ backgroundColor: `${tag.cor}66`, borderColor: tag.cor }}
+                                    >
+                                      #{tag.nome}
+                                    </span>
+                                  ))}
+                                </div>
+                              )}
+
                               {group.observacoes.length > 0 && (
                                 <p className="mt-2 line-clamp-2 text-xs text-muted-foreground">{group.observacoes[0]}</p>
                               )}
@@ -1725,6 +1746,19 @@ export default function Execucao() {
                                   </span>
                                   <div className="min-w-0">
                                     <p className="font-medium leading-snug">{group.descricao}</p>
+                                    {group.tags.length > 0 && (
+                                      <div className="mt-1 flex flex-wrap gap-1">
+                                        {group.tags.map((tag) => (
+                                          <span
+                                            key={tag.id}
+                                            className="rounded-full border px-1.5 py-0 text-[10px] font-semibold"
+                                            style={{ backgroundColor: `${tag.cor}66`, borderColor: tag.cor }}
+                                          >
+                                            #{tag.nome}
+                                          </span>
+                                        ))}
+                                      </div>
+                                    )}
                                     {group.observacoes.length > 0 && (
                                       <p className="mt-0.5 line-clamp-1 text-xs text-muted-foreground">{group.observacoes[0]}</p>
                                     )}

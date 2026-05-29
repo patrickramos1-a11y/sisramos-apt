@@ -26,6 +26,7 @@ import {
   X,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { AptTag } from "@/lib/tags";
 
 interface Profile {
   id: string;
@@ -50,6 +51,7 @@ export interface MultiFilters {
   busca: string;
   urgente: boolean;
   prioridade: boolean;
+  tags: string[];
 }
 
 interface APTHorizontalFiltersProps {
@@ -62,6 +64,7 @@ interface APTHorizontalFiltersProps {
   currentWeek: number;
   suggestedWeek?: number | null;
   currentUserId?: string | null;
+  availableTags?: AptTag[];
 }
 
 type ArrayFilterKey =
@@ -72,7 +75,8 @@ type ArrayFilterKey =
   | "semanas"
   | "statusResponsavel"
   | "statusGestor"
-  | "repeticoes";
+  | "repeticoes"
+  | "tags";
 
 const meses = [
   { value: "1", label: "Jan" },
@@ -197,6 +201,7 @@ export default function APTHorizontalFilters({
   currentWeek,
   suggestedWeek = null,
   currentUserId = null,
+  availableTags = [],
 }: APTHorizontalFiltersProps) {
   const [setorSearch, setSetorSearch] = useState("");
 
@@ -237,7 +242,8 @@ export default function APTHorizontalFilters({
     filters.statusGestor.length > 0 ||
     filters.busca !== "" ||
     filters.urgente ||
-    filters.prioridade;
+    filters.prioridade ||
+    filters.tags.length > 0;
 
   const isMyQueueActive =
     !!currentUserId &&
@@ -395,6 +401,34 @@ export default function APTHorizontalFilters({
                 </div>
               </PopoverContent>
             </Popover>
+
+            {availableTags.length > 0 && (
+              <>
+                <div className="h-7 w-px shrink-0 bg-border/70" />
+                <div className="flex items-center gap-1.5 rounded-full border border-border/60 bg-muted/20 px-1.5 py-1">
+                  {availableTags.map((tag) => {
+                    const active = filters.tags.includes(tag.id);
+                    return (
+                      <button
+                        key={tag.id}
+                        type="button"
+                        onClick={() => toggleValue("tags", tag.id)}
+                        className={cn(
+                          "inline-flex h-7 items-center rounded-full border px-2.5 text-[12px] font-semibold transition-colors",
+                          active ? "shadow-sm" : "opacity-80 hover:opacity-100"
+                        )}
+                        style={{
+                          backgroundColor: active ? tag.cor : `${tag.cor}66`,
+                          borderColor: tag.cor,
+                        }}
+                      >
+                        #{tag.nome}
+                      </button>
+                    );
+                  })}
+                </div>
+              </>
+            )}
           </div>
         </div>
 

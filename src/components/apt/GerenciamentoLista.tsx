@@ -42,6 +42,7 @@ import { cn } from "@/lib/utils";
 import FiltersBar, { ListaFilters, MESES_FULL } from "./gerenciamento/FiltersBar";
 import BulkActionsBar from "./gerenciamento/BulkActionsBar";
 import { InlinePicker } from "./gerenciamento/InlinePickers";
+import { AptTag, uniqueTags } from "@/lib/tags";
 
 interface Profile { id: string; user_id: string; nome: string; cor?: string | null; }
 interface Setor { id: string; nome: string; cor: string; }
@@ -62,6 +63,7 @@ interface Demanda {
   muito_urgente?: boolean;
   grupo_id: string | null;
   ativa: boolean;
+  tags?: AptTag[];
 }
 
 interface ConsolidatedDemand {
@@ -75,6 +77,7 @@ interface ConsolidatedDemand {
   mes: number;
   ano: number;
   siblings: Demanda[];
+  tags: AptTag[];
 }
 
 type GroupBy = "nenhum" | "responsavel" | "setor" | "setor_responsavel";
@@ -102,6 +105,7 @@ const DEFAULT_FILTERS: ListaFilters = {
   prioridade: false,
   pendenteAprovacao: false,
   todosOsMeses: false,
+  tags: [],
 };
 
 export default function GerenciamentoLista({ profiles, setores, onDemandaChange }: Props) {
@@ -171,18 +175,45 @@ export default function GerenciamentoLista({ profiles, setores, onDemandaChange 
 
   const fetchAllDemandas = useCallback(async () => {
     setIsLoading(true);
-    let query = supabase.from("demandas").select("*").eq("ativa", true).order("numero", { ascending: true });
+    let query = supabase
+      .from("demandas")
+      .select("*, demanda_tags(tag:tags(id,nome,slug,cor))")
+      .eq("ativa", true)
+      .order("numero", { ascending: true });
     if (!filters.todosOsMeses && filters.meses.length > 0) {
       query = query.in("mes", filters.meses.map((m) => parseInt(m)));
     }
     if (isColaborador && user?.id) query = query.eq("responsavel_id", user.id);
-    const { data, error } = await query;
+    let { data, error } = await query;
+
+    if (error && /demanda_tags|tags/i.test(error.message)) {
+      let fallbackQuery = supabase.from("demandas").select("*").eq("ativa", true).order("numero", { ascending: true });
+      if (!filters.todosOsMeses && filters.meses.length > 0) {
+        fallbackQuery = fallbackQuery.in("mes", filters.meses.map((m) => parseInt(m)));
+      }
+      if (isColaborador && user?.id) fallbackQuery = fallbackQuery.eq("responsavel_id", user.id);
+      const fallback = await fallbackQuery;
+      data = fallback.data;
+      error = fallback.error;
+    }
     if (error) { console.error(error); setAllDemandas([]); }
-    else setAllDemandas(data || []);
+    else {
+      setAllDemandas(
+        ((data || []) as any[]).map((demanda) => ({
+          ...demanda,
+          tags: (demanda.demanda_tags || []).map((item: any) => item.tag).filter(Boolean),
+        }))
+      );
+    }
     setIsLoading(false);
   }, [filters.meses, filters.todosOsMeses, isColaborador, user?.id]);
 
   useEffect(() => { fetchAllDemandas(); }, [fetchAllDemandas]);
+
+  const tagOptions = useMemo(
+    () => uniqueTags(allDemandas.flatMap((demanda) => demanda.tags || [])),
+    [allDemandas]
+  );
 
   const handleDemandaChange = () => {
     fetchAllDemandas();
@@ -216,6 +247,10 @@ export default function GerenciamentoLista({ profiles, setores, onDemandaChange 
     if (filters.urgente) result = result.filter((d) => d.muito_urgente);
     if (filters.prioridade) result = result.filter((d) => d.prioritaria);
     if (filters.pendenteAprovacao) result = result.filter((d) => d.status_responsavel === "executado" && d.status_gestor === "pendente");
+    if (filters.tags.length > 0) {
+      const selected = new Set(filters.tags);
+      result = result.filter((d) => (d.tags || []).some((tag) => selected.has(tag.id)));
+    }
     return result;
   }, [allDemandas, filters]);
 
@@ -238,6 +273,7 @@ export default function GerenciamentoLista({ profiles, setores, onDemandaChange 
           mes: d.mes,
           ano: d.ano,
           siblings: [d],
+          tags: d.tags || [],
         });
       }
     });
@@ -769,13 +805,22 @@ export default function GerenciamentoLista({ profiles, setores, onDemandaChange 
                   <TooltipContent className="max-w-md"><p className="text-xs">{c.descricao}</p></TooltipContent>
                 </Tooltip>
               </TooltipProvider>
-              {(hasPending || showMonthBadge) && (
-                <div className="flex items-center gap-1.5 mt-0.5">
+              {(hasPending || showMonthBadge || c.tags.length > 0) && (
+                <div className="flex flex-wrap items-center gap-1.5 mt-0.5">
                   {showMonthBadge && (
                     <span className="text-[9px] font-medium uppercase tracking-wide text-muted-foreground bg-muted px-1.5 py-0 rounded">
                       {MESES_FULL[c.mes - 1].slice(0, 3)}/{c.ano}
                     </span>
                   )}
+                  {c.tags.map((tag) => (
+                    <span
+                      key={tag.id}
+                      className="rounded-full border px-1.5 py-0 text-[9px] font-semibold"
+                      style={{ backgroundColor: `${tag.cor}66`, borderColor: tag.cor }}
+                    >
+                      #{tag.nome}
+                    </span>
+                  ))}
                   {hasPending && (
                     <span className="text-[9px] font-medium uppercase tracking-wide text-warning bg-warning/10 px-1.5 py-0 rounded">
                       Excl. pendente
@@ -975,6 +1020,7 @@ export default function GerenciamentoLista({ profiles, setores, onDemandaChange 
         onChange={setFilters}
         profileOptions={profileOptions.map(({ value, label }) => ({ value, label }))}
         setorOptions={setorOptions.map(({ value, label }) => ({ value, label }))}
+        tagOptions={tagOptions}
       />
 
       {/* Grouping toolbar */}

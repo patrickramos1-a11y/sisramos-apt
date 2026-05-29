@@ -23,6 +23,7 @@ import MeetingTimerCharts from "@/components/dashboard/MeetingTimerCharts";
 
 // Hooks
 import { useDashboardFilters, CrossFilter } from "@/hooks/useDashboardFilters";
+import { AptTag, uniqueTags } from "@/lib/tags";
 
 type StatusBolinha = "pendente" | "executado" | "nao_realizado";
 
@@ -40,6 +41,7 @@ interface Demanda {
   muito_urgente: boolean;
   mes: number;
   ano: number;
+  tags?: AptTag[];
 }
 
 interface Profile {
@@ -62,6 +64,7 @@ export default function Dashboard() {
   const [allDemandas, setAllDemandas] = useState<Demanda[]>([]); // For historical data
   const [profiles, setProfiles] = useState<Profile[]>([]);
   const [setores, setSetores] = useState<Setor[]>([]);
+  const [availableTags, setAvailableTags] = useState<AptTag[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [activeTab, setActiveTab] = useState("executivo");
   
@@ -82,7 +85,7 @@ export default function Dashboard() {
     // Build query based on filters
     let query = supabase
       .from("demandas")
-      .select("*")
+      .select("*, demanda_tags(tag:tags(id,nome,slug,cor))")
       .eq("ativa", true);
 
     // Colaboradores only see their own
@@ -110,9 +113,27 @@ export default function Dashboard() {
       query = query.in("status_gestor", filters.statusAprovado as StatusBolinha[]);
     }
 
-    const { data: demandasData } = await query;
+    let { data: demandasData, error: demandasError } = await query;
+
+    if (demandasError && /demanda_tags|tags/i.test(demandasError.message)) {
+      let fallbackQuery = supabase.from("demandas").select("*").eq("ativa", true);
+      if (!isGestorOrAdmin) fallbackQuery = fallbackQuery.eq("responsavel_id", user.id);
+      if (filters.anos.length > 0) fallbackQuery = fallbackQuery.in("ano", filters.anos.map(Number));
+      if (filters.meses.length > 0) fallbackQuery = fallbackQuery.in("mes", filters.meses.map(Number));
+      if (filters.responsaveis.length > 0) fallbackQuery = fallbackQuery.in("responsavel_id", filters.responsaveis);
+      if (filters.setores.length > 0) fallbackQuery = fallbackQuery.in("setor_id", filters.setores);
+      if (filters.statusFeito.length > 0) fallbackQuery = fallbackQuery.in("status_responsavel", filters.statusFeito as StatusBolinha[]);
+      if (filters.statusAprovado.length > 0) fallbackQuery = fallbackQuery.in("status_gestor", filters.statusAprovado as StatusBolinha[]);
+      const fallback = await fallbackQuery;
+      demandasData = fallback.data;
+      demandasError = fallback.error;
+    }
     
-    let filteredData = demandasData || [];
+    let filteredData = ((demandasData || []) as any[]).map((demanda) => ({
+      ...demanda,
+      tags: (demanda.demanda_tags || []).map((item: any) => item.tag).filter(Boolean),
+    })) as Demanda[];
+    setAvailableTags(uniqueTags(filteredData.flatMap((demanda) => demanda.tags || [])));
     
     // Client-side filters
     if (filters.semanas.length > 0) {
@@ -128,6 +149,10 @@ export default function Dashboard() {
     }
     if (filters.prioridade) {
       filteredData = filteredData.filter((d) => d.prioritaria);
+    }
+    if (filters.tags.length > 0) {
+      const selected = new Set(filters.tags);
+      filteredData = filteredData.filter((d) => (d.tags || []).some((tag) => selected.has(tag.id)));
     }
 
     // Apply cross-filter
@@ -296,6 +321,7 @@ export default function Dashboard() {
         <DashboardFilters
           profiles={profiles}
           setores={setores}
+          tags={availableTags}
           filters={filters}
           crossFilter={crossFilter}
           onFilterChange={updateFilter}
