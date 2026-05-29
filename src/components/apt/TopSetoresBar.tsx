@@ -19,20 +19,27 @@ interface TopSetoresBarProps {
   setores: Setor[];
   activeSetorId?: string | null;
   onSetorClick?: (setorId: string | null) => void;
+  statusField?: "status_responsavel" | "status_gestor";
 }
 
-export default function TopSetoresBar({ demandas, setores, activeSetorId, onSetorClick }: TopSetoresBarProps) {
+export default function TopSetoresBar({
+  demandas,
+  setores,
+  activeSetorId,
+  onSetorClick,
+  statusField = "status_gestor",
+}: TopSetoresBarProps) {
   const topSetores = useMemo(() => {
-    const countMap: Record<string, { total: number; pendentesGestor: number; aprovados: number }> = {};
+    const countMap: Record<string, { total: number; pendentes: number; concluidos: number }> = {};
 
     demandas.forEach((d) => {
       const sid = d.setor_id || "sem_setor";
-      if (!countMap[sid]) countMap[sid] = { total: 0, pendentesGestor: 0, aprovados: 0 };
+      if (!countMap[sid]) countMap[sid] = { total: 0, pendentes: 0, concluidos: 0 };
       countMap[sid].total++;
-      if (d.status_gestor === "pendente") {
-        countMap[sid].pendentesGestor++;
-      } else if (d.status_gestor === "executado") {
-        countMap[sid].aprovados++;
+      if (d[statusField] === "pendente") {
+        countMap[sid].pendentes++;
+      } else if (d[statusField] === "executado") {
+        countMap[sid].concluidos++;
       }
     });
 
@@ -44,13 +51,13 @@ export default function TopSetoresBar({ demandas, setores, activeSetorId, onSeto
           nome: setor?.nome || "Sem Setor",
           cor: setor?.cor || "#6B7280",
           ...data,
-          pctAprovado: data.total > 0 ? Math.round((data.aprovados / data.total) * 100) : 0,
+          pctConcluido: data.total > 0 ? Math.round((data.concluidos / data.total) * 100) : 0,
         };
       })
-      .filter((s) => s.pendentesGestor > 0)
-      .sort((a, b) => b.pendentesGestor - a.pendentesGestor)
+      .filter((s) => s.pendentes > 0)
+      .sort((a, b) => b.pendentes - a.pendentes)
       .slice(0, 10);
-  }, [demandas, setores]);
+  }, [demandas, setores, statusField]);
 
   if (topSetores.length === 0) return null;
 
@@ -81,7 +88,7 @@ export default function TopSetoresBar({ demandas, setores, activeSetorId, onSeto
               <div
                 className="absolute inset-0 opacity-10"
                 style={{
-                  background: `linear-gradient(90deg, ${s.cor} ${s.pctAprovado}%, transparent ${s.pctAprovado}%)`,
+                  background: `linear-gradient(90deg, ${s.cor} ${s.pctConcluido}%, transparent ${s.pctConcluido}%)`,
                 }}
               />
               <div className="relative">
@@ -96,7 +103,7 @@ export default function TopSetoresBar({ demandas, setores, activeSetorId, onSeto
                 </div>
                 <div className="flex items-baseline gap-1">
                   <span className="text-lg font-bold text-foreground leading-none">
-                    {s.pendentesGestor}
+                    {s.pendentes}
                   </span>
                   <span className="text-[10px] text-muted-foreground">pend.</span>
                 </div>
@@ -108,7 +115,7 @@ export default function TopSetoresBar({ demandas, setores, activeSetorId, onSeto
                     className="text-[10px] font-semibold"
                     style={{ color: s.cor }}
                   >
-                    {s.pctAprovado}%
+                    {s.pctConcluido}%
                   </span>
                 </div>
               </div>

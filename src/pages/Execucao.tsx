@@ -374,15 +374,67 @@ export default function Execucao() {
 
   useEffect(() => {
     if (executionDefaultsApplied) return;
-    setFilters((prev) => ({
-      ...prev,
-      meses: [String(currentMonth)],
-      anos: [String(currentYear)],
-      semanas: prev.semanas.length > 0 ? prev.semanas : [],
-      statusResponsavel: prev.statusResponsavel,
-      statusGestor: prev.statusGestor,
-    }));
-    setExecutionDefaultsApplied(true);
+    let cancelled = false;
+
+    const applyOperationalMonth = async () => {
+      let targetMes = currentMonth;
+      let targetAno = currentYear;
+
+      const { data: latestConfig } = await (supabase as any)
+        .from("apt_momentos_config")
+        .select("mes,ano")
+        .or(`ano.lt.${currentYear},and(ano.eq.${currentYear},mes.lte.${currentMonth})`)
+        .order("ano", { ascending: false })
+        .order("mes", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (latestConfig?.mes && latestConfig?.ano) {
+        targetMes = latestConfig.mes;
+        targetAno = latestConfig.ano;
+      } else {
+        const { data: currentDemandas } = await supabase
+          .from("demandas")
+          .select("id")
+          .eq("ativa", true)
+          .eq("mes", currentMonth)
+          .eq("ano", currentYear)
+          .limit(1);
+
+        if (!currentDemandas || currentDemandas.length === 0) {
+          const { data: latestDemanda } = await supabase
+            .from("demandas")
+            .select("mes,ano")
+            .eq("ativa", true)
+            .or(`ano.lt.${currentYear},and(ano.eq.${currentYear},mes.lte.${currentMonth})`)
+            .order("ano", { ascending: false })
+            .order("mes", { ascending: false })
+            .limit(1)
+            .maybeSingle();
+
+          if (latestDemanda?.mes && latestDemanda?.ano) {
+            targetMes = latestDemanda.mes;
+            targetAno = latestDemanda.ano;
+          }
+        }
+      }
+
+      if (cancelled) return;
+      setFilters((prev) => ({
+        ...prev,
+        meses: [String(targetMes)],
+        anos: [String(targetAno)],
+        semanas: prev.semanas.length > 0 ? prev.semanas : [],
+        statusResponsavel: prev.statusResponsavel,
+        statusGestor: prev.statusGestor,
+      }));
+      setExecutionDefaultsApplied(true);
+    };
+
+    void applyOperationalMonth();
+    return () => {
+      cancelled = true;
+    };
   }, [currentMonth, currentYear, executionDefaultsApplied, setFilters]);
 
   useEffect(() => {
@@ -1278,6 +1330,7 @@ export default function Execucao() {
               setores={setores}
               activeSetorId={activeTopSetor}
               onSetorClick={setActiveTopSetor}
+              statusField={isGestorOrAdmin ? "status_gestor" : "status_responsavel"}
             />
           </div>
         )}
