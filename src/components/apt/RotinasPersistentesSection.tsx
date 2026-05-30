@@ -4,14 +4,14 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 import {
-  AptRotinaOcorrencia,
   AptRotinaStatusAvaliacao,
+  AptRotinaStatusOcorrencia,
+  AptRotinaResumo,
   useAptRotinas,
 } from "@/hooks/useAptRotinas";
 import {
   CalendarCheck2,
   CheckCircle2,
-  Circle,
   Clock3,
   Loader2,
   RefreshCcw,
@@ -59,6 +59,51 @@ function formatDate(date: string) {
     day: "2-digit",
     month: "2-digit",
   });
+}
+
+function getTodayKey() {
+  const today = new Date();
+  const year = today.getFullYear();
+  const month = String(today.getMonth() + 1).padStart(2, "0");
+  const day = String(today.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
+function formatShortDate(date: string) {
+  const [year, month, day] = date.split("-").map(Number);
+  return new Date(year, month - 1, day).toLocaleDateString("pt-BR", {
+    day: "2-digit",
+    month: "2-digit",
+  });
+}
+
+function ordinalWeek(week: number) {
+  return `${week}ª`;
+}
+
+function getResumoWeeks(resumo: AptRotinaResumo) {
+  const fromOcorrencias = resumo.ocorrencias.map((item) => item.semana_apt);
+  const source = fromOcorrencias.length > 0 ? fromOcorrencias : resumo.modelo.semanas_aplicaveis;
+  return [...new Set(source)].filter(Boolean).sort((a, b) => a - b);
+}
+
+function getWeeklyFrequency(resumo: AptRotinaResumo) {
+  if (resumo.ocorrencias.length === 0) return resumo.modelo.dias_semana.length;
+
+  const perWeek = new Map<number, number>();
+  resumo.ocorrencias.forEach((item) => {
+    perWeek.set(item.semana_apt, (perWeek.get(item.semana_apt) || 0) + 1);
+  });
+
+  return Math.max(0, ...Array.from(perWeek.values()));
+}
+
+function getRowStatus(resumo: AptRotinaResumo, todayKey: string): AptRotinaStatusOcorrencia {
+  const todayOccurrence = resumo.ocorrencias.find((item) => item.data === todayKey);
+  if (todayOccurrence) return todayOccurrence.status_execucao;
+  if (resumo.pendentes > 0) return "pendente";
+  if (resumo.nao_feitas > 0) return "nao_realizado";
+  return "executado";
 }
 
 function statusLabel(status: AptRotinaStatusAvaliacao | undefined) {
@@ -150,32 +195,7 @@ export default function RotinasPersistentesSection({
     setIsCalculating(false);
   };
 
-  const renderOccurrenceDot = (ocorrencia: AptRotinaOcorrencia) => {
-    const meta = STATUS_META[ocorrencia.status_execucao];
-    const Icon = meta.icon;
-
-    return (
-      <button
-        key={ocorrencia.id}
-        type="button"
-        className={cn(
-          "group flex min-w-[78px] flex-col items-center rounded-xl border px-2 py-2 text-xs transition-colors hover:bg-muted/60",
-          meta.className
-        )}
-        onClick={() =>
-          marcarOcorrencia(
-            ocorrencia.id,
-            ocorrencia.status_execucao === "executado" ? "nao_realizado" : "executado"
-          )
-        }
-        title="Clique para alternar entre feito e não feito"
-      >
-        <Icon className="mb-1 h-4 w-4" />
-        <span className="font-semibold">{formatDate(ocorrencia.data)}</span>
-        <span className="text-[10px] opacity-80">{meta.label}</span>
-      </button>
-    );
-  };
+  const todayKey = getTodayKey();
 
   return (
     <section className="space-y-3">
@@ -201,9 +221,9 @@ export default function RotinasPersistentesSection({
             <CalendarCheck2 className="h-5 w-5" />
           </div>
           <div>
-            <p className="text-sm font-bold">Rotinas persistentes do momento</p>
+            <p className="text-sm font-bold">Demandas persistentes do momento</p>
             <p className="text-xs text-muted-foreground">
-              Ocorrências por data, separadas das demandas comuns e resumidas para aprovação semanal.
+              Aparecem como demandas recorrentes: setor, responsável, semanas, frequência e ação do dia.
             </p>
           </div>
         </div>
@@ -302,36 +322,153 @@ export default function RotinasPersistentesSection({
           Nenhuma rotina encontrada para este filtro.
         </div>
       ) : (
-        <div className="space-y-3">
+        <div className="overflow-hidden rounded-2xl border bg-card shadow-sm">
+          <div className="grid grid-cols-[minmax(260px,1fr)_150px_140px_110px_190px_150px] items-center gap-3 bg-orange-50/70 px-4 py-3 text-xs font-bold uppercase tracking-[0.14em] text-orange-900">
+            <span>Demanda persistente</span>
+            <span>Responsável</span>
+            <span>Setor</span>
+            <span>Semanas</span>
+            <span>Status de hoje</span>
+            <span className="text-right">Aprovação</span>
+          </div>
           {filteredResumos.map((resumo) => {
             const profile = profiles.find((item) => item.user_id === resumo.responsavel_id);
             const setor = setores.find((item) => item.id === resumo.setor_id);
             const avaliacaoStatus = resumo.avaliacao?.status_gestor;
+            const weeks = getResumoWeeks(resumo);
+            const frequency = getWeeklyFrequency(resumo);
+            const todayOccurrence = resumo.ocorrencias.find((item) => item.data === todayKey);
+            const nextOccurrence = resumo.ocorrencias
+              .filter((item) => item.data > todayKey)
+              .sort((a, b) => a.data.localeCompare(b.data))[0];
+            const rowStatus = getRowStatus(resumo, todayKey);
+            const statusMeta = STATUS_META[rowStatus];
+            const StatusIcon = statusMeta.icon;
 
             return (
-              <article key={resumo.key} className="rounded-2xl border bg-card p-4 shadow-sm">
-                <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
-                  <div className="min-w-0">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <span className="h-3 w-3 rounded-full" style={{ backgroundColor: resumo.modelo.cor }} />
-                      <h3 className="font-semibold leading-tight">{resumo.modelo.nome}</h3>
-                      <Badge variant="secondary" className="rounded-full">
-                        {setor?.nome || "Sem setor"}
-                      </Badge>
-                      <Badge variant="outline" className="rounded-full">
-                        {profile?.nome || "Sem responsável"}
-                      </Badge>
+              <article
+                key={resumo.key}
+                className="grid grid-cols-[minmax(260px,1fr)_150px_140px_110px_190px_150px] items-center gap-3 border-t px-4 py-3 text-sm"
+              >
+                <div className="min-w-0">
+                  <div className="flex min-w-0 items-start gap-2">
+                    <span
+                      className="mt-0.5 inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full border border-orange-200 bg-orange-100 text-orange-700"
+                      title="Demanda persistente"
+                    >
+                      <RefreshCcw className="h-3.5 w-3.5" />
+                    </span>
+                    <div className="min-w-0">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <h3 className="font-semibold leading-tight">{resumo.modelo.nome}</h3>
+                        <Badge className="rounded-full border-orange-200 bg-orange-50 text-orange-700 hover:bg-orange-50">
+                          Persistente
+                        </Badge>
+                        <Badge variant="outline" className="rounded-full">
+                          {frequency}x/sem.
+                        </Badge>
+                      </div>
+                      <p className="mt-1 line-clamp-2 text-xs text-muted-foreground">
+                        {resumo.modelo.descricao || "Sem descrição operacional."}
+                      </p>
                     </div>
-                    <p className="mt-1 text-sm text-muted-foreground">{resumo.modelo.descricao}</p>
                   </div>
+                </div>
 
-                  <div className="flex flex-wrap items-center gap-2">
-                    <Badge className="rounded-full bg-emerald-100 text-emerald-700 hover:bg-emerald-100">
-                      {resumo.feitas}/{resumo.previstas} feitas
+                <div>
+                  <Badge
+                    variant="outline"
+                    className="rounded-full"
+                    style={{
+                      borderColor: `${profile?.cor || "#64748b"}55`,
+                      backgroundColor: `${profile?.cor || "#64748b"}14`,
+                      color: profile?.cor || "#334155",
+                    }}
+                  >
+                    {profile?.nome || "Sem responsável"}
+                  </Badge>
+                </div>
+
+                <div>
+                  <Badge
+                    variant="secondary"
+                    className="rounded-full"
+                    style={{
+                      borderColor: `${setor?.cor || resumo.modelo.cor}44`,
+                      backgroundColor: `${setor?.cor || resumo.modelo.cor}18`,
+                      color: setor?.cor || resumo.modelo.cor,
+                    }}
+                  >
+                    {setor?.nome || "Sem setor"}
+                  </Badge>
+                </div>
+
+                <div className="flex flex-wrap gap-1">
+                  {weeks.map((week) => (
+                    <Badge key={week} variant="outline" className="rounded-full px-2 py-1 text-xs">
+                      {ordinalWeek(week)}
                     </Badge>
-                    <Badge className="rounded-full bg-amber-100 text-amber-700 hover:bg-amber-100">
-                      {resumo.pendentes} pend.
+                  ))}
+                </div>
+
+                <div className="space-y-1">
+                  {todayOccurrence ? (
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant={todayOccurrence.status_execucao === "executado" ? "outline" : "default"}
+                      className={cn(
+                        "h-8 w-full gap-2 rounded-full",
+                        todayOccurrence.status_execucao === "executado"
+                          ? "border-orange-200 bg-orange-50 text-orange-700 hover:bg-orange-100"
+                          : todayOccurrence.status_execucao === "nao_realizado"
+                            ? "bg-red-600 text-white hover:bg-red-700"
+                            : "bg-orange-500 text-white hover:bg-orange-600"
+                      )}
+                      onClick={() =>
+                        marcarOcorrencia(
+                          todayOccurrence.id,
+                          todayOccurrence.status_execucao === "executado" ? "nao_realizado" : "executado"
+                        )
+                      }
+                    >
+                      <StatusIcon className="h-4 w-4" />
+                      {todayOccurrence.status_execucao === "executado" ? "Feito hoje" : "Marcar hoje"}
+                    </Button>
+                  ) : (
+                    <Badge variant="outline" className={cn("w-full justify-center rounded-full py-1.5", statusMeta.className)}>
+                      <StatusIcon className="mr-1 h-3.5 w-3.5" />
+                      {nextOccurrence ? `Próx. ${formatShortDate(nextOccurrence.data)}` : statusMeta.label}
                     </Badge>
+                  )}
+                  <p className="text-center text-[11px] text-muted-foreground">
+                    {resumo.feitas}/{resumo.previstas} feitas · {resumo.pendentes} pend.
+                  </p>
+                </div>
+
+                <div className="flex justify-end">
+                  {isGestorOrAdmin && resumo.avaliacao ? (
+                    <div className="flex justify-end gap-1">
+                      <Button
+                        variant="outline"
+                        size="icon"
+                        className="h-8 w-8 rounded-full border-emerald-200 text-emerald-700 hover:bg-emerald-50"
+                        onClick={() => atualizarAvaliacao(resumo.avaliacao!.id, "aprovado")}
+                        title="Aprovar resumo"
+                      >
+                        <CheckCircle2 className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="icon"
+                        className="h-8 w-8 rounded-full border-red-200 text-red-700 hover:bg-red-50"
+                        onClick={() => atualizarAvaliacao(resumo.avaliacao!.id, "reprovado")}
+                        title="Reprovar resumo"
+                      >
+                        <XCircle className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  ) : (
                     <Badge
                       variant="outline"
                       className={cn(
@@ -342,42 +479,8 @@ export default function RotinasPersistentesSection({
                     >
                       {statusLabel(avaliacaoStatus)}
                     </Badge>
-                  </div>
+                  )}
                 </div>
-
-                <div className="mt-4 flex flex-wrap gap-2">
-                  {resumo.ocorrencias.map(renderOccurrenceDot)}
-                </div>
-
-                {isGestorOrAdmin && resumo.avaliacao && (
-                  <div className="mt-4 flex flex-wrap items-center justify-end gap-2 border-t pt-3">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="gap-2 border-emerald-200 text-emerald-700 hover:bg-emerald-50"
-                      onClick={() => atualizarAvaliacao(resumo.avaliacao!.id, "aprovado")}
-                    >
-                      <CheckCircle2 className="h-4 w-4" />
-                      Aprovar resumo
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="gap-2 border-red-200 text-red-700 hover:bg-red-50"
-                      onClick={() => atualizarAvaliacao(resumo.avaliacao!.id, "reprovado")}
-                    >
-                      <XCircle className="h-4 w-4" />
-                      Reprovar
-                    </Button>
-                  </div>
-                )}
-
-                {isGestorOrAdmin && !resumo.avaliacao && (
-                  <div className="mt-4 flex items-center gap-2 border-t pt-3 text-xs text-muted-foreground">
-                    <Circle className="h-3 w-3" />
-                    Calcule o resumo do momento para liberar a aprovação desta rotina.
-                  </div>
-                )}
               </article>
             );
           })}
