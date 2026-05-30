@@ -177,26 +177,24 @@ export default function RotinasPersistentesSection({
     );
   };
 
-  if (tableUnavailable) {
-    return (
-      <Card className="border-amber-200 bg-amber-50/70">
-        <CardContent className="flex flex-col gap-2 p-4 text-sm text-amber-900 md:flex-row md:items-center md:justify-between">
-          <div>
-            <p className="font-semibold">Rotinas persistentes aguardando Supabase</p>
-            <p className="text-xs">
-              A interface já está preparada, mas a migration `apt_rotinas_persistentes` precisa ser aplicada no Lovable.
-            </p>
-          </div>
-          <Badge variant="outline" className="w-fit border-amber-300 bg-white/60 text-amber-800">
-            Banco pendente
-          </Badge>
-        </CardContent>
-      </Card>
-    );
-  }
-
   return (
     <section className="space-y-3">
+      {tableUnavailable && (
+        <Card className="border-amber-200 bg-amber-50/70">
+          <CardContent className="flex flex-col gap-2 p-4 text-sm text-amber-900 md:flex-row md:items-center md:justify-between">
+            <div>
+              <p className="font-semibold">Rotinas persistentes em modo local</p>
+              <p className="text-xs">
+                Você consegue testar neste navegador. Para ficar público para todos, a migration `apt_rotinas_persistentes` precisa ser aplicada no Lovable.
+              </p>
+            </div>
+            <Badge variant="outline" className="w-fit border-amber-300 bg-white/60 text-amber-800">
+              Banco pendente
+            </Badge>
+          </CardContent>
+        </Card>
+      )}
+
       <div className="flex flex-col gap-3 rounded-2xl border border-border/70 bg-card p-3 shadow-sm lg:flex-row lg:items-center lg:justify-between">
         <div className="flex items-start gap-3">
           <div className="rounded-xl bg-primary/10 p-2 text-primary">
