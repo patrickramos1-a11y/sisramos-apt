@@ -100,6 +100,29 @@ interface RotinaModeloPayload {
 }
 
 const TABLE_MISSING_RE = /apt_rotina_|schema cache|could not find|does not exist|relation .* does not exist/i;
+const EMPTY_WEEKS: number[] = [];
+const LOCAL_MODELOS_KEY = "sisramos:apt_rotina_modelos:v1";
+const LOCAL_OCORRENCIAS_KEY = "sisramos:apt_rotina_ocorrencias:v1";
+const LOCAL_AVALIACOES_KEY = "sisramos:apt_rotina_avaliacoes:v1";
+
+function readLocalArray<T>(key: string): T[] {
+  if (typeof window === "undefined") return [];
+  try {
+    return JSON.parse(window.localStorage.getItem(key) || "[]") as T[];
+  } catch {
+    return [];
+  }
+}
+
+function writeLocalArray<T>(key: string, rows: T[]) {
+  if (typeof window === "undefined") return;
+  window.localStorage.setItem(key, JSON.stringify(rows));
+}
+
+function newLocalId() {
+  if (typeof crypto !== "undefined" && "randomUUID" in crypto) return crypto.randomUUID();
+  return `local-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+}
 
 function normalizeWeeks(semanas: number[] | undefined) {
   return [...new Set(semanas || [])].filter((semana) => semana >= 1 && semana <= 5).sort((a, b) => a - b);
@@ -125,7 +148,7 @@ function percentual(feitas: number, previstas: number) {
 export function useAptRotinas({
   mes,
   ano,
-  semanas = [],
+  semanas = EMPTY_WEEKS,
   momento = null,
   setorId = null,
   enabled = true,
@@ -140,21 +163,58 @@ export function useAptRotinas({
   const [isMutating, setIsMutating] = useState(false);
   const [tableUnavailable, setTableUnavailable] = useState(false);
 
-  const semanasAtivas = useMemo(() => normalizeWeeks(semanas), [semanas]);
+  const semanasKey = normalizeWeeks(semanas).join("|");
+  const semanasAtivas = useMemo(
+    () => (semanasKey ? semanasKey.split("|").map((semana) => parseInt(semana, 10)) : []),
+    [semanasKey]
+  );
+
+  const applyLocalState = useCallback(() => {
+    const localModelos = readLocalArray<AptRotinaModelo>(LOCAL_MODELOS_KEY)
+      .filter((modelo) => !setorId || modelo.setor_id === setorId)
+      .sort((a, b) => a.nome.localeCompare(b.nome, "pt-BR"));
+
+    let localOcorrencias = readLocalArray<AptRotinaOcorrencia>(LOCAL_OCORRENCIAS_KEY)
+      .filter((ocorrencia) => ocorrencia.mes === mes && ocorrencia.ano === ano)
+      .filter((ocorrencia) => !setorId || ocorrencia.setor_id === setorId);
+
+    if (semanasAtivas.length > 0) {
+      localOcorrencias = localOcorrencias.filter((ocorrencia) =>
+        semanasAtivas.includes(ocorrencia.semana_apt)
+      );
+    }
+
+    if (user && !isGestorOrAdmin) {
+      localOcorrencias = localOcorrencias.filter((ocorrencia) => ocorrencia.responsavel_id === user.id);
+    }
+
+    let localAvaliacoes = readLocalArray<AptRotinaAvaliacao>(LOCAL_AVALIACOES_KEY)
+      .filter((avaliacao) => avaliacao.mes === mes && avaliacao.ano === ano)
+      .filter((avaliacao) => !setorId || avaliacao.setor_id === setorId);
+
+    if (momento !== null) localAvaliacoes = localAvaliacoes.filter((avaliacao) => avaliacao.momento === momento);
+    if (user && !isGestorOrAdmin) {
+      localAvaliacoes = localAvaliacoes.filter((avaliacao) => avaliacao.responsavel_id === user.id);
+    }
+
+    setModelos(localModelos);
+    setOcorrencias(localOcorrencias.sort((a, b) => a.data.localeCompare(b.data)));
+    setAvaliacoes(localAvaliacoes.sort((a, b) => b.created_at.localeCompare(a.created_at)));
+  }, [ano, isGestorOrAdmin, mes, momento, semanasAtivas, setorId, user]);
 
   const handleTableError = useCallback((error: { message?: string } | null) => {
     if (error?.message && TABLE_MISSING_RE.test(error.message)) {
       setTableUnavailable(true);
-      setModelos([]);
-      setOcorrencias([]);
-      setAvaliacoes([]);
       return true;
     }
     return false;
   }, []);
 
   const fetchRotinas = useCallback(async () => {
-    if (!enabled || !user) return;
+    if (!enabled || !user) {
+      setIsLoading(false);
+      return;
+    }
 
     setIsLoading(true);
     setTableUnavailable(false);
@@ -171,6 +231,7 @@ export function useAptRotinas({
       if (!handleTableError(modelosResult.error)) {
         console.error("Erro ao carregar modelos de rotina:", modelosResult.error);
       }
+      applyLocalState();
       setIsLoading(false);
       return;
     }
@@ -191,6 +252,7 @@ export function useAptRotinas({
       if (!handleTableError(ocorrenciasResult.error)) {
         console.error("Erro ao carregar ocorrências de rotina:", ocorrenciasResult.error);
       }
+      applyLocalState();
       setIsLoading(false);
       return;
     }
@@ -211,6 +273,7 @@ export function useAptRotinas({
       if (!handleTableError(avaliacoesResult.error)) {
         console.error("Erro ao carregar avaliações de rotina:", avaliacoesResult.error);
       }
+      applyLocalState();
       setIsLoading(false);
       return;
     }
@@ -219,7 +282,7 @@ export function useAptRotinas({
     setOcorrencias((ocorrenciasResult.data || []) as AptRotinaOcorrencia[]);
     setAvaliacoes((avaliacoesResult.data || []) as AptRotinaAvaliacao[]);
     setIsLoading(false);
-  }, [ano, enabled, handleTableError, isGestorOrAdmin, mes, momento, semanasAtivas, setorId, user]);
+  }, [ano, applyLocalState, enabled, handleTableError, isGestorOrAdmin, mes, momento, semanasAtivas, setorId, user]);
 
   useEffect(() => {
     void fetchRotinas();
@@ -228,6 +291,36 @@ export function useAptRotinas({
   const createModelo = useCallback(
     async (payload: RotinaModeloPayload) => {
       if (!isGestorOrAdmin) return false;
+
+      const localCreate = async () => {
+        const now = new Date().toISOString();
+        const nextModelo: AptRotinaModelo = {
+          id: newLocalId(),
+          setor_id: payload.setor_id ?? setorId ?? null,
+          nome: payload.nome.trim(),
+          descricao: payload.descricao.trim(),
+          responsavel_padrao_id: payload.responsavel_padrao_id ?? null,
+          dias_semana: normalizeDiasSemana(payload.dias_semana).length > 0 ? normalizeDiasSemana(payload.dias_semana) : [1, 2, 3, 4, 5],
+          semanas_aplicaveis: normalizeWeeks(payload.semanas_aplicaveis).length > 0 ? normalizeWeeks(payload.semanas_aplicaveis) : [1, 2, 3, 4, 5],
+          ativo: payload.ativo ?? true,
+          exige_aprovacao: payload.exige_aprovacao ?? true,
+          entra_calculo_apt: payload.entra_calculo_apt ?? true,
+          cor: payload.cor || "#65a30d",
+          icone: payload.icone || "check",
+          created_at: now,
+          updated_at: now,
+        };
+        writeLocalArray(LOCAL_MODELOS_KEY, [...readLocalArray<AptRotinaModelo>(LOCAL_MODELOS_KEY), nextModelo]);
+        setTableUnavailable(true);
+        applyLocalState();
+        toast({
+          title: "Rotina salva localmente",
+          description: "Ela aparece neste navegador. Para ficar pública, aplique a migration no Supabase via Lovable.",
+        });
+        return true;
+      };
+
+      if (tableUnavailable) return localCreate();
 
       setIsMutating(true);
       const { error } = await (supabase as any).from("apt_rotina_modelos").insert({
@@ -248,15 +341,16 @@ export function useAptRotinas({
       if (error) {
         if (!handleTableError(error)) {
           toast({ variant: "destructive", title: "Erro ao criar rotina", description: error.message });
+          return false;
         }
-        return false;
+        return localCreate();
       }
 
       toast({ title: "Rotina criada", description: "A demanda persistente foi adicionada ao setor." });
       await fetchRotinas();
       return true;
     },
-    [fetchRotinas, handleTableError, isGestorOrAdmin, setorId, toast]
+    [applyLocalState, fetchRotinas, handleTableError, isGestorOrAdmin, setorId, tableUnavailable, toast]
   );
 
   const updateModelo = useCallback(
@@ -276,6 +370,24 @@ export function useAptRotinas({
       if (payload.cor !== undefined) updatePayload.cor = payload.cor;
       if (payload.icone !== undefined) updatePayload.icone = payload.icone;
 
+      const localUpdate = async () => {
+        const rows = readLocalArray<AptRotinaModelo>(LOCAL_MODELOS_KEY).map((modelo) =>
+          modelo.id === id
+            ? {
+                ...modelo,
+                ...updatePayload,
+                updated_at: new Date().toISOString(),
+              }
+            : modelo
+        ) as AptRotinaModelo[];
+        writeLocalArray(LOCAL_MODELOS_KEY, rows);
+        setTableUnavailable(true);
+        applyLocalState();
+        return true;
+      };
+
+      if (tableUnavailable) return localUpdate();
+
       setIsMutating(true);
       const { error } = await (supabase as any).from("apt_rotina_modelos").update(updatePayload).eq("id", id);
       setIsMutating(false);
@@ -283,19 +395,40 @@ export function useAptRotinas({
       if (error) {
         if (!handleTableError(error)) {
           toast({ variant: "destructive", title: "Erro ao atualizar rotina", description: error.message });
+          return false;
         }
-        return false;
+        return localUpdate();
       }
 
       await fetchRotinas();
       return true;
     },
-    [fetchRotinas, handleTableError, isGestorOrAdmin, toast]
+    [applyLocalState, fetchRotinas, handleTableError, isGestorOrAdmin, tableUnavailable, toast]
   );
 
   const deleteModelo = useCallback(
     async (id: string) => {
       if (!isGestorOrAdmin) return false;
+
+      const localDelete = async () => {
+        writeLocalArray(
+          LOCAL_MODELOS_KEY,
+          readLocalArray<AptRotinaModelo>(LOCAL_MODELOS_KEY).filter((modelo) => modelo.id !== id)
+        );
+        writeLocalArray(
+          LOCAL_OCORRENCIAS_KEY,
+          readLocalArray<AptRotinaOcorrencia>(LOCAL_OCORRENCIAS_KEY).filter((ocorrencia) => ocorrencia.modelo_id !== id)
+        );
+        writeLocalArray(
+          LOCAL_AVALIACOES_KEY,
+          readLocalArray<AptRotinaAvaliacao>(LOCAL_AVALIACOES_KEY).filter((avaliacao) => avaliacao.modelo_id !== id)
+        );
+        setTableUnavailable(true);
+        applyLocalState();
+        return true;
+      };
+
+      if (tableUnavailable) return localDelete();
 
       setIsMutating(true);
       const { error } = await (supabase as any).from("apt_rotina_modelos").delete().eq("id", id);
@@ -304,14 +437,15 @@ export function useAptRotinas({
       if (error) {
         if (!handleTableError(error)) {
           toast({ variant: "destructive", title: "Erro ao remover rotina", description: error.message });
+          return false;
         }
-        return false;
+        return localDelete();
       }
 
       await fetchRotinas();
       return true;
     },
-    [fetchRotinas, handleTableError, isGestorOrAdmin, toast]
+    [applyLocalState, fetchRotinas, handleTableError, isGestorOrAdmin, tableUnavailable, toast]
   );
 
   const gerarOcorrenciasDoPeriodo = useCallback(
@@ -346,6 +480,30 @@ export function useAptRotinas({
 
       if (rows.length === 0) return 0;
 
+      const localGenerate = async () => {
+        const existingRows = readLocalArray<AptRotinaOcorrencia>(LOCAL_OCORRENCIAS_KEY);
+        const existingKeys = new Set(existingRows.map((row) => `${row.modelo_id}|${row.data}`));
+        const now = new Date().toISOString();
+        const newRows = rows
+          .filter((row) => !existingKeys.has(`${row.modelo_id}|${row.data}`))
+          .map((row) => ({
+            id: newLocalId(),
+            ...row,
+            status_execucao: "pendente" as AptRotinaStatusOcorrencia,
+            marcado_em: null,
+            marcado_por: null,
+            observacao: null,
+            created_at: now,
+            updated_at: now,
+          }));
+        writeLocalArray(LOCAL_OCORRENCIAS_KEY, [...existingRows, ...newRows]);
+        setTableUnavailable(true);
+        applyLocalState();
+        return newRows.length;
+      };
+
+      if (tableUnavailable) return localGenerate();
+
       setIsMutating(true);
       const { error } = await (supabase as any)
         .from("apt_rotina_ocorrencias")
@@ -355,19 +513,42 @@ export function useAptRotinas({
       if (error) {
         if (!handleTableError(error)) {
           toast({ variant: "destructive", title: "Erro ao gerar ocorrências", description: error.message });
+          return 0;
         }
-        return 0;
+        return localGenerate();
       }
 
       await fetchRotinas();
       return rows.length;
     },
-    [ano, fetchRotinas, handleTableError, isGestorOrAdmin, mes, modelos, semanasAtivas, toast]
+    [ano, applyLocalState, fetchRotinas, handleTableError, isGestorOrAdmin, mes, modelos, semanasAtivas, tableUnavailable, toast]
   );
 
   const marcarOcorrencia = useCallback(
     async (ocorrenciaId: string, status: AptRotinaStatusOcorrencia, observacao?: string) => {
       if (!user) return false;
+
+      const localUpdate = async () => {
+        const now = new Date().toISOString();
+        const rows = readLocalArray<AptRotinaOcorrencia>(LOCAL_OCORRENCIAS_KEY).map((item) =>
+          item.id === ocorrenciaId
+            ? {
+                ...item,
+                status_execucao: status,
+                marcado_em: now,
+                marcado_por: user.id,
+                observacao: observacao ?? null,
+                updated_at: now,
+              }
+            : item
+        );
+        writeLocalArray(LOCAL_OCORRENCIAS_KEY, rows);
+        setTableUnavailable(true);
+        applyLocalState();
+        return true;
+      };
+
+      if (tableUnavailable) return localUpdate();
 
       const { error } = await (supabase as any)
         .from("apt_rotina_ocorrencias")
@@ -382,8 +563,9 @@ export function useAptRotinas({
       if (error) {
         if (!handleTableError(error)) {
           toast({ variant: "destructive", title: "Erro ao marcar rotina", description: error.message });
+          return false;
         }
-        return false;
+        return localUpdate();
       }
 
       setOcorrencias((prev) =>
@@ -401,7 +583,7 @@ export function useAptRotinas({
       );
       return true;
     },
-    [handleTableError, toast, user]
+    [applyLocalState, handleTableError, tableUnavailable, toast, user]
   );
 
   const resumos = useMemo<AptRotinaResumo[]>(() => {
@@ -480,6 +662,47 @@ export function useAptRotinas({
       avaliado_por: resumo.avaliacao?.avaliado_por ?? null,
     }));
 
+    const localCalculate = async () => {
+      const now = new Date().toISOString();
+      const existing = readLocalArray<AptRotinaAvaliacao>(LOCAL_AVALIACOES_KEY);
+      const next = [...existing];
+
+      rows.forEach((row) => {
+        const index = next.findIndex(
+          (avaliacao) =>
+            avaliacao.modelo_id === row.modelo_id &&
+            avaliacao.responsavel_id === row.responsavel_id &&
+            avaliacao.mes === row.mes &&
+            avaliacao.ano === row.ano &&
+            avaliacao.momento === row.momento
+        );
+
+        if (index >= 0) {
+          next[index] = {
+            ...next[index],
+            ...row,
+            updated_at: now,
+          };
+          return;
+        }
+
+        next.push({
+          id: newLocalId(),
+          ...row,
+          status_gestor: row.status_gestor as AptRotinaStatusAvaliacao,
+          created_at: now,
+          updated_at: now,
+        });
+      });
+
+      writeLocalArray(LOCAL_AVALIACOES_KEY, next);
+      setTableUnavailable(true);
+      applyLocalState();
+      return true;
+    };
+
+    if (tableUnavailable) return localCalculate();
+
     const { error } = await (supabase as any)
       .from("apt_rotina_avaliacoes")
       .upsert(rows, { onConflict: "modelo_id,responsavel_id,mes,ano,momento" });
@@ -487,17 +710,40 @@ export function useAptRotinas({
     if (error) {
       if (!handleTableError(error)) {
         toast({ variant: "destructive", title: "Erro ao calcular resumo", description: error.message });
+        return false;
       }
-      return false;
+      return localCalculate();
     }
 
     await fetchRotinas();
     return true;
-  }, [ano, fetchRotinas, handleTableError, isGestorOrAdmin, mes, momento, resumos, semanasAtivas, toast]);
+  }, [ano, applyLocalState, fetchRotinas, handleTableError, isGestorOrAdmin, mes, momento, resumos, semanasAtivas, tableUnavailable, toast]);
 
   const atualizarAvaliacao = useCallback(
     async (avaliacaoId: string, status: AptRotinaStatusAvaliacao, observacao?: string) => {
       if (!isGestorOrAdmin || !user) return false;
+
+      const localUpdate = async () => {
+        const now = new Date().toISOString();
+        const rows = readLocalArray<AptRotinaAvaliacao>(LOCAL_AVALIACOES_KEY).map((avaliacao) =>
+          avaliacao.id === avaliacaoId
+            ? {
+                ...avaliacao,
+                status_gestor: status,
+                observacao_gestor: observacao ?? null,
+                avaliado_em: now,
+                avaliado_por: user.id,
+                updated_at: now,
+              }
+            : avaliacao
+        );
+        writeLocalArray(LOCAL_AVALIACOES_KEY, rows);
+        setTableUnavailable(true);
+        applyLocalState();
+        return true;
+      };
+
+      if (tableUnavailable) return localUpdate();
 
       const { error } = await (supabase as any)
         .from("apt_rotina_avaliacoes")
@@ -512,14 +758,15 @@ export function useAptRotinas({
       if (error) {
         if (!handleTableError(error)) {
           toast({ variant: "destructive", title: "Erro ao avaliar rotina", description: error.message });
+          return false;
         }
-        return false;
+        return localUpdate();
       }
 
       await fetchRotinas();
       return true;
     },
-    [fetchRotinas, handleTableError, isGestorOrAdmin, toast, user]
+    [applyLocalState, fetchRotinas, handleTableError, isGestorOrAdmin, tableUnavailable, toast, user]
   );
 
   return {

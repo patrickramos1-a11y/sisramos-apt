@@ -218,13 +218,14 @@ export default function SetorRotinasDialog({ open, onOpenChange, setor }: SetorR
           </DialogTitle>
         </DialogHeader>
 
-        {tableUnavailable ? (
+        {tableUnavailable && (
           <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
-            As tabelas de rotinas persistentes ainda não existem no Supabase. Aplique a migration
-            <span className="font-mono"> 20260530120000_apt_rotinas_persistentes.sql </span>
-            pelo Lovable para liberar esta configuração.
+            Modo local ativo: as tabelas de rotinas persistentes ainda não existem no Supabase.
+            Você consegue testar e visualizar neste navegador, mas para todos enxergarem igual o Lovable precisa aplicar
+            <span className="font-mono"> 20260530120000_apt_rotinas_persistentes.sql</span>.
           </div>
-        ) : (
+        )}
+
           <div className="grid gap-4 lg:grid-cols-[1.1fr_0.9fr]">
             <div className="space-y-3">
               <div className="flex items-center justify-between gap-2">
@@ -441,7 +442,6 @@ export default function SetorRotinasDialog({ open, onOpenChange, setor }: SetorR
               </div>
             </form>
           </div>
-        )}
 
         <div className="flex items-start gap-2 rounded-xl bg-muted/50 p-3 text-xs text-muted-foreground">
           <Checkbox checked disabled className="mt-0.5" />
