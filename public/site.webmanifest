@@ -1,0 +1,31 @@
+{
+  "name": "SISRAMOS APT | Ramos Engenharia",
+  "short_name": "SISRAMOS APT",
+  "description": "Plataforma de planejamento, execução, checklists e acompanhamento técnico semanal.",
+  "start_url": "/execucao",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "background_color": "#ffffff",
+  "theme_color": "#32c878",
+  "icons": [
+    {
+      "src": "/icons/ramos-apt-icon-192.png?v=2",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icons/ramos-apt-icon-512.png?v=2",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icons/ramos-apt-maskable-512.png?v=2",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ]
+}
