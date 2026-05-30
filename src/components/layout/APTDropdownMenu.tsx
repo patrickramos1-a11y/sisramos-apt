@@ -15,15 +15,16 @@ export default function APTDropdownMenu({ isMobile = false, onItemClick }: APTDr
     navigate(href);
     onItemClick?.();
   };
+  const isExecucaoActive = location.pathname === "/" || location.pathname === "/execucao";
 
   if (isMobile) {
     return (
       <div className="grid gap-2">
         <button
-          onClick={() => handleMobileNavigation("/execucao")}
+          onClick={() => handleMobileNavigation("/")}
           className={cn(
             "flex w-full items-center gap-3 rounded-lg px-4 py-3 text-left text-sm font-medium transition-all",
-            location.pathname === "/execucao"
+            isExecucaoActive
               ? "bg-primary text-primary-foreground shadow-sm"
               : "text-muted-foreground hover:bg-muted hover:text-foreground"
           )}
@@ -50,10 +51,10 @@ export default function APTDropdownMenu({ isMobile = false, onItemClick }: APTDr
   return (
     <>
       <Link
-        to="/execucao"
+        to="/"
         className={cn(
           "flex items-center gap-2 rounded-full px-3.5 py-1.5 text-sm font-medium transition-all",
-          location.pathname === "/execucao"
+          isExecucaoActive
             ? "bg-primary text-primary-foreground shadow-sm"
             : "text-muted-foreground hover:bg-accent hover:text-foreground"
         )}

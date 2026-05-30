@@ -66,7 +66,7 @@ export default function AppLayout({ children }: AppLayoutProps) {
           {/* Logo and nav */}
           <div className="flex items-center gap-6 lg:gap-8">
             {/* Logo */}
-            <Link to="/execucao" className="flex items-center gap-2 group shrink-0">
+            <Link to="/" className="flex items-center gap-2 group shrink-0">
               <img
                 src={logoIcon}
                 alt="SISRAMOS"
