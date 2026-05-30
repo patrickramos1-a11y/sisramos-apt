@@ -9,6 +9,7 @@ Resolver divergências de produção relacionadas a:
 - configuração global dos Momentos APT por mês/ano;
 - ações configuráveis por setor, especialmente WhatsApp;
 - tags globais vinculadas às demandas.
+- demandas persistentes/rotinas APT por setor, com ocorrências por data e resumo semanal.
 
 ## Arquivos de referência no repositório
 
@@ -18,7 +19,9 @@ Verifique o conteúdo destes arquivos e compare com o banco Supabase:
 - `supabase/migrations/20260525152000_fix_apt_momentos_config_policies.sql`
 - migrations relacionadas a `setores.acoes`, se existirem;
 - migrations relacionadas a `tags` e `demanda_tags`, se existirem;
+- `supabase/migrations/20260530120000_apt_rotinas_persistentes.sql`
 - `src/hooks/useAptMomentos.ts`
+- `src/hooks/useAptRotinas.ts`
 - `src/pages/Execucao.tsx`
 - componentes/telas de configuração de setores que salvam `acoes`.
 
@@ -102,8 +105,51 @@ Requisitos funcionais:
 - Após aplicar, validar se o app consegue:
   - salvar Momentos APT e enxergar em navegador anônimo/outro usuário;
   - salvar ação WhatsApp no setor `Ac. Processos`;
-  - exibir botão WhatsApp nas demandas desse setor;
-  - criar/editar tags e filtrar por tags.
+- exibir botão WhatsApp nas demandas desse setor;
+- criar/editar tags e filtrar por tags.
+
+### 4. Demandas Persistentes / Rotinas APT
+
+Aplicar a migration:
+
+- `supabase/migrations/20260530120000_apt_rotinas_persistentes.sql`
+
+Ela cria a base paralela para rotinas persistentes, sem alterar a tabela atual `demandas`.
+
+Devem existir as tabelas:
+
+- `apt_rotina_modelos`
+- `apt_rotina_ocorrencias`
+- `apt_rotina_avaliacoes`
+
+Requisitos principais:
+
+- `apt_rotina_modelos` guarda os modelos configurados por setor;
+- `apt_rotina_ocorrencias` guarda cada ocorrência por data;
+- `apt_rotina_avaliacoes` guarda o resumo por mês/ano/momento/semanas agrupadas;
+- RLS habilitado nas três tabelas;
+- leitura para usuários autenticados conforme permissão;
+- escrita de modelos/avaliações por gestor/admin;
+- colaborador pode atualizar as próprias ocorrências;
+- índice único em `(modelo_id, data)` nas ocorrências, para geração idempotente;
+- índice único em `(modelo_id, responsavel_id, mes, ano, momento)` nas avaliações;
+- função `apt_rotina_marcar_atrasadas()` para marcar pendências vencidas como `nao_realizado`.
+
+Após aplicar a migration:
+
+- testar a tela `Configurações > Setores > Rotinas persistentes`;
+- criar uma rotina no setor `Limpeza`;
+- gerar ocorrências do mês;
+- abrir `/` ou `/execucao` e verificar se a seção “Rotinas persistentes do momento” aparece;
+- marcar uma ocorrência como feita/não feita;
+- calcular resumo do momento;
+- aprovar/reprovar resumo do gestor.
+
+Cron/job recomendado:
+
+- rodar diariamente após 00:10 no fuso `America/Sao_Paulo`;
+- executar `select public.apt_rotina_marcar_atrasadas();`;
+- o job é idempotente e não deve duplicar ocorrências.
 
 ## Entrega esperada
 

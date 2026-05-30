@@ -12,6 +12,7 @@ import APTFilters from "@/components/apt/APTFilters";
 import AptMomentosNavigator from "@/components/apt/AptMomentosNavigator";
 import ConfigurarAptDialog from "@/components/apt/ConfigurarAptDialog";
 import TopSetoresBar from "@/components/apt/TopSetoresBar";
+import RotinasPersistentesSection from "@/components/apt/RotinasPersistentesSection";
 import StatusBolinha from "@/components/apt/StatusBolinha";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -1344,6 +1345,18 @@ export default function Execucao() {
             />
           </div>
         )}
+
+        <div className="mb-4 hidden lg:block">
+          <RotinasPersistentesSection
+            mes={viewedMes}
+            ano={viewedAno}
+            semanas={activeMomentWeeks}
+            momento={activeMomentNumber}
+            isGestorOrAdmin={isGestorOrAdmin}
+            profiles={profiles}
+            setores={setores}
+          />
+        </div>
 
         {isLoading ? (
           <div className="flex items-center justify-center py-16">

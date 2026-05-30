@@ -36,6 +36,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
 import {
+  CalendarCheck2,
   Loader2,
   MessageCircle,
   Palette,
@@ -51,6 +52,7 @@ import {
   DEFAULT_SETOR_WHATSAPP_TEMPLATE,
   normalizeSetorActions,
 } from "@/lib/setor-actions";
+import SetorRotinasDialog from "./SetorRotinasDialog";
 
 interface Setor {
   id: string;
@@ -111,6 +113,7 @@ export default function SetoresManagement() {
 
   const [novoSetorOpen, setNovoSetorOpen] = useState(false);
   const [editingSetor, setEditingSetor] = useState<Setor | null>(null);
+  const [rotinasSetor, setRotinasSetor] = useState<Setor | null>(null);
   const [deletingSetor, setDeletingSetor] = useState<Setor | null>(null);
   const [deletingMultiple, setDeletingMultiple] = useState(false);
 
@@ -573,6 +576,15 @@ export default function SetoresManagement() {
                           <Button
                             variant="ghost"
                             size="icon"
+                            onClick={() => setRotinasSetor(setor)}
+                            title="Rotinas persistentes"
+                            className="text-primary hover:text-primary"
+                          >
+                            <CalendarCheck2 className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
                             onClick={() => openEditDialog(setor)}
                             title="Editar setor"
                           >
@@ -637,6 +649,12 @@ export default function SetoresManagement() {
           </form>
         </DialogContent>
       </Dialog>
+
+      <SetorRotinasDialog
+        open={!!rotinasSetor}
+        onOpenChange={(open) => !open && setRotinasSetor(null)}
+        setor={rotinasSetor}
+      />
 
       <AlertDialog open={!!deletingSetor} onOpenChange={(open) => !open && setDeletingSetor(null)}>
         <AlertDialogContent>
