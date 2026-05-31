@@ -71,6 +71,15 @@ interface ExecutionGroup {
   tags: AptTag[];
 }
 
+interface ProfileSummary {
+  id: string;
+  user_id: string;
+  nome: string;
+  email?: string;
+  cor?: string | null;
+  avatar_url?: string | null;
+}
+
 type ExecutionSortKey = "numero" | "responsavel" | "setor" | "descricao" | "semana";
 type ExecutionStatusFilter = "todos" | "pendentes" | "aguardando" | "feitas" | "nao_realizadas";
 
@@ -109,6 +118,21 @@ function getExecutionStatusSummary(group: ExecutionGroup) {
   ).length;
 
   return { total, feitas, naoFeitas, pendentes, aguardandoGestor };
+}
+
+function getSectionExecutionSummary(groups: ExecutionGroup[]) {
+  return groups.reduce(
+    (acc, group) => {
+      const summary = getExecutionStatusSummary(group);
+      acc.total += summary.total;
+      acc.feitas += summary.feitas;
+      acc.naoFeitas += summary.naoFeitas;
+      acc.pendentes += summary.pendentes;
+      acc.aguardandoGestor += summary.aguardandoGestor;
+      return acc;
+    },
+    { total: 0, feitas: 0, naoFeitas: 0, pendentes: 0, aguardandoGestor: 0 }
+  );
 }
 
 function getGroupStatus(group: ExecutionGroup, field: "status_responsavel" | "status_gestor") {
@@ -222,8 +246,8 @@ function ResponsavelEditor({
   disabled,
   onChange,
 }: {
-  currentProfile?: { user_id: string; nome: string; cor?: string | null } | null;
-  profiles: Array<{ user_id: string; nome: string; cor?: string | null }>;
+  currentProfile?: ProfileSummary | null;
+  profiles: ProfileSummary[];
   disabled: boolean;
   onChange: (responsavelId: string) => Promise<void>;
 }) {
@@ -320,6 +344,7 @@ export default function Execucao() {
   const [executionSortKey, setExecutionSortKey] = useState<ExecutionSortKey>("responsavel");
   const [executionStatusFilter, setExecutionStatusFilter] = useState<ExecutionStatusFilter>("todos");
   const [executionTableTab, setExecutionTableTab] = useState<"demandas" | "persistentes">("demandas");
+  const [expandedResponsaveis, setExpandedResponsaveis] = useState<Set<string>>(new Set());
   const [executionStatusDefaultApplied, setExecutionStatusDefaultApplied] = useState(false);
   const [executionDefaultsApplied, setExecutionDefaultsApplied] = useState(false);
   const [responsavelChipStats, setResponsavelChipStats] = useState<Record<string, { groups: number; total: number }>>({});
@@ -699,6 +724,18 @@ export default function Execucao() {
     });
   };
 
+  const toggleResponsavelSection = (responsavelId: string) => {
+    setExpandedResponsaveis((prev) => {
+      const next = new Set(prev);
+      if (next.has(responsavelId)) {
+        next.delete(responsavelId);
+      } else {
+        next.add(responsavelId);
+      }
+      return next;
+    });
+  };
+
   const updateGroupResponsavel = async (group: ExecutionGroup, responsavelId: string) => {
     if (!isGestorOrAdmin) return;
 
@@ -954,6 +991,10 @@ export default function Execucao() {
       const next = new Set([...prev].filter((key) => visible.has(key)));
       return next.size === prev.size ? prev : next;
     });
+  }, [visibleGroupKeys]);
+
+  useEffect(() => {
+    setExpandedResponsaveis(new Set());
   }, [visibleGroupKeys]);
 
   const pendingCount = filteredByTopSetor.filter((item) => item.status_responsavel === "pendente").length;
@@ -1724,44 +1765,79 @@ export default function Execucao() {
                     const profile = getProfileById(section.responsavelId);
                     const sectionCount = section.groups.reduce((acc, group) => acc + group.siblings.length, 0);
                     const sectionSelection = getSectionSelectedState(section.groups);
+                    const sectionStats = getSectionExecutionSummary(section.groups);
+                    const isExpanded = expandedResponsaveis.has(section.responsavelId);
 
                     return (
                       <Fragment key={section.responsavelId}>
-                        {isGestorOrAdmin && (
-                          <tr key={`${section.responsavelId}-header`} className="border-b border-border/70 bg-muted/60">
-                            <td colSpan={executionTableColumnCount} className="px-3 py-2">
+                        <tr key={`${section.responsavelId}-header`} className="border-b border-border/70 bg-muted/60">
+                          <td colSpan={executionTableColumnCount} className="px-3 py-2">
                               <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
                                 <div className="flex items-center gap-2">
-                                  <input
-                                    type="checkbox"
-                                    checked={sectionSelection.allSelected}
-                                    ref={(input) => {
-                                      if (input) input.indeterminate = sectionSelection.someSelected;
-                                    }}
-                                    onChange={() => toggleSectionSelection(section.groups)}
-                                    aria-label={`Selecionar demandas de ${profile?.nome || "responsável"}`}
-                                    className="h-4 w-4 rounded border-border"
-                                  />
+                                  <button
+                                    type="button"
+                                    onClick={() => toggleResponsavelSection(section.responsavelId)}
+                                    className="inline-flex h-7 w-7 items-center justify-center rounded-full border bg-background text-muted-foreground transition-colors hover:bg-muted"
+                                    aria-label={isExpanded ? "Recolher colaborador" : "Expandir colaborador"}
+                                  >
+                                    <ChevronRight className={cn("h-4 w-4 transition-transform", isExpanded && "rotate-90")} />
+                                  </button>
+                                  {isGestorOrAdmin && (
+                                    <input
+                                      type="checkbox"
+                                      checked={sectionSelection.allSelected}
+                                      ref={(input) => {
+                                        if (input) input.indeterminate = sectionSelection.someSelected;
+                                      }}
+                                      onChange={() => toggleSectionSelection(section.groups)}
+                                      aria-label={`Selecionar demandas de ${profile?.nome || "responsável"}`}
+                                      className="h-4 w-4 rounded border-border"
+                                    />
+                                  )}
                                   <div
-                                    className="flex h-7 w-7 items-center justify-center rounded-full text-xs font-semibold"
+                                    className="flex h-8 w-8 items-center justify-center overflow-hidden rounded-full text-xs font-semibold"
                                     style={{
                                       backgroundColor: `${profile?.cor || "#84cc16"}20`,
                                       color: profile?.cor || "#65a30d",
                                     }}
                                   >
-                                    {(profile?.nome || "?").charAt(0).toUpperCase()}
+                                    {profile?.avatar_url ? (
+                                      <img src={profile.avatar_url} alt={profile?.nome || "Colaborador"} className="h-full w-full object-cover" />
+                                    ) : (
+                                      (profile?.nome || "?").charAt(0).toUpperCase()
+                                    )}
                                   </div>
                                   <span className="font-semibold">{profile?.nome || "Sem responsável"}</span>
-                                  <span className="text-xs text-muted-foreground">
-                                    {section.groups.length} metas aglutinadas · {sectionCount} ocorrências
-                                  </span>
+                                  <div className="flex flex-wrap items-center gap-1.5 text-xs">
+                                    <Badge variant="outline" className="rounded-full bg-background/70">
+                                      {section.groups.length} metas
+                                    </Badge>
+                                    <Badge variant="outline" className="rounded-full bg-background/70">
+                                      {sectionCount} ocorrências
+                                    </Badge>
+                                    <Badge className="rounded-full bg-amber-100 text-amber-700 hover:bg-amber-100">
+                                      {sectionStats.pendentes} pend.
+                                    </Badge>
+                                    <Badge className="rounded-full bg-emerald-100 text-emerald-700 hover:bg-emerald-100">
+                                      {sectionStats.feitas} feitas
+                                    </Badge>
+                                    <Badge className="rounded-full bg-red-100 text-red-700 hover:bg-red-100">
+                                      {sectionStats.naoFeitas} não feitas
+                                    </Badge>
+                                    {sectionStats.aguardandoGestor > 0 && (
+                                      <Badge className="rounded-full bg-sky-100 text-sky-700 hover:bg-sky-100">
+                                        {sectionStats.aguardandoGestor} aguard.
+                                      </Badge>
+                                    )}
+                                  </div>
                                   {sectionSelection.selectedCount > 0 && (
                                     <Badge variant="outline" className="rounded-full px-2 py-0.5 text-[10px]">
                                       {sectionSelection.selectedCount} selecionadas
                                     </Badge>
                                   )}
                                 </div>
-                                <div className="flex flex-wrap gap-2">
+                                {isGestorOrAdmin && (
+                                  <div className="flex flex-wrap gap-2">
                                   <Button
                                     variant="outline"
                                     size="sm"
@@ -1785,13 +1861,13 @@ export default function Execucao() {
                                   >
                                     Rejeitar
                                   </Button>
-                                </div>
+                                  </div>
+                                )}
                               </div>
                             </td>
                           </tr>
-                        )}
 
-                        {section.groups.map((group) => {
+                        {isExpanded && section.groups.map((group) => {
                           const setor = getSetorById(group.setor_id);
                           const summary = getExecutionStatusSummary(group);
                           const allWeeks = [...new Set(group.siblings.flatMap((item) => item.semana_limite))].sort((a, b) => a - b);

@@ -21,6 +21,7 @@ interface EditarUsuarioDialogProps {
     user_id: string;
     nome: string;
     email: string;
+    avatar_url?: string | null;
   } | null;
   onUserUpdated: () => void;
 }
@@ -35,6 +36,7 @@ export default function EditarUsuarioDialog({
   const [formData, setFormData] = useState({
     nome: "",
     email: "",
+    avatar_url: "",
   });
   const { toast } = useToast();
 
@@ -43,6 +45,7 @@ export default function EditarUsuarioDialog({
       setFormData({
         nome: user.nome,
         email: user.email,
+        avatar_url: user.avatar_url || "",
       });
     }
   }, [user]);
@@ -79,6 +82,13 @@ export default function EditarUsuarioDialog({
       if (response.data?.error) {
         throw new Error(response.data.error);
       }
+
+      const { error: avatarError } = await supabase
+        .from("profiles")
+        .update({ avatar_url: formData.avatar_url.trim() || null })
+        .eq("user_id", user.user_id);
+
+      if (avatarError) throw avatarError;
 
       toast({
         title: "Usuário atualizado!",
@@ -136,6 +146,23 @@ export default function EditarUsuarioDialog({
                 disabled={isLoading}
                 maxLength={255}
               />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="edit-avatar">Imagem de perfil</Label>
+              <Input
+                id="edit-avatar"
+                type="url"
+                placeholder="https://exemplo.com/foto.jpg"
+                value={formData.avatar_url}
+                onChange={(e) =>
+                  setFormData((prev) => ({ ...prev, avatar_url: e.target.value }))
+                }
+                disabled={isLoading}
+                maxLength={1000}
+              />
+              <p className="text-xs text-muted-foreground">
+                Cole uma URL pública da imagem. Se ficar vazio, o sistema usa as iniciais.
+              </p>
             </div>
           </div>
           <DialogFooter>

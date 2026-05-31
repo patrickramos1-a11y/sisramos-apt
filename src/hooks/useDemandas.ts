@@ -52,6 +52,7 @@ interface Profile {
   nome: string;
   email: string;
   cor?: string | null;
+  avatar_url?: string | null;
 }
 
 interface Setor {

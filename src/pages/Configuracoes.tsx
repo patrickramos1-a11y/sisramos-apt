@@ -43,6 +43,15 @@ type AppRole = "admin" | "gestor" | "colaborador";
 type SortField = "nome" | "email" | "role";
 type SortDirection = "asc" | "desc";
 
+function getInitials(name: string) {
+  return name
+    .split(" ")
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((part) => part[0]?.toUpperCase())
+    .join("") || "?";
+}
+
 interface UserWithRole {
   id: string;
   user_id: string;
@@ -50,6 +59,7 @@ interface UserWithRole {
   email: string;
   role: AppRole;
   cor?: string;
+  avatar_url?: string | null;
 }
 
 export default function Configuracoes() {
@@ -516,10 +526,16 @@ export default function Configuracoes() {
                       <div key={u.id} className="border rounded-lg p-4 space-y-3">
                         <div className="flex items-center justify-between">
                           <div className="flex items-center gap-3 min-w-0 flex-1">
-                            <UserColorPicker
-                              color={u.cor || "#6B7280"}
-                              onChange={(color) => handleUpdateUserColor(u.user_id, color)}
-                            />
+                            <div
+                              className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-full text-xs font-bold"
+                              style={{ backgroundColor: `${u.cor || "#6B7280"}22`, color: u.cor || "#6B7280" }}
+                            >
+                              {u.avatar_url ? (
+                                <img src={u.avatar_url} alt={u.nome} className="h-full w-full object-cover" />
+                              ) : (
+                                getInitials(u.nome)
+                              )}
+                            </div>
                             <div className="min-w-0 flex-1">
                               <p className="font-medium text-sm truncate">{u.nome}</p>
                               <p className="text-xs text-muted-foreground truncate">{u.email}</p>
@@ -579,7 +595,21 @@ export default function Configuracoes() {
                       <TableBody>
                         {filteredAndSortedUsers.map((u) => (
                           <TableRow key={u.id}>
-                            <TableCell className="font-medium">{u.nome}</TableCell>
+                            <TableCell className="font-medium">
+                              <div className="flex items-center gap-2">
+                                <div
+                                  className="flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-full text-xs font-bold"
+                                  style={{ backgroundColor: `${u.cor || "#6B7280"}22`, color: u.cor || "#6B7280" }}
+                                >
+                                  {u.avatar_url ? (
+                                    <img src={u.avatar_url} alt={u.nome} className="h-full w-full object-cover" />
+                                  ) : (
+                                    getInitials(u.nome)
+                                  )}
+                                </div>
+                                <span>{u.nome}</span>
+                              </div>
+                            </TableCell>
                             <TableCell>{u.email}</TableCell>
                             <TableCell>{getRoleBadge(u.role)}</TableCell>
                             <TableCell>
