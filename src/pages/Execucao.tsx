@@ -6,6 +6,7 @@ import { useDemandas } from "@/hooks/useDemandas";
 import { useMonthSettings } from "@/hooks/useMonthSettings";
 import { useMomentoAPT } from "@/hooks/useMomentoAPT";
 import { resolveAptViewDate, useAptContext } from "@/hooks/useAptContext";
+import { AptRotinaResumo, useAptRotinas } from "@/hooks/useAptRotinas";
 import { supabase } from "@/integrations/supabase/client";
 import APTHorizontalFilters from "@/components/apt/APTHorizontalFilters";
 import APTFilters from "@/components/apt/APTFilters";
@@ -28,6 +29,7 @@ import {
   CheckCircle2,
   ChevronRight,
   ClipboardCheck,
+  Clock3,
   Flame,
   Layers3,
   ListChecks,
@@ -71,6 +73,12 @@ interface ExecutionGroup {
   tags: AptTag[];
 }
 
+interface ResponsavelExecutionSection {
+  responsavelId: string;
+  groups: ExecutionGroup[];
+  rotinas: AptRotinaResumo[];
+}
+
 interface ProfileSummary {
   id: string;
   user_id: string;
@@ -97,6 +105,7 @@ const MONTH_NAMES = [
   "Novembro",
   "Dezembro",
 ];
+const WEEKDAY_LABELS = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"];
 
 function semanaLabel(semana: number) {
   return `${semana}ª`;
@@ -133,6 +142,77 @@ function getSectionExecutionSummary(groups: ExecutionGroup[]) {
     },
     { total: 0, feitas: 0, naoFeitas: 0, pendentes: 0, aguardandoGestor: 0 }
   );
+}
+
+function getRotinaExecutionSummary(rotina: AptRotinaResumo) {
+  return {
+    total: rotina.previstas,
+    feitas: rotina.feitas,
+    naoFeitas: rotina.nao_feitas,
+    pendentes: rotina.pendentes,
+    aguardandoGestor:
+      rotina.modelo.exige_aprovacao && rotina.avaliacao?.status_gestor !== "aprovado" ? 1 : 0,
+  };
+}
+
+function sumSectionExecution(section: ResponsavelExecutionSection) {
+  const common = getSectionExecutionSummary(section.groups);
+  const persistent = section.rotinas.reduce(
+    (acc, rotina) => {
+      const summary = getRotinaExecutionSummary(rotina);
+      acc.total += summary.total;
+      acc.feitas += summary.feitas;
+      acc.naoFeitas += summary.naoFeitas;
+      acc.pendentes += summary.pendentes;
+      acc.aguardandoGestor += summary.aguardandoGestor;
+      return acc;
+    },
+    { total: 0, feitas: 0, naoFeitas: 0, pendentes: 0, aguardandoGestor: 0 }
+  );
+
+  return {
+    total: common.total + persistent.total,
+    feitas: common.feitas + persistent.feitas,
+    naoFeitas: common.naoFeitas + persistent.naoFeitas,
+    pendentes: common.pendentes + persistent.pendentes,
+    aguardandoGestor: common.aguardandoGestor + persistent.aguardandoGestor,
+  };
+}
+
+function getTodayKey() {
+  const today = new Date();
+  return `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
+}
+
+function getRotinaWeeks(rotina: AptRotinaResumo) {
+  const weeks = rotina.ocorrencias.length > 0
+    ? rotina.ocorrencias.map((item) => item.semana_apt)
+    : rotina.modelo.semanas_aplicaveis;
+
+  return [...new Set(weeks)].filter(Boolean).sort((a, b) => a - b);
+}
+
+function getRotinaFrequency(rotina: AptRotinaResumo) {
+  if (rotina.ocorrencias.length === 0) return rotina.modelo.dias_semana.length;
+  const perWeek = new Map<number, number>();
+  rotina.ocorrencias.forEach((item) => {
+    perWeek.set(item.semana_apt, (perWeek.get(item.semana_apt) || 0) + 1);
+  });
+  return Math.max(0, ...Array.from(perWeek.values()));
+}
+
+function getRotinaResponsavelStatus(rotina: AptRotinaResumo, todayKey: string): Demanda["status_responsavel"] {
+  const todayOccurrence = rotina.ocorrencias.find((item) => item.data === todayKey);
+  if (todayOccurrence) return todayOccurrence.status_execucao;
+  if (rotina.pendentes > 0) return "pendente";
+  if (rotina.nao_feitas > 0) return "nao_realizado";
+  return "executado";
+}
+
+function getRotinaGestorStatus(rotina: AptRotinaResumo): Demanda["status_gestor"] {
+  if (rotina.avaliacao?.status_gestor === "aprovado") return "executado";
+  if (rotina.avaliacao?.status_gestor === "reprovado") return "nao_realizado";
+  return "pendente";
 }
 
 function getGroupStatus(group: ExecutionGroup, field: "status_responsavel" | "status_gestor") {
@@ -385,6 +465,17 @@ export default function Execucao() {
     momentoSelecionado,
     suggestedWeek,
     currentWeek,
+  });
+
+  const {
+    resumos: rotinaResumos,
+    marcarOcorrencia: marcarRotinaOcorrencia,
+    atualizarAvaliacao: atualizarRotinaAvaliacao,
+  } = useAptRotinas({
+    mes: viewedMes,
+    ano: viewedAno,
+    semanas: activeMomentWeeks,
+    momento: activeMomentNumber,
   });
 
   useEffect(() => {
@@ -938,44 +1029,108 @@ export default function Execucao() {
     });
   }, [executionSortKey, executionStatusFilter, filteredByTopSetor, getProfileById, getSetorById]);
 
-  const groupsByResponsavel = useMemo(() => {
+  const filteredRotinaResumos = useMemo(() => {
+    const todayKey = getTodayKey();
+    const busca = filters.busca.trim().toLowerCase();
+
+    return rotinaResumos.filter((rotina) => {
+      const responsavelId = rotina.responsavel_id || "";
+      const setorId = rotina.setor_id || "sem_setor";
+      const responsavelStatus = getRotinaResponsavelStatus(rotina, todayKey);
+      const gestorStatus = getRotinaGestorStatus(rotina);
+
+      if (!isGestorOrAdmin && responsavelId !== user?.id) return false;
+      if (filters.responsaveis.length > 0 && !filters.responsaveis.includes(responsavelId)) return false;
+      if (filters.setores.length > 0 && !filters.setores.includes(setorId)) return false;
+      if (activeTopSetor && activeTopSetor !== setorId) return false;
+      if (busca && !`${rotina.modelo.nome} ${rotina.modelo.descricao}`.toLowerCase().includes(busca)) return false;
+
+      if (executionStatusFilter === "pendentes") return responsavelStatus === "pendente";
+      if (executionStatusFilter === "feitas") return responsavelStatus === "executado";
+      if (executionStatusFilter === "nao_realizadas") return responsavelStatus === "nao_realizado";
+      if (executionStatusFilter === "aguardando") return responsavelStatus !== "pendente" && gestorStatus === "pendente";
+      return true;
+    });
+  }, [
+    activeTopSetor,
+    executionStatusFilter,
+    filters.busca,
+    filters.responsaveis,
+    filters.setores,
+    isGestorOrAdmin,
+    rotinaResumos,
+    user?.id,
+  ]);
+
+  const groupsByResponsavel = useMemo<ResponsavelExecutionSection[]>(() => {
     if (!isGestorOrAdmin) {
       return [
         {
           responsavelId: user?.id ?? "me",
           groups: executionGroups,
+          rotinas: filteredRotinaResumos,
         },
       ];
     }
 
-    const map = new Map<string, ExecutionGroup[]>();
+    const map = new Map<string, ResponsavelExecutionSection>();
     executionGroups.forEach((group) => {
-      const arr = map.get(group.responsavel_id) ?? [];
-      arr.push(group);
-      map.set(group.responsavel_id, arr);
+      const current = map.get(group.responsavel_id) ?? {
+        responsavelId: group.responsavel_id,
+        groups: [],
+        rotinas: [],
+      };
+      current.groups.push(group);
+      map.set(group.responsavel_id, current);
+    });
+    filteredRotinaResumos.forEach((rotina) => {
+      const responsavelId = rotina.responsavel_id || "sem_responsavel";
+      const current = map.get(responsavelId) ?? {
+        responsavelId,
+        groups: [],
+        rotinas: [],
+      };
+      current.rotinas.push(rotina);
+      map.set(responsavelId, current);
     });
 
-    return Array.from(map.entries())
-      .map(([responsavelId, groups]) => ({ responsavelId, groups }))
+    return Array.from(map.values())
       .sort((a, b) => {
         const nomeA = getProfileById(a.responsavelId)?.nome ?? "";
         const nomeB = getProfileById(b.responsavelId)?.nome ?? "";
         return nomeA.localeCompare(nomeB, "pt-BR");
     });
-  }, [executionGroups, getProfileById, isGestorOrAdmin, user?.id]);
+  }, [executionGroups, filteredRotinaResumos, getProfileById, isGestorOrAdmin, user?.id]);
 
   const responsavelChips = useMemo(() => {
     if (!isGestorOrAdmin) return [];
 
+    const rotinaStats = filteredRotinaResumos.reduce<Record<string, { groups: number; total: number }>>((acc, rotina) => {
+      const id = rotina.responsavel_id || "sem_responsavel";
+      acc[id] = acc[id] || { groups: 0, total: 0 };
+      acc[id].groups += 1;
+      acc[id].total += rotina.previstas;
+      return acc;
+    }, {});
+
     return profiles
-      .map((profile) => ({
-        profile,
-        stats: responsavelChipStats[profile.user_id] ?? { groups: 0, total: 0 },
-        active: filters.responsaveis.includes(profile.user_id),
-      }))
+      .map((profile) => {
+        const commonStats = responsavelChipStats[profile.user_id] ?? { groups: 0, total: 0 };
+        const persistentStats = rotinaStats[profile.user_id] ?? { groups: 0, total: 0 };
+        return {
+          profile,
+          stats: {
+            groups: commonStats.groups + persistentStats.groups,
+            total: commonStats.total + persistentStats.total,
+          },
+          active: filters.responsaveis.includes(profile.user_id),
+        };
+      })
       .filter((item) => item.stats.total > 0 || item.active)
       .sort((a, b) => a.profile.nome.localeCompare(b.profile.nome, "pt-BR"));
-  }, [filters.responsaveis, isGestorOrAdmin, profiles, responsavelChipStats]);
+  }, [filteredRotinaResumos, filters.responsaveis, isGestorOrAdmin, profiles, responsavelChipStats]);
+
+  const unifiedExecutionRowsCount = executionGroups.length + filteredRotinaResumos.length;
 
   const visibleGroupKeys = useMemo(() => executionGroups.map((group) => group.key), [executionGroups]);
   const selectedVisibleGroups = useMemo(
@@ -1006,12 +1161,6 @@ export default function Execucao() {
       item.status_gestor === "pendente"
   ).length;
   const allMomentItemsProcessed = filteredByTopSetor.length > 0 && pendingCount === 0;
-
-  useEffect(() => {
-    if (!isLoading && executionGroups.length === 0) {
-      setExecutionTableTab("persistentes");
-    }
-  }, [executionGroups.length, isLoading]);
 
   const mobileSetorStats = useMemo(() => {
     const countMap: Record<string, { total: number; pending: number; done: number }> = {};
@@ -1069,8 +1218,8 @@ export default function Execucao() {
     },
     {
       label: "Metas visíveis",
-      value: String(executionGroups.length),
-      helper: `${filteredByTopSetor.length} ocorrências no ciclo`,
+      value: String(unifiedExecutionRowsCount),
+      helper: `${filteredByTopSetor.length + filteredRotinaResumos.reduce((acc, rotina) => acc + rotina.previstas, 0)} ocorrências no ciclo`,
       icon: ListChecks,
     },
     {
@@ -1639,7 +1788,7 @@ export default function Execucao() {
                     <ListChecks className="h-4 w-4" />
                     Demandas do momento
                     <Badge variant="secondary" className="rounded-full">
-                      {executionGroups.length}
+                      {unifiedExecutionRowsCount}
                     </Badge>
                   </TabsTrigger>
                   <TabsTrigger value="persistentes" className="gap-2 rounded-xl py-2 text-sm">
@@ -1662,16 +1811,16 @@ export default function Execucao() {
               </TabsContent>
 
               <TabsContent value="demandas" className="mt-0">
-                {executionGroups.length === 0 ? (
+                {unifiedExecutionRowsCount === 0 ? (
                   <Card>
                     <CardContent className="py-14 text-center">
                       <p className="font-semibold text-foreground">
                         {allMomentItemsProcessed && executionStatusFilter === "pendentes"
                           ? "Tudo certo. Não há pendências comuns neste momento."
-                          : "Nenhuma demanda comum encontrada para o ciclo selecionado."}
+                          : "Nenhuma demanda encontrada para o ciclo selecionado."}
                       </p>
                       <p className="mt-1 text-sm text-muted-foreground">
-                        Verifique a aba Demandas persistentes para executar rotinas recorrentes do momento.
+                        Ajuste filtros, colaborador, setor ou momento para localizar demandas comuns e persistentes.
                       </p>
                     </CardContent>
                   </Card>
@@ -1681,7 +1830,7 @@ export default function Execucao() {
               <div>
                 <p className="text-sm font-semibold">Planilha de execução</p>
                 <p className="text-xs text-muted-foreground">
-                  {executionGroups.length} linhas aglutinadas · {filteredByTopSetor.length} ocorrências do momento
+                  {unifiedExecutionRowsCount} linhas aglutinadas · {filteredByTopSetor.length + filteredRotinaResumos.reduce((acc, rotina) => acc + rotina.previstas, 0)} ocorrências do momento
                 </p>
               </div>
               <div className="flex flex-wrap items-center gap-2">
@@ -1763,7 +1912,9 @@ export default function Execucao() {
                 <tbody>
                   {groupsByResponsavel.map((section) => {
                     const profile = getProfileById(section.responsavelId);
-                    const sectionCount = section.groups.reduce((acc, group) => acc + group.siblings.length, 0);
+                    const sectionCount =
+                      section.groups.reduce((acc, group) => acc + group.siblings.length, 0) +
+                      section.rotinas.reduce((acc, rotina) => acc + rotina.previstas, 0);
                     const sectionSelection = getSectionSelectedState(section.groups);
                     const sectionStats = getSectionExecutionSummary(section.groups);
                     const isExpanded = expandedResponsaveis.has(section.responsavelId);
@@ -1810,7 +1961,7 @@ export default function Execucao() {
                                   <span className="font-semibold">{profile?.nome || "Sem responsável"}</span>
                                   <div className="flex flex-wrap items-center gap-1.5 text-xs">
                                     <Badge variant="outline" className="rounded-full bg-background/70">
-                                      {section.groups.length} metas
+                                      {section.groups.length + section.rotinas.length} metas
                                     </Badge>
                                     <Badge variant="outline" className="rounded-full bg-background/70">
                                       {sectionCount} ocorrências
@@ -1836,7 +1987,7 @@ export default function Execucao() {
                                     </Badge>
                                   )}
                                 </div>
-                                {isGestorOrAdmin && (
+                                {isGestorOrAdmin && section.groups.length > 0 && (
                                   <div className="flex flex-wrap gap-2">
                                   <Button
                                     variant="outline"
@@ -2003,6 +2154,137 @@ export default function Execucao() {
                                 ) : (
                                   <span className="text-xs text-muted-foreground">-</span>
                                 )}
+                              </td>
+                            </tr>
+                          );
+                        })}
+
+                        {isExpanded && section.rotinas.map((rotina) => {
+                          const setor = getSetorById(rotina.setor_id);
+                          const responsavel = getProfileById(rotina.responsavel_id || "");
+                          const todayKey = getTodayKey();
+                          const todayOccurrence = rotina.ocorrencias.find((item) => item.data === todayKey);
+                          const responsavelStatus = getRotinaResponsavelStatus(rotina, todayKey);
+                          const gestorStatus = getRotinaGestorStatus(rotina);
+                          const allWeeks = getRotinaWeeks(rotina);
+                          const repeatedLabel = `${getRotinaFrequency(rotina)}x`;
+                          const nextOccurrence = rotina.ocorrencias
+                            .filter((item) => item.data > todayKey)
+                            .sort((a, b) => a.data.localeCompare(b.data))[0];
+                          const dayLabels = rotina.modelo.dias_semana
+                            .map((day) => WEEKDAY_LABELS[day] || String(day))
+                            .join(" · ");
+
+                          return (
+                            <tr
+                              key={`rotina-${rotina.key}`}
+                              className="border-b border-orange-100 bg-orange-50/25 transition-colors hover:bg-orange-50/60"
+                            >
+                              <td className="px-3 py-3 text-center align-middle">
+                                {isGestorOrAdmin && <span className="text-xs text-muted-foreground">-</span>}
+                              </td>
+                              <td className="whitespace-nowrap px-3 py-3 align-middle">
+                                <Badge className="gap-1 rounded-full border-orange-200 bg-orange-100 text-orange-700 hover:bg-orange-100">
+                                  <Clock3 className="h-3.5 w-3.5" />
+                                  REC
+                                </Badge>
+                              </td>
+                              <td className="px-3 py-3 align-middle">
+                                <Badge variant="secondary" className="gap-1.5 rounded-full px-2.5 py-1">
+                                  <span className="h-2 w-2 rounded-full" style={{ backgroundColor: setor?.cor || rotina.modelo.cor }} />
+                                  {setor?.nome || "Sem setor"}
+                                </Badge>
+                              </td>
+                              {isGestorOrAdmin && (
+                                <td className="whitespace-nowrap px-3 py-3 align-middle">
+                                  <Badge
+                                    variant="outline"
+                                    className="gap-1.5 rounded-full px-2.5 py-1"
+                                    style={{
+                                      borderColor: `${responsavel?.cor || "#65a30d"}55`,
+                                      backgroundColor: `${responsavel?.cor || "#65a30d"}14`,
+                                      color: responsavel?.cor || "#65a30d",
+                                    }}
+                                  >
+                                    <span className="h-2 w-2 rounded-full" style={{ backgroundColor: responsavel?.cor || "#65a30d" }} />
+                                    {responsavel?.nome || "Sem responsável"}
+                                  </Badge>
+                                </td>
+                              )}
+                              <td className="px-3 py-3 align-middle">
+                                <div className="flex min-w-0 items-start gap-2">
+                                  <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center">
+                                    <Clock3 className="h-4 w-4 text-orange-600" />
+                                  </span>
+                                  <div className="min-w-0">
+                                    <div className="flex flex-wrap items-center gap-2">
+                                      <span className="font-medium leading-snug">{rotina.modelo.nome}</span>
+                                      <Badge className="rounded-full border-orange-200 bg-orange-50 text-orange-700 hover:bg-orange-50">
+                                        Persistente
+                                      </Badge>
+                                    </div>
+                                    {rotina.modelo.descricao && (
+                                      <p className="mt-1 line-clamp-2 text-xs text-muted-foreground">
+                                        {rotina.modelo.descricao}
+                                      </p>
+                                    )}
+                                    <p className="mt-1 text-[11px] text-orange-700">
+                                      Dias: {dayLabels || "não configurado"}
+                                    </p>
+                                  </div>
+                                </div>
+                              </td>
+                              <td className="whitespace-nowrap px-3 py-3 align-middle">
+                                <Badge variant="outline" className="rounded-full px-2.5 py-1">
+                                  {semanasCompactas(allWeeks)}
+                                </Badge>
+                              </td>
+                              <td className="whitespace-nowrap px-3 py-3 text-center align-middle">
+                                <Badge variant="outline" className="rounded-full px-2.5 py-1">
+                                  {repeatedLabel}
+                                </Badge>
+                              </td>
+                              <td className="px-3 py-3 text-center align-middle">
+                                <div className="inline-flex items-center gap-2">
+                                  <StatusBolinha
+                                    status={responsavelStatus}
+                                    onClick={
+                                      todayOccurrence
+                                        ? () => marcarRotinaOcorrencia(todayOccurrence.id, nextStatus(todayOccurrence.status_execucao))
+                                        : undefined
+                                    }
+                                    disabled={!todayOccurrence}
+                                  />
+                                  <span className="text-xs text-muted-foreground">
+                                    {todayOccurrence
+                                      ? todayOccurrence.status_execucao === "executado"
+                                        ? "hoje"
+                                        : `${rotina.feitas}/${rotina.previstas}`
+                                      : nextOccurrence
+                                        ? `próx. ${nextOccurrence.data.slice(8, 10)}/${nextOccurrence.data.slice(5, 7)}`
+                                        : `${rotina.feitas}/${rotina.previstas}`}
+                                  </span>
+                                </div>
+                              </td>
+                              {isGestorOrAdmin && (
+                                <td className="px-3 py-3 text-center align-middle">
+                                  <StatusBolinha
+                                    status={gestorStatus}
+                                    onClick={
+                                      rotina.avaliacao
+                                        ? () =>
+                                            atualizarRotinaAvaliacao(
+                                              rotina.avaliacao!.id,
+                                              rotina.avaliacao!.status_gestor === "aprovado" ? "reprovado" : "aprovado"
+                                            )
+                                        : undefined
+                                    }
+                                    disabled={!rotina.avaliacao}
+                                  />
+                                </td>
+                              )}
+                              <td className="px-3 py-3 text-center align-middle">
+                                <span className="text-xs text-muted-foreground">-</span>
                               </td>
                             </tr>
                           );

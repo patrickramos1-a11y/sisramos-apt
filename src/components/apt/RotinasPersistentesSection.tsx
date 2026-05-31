@@ -30,6 +30,7 @@ interface RotinasPersistentesSectionProps {
 }
 
 type StatusFilter = "todos" | "pendentes" | "executado" | "nao_realizado";
+const WEEKDAY_LABELS = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"];
 
 const STATUS_META = {
   pendente: {
@@ -104,6 +105,12 @@ function getRowStatus(resumo: AptRotinaResumo, todayKey: string): AptRotinaStatu
   if (resumo.pendentes > 0) return "pendente";
   if (resumo.nao_feitas > 0) return "nao_realizado";
   return "executado";
+}
+
+function occurrenceChipClass(status: AptRotinaStatusOcorrencia) {
+  if (status === "executado") return "border-emerald-200 bg-emerald-50 text-emerald-700";
+  if (status === "nao_realizado") return "border-red-200 bg-red-50 text-red-700";
+  return "border-amber-200 bg-amber-50 text-amber-700";
 }
 
 function statusLabel(status: AptRotinaStatusAvaliacao | undefined) {
@@ -322,12 +329,14 @@ export default function RotinasPersistentesSection({
           Nenhuma rotina encontrada para este filtro.
         </div>
       ) : (
-        <div className="overflow-hidden rounded-2xl border bg-card shadow-sm">
-          <div className="grid grid-cols-[minmax(260px,1fr)_150px_140px_110px_190px_150px] items-center gap-3 bg-orange-50/70 px-4 py-3 text-xs font-bold uppercase tracking-[0.14em] text-orange-900">
+        <div className="overflow-x-auto rounded-2xl border bg-card shadow-sm">
+          <div className="grid min-w-[1320px] grid-cols-[minmax(260px,1fr)_150px_140px_120px_110px_220px_190px_150px] items-center gap-3 bg-orange-50/70 px-4 py-3 text-xs font-bold uppercase tracking-[0.14em] text-orange-900">
             <span>Demanda persistente</span>
             <span>Responsável</span>
             <span>Setor</span>
+            <span>Dias</span>
             <span>Semanas</span>
+            <span>Ocorrências</span>
             <span>Status de hoje</span>
             <span className="text-right">Aprovação</span>
           </div>
@@ -344,11 +353,12 @@ export default function RotinasPersistentesSection({
             const rowStatus = getRowStatus(resumo, todayKey);
             const statusMeta = STATUS_META[rowStatus];
             const StatusIcon = statusMeta.icon;
+            const days = resumo.modelo.dias_semana.map((day) => WEEKDAY_LABELS[day] || String(day));
 
             return (
               <article
                 key={resumo.key}
-                className="grid grid-cols-[minmax(260px,1fr)_150px_140px_110px_190px_150px] items-center gap-3 border-t px-4 py-3 text-sm"
+                className="grid min-w-[1320px] grid-cols-[minmax(260px,1fr)_150px_140px_120px_110px_220px_190px_150px] items-center gap-3 border-t px-4 py-3 text-sm"
               >
                 <div className="min-w-0">
                   <div className="flex min-w-0 items-start gap-2">
@@ -404,10 +414,33 @@ export default function RotinasPersistentesSection({
                 </div>
 
                 <div className="flex flex-wrap gap-1">
+                  {days.map((day) => (
+                    <Badge key={day} variant="outline" className="rounded-full px-2 py-1 text-xs">
+                      {day}
+                    </Badge>
+                  ))}
+                </div>
+
+                <div className="flex flex-wrap gap-1">
                   {weeks.map((week) => (
                     <Badge key={week} variant="outline" className="rounded-full px-2 py-1 text-xs">
                       {ordinalWeek(week)}
                     </Badge>
+                  ))}
+                </div>
+
+                <div className="flex max-w-[220px] flex-wrap gap-1">
+                  {resumo.ocorrencias.slice(0, 24).map((ocorrencia) => (
+                    <span
+                      key={ocorrencia.id}
+                      className={cn(
+                        "inline-flex h-6 min-w-8 items-center justify-center rounded-full border px-1.5 text-[10px] font-semibold",
+                        occurrenceChipClass(ocorrencia.status_execucao)
+                      )}
+                      title={`${formatDate(ocorrencia.data)} · ${STATUS_META[ocorrencia.status_execucao].label}`}
+                    >
+                      {ocorrencia.data.slice(8, 10)}
+                    </span>
                   ))}
                 </div>
 
