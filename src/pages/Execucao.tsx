@@ -18,6 +18,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
 import { buildSetorWhatsAppHref } from "@/lib/setor-actions";
 import { AptTag, uniqueTags } from "@/lib/tags";
@@ -33,6 +34,7 @@ import {
   Loader2,
   Lock,
   MessageCircle,
+  RefreshCcw,
   Settings2,
   Star,
   X,
@@ -317,6 +319,7 @@ export default function Execucao() {
   const [selectedGroupKeys, setSelectedGroupKeys] = useState<Set<string>>(new Set());
   const [executionSortKey, setExecutionSortKey] = useState<ExecutionSortKey>("responsavel");
   const [executionStatusFilter, setExecutionStatusFilter] = useState<ExecutionStatusFilter>("todos");
+  const [executionTableTab, setExecutionTableTab] = useState<"demandas" | "persistentes">("demandas");
   const [executionStatusDefaultApplied, setExecutionStatusDefaultApplied] = useState(false);
   const [executionDefaultsApplied, setExecutionDefaultsApplied] = useState(false);
   const [responsavelChipStats, setResponsavelChipStats] = useState<Record<string, { groups: number; total: number }>>({});
@@ -963,6 +966,12 @@ export default function Execucao() {
   ).length;
   const allMomentItemsProcessed = filteredByTopSetor.length > 0 && pendingCount === 0;
 
+  useEffect(() => {
+    if (!isLoading && executionGroups.length === 0) {
+      setExecutionTableTab("persistentes");
+    }
+  }, [executionGroups.length, isLoading]);
+
   const mobileSetorStats = useMemo(() => {
     const countMap: Record<string, { total: number; pending: number; done: number }> = {};
 
@@ -1346,37 +1355,10 @@ export default function Execucao() {
           </div>
         )}
 
-        <div className="mb-4 hidden lg:block">
-          <RotinasPersistentesSection
-            mes={viewedMes}
-            ano={viewedAno}
-            semanas={activeMomentWeeks}
-            momento={activeMomentNumber}
-            isGestorOrAdmin={isGestorOrAdmin}
-            profiles={profiles}
-            setores={setores}
-          />
-        </div>
-
         {isLoading ? (
           <div className="flex items-center justify-center py-16">
             <Loader2 className="h-8 w-8 animate-spin text-primary" />
           </div>
-        ) : executionGroups.length === 0 ? (
-          <Card>
-            <CardContent className="py-14 text-center">
-              <p className="font-semibold text-foreground">
-                {allMomentItemsProcessed && executionStatusFilter === "pendentes"
-                  ? "Tudo certo. Não há pendências neste momento."
-                  : "Nenhuma meta encontrada para o ciclo selecionado."}
-              </p>
-              {allMomentItemsProcessed && executionStatusFilter === "pendentes" && (
-                <p className="mt-1 text-sm text-muted-foreground">
-                  Use os filtros de Feitas ou Não feitas para revisar ou corrigir uma marcação.
-                </p>
-              )}
-            </CardContent>
-          </Card>
         ) : (
           <div className="space-y-3">
             {isGestorOrAdmin && (
@@ -1604,7 +1586,56 @@ export default function Execucao() {
               })}
             </div>
 
-          <div className="hidden overflow-hidden rounded-2xl border border-border/70 bg-card shadow-sm lg:block">
+          <div className="hidden lg:block">
+            <Tabs
+              value={executionTableTab}
+              onValueChange={(value) => setExecutionTableTab(value as "demandas" | "persistentes")}
+              className="space-y-3"
+            >
+              <div className="rounded-2xl border border-border/70 bg-card p-2 shadow-sm">
+                <TabsList className="grid h-auto w-full grid-cols-2 bg-muted/40 p-1">
+                  <TabsTrigger value="demandas" className="gap-2 rounded-xl py-2 text-sm">
+                    <ListChecks className="h-4 w-4" />
+                    Demandas do momento
+                    <Badge variant="secondary" className="rounded-full">
+                      {executionGroups.length}
+                    </Badge>
+                  </TabsTrigger>
+                  <TabsTrigger value="persistentes" className="gap-2 rounded-xl py-2 text-sm">
+                    <RefreshCcw className="h-4 w-4" />
+                    Demandas persistentes
+                  </TabsTrigger>
+                </TabsList>
+              </div>
+
+              <TabsContent value="persistentes" className="mt-0">
+                <RotinasPersistentesSection
+                  mes={viewedMes}
+                  ano={viewedAno}
+                  semanas={activeMomentWeeks}
+                  momento={activeMomentNumber}
+                  isGestorOrAdmin={isGestorOrAdmin}
+                  profiles={profiles}
+                  setores={setores}
+                />
+              </TabsContent>
+
+              <TabsContent value="demandas" className="mt-0">
+                {executionGroups.length === 0 ? (
+                  <Card>
+                    <CardContent className="py-14 text-center">
+                      <p className="font-semibold text-foreground">
+                        {allMomentItemsProcessed && executionStatusFilter === "pendentes"
+                          ? "Tudo certo. Não há pendências comuns neste momento."
+                          : "Nenhuma demanda comum encontrada para o ciclo selecionado."}
+                      </p>
+                      <p className="mt-1 text-sm text-muted-foreground">
+                        Verifique a aba Demandas persistentes para executar rotinas recorrentes do momento.
+                      </p>
+                    </CardContent>
+                  </Card>
+                ) : (
+          <div className="overflow-hidden rounded-2xl border border-border/70 bg-card shadow-sm">
             <div className="flex flex-col gap-3 border-b border-border/70 bg-muted/30 px-3 py-3 lg:flex-row lg:items-center lg:justify-between">
               <div>
                 <p className="text-sm font-semibold">Planilha de execução</p>
@@ -1906,6 +1937,10 @@ export default function Execucao() {
                 </tbody>
               </table>
             </div>
+          </div>
+                )}
+              </TabsContent>
+            </Tabs>
           </div>
           </div>
         )}
