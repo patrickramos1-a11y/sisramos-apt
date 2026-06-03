@@ -11,6 +11,7 @@ import StatusBolinha from "./StatusBolinha";
 import { cn } from "@/lib/utils";
 import { Clock3, MoreVertical, Pencil, Trash2, Flame, Star, Repeat, MessageCircle } from "lucide-react";
 import { AptTag } from "@/lib/tags";
+import { DemandaModoExecucao, DemandaPrazoStatusVisual, formatPrazoWindow, getPrazoStatusLabel, getPrazoToneClasses } from "@/lib/demandas-prazo";
 
 type StatusBolinha = "pendente" | "executado" | "nao_realizado";
 
@@ -26,6 +27,10 @@ interface DemandaTableRowProps {
   statusGestor: StatusBolinha;
   semanasRepeticao: number;
   semanaLimite: number[];
+  modoExecucao?: DemandaModoExecucao | null;
+  semanaInicioPrazo?: number | null;
+  semanaFimPrazo?: number | null;
+  prazoStatusVisual?: DemandaPrazoStatusVisual;
   prioritaria: boolean;
   muitoUrgente?: boolean;
   canEditResponsavel: boolean;
@@ -46,6 +51,7 @@ interface DemandaTableRowProps {
   onEdit?: () => void;
   onDelete?: () => void;
   onTransformToPersistent?: () => void;
+  onTransformToPrazo?: () => void;
   onSelectChange?: (checked: boolean) => void;
 }
 
@@ -61,6 +67,10 @@ export default function DemandaTableRow({
   statusGestor,
   semanasRepeticao,
   semanaLimite,
+  modoExecucao,
+  semanaInicioPrazo,
+  semanaFimPrazo,
+  prazoStatusVisual,
   prioritaria,
   muitoUrgente,
   canEditResponsavel,
@@ -81,9 +91,21 @@ export default function DemandaTableRow({
   onEdit,
   onDelete,
   onTransformToPersistent,
+  onTransformToPrazo,
   onSelectChange,
 }: DemandaTableRowProps) {
   const semanaOrdenacao = semanaLimite?.length ? Math.min(...semanaLimite) : 0;
+  const prazoWindow = formatPrazoWindow(
+    {
+      id,
+      semana_limite: semanaLimite,
+      modo_execucao: modoExecucao,
+      semana_inicio_prazo: semanaInicioPrazo,
+      semana_fim_prazo: semanaFimPrazo,
+    },
+    "compact"
+  );
+  const prazoStatusLabel = getPrazoStatusLabel(prazoStatusVisual ?? null);
 
   return (
     <TableRow
@@ -157,6 +179,24 @@ export default function DemandaTableRow({
 
           <div className="min-w-0 space-y-1">
             <p className="leading-snug text-foreground">{descricao}</p>
+            {prazoWindow && (
+              <div className="flex flex-wrap gap-1">
+                <span className="inline-flex items-center gap-1 rounded-full border border-orange-200 bg-orange-50 px-1.5 py-0.5 text-[10px] font-semibold text-orange-700">
+                  <Clock3 className="h-3 w-3" />
+                  {prazoWindow}
+                </span>
+                {prazoStatusLabel && (
+                  <span
+                    className={cn(
+                      "inline-flex rounded-full border px-1.5 py-0.5 text-[10px] font-semibold",
+                      getPrazoToneClasses(prazoStatusVisual ?? null)
+                    )}
+                  >
+                    {prazoStatusLabel}
+                  </span>
+                )}
+              </div>
+            )}
             {tags.length > 0 && (
               <div className="flex flex-wrap gap-1">
                 {tags.map((tag) => (
@@ -210,15 +250,22 @@ export default function DemandaTableRow({
       )}
 
       <TableCell className="w-12 text-center">
-        <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
-          <Repeat className="h-3 w-3 opacity-60" />
-          {semanasRepeticao}x
-        </span>
+        {prazoWindow ? (
+          <span className="inline-flex items-center gap-1 rounded-full border border-orange-200 bg-orange-50 px-2 py-0.5 text-[10px] font-semibold text-orange-700">
+            <Clock3 className="h-3 w-3" />
+            Prazo
+          </span>
+        ) : (
+          <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
+            <Repeat className="h-3 w-3 opacity-60" />
+            {semanasRepeticao}x
+          </span>
+        )}
       </TableCell>
 
       <TableCell className="w-20 text-center">
         <span className="inline-flex min-w-[28px] items-center justify-center rounded-full bg-muted px-2 py-0.5 text-xs font-medium text-foreground/80">
-          {semanaOrdenacao}a
+          {prazoWindow || `${semanaOrdenacao}a`}
         </span>
       </TableCell>
 
@@ -256,6 +303,12 @@ export default function DemandaTableRow({
                     <DropdownMenuItem onClick={onTransformToPersistent}>
                       <Clock3 className="mr-2 h-4 w-4 text-orange-600" />
                       Transformar em persistente
+                    </DropdownMenuItem>
+                  )}
+                  {onTransformToPrazo && (
+                    <DropdownMenuItem onClick={onTransformToPrazo}>
+                      <Repeat className="mr-2 h-4 w-4 text-warning" />
+                      Transformar em demanda com prazo
                     </DropdownMenuItem>
                   )}
                   <DropdownMenuItem

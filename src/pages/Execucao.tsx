@@ -24,6 +24,19 @@ import { cn } from "@/lib/utils";
 import { buildSetorWhatsAppHref } from "@/lib/setor-actions";
 import { AptTag, uniqueTags } from "@/lib/tags";
 import {
+  clearDemandasPrazoMeta,
+  DemandaModoExecucao,
+  DemandaPrazoStatusVisual,
+  formatPrazoWindow,
+  getDemandaPrazoStatusVisual,
+  getPrazoReferenceWeek,
+  getPrazoStatusLabel,
+  getPrazoToneClasses,
+  isDemandaPrazo,
+  isPrazoColumnMissingError,
+  saveDemandasPrazoMeta,
+} from "@/lib/demandas-prazo";
+import {
   CalendarDays,
   Check,
   CheckCircle2,
@@ -58,6 +71,9 @@ interface Demanda {
   prioritaria: boolean;
   muito_urgente?: boolean;
   grupo_id: string | null;
+  modo_execucao?: DemandaModoExecucao | null;
+  semana_inicio_prazo?: number | null;
+  semana_fim_prazo?: number | null;
   tags?: AptTag[];
 }
 
@@ -68,6 +84,9 @@ interface ExecutionGroup {
   setor_id: string | null;
   prioritaria: boolean;
   muito_urgente: boolean;
+  modo_execucao?: DemandaModoExecucao | null;
+  semana_inicio_prazo?: number | null;
+  semana_fim_prazo?: number | null;
   observacoes: string[];
   siblings: Demanda[];
   tags: AptTag[];
@@ -246,6 +265,10 @@ function nextStatus(status: Demanda["status_responsavel"]) {
   if (status === "pendente") return "executado";
   if (status === "executado") return "nao_realizado";
   return "pendente";
+}
+
+function getGroupPrazoVisual(group: ExecutionGroup, referenceWeek: number): DemandaPrazoStatusVisual {
+  return getDemandaPrazoStatusVisual(group.siblings[0], referenceWeek);
 }
 
 function GroupWeeksEditor({
@@ -460,6 +483,7 @@ export default function Execucao() {
     currentMonth,
     currentYear
   );
+  const prazoReferenceWeek = getPrazoReferenceWeek({ mes: viewedMes, ano: viewedAno, currentWeek });
 
   useEffect(() => {
     if (executionStatusDefaultApplied || !user) return;
@@ -704,8 +728,18 @@ export default function Execucao() {
     (!isColaborador || !isMomentoBloqueado) &&
     (role === "admin" || user?.id === group.responsavel_id);
 
-  const canEditGroupGestor = (group: ExecutionGroup) =>
-    isGestorOrAdmin && group.siblings.every((demanda) => isStatusUpdateAllowed(demanda.mes, demanda.ano));
+  const canEditGroupGestor = (group: ExecutionGroup) => {
+    if (!(isGestorOrAdmin && group.siblings.every((demanda) => isStatusUpdateAllowed(demanda.mes, demanda.ano)))) {
+      return false;
+    }
+
+    if (!isDemandaPrazo(group.siblings[0])) return true;
+
+    const prazoVisual = getGroupPrazoVisual(group, prazoReferenceWeek);
+    const responsavelStatus = getGroupStatus(group, "status_responsavel");
+
+    return !(prazoVisual === "no_prazo" && responsavelStatus === "pendente");
+  };
 
   const updateGroupResponsavelStatus = async (group: ExecutionGroup) => {
     if (!canEditGroupResponsavel(group)) return;
@@ -874,17 +908,46 @@ export default function Execucao() {
     const nextWeeks = [...new Set(weeks)].filter((week) => week >= 1 && week <= 5).sort((a, b) => a - b);
     if (nextWeeks.length === 0) return;
 
+    const isPrazo = isDemandaPrazo(group.siblings[0]);
+    const payload = isPrazo
+      ? {
+          semana_limite: nextWeeks,
+          semanas_repeticao: 1,
+          modo_execucao: "prazo" as DemandaModoExecucao,
+          semana_inicio_prazo: nextWeeks[0],
+          semana_fim_prazo: nextWeeks[nextWeeks.length - 1],
+        }
+      : {
+          semana_limite: nextWeeks,
+          semanas_repeticao: nextWeeks.length,
+          modo_execucao: "semanal" as DemandaModoExecucao,
+          semana_inicio_prazo: null,
+          semana_fim_prazo: null,
+        };
+
     const { error } = await supabase
       .from("demandas")
-      .update({
-        semana_limite: nextWeeks,
-        semanas_repeticao: nextWeeks.length,
-      })
+      .update(payload)
       .in("id", group.siblings.map((demanda) => demanda.id));
 
     if (error) {
+      if (isPrazoColumnMissingError(error)) {
+        if (isPrazo) {
+          saveDemandasPrazoMeta(
+            group.siblings.map((demanda) => demanda.id),
+            {
+              modo_execucao: "prazo",
+              semana_inicio_prazo: nextWeeks[0],
+              semana_fim_prazo: nextWeeks[nextWeeks.length - 1],
+            }
+          );
+        } else {
+          clearDemandasPrazoMeta(group.siblings.map((demanda) => demanda.id));
+        }
+      } else {
       console.error("Erro ao editar semanas do grupo de execução:", error);
-      return;
+        return;
+      }
     }
 
     setSelectedGroupKeys((prev) => {
@@ -984,6 +1047,9 @@ export default function Execucao() {
         demanda.setor_id ?? "",
         demanda.prioritaria ? "1" : "0",
         demanda.muito_urgente ? "1" : "0",
+        demanda.modo_execucao ?? "semanal",
+        demanda.semana_inicio_prazo ?? "",
+        demanda.semana_fim_prazo ?? "",
       ].join("|");
 
       const existing = map.get(key);
@@ -1001,6 +1067,9 @@ export default function Execucao() {
         setor_id: demanda.setor_id,
         prioritaria: demanda.prioritaria,
         muito_urgente: demanda.muito_urgente ?? false,
+        modo_execucao: demanda.modo_execucao ?? "semanal",
+        semana_inicio_prazo: demanda.semana_inicio_prazo ?? null,
+        semana_fim_prazo: demanda.semana_fim_prazo ?? null,
         observacoes: demanda.observacoes ? [demanda.observacoes] : [],
         siblings: [demanda],
         tags: demanda.tags || [],
@@ -1018,12 +1087,15 @@ export default function Execucao() {
     const filteredGroups = groups.filter((group) => {
       const responsavelStatus = getGroupStatus(group, "status_responsavel");
       const gestorStatus = getGroupStatus(group, "status_gestor");
+      const prazoVisual = isDemandaPrazo(group.siblings[0])
+        ? getGroupPrazoVisual(group, prazoReferenceWeek)
+        : null;
 
       if (executionStatusFilter === "pendentes") return responsavelStatus === "pendente";
       if (executionStatusFilter === "feitas") return responsavelStatus === "executado";
       if (executionStatusFilter === "nao_realizadas") return responsavelStatus === "nao_realizado";
       if (executionStatusFilter === "aguardando") {
-        return responsavelStatus !== "pendente" && gestorStatus === "pendente";
+        return responsavelStatus !== "pendente" && gestorStatus === "pendente" && prazoVisual !== "no_prazo";
       }
       return true;
     });
@@ -1047,7 +1119,7 @@ export default function Execucao() {
       }
       return a.descricao.localeCompare(b.descricao, "pt-BR");
     });
-  }, [executionSortKey, executionStatusFilter, filteredByTopSetor, getProfileById, getSetorById]);
+  }, [executionSortKey, executionStatusFilter, filteredByTopSetor, getProfileById, getSetorById, prazoReferenceWeek]);
 
   const filteredRotinaResumos = useMemo(() => {
     const todayKey = getTodayKey();
@@ -1668,6 +1740,9 @@ export default function Execucao() {
                       const responsavel = getProfileById(group.responsavel_id);
                       const responsavelStatus = getGroupStatus(group, "status_responsavel");
                       const gestorStatus = getGroupStatus(group, "status_gestor");
+                      const isPrazo = isDemandaPrazo(group.siblings[0]);
+                      const prazoVisual = isPrazo ? getGroupPrazoVisual(group, prazoReferenceWeek) : null;
+                      const prazoWindow = isPrazo ? formatPrazoWindow(group.siblings[0]) : null;
                       const canEditResponsavel = canEditGroupResponsavel(group);
 
                       return (
@@ -1697,8 +1772,13 @@ export default function Execucao() {
                                   {setor?.nome || "Sem setor"}
                                 </Badge>
                                 <Badge variant="outline" className="rounded-full px-2 py-0.5 text-[10px]">
-                                  {semanasCompactas(allWeeks)}
+                                  {isPrazo && prazoWindow ? prazoWindow : semanasCompactas(allWeeks)}
                                 </Badge>
+                                {isPrazo && prazoVisual && (
+                                  <Badge className={cn("rounded-full px-2 py-0.5 text-[10px]", getPrazoToneClasses(prazoVisual))}>
+                                    {getPrazoStatusLabel(prazoVisual)}
+                                  </Badge>
+                                )}
                                 {isGestorOrAdmin && (
                                   <Badge variant="outline" className="gap-1 rounded-full px-2 py-0.5 text-[10px]">
                                     <span className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: responsavel?.cor || "#65a30d" }} />
@@ -1754,7 +1834,9 @@ export default function Execucao() {
                                     </div>
                                     <div className="flex flex-1 items-center gap-2 rounded-xl border px-2.5 py-2">
                                       <StatusBolinha status={gestorStatus} disabled size="sm" />
-                                      <span className="text-[11px] text-muted-foreground">Gestor</span>
+                                      <span className="text-[11px] text-muted-foreground">
+                                        {prazoVisual === "no_prazo" && responsavelStatus === "pendente" ? "No prazo" : "Gestor"}
+                                      </span>
                                     </div>
                                   </>
                                 ) : (
@@ -2047,8 +2129,15 @@ export default function Execucao() {
                           const responsavel = getProfileById(group.responsavel_id);
                           const responsavelStatus = getGroupStatus(group, "status_responsavel");
                           const gestorStatus = getGroupStatus(group, "status_gestor");
+                          const isPrazo = isDemandaPrazo(group.siblings[0]);
+                          const prazoVisual = isPrazo ? getGroupPrazoVisual(group, prazoReferenceWeek) : null;
+                          const prazoWindow = isPrazo ? formatPrazoWindow(group.siblings[0]) : null;
                           const repeatedLabel =
-                            group.siblings.length > 1 ? `${group.siblings.length}x` : `${group.siblings[0]?.semanas_repeticao ?? 1}x`;
+                            isPrazo
+                              ? "Prazo"
+                              : group.siblings.length > 1
+                              ? `${group.siblings.length}x`
+                              : `${group.siblings[0]?.semanas_repeticao ?? 1}x`;
 
                           return (
                             <tr
@@ -2106,7 +2195,19 @@ export default function Execucao() {
                                     ) : null}
                                   </span>
                                   <div className="min-w-0">
-                                    <p className="font-medium leading-snug">{group.descricao}</p>
+                                    <div className="flex flex-wrap items-center gap-1.5">
+                                      <p className="font-medium leading-snug">{group.descricao}</p>
+                                      {isPrazo && prazoWindow && (
+                                        <Badge className="rounded-full border border-orange-200 bg-orange-50 px-2 py-0.5 text-[10px] text-orange-700 hover:bg-orange-50">
+                                          {prazoWindow}
+                                        </Badge>
+                                      )}
+                                      {isPrazo && prazoVisual && (
+                                        <Badge className={cn("rounded-full px-2 py-0.5 text-[10px]", getPrazoToneClasses(prazoVisual))}>
+                                          {getPrazoStatusLabel(prazoVisual)}
+                                        </Badge>
+                                      )}
+                                    </div>
                                     {group.tags.length > 0 && (
                                       <div className="mt-1 flex flex-wrap gap-1">
                                         {group.tags.map((tag) => (
@@ -2134,7 +2235,13 @@ export default function Execucao() {
                                 />
                               </td>
                               <td className="whitespace-nowrap px-3 py-3 text-center align-middle">
-                                <Badge variant="outline" className="rounded-full px-2.5 py-1">
+                                <Badge
+                                  variant="outline"
+                                  className={cn(
+                                    "rounded-full px-2.5 py-1",
+                                    isPrazo && "border-orange-200 bg-orange-50 text-orange-700"
+                                  )}
+                                >
                                   {repeatedLabel}
                                 </Badge>
                               </td>
@@ -2153,13 +2260,21 @@ export default function Execucao() {
                               {isGestorOrAdmin && (
                                 <td className="px-3 py-3 text-center align-middle">
                                   <div className="inline-flex items-center gap-2">
-                                    <StatusBolinha
-                                      status={gestorStatus}
-                                      onClick={() => updateGroupGestorStatus(group)}
-                                      disabled={!canEditGroupGestor(group)}
-                                    />
-                                    {summary.aguardandoGestor > 0 && (
-                                      <span className="text-xs text-sky-700">{summary.aguardandoGestor}</span>
+                                    {prazoVisual === "no_prazo" && responsavelStatus === "pendente" ? (
+                                      <Badge className={cn("rounded-full px-2.5 py-1 text-xs", getPrazoToneClasses("no_prazo"))}>
+                                        No prazo
+                                      </Badge>
+                                    ) : (
+                                      <>
+                                        <StatusBolinha
+                                          status={gestorStatus}
+                                          onClick={() => updateGroupGestorStatus(group)}
+                                          disabled={!canEditGroupGestor(group)}
+                                        />
+                                        {summary.aguardandoGestor > 0 && (
+                                          <span className="text-xs text-sky-700">{summary.aguardandoGestor}</span>
+                                        )}
+                                      </>
                                     )}
                                   </div>
                                 </td>

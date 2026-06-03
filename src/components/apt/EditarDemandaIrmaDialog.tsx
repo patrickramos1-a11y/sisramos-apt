@@ -24,6 +24,14 @@ import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import TagSelector from "@/components/apt/TagSelector";
 import { AptTag, syncDemandTags } from "@/lib/tags";
+import {
+  DemandaModoExecucao,
+  buildPrazoWeeks,
+  clearDemandasPrazoMeta,
+  isDemandaPrazo,
+  isPrazoColumnMissingError,
+  saveDemandasPrazoMeta,
+} from "@/lib/demandas-prazo";
 
 interface Profile {
   id: string;
@@ -50,6 +58,9 @@ interface Demanda {
   prioritaria: boolean;
   muito_urgente?: boolean;
   grupo_id: string | null;
+  modo_execucao?: DemandaModoExecucao | null;
+  semana_inicio_prazo?: number | null;
+  semana_fim_prazo?: number | null;
   tags?: AptTag[];
 }
 
@@ -85,7 +96,10 @@ export default function EditarDemandaIrmaDialog({
     setor_id: "",
     descricao: "",
     observacoes: "",
+    modo_execucao: "semanal" as DemandaModoExecucao,
     semanas_selecionadas: [1] as number[],
+    semana_inicio_prazo: "1",
+    semana_fim_prazo: "1",
     mes: String(new Date().getMonth() + 1),
     ano: String(new Date().getFullYear()),
     prioritaria: false,
@@ -213,7 +227,12 @@ export default function EditarDemandaIrmaDialog({
         setor_id: demanda.setor_id || "",
         descricao: demanda.descricao,
         observacoes: demanda.observacoes ?? "",
+        modo_execucao: isDemandaPrazo(demanda) ? "prazo" : "semanal",
         semanas_selecionadas: demanda.semana_limite || [1],
+        semana_inicio_prazo: String(demanda.semana_inicio_prazo ?? demanda.semana_limite?.[0] ?? 1),
+        semana_fim_prazo: String(
+          demanda.semana_fim_prazo ?? demanda.semana_limite?.[demanda.semana_limite.length - 1] ?? 1
+        ),
         mes: String(demanda.mes),
         ano: String(demanda.ano),
         prioritaria: demanda.prioritaria,
@@ -245,6 +264,18 @@ export default function EditarDemandaIrmaDialog({
       return;
     }
 
+    if (
+      formData.modo_execucao === "prazo" &&
+      parseInt(formData.semana_inicio_prazo, 10) > parseInt(formData.semana_fim_prazo, 10)
+    ) {
+      toast({
+        variant: "destructive",
+        title: "Erro",
+        description: "A semana inicial do prazo não pode ser maior que a final.",
+      });
+      return;
+    }
+
     setIsLoading(true);
 
     try {
@@ -265,6 +296,39 @@ export default function EditarDemandaIrmaDialog({
         baseUpdateData.mes = parseInt(formData.mes);
         baseUpdateData.ano = parseInt(formData.ano);
       }
+      const prazoWeeks =
+        formData.modo_execucao === "prazo"
+          ? buildPrazoWeeks(
+              parseInt(formData.semana_inicio_prazo, 10),
+              parseInt(formData.semana_fim_prazo, 10)
+            )
+          : [];
+      const persistPrazoMeta = async (ids: string[]) => {
+        if (ids.length === 0) return;
+        if (formData.modo_execucao === "prazo") {
+          const patch = {
+            modo_execucao: "prazo" as DemandaModoExecucao,
+            semana_inicio_prazo: parseInt(formData.semana_inicio_prazo, 10),
+            semana_fim_prazo: parseInt(formData.semana_fim_prazo, 10),
+          };
+          const { error } = await supabase.from("demandas").update(patch).in("id", ids);
+          if (error && isPrazoColumnMissingError(error)) saveDemandasPrazoMeta(ids, patch);
+          else if (error) throw error;
+          else saveDemandasPrazoMeta(ids, patch);
+          return;
+        }
+
+        const { error } = await supabase
+          .from("demandas")
+          .update({
+            modo_execucao: "semanal",
+            semana_inicio_prazo: null,
+            semana_fim_prazo: null,
+          })
+          .in("id", ids);
+        if (error && !isPrazoColumnMissingError(error)) throw error;
+        clearDemandasPrazoMeta(ids);
+      };
 
       if (editScope === "all") {
         if (!resolvedGrupoId) {
@@ -278,8 +342,46 @@ export default function EditarDemandaIrmaDialog({
           return;
         }
 
-        // Update ALL siblings sharing the grupo_id with the same fields
-        // (we deliberately do NOT update semana_limite to keep each sibling's week)
+        if (formData.modo_execucao === "prazo") {
+          const { data: siblings, error: siblingsError } = await supabase
+            .from("demandas")
+            .select("id")
+            .eq("grupo_id", resolvedGrupoId)
+            .eq("ativa", true)
+            .order("numero", { ascending: true });
+
+          if (siblingsError) throw siblingsError;
+          const siblingIds = (siblings || []).map((item) => item.id);
+          const keeperId = siblingIds[0] ?? demanda?.id;
+          const idsToDeactivate = siblingIds.filter((id) => id !== keeperId);
+
+          const { error: keeperError } = await supabase
+            .from("demandas")
+            .update({
+              ...baseUpdateData,
+              semana_limite: prazoWeeks,
+              semanas_repeticao: 1,
+              grupo_id: null,
+            })
+            .eq("id", keeperId);
+          if (keeperError) throw keeperError;
+
+          if (idsToDeactivate.length > 0) {
+            const { error: deactivateError } = await supabase
+              .from("demandas")
+              .update({ ativa: false })
+              .in("id", idsToDeactivate);
+            if (deactivateError) throw deactivateError;
+          }
+
+          await persistPrazoMeta(keeperId ? [keeperId] : []);
+          toast({
+            title: "Demanda convertida!",
+            description: "O grupo foi colapsado em uma única demanda com prazo.",
+          });
+        } else {
+          // Update ALL siblings sharing the grupo_id with the same fields
+          // (we deliberately do NOT update semana_limite to keep each sibling's week)
         const { data: updated, error } = await supabase
           .from("demandas")
           .update(baseUpdateData)
@@ -300,10 +402,29 @@ export default function EditarDemandaIrmaDialog({
           title: "Demandas atualizadas!",
           description: `${affected} demandas do grupo foram atualizadas`,
         });
+          await persistPrazoMeta((updated || []).map((item) => item.id));
+        }
       } else {
         // Single demand - check if we need to expand to multiple weeks
         const currentWeeks = demanda?.semana_limite || [];
         const newWeeks = formData.semanas_selecionadas;
+
+        if (formData.modo_execucao === "prazo") {
+          const { error } = await supabase
+            .from("demandas")
+            .update({
+              ...baseUpdateData,
+              semana_limite: prazoWeeks,
+              semanas_repeticao: 1,
+            })
+            .eq("id", demanda?.id);
+          if (error) throw error;
+          await persistPrazoMeta(demanda?.id ? [demanda.id] : []);
+          toast({
+            title: "Demanda atualizada!",
+            description: "A demanda agora usa janela de prazo.",
+          });
+        } else {
         
         // Find weeks to add (new siblings) and weeks to remove
         const weeksToAdd = newWeeks.filter(w => !currentWeeks.includes(w));
@@ -413,6 +534,19 @@ export default function EditarDemandaIrmaDialog({
             title: "Demanda atualizada!",
             description: "As alterações foram salvas com sucesso",
           });
+        }
+          const idsToSync = resolvedGrupoId
+            ? (
+                await supabase
+                  .from("demandas")
+                  .select("id")
+                  .eq("grupo_id", resolvedGrupoId)
+                  .eq("ativa", true)
+              ).data?.map((item) => item.id) || (demanda?.id ? [demanda.id] : [])
+            : demanda?.id
+              ? [demanda.id]
+              : [];
+          await persistPrazoMeta(idsToSync);
         }
       }
 
@@ -611,23 +745,108 @@ export default function EditarDemandaIrmaDialog({
           />
 
           <div className="space-y-2">
+            <Label>Tipo de demanda</Label>
+            <Select
+              value={formData.modo_execucao}
+              onValueChange={(value) =>
+                setFormData((prev) => ({
+                  ...prev,
+                  modo_execucao: value as DemandaModoExecucao,
+                }))
+              }
+            >
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="semanal">Semanal / recorrente</SelectItem>
+                <SelectItem value="prazo">Com prazo</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="space-y-2">
             <Label htmlFor="semanas">Repetições</Label>
             <Input
               id="semanas"
               type="number"
               min="1"
               max="52"
-              value={formData.semanas_selecionadas.length}
+              value={formData.modo_execucao === "prazo" ? "Prazo" : formData.semanas_selecionadas.length}
               readOnly
               disabled
               className="bg-muted"
             />
             <p className="text-xs text-muted-foreground">
-              Calculado automaticamente com base nas semanas selecionadas
+              {formData.modo_execucao === "prazo"
+                ? "A demanda fica ativa da semana inicial até a final."
+                : "Calculado automaticamente com base nas semanas selecionadas"}
             </p>
           </div>
 
-          {editScope === "single" || !lockSemanas ? (
+          {formData.modo_execucao === "prazo" ? (
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>Semana inicial</Label>
+                <Select
+                  value={formData.semana_inicio_prazo}
+                  onValueChange={(value) =>
+                    setFormData((prev) => {
+                      const start = parseInt(value, 10);
+                      const end = Math.max(start, parseInt(prev.semana_fim_prazo, 10));
+                      return {
+                        ...prev,
+                        semana_inicio_prazo: value,
+                        semana_fim_prazo: String(end),
+                        semanas_selecionadas: buildPrazoWeeks(start, end),
+                      };
+                    })
+                  }
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {semanas.map((week) => (
+                      <SelectItem key={week} value={String(week)}>
+                        {week}ª semana
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label>Semana final</Label>
+                <Select
+                  value={formData.semana_fim_prazo}
+                  onValueChange={(value) =>
+                    setFormData((prev) => ({
+                      ...prev,
+                      semana_fim_prazo: value,
+                      semanas_selecionadas: buildPrazoWeeks(
+                        parseInt(prev.semana_inicio_prazo, 10),
+                        parseInt(value, 10)
+                      ),
+                    }))
+                  }
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {semanas.map((week) => (
+                      <SelectItem key={week} value={String(week)}>
+                        {week}ª semana
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="col-span-2 rounded-md border border-warning/30 bg-warning/10 px-3 py-2 text-xs text-warning">
+                Disponível da {formData.semana_inicio_prazo}ª até a {formData.semana_fim_prazo}ª semana.
+              </div>
+            </div>
+          ) : editScope === "single" || !lockSemanas ? (
             <div className="space-y-2">
               <Label>Semanas (selecione uma ou mais)</Label>
               <div className="flex flex-wrap gap-2">

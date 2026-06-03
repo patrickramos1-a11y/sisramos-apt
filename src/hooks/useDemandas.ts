@@ -4,6 +4,13 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import { SortConfig, SortDirection } from "@/components/apt/DemandaSortHeader";
 import { AptTag, uniqueTags } from "@/lib/tags";
+import {
+  DemandaModoExecucao,
+  clearDemandasPrazoMeta,
+  isPrazoColumnMissingError,
+  mergeDemandasPrazoMeta,
+  saveDemandasPrazoMeta,
+} from "@/lib/demandas-prazo";
 
 
 type StatusBolinha = "pendente" | "executado" | "nao_realizado";
@@ -41,6 +48,9 @@ export interface Demanda {
   mes: number;
   ano: number;
   grupo_id: string | null;
+  modo_execucao?: DemandaModoExecucao | null;
+  semana_inicio_prazo?: number | null;
+  semana_fim_prazo?: number | null;
   created_at: string;
   updated_at: string;
   tags?: AptTag[];
@@ -166,12 +176,12 @@ export function useDemandas() {
       setDemandas([]);
     } else {
       // Filter semanas client-side since it's an array column
-      let filteredData = ((data || []) as any[]).map((demanda) => ({
+      let filteredData = mergeDemandasPrazoMeta(((data || []) as any[]).map((demanda) => ({
         ...demanda,
         tags: (demanda.demanda_tags || [])
           .map((item: any) => item.tag)
           .filter(Boolean),
-      })) as Demanda[];
+      })) as Demanda[]);
 
       setAvailableTags(uniqueTags(filteredData.flatMap((demanda) => demanda.tags || [])));
 
@@ -411,6 +421,45 @@ export function useDemandas() {
     (d) => d.status_responsavel === "executado" && d.status_gestor === "pendente"
   ).length;
 
+  const persistPrazoMeta = useCallback(
+    async (
+      demandaIds: string[],
+      payload: {
+        modo_execucao: DemandaModoExecucao;
+        semana_inicio_prazo?: number | null;
+        semana_fim_prazo?: number | null;
+      }
+    ) => {
+      if (demandaIds.length === 0) return { localOnly: false };
+
+      const patch = {
+        modo_execucao: payload.modo_execucao,
+        semana_inicio_prazo:
+          payload.modo_execucao === "prazo" ? payload.semana_inicio_prazo ?? null : null,
+        semana_fim_prazo:
+          payload.modo_execucao === "prazo" ? payload.semana_fim_prazo ?? null : null,
+      };
+
+      const { error } = await supabase.from("demandas").update(patch).in("id", demandaIds);
+
+      if (error) {
+        if (isPrazoColumnMissingError(error)) {
+          if (payload.modo_execucao === "prazo") saveDemandasPrazoMeta(demandaIds, payload);
+          else clearDemandasPrazoMeta(demandaIds);
+          await fetchDemandas();
+          return { localOnly: true };
+        }
+        throw error;
+      }
+
+      if (payload.modo_execucao === "prazo") saveDemandasPrazoMeta(demandaIds, payload);
+      else clearDemandasPrazoMeta(demandaIds);
+      await fetchDemandas();
+      return { localOnly: false };
+    },
+    [fetchDemandas]
+  );
+
   return {
     demandas: sortedDemandas,
     profiles,
@@ -431,5 +480,6 @@ export function useDemandas() {
     getSiblingCount,
     pendingCount,
     pendingApprovalCount,
+    persistPrazoMeta,
   };
 }

@@ -1,6 +1,7 @@
 import { useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { DemandaModoExecucao, clearDemandasPrazoMeta, isPrazoColumnMissingError, saveDemandasPrazoMeta } from "@/lib/demandas-prazo";
 
 type Status = "pendente" | "executado" | "nao_realizado";
 
@@ -43,6 +44,38 @@ export function useBulkDemandaActions(onDone: () => void) {
       runUpdate(ids, { status_gestor: status }, "Aprovação atualizada"),
     runRepeticoes: (ids: string[], n: number) =>
       runUpdate(ids, { semanas_repeticao: n }, "Repetições atualizadas"),
+    setPrazoMeta: async (
+      ids: string[],
+      payload: {
+        modo_execucao: DemandaModoExecucao;
+        semana_inicio_prazo: number | null;
+        semana_fim_prazo: number | null;
+      },
+      label: string
+    ) => {
+      if (ids.length === 0) return;
+      const patch = {
+        modo_execucao: payload.modo_execucao,
+        semana_inicio_prazo: payload.modo_execucao === "prazo" ? payload.semana_inicio_prazo : null,
+        semana_fim_prazo: payload.modo_execucao === "prazo" ? payload.semana_fim_prazo : null,
+      };
+      const { error } = await supabase.from("demandas").update(patch).in("id", ids);
+      if (error) {
+        if (isPrazoColumnMissingError(error)) {
+          if (payload.modo_execucao === "prazo") saveDemandasPrazoMeta(ids, payload);
+          else clearDemandasPrazoMeta(ids);
+          toast({ title: label, description: `${ids.length} demanda(s) atualizada(s) em modo local` });
+          onDone();
+          return;
+        }
+        toast({ variant: "destructive", title: "Erro", description: error.message });
+        return;
+      }
+      if (payload.modo_execucao === "prazo") saveDemandasPrazoMeta(ids, payload);
+      else clearDemandasPrazoMeta(ids);
+      toast({ title: label, description: `${ids.length} demanda(s) atualizada(s)` });
+      onDone();
+    },
     softDelete: (ids: string[]) => runUpdate(ids, { ativa: false }, "Demandas removidas"),
   };
 }

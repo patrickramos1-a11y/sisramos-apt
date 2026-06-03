@@ -6,6 +6,7 @@ import SwipeableCard from "./SwipeableCard";
 import { cn } from "@/lib/utils";
 import { User, RefreshCw, Calendar, Flame, Star, MessageCircle } from "lucide-react";
 import type { AptTag } from "@/lib/tags";
+import { DemandaModoExecucao, DemandaPrazoStatusVisual, formatPrazoWindow, getPrazoStatusLabel, getPrazoToneClasses } from "@/lib/demandas-prazo";
 
 type StatusBolinha = "pendente" | "executado" | "nao_realizado";
 
@@ -20,6 +21,10 @@ interface DemandaCardProps {
   statusGestor: StatusBolinha;
   semanasRepeticao: number;
   semanaLimite: number[];
+  modoExecucao?: DemandaModoExecucao | null;
+  semanaInicioPrazo?: number | null;
+  semanaFimPrazo?: number | null;
+  prazoStatusVisual?: DemandaPrazoStatusVisual;
   prioritaria: boolean;
   muitoUrgente?: boolean;
   canEditResponsavel: boolean;
@@ -47,6 +52,10 @@ export default function DemandaCard({
   statusGestor,
   semanasRepeticao,
   semanaLimite,
+  modoExecucao,
+  semanaInicioPrazo,
+  semanaFimPrazo,
+  prazoStatusVisual,
   prioritaria,
   muitoUrgente,
   canEditResponsavel,
@@ -62,6 +71,17 @@ export default function DemandaCard({
   onDelete,
 }: DemandaCardProps) {
   const semanaOrdenacao = semanaLimite?.length ? Math.min(...semanaLimite) : 0;
+  const prazoWindow = formatPrazoWindow(
+    {
+      id: String(numero),
+      semana_limite: semanaLimite,
+      modo_execucao: modoExecucao,
+      semana_inicio_prazo: semanaInicioPrazo,
+      semana_fim_prazo: semanaFimPrazo,
+    },
+    "compact"
+  );
+  const prazoStatusLabel = getPrazoStatusLabel(prazoStatusVisual ?? null);
 
   const cardContent = (
     <Card
@@ -112,6 +132,18 @@ export default function DemandaCard({
 
             <div className="min-w-0 space-y-1">
               <p className="text-sm font-medium leading-snug break-words">{descricao}</p>
+              {prazoWindow && (
+                <div className="flex flex-wrap gap-1">
+                  <span className="inline-flex rounded-full border border-orange-200 bg-orange-50 px-2 py-0.5 text-[10px] font-semibold text-orange-700">
+                    {prazoWindow}
+                  </span>
+                  {prazoStatusLabel && (
+                    <span className={cn("inline-flex rounded-full border px-2 py-0.5 text-[10px] font-semibold", getPrazoToneClasses(prazoStatusVisual ?? null))}>
+                      {prazoStatusLabel}
+                    </span>
+                  )}
+                </div>
+              )}
               {pendingExclusao && (
                 <span className="inline-flex items-center rounded-full border border-warning/30 bg-warning/15 px-2 py-0.5 text-[10px] font-medium text-warning">
                   Aguardando exclusao
@@ -150,11 +182,11 @@ export default function DemandaCard({
           </div>
           <div className="flex items-center justify-center gap-1.5 text-xs text-muted-foreground">
             <RefreshCw className="h-3.5 w-3.5 shrink-0" />
-            <span className="font-medium">{semanasRepeticao}x</span>
+            <span className="font-medium">{prazoWindow ? "Prazo" : `${semanasRepeticao}x`}</span>
           </div>
           <div className="flex items-center justify-end gap-1.5 text-xs text-muted-foreground">
             <Calendar className="h-3.5 w-3.5 shrink-0" />
-            <span className="font-medium">{semanaOrdenacao}a sem.</span>
+            <span className="font-medium">{prazoWindow || `${semanaOrdenacao}a sem.`}</span>
           </div>
         </div>
 

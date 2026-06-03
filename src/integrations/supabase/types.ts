@@ -407,11 +407,14 @@ export type Database = {
           grupo_id: string | null
           id: string
           mes: number
+          modo_execucao: string
           muito_urgente: boolean
           numero: number
           observacoes: string | null
           prioritaria: boolean
           responsavel_id: string
+          semana_fim_prazo: number | null
+          semana_inicio_prazo: number | null
           semana_limite: number[]
           semanas_repeticao: number
           setor_id: string | null
@@ -428,11 +431,14 @@ export type Database = {
           grupo_id?: string | null
           id?: string
           mes: number
+          modo_execucao?: string
           muito_urgente?: boolean
           numero?: number
           observacoes?: string | null
           prioritaria?: boolean
           responsavel_id: string
+          semana_fim_prazo?: number | null
+          semana_inicio_prazo?: number | null
           semana_limite?: number[]
           semanas_repeticao?: number
           setor_id?: string | null
@@ -449,11 +455,14 @@ export type Database = {
           grupo_id?: string | null
           id?: string
           mes?: number
+          modo_execucao?: string
           muito_urgente?: boolean
           numero?: number
           observacoes?: string | null
           prioritaria?: boolean
           responsavel_id?: string
+          semana_fim_prazo?: number | null
+          semana_inicio_prazo?: number | null
           semana_limite?: number[]
           semanas_repeticao?: number
           setor_id?: string | null

@@ -31,6 +31,12 @@ import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import TagSelector from "@/components/apt/TagSelector";
 import { AptTag, syncDemandTags } from "@/lib/tags";
+import {
+  DemandaModoExecucao,
+  buildPrazoWeeks,
+  isPrazoColumnMissingError,
+  saveDemandasPrazoMeta,
+} from "@/lib/demandas-prazo";
 
 interface Profile {
   id: string;
@@ -67,8 +73,11 @@ export default function NovaDemandaDialog({
     setor_id: lockedSetorId || "",
     descricao: "",
     observacoes: "",
+    modo_execucao: "semanal" as DemandaModoExecucao,
     semanas_repeticao: "1",
     semana_limite: [1] as number[],
+    semana_inicio_prazo: "1",
+    semana_fim_prazo: "1",
     mes: String(new Date().getMonth() + 1),
     ano: String(new Date().getFullYear()),
     prioritaria: false,
@@ -85,8 +94,11 @@ export default function NovaDemandaDialog({
       setor_id: lockedSetorId || "",
       descricao: "",
       observacoes: "",
+      modo_execucao: "semanal",
       semanas_repeticao: "1",
       semana_limite: [1],
+      semana_inicio_prazo: "1",
+      semana_fim_prazo: "1",
       mes: String(new Date().getMonth() + 1),
       ano: String(new Date().getFullYear()),
       prioritaria: false,
@@ -152,6 +164,18 @@ export default function NovaDemandaDialog({
       return;
     }
 
+    if (
+      formData.modo_execucao === "prazo" &&
+      parseInt(formData.semana_inicio_prazo, 10) > parseInt(formData.semana_fim_prazo, 10)
+    ) {
+      toast({
+        variant: "destructive",
+        title: "Erro",
+        description: "A semana inicial não pode ser maior que a semana final do prazo.",
+      });
+      return;
+    }
+
     setIsLoading(true);
 
     // Compute target months based on monthly recurrence
@@ -182,14 +206,38 @@ export default function NovaDemandaDialog({
       grupo_id: string | null;
     }[] = [];
 
-    const totalPerResponsavel = formData.semana_limite.length * targetMonths.length;
+    const prazoWeeks =
+      formData.modo_execucao === "prazo"
+        ? buildPrazoWeeks(
+            parseInt(formData.semana_inicio_prazo, 10),
+            parseInt(formData.semana_fim_prazo, 10)
+          )
+        : [];
+    const totalPerResponsavel =
+      (formData.modo_execucao === "prazo" ? 1 : formData.semana_limite.length) * targetMonths.length;
 
     for (const responsavelId of formData.responsavel_ids) {
       // Generate a unique group ID for this responsible if more than 1 demand will be created
       const grupoId = totalPerResponsavel > 1 ? crypto.randomUUID() : null;
 
-      // Create one demand for each (target month × selected week)
       for (const { mes, ano } of targetMonths) {
+        if (formData.modo_execucao === "prazo") {
+          allDemandas.push({
+            responsavel_id: responsavelId,
+            setor_id: formData.setor_id || null,
+            descricao: formData.descricao.trim(),
+            observacoes: formData.observacoes.trim() || null,
+            semanas_repeticao: 1,
+            semana_limite: prazoWeeks,
+            mes,
+            ano,
+            prioritaria: formData.prioritaria,
+            muito_urgente: formData.muito_urgente,
+            grupo_id: null,
+          });
+          continue;
+        }
+
         for (const semana of formData.semana_limite) {
           allDemandas.push({
             responsavel_id: responsavelId,
@@ -220,17 +268,41 @@ export default function NovaDemandaDialog({
         description: error.message,
       });
     } else {
+      const insertedIds = (insertedDemandas || []).map((item) => item.id);
+      if (formData.modo_execucao === "prazo" && insertedIds.length > 0) {
+        const patch = {
+          modo_execucao: "prazo" as DemandaModoExecucao,
+          semana_inicio_prazo: parseInt(formData.semana_inicio_prazo, 10),
+          semana_fim_prazo: parseInt(formData.semana_fim_prazo, 10),
+        };
+
+        const { error: prazoError } = await supabase.from("demandas").update(patch).in("id", insertedIds);
+        if (prazoError && isPrazoColumnMissingError(prazoError)) {
+          saveDemandasPrazoMeta(insertedIds, patch);
+        } else if (prazoError) {
+          toast({
+            variant: "destructive",
+            title: "Erro ao salvar prazo",
+            description: prazoError.message,
+          });
+          setIsLoading(false);
+          return;
+        }
+      }
+
       await syncDemandTags((insertedDemandas || []).map((item) => item.id), formData.tags);
 
       const totalDemandas = allDemandas.length;
       const numResponsaveis = formData.responsavel_ids.length;
-      const numSemanas = formData.semana_limite.length;
+      const numSemanas =
+        formData.modo_execucao === "prazo" ? 1 : formData.semana_limite.length;
       const numMeses = targetMonths.length;
 
       const parts: string[] = [];
       if (numResponsaveis > 1) parts.push(`${numResponsaveis} responsáveis`);
       if (numMeses > 1) parts.push(`${numMeses} meses`);
-      if (numSemanas > 1) parts.push(`${numSemanas} semanas`);
+      if (formData.modo_execucao === "prazo") parts.push("janela de prazo");
+      else if (numSemanas > 1) parts.push(`${numSemanas} semanas`);
       const description = parts.length > 0
         ? `${totalDemandas} demandas criadas (${parts.join(" × ")})`
         : "A demanda foi adicionada com sucesso";
@@ -259,7 +331,7 @@ export default function NovaDemandaDialog({
         newSemanas = [...current, semana].sort();
       }
       // Auto-update repetições based on selected weeks count
-      return { 
+      return {
         ...prev, 
         semana_limite: newSemanas,
         semanas_repeticao: String(newSemanas.length)
@@ -296,7 +368,7 @@ export default function NovaDemandaDialog({
     : 1;
   const totalDemandas =
     formData.responsavel_ids.length *
-    formData.semana_limite.length *
+    (formData.modo_execucao === "prazo" ? 1 : formData.semana_limite.length) *
     ocorrenciasMesesNum;
 
   // Preview of target months for the recurrence block
@@ -454,43 +526,138 @@ export default function NovaDemandaDialog({
           />
 
           <div className="space-y-2">
+            <Label>Tipo de demanda</Label>
+            <Select
+              value={formData.modo_execucao}
+              onValueChange={(value) =>
+                setFormData((prev) => ({
+                  ...prev,
+                  modo_execucao: value as DemandaModoExecucao,
+                  semanas_repeticao: value === "prazo" ? "1" : String(prev.semana_limite.length),
+                }))
+              }
+            >
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="semanal">Semanal / recorrente</SelectItem>
+                <SelectItem value="prazo">Com prazo</SelectItem>
+              </SelectContent>
+            </Select>
+            <p className="text-xs text-muted-foreground">
+              {formData.modo_execucao === "prazo"
+                ? "Fica disponível em uma única linha, da semana inicial até a semana final."
+                : "Cria uma demanda por semana selecionada."}
+            </p>
+          </div>
+
+          <div className="space-y-2">
             <Label htmlFor="semanas">Repetições</Label>
             <Input
               id="semanas"
               type="number"
               min="1"
               max="52"
-              value={formData.semanas_repeticao}
+              value={formData.modo_execucao === "prazo" ? "Prazo" : formData.semanas_repeticao}
               readOnly
               disabled
               className="bg-muted"
             />
             <p className="text-xs text-muted-foreground">
-              Calculado automaticamente pelas semanas selecionadas
+              {formData.modo_execucao === "prazo"
+                ? "A demanda aparece como uma linha única dentro da janela definida."
+                : "Calculado automaticamente pelas semanas selecionadas"}
             </p>
           </div>
 
-          <div className="space-y-2">
-            <Label>Semanas *</Label>
-            <div className="flex flex-wrap gap-2">
-              {[1, 2, 3, 4, 5].map((s) => (
-                <Button
-                  key={s}
-                  type="button"
-                  variant={formData.semana_limite.includes(s) ? "default" : "outline"}
-                  size="sm"
-                  onClick={() => toggleSemana(s)}
+          {formData.modo_execucao === "prazo" ? (
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>Semana inicial</Label>
+                <Select
+                  value={formData.semana_inicio_prazo}
+                  onValueChange={(value) =>
+                    setFormData((prev) => {
+                      const start = parseInt(value, 10);
+                      const end = Math.max(start, parseInt(prev.semana_fim_prazo, 10));
+                      return {
+                        ...prev,
+                        semana_inicio_prazo: value,
+                        semana_fim_prazo: String(end),
+                        semana_limite: buildPrazoWeeks(start, end),
+                      };
+                    })
+                  }
                 >
-                  {s}ª
-                </Button>
-              ))}
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {[1, 2, 3, 4, 5].map((week) => (
+                      <SelectItem key={week} value={String(week)}>
+                        {week}ª semana
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-2">
+                <Label>Semana final</Label>
+                <Select
+                  value={formData.semana_fim_prazo}
+                  onValueChange={(value) =>
+                    setFormData((prev) => ({
+                      ...prev,
+                      semana_fim_prazo: value,
+                      semana_limite: buildPrazoWeeks(
+                        parseInt(prev.semana_inicio_prazo, 10),
+                        parseInt(value, 10)
+                      ),
+                    }))
+                  }
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {[1, 2, 3, 4, 5].map((week) => (
+                      <SelectItem key={week} value={String(week)}>
+                        {week}ª semana
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="col-span-2 rounded-md border border-warning/30 bg-warning/10 px-3 py-2 text-xs text-warning">
+                Disponível da {formData.semana_inicio_prazo}ª até a {formData.semana_fim_prazo}ª semana.
+              </div>
             </div>
-            <p className="text-xs text-muted-foreground">
-              {formData.semana_limite.length > 1 
-                ? `Demandas de múltiplas semanas do mesmo responsável serão irmãs`
-                : "Selecione uma ou mais semanas"}
-            </p>
-          </div>
+          ) : (
+            <div className="space-y-2">
+              <Label>Semanas *</Label>
+              <div className="flex flex-wrap gap-2">
+                {[1, 2, 3, 4, 5].map((s) => (
+                  <Button
+                    key={s}
+                    type="button"
+                    variant={formData.semana_limite.includes(s) ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => toggleSemana(s)}
+                  >
+                    {s}ª
+                  </Button>
+                ))}
+              </div>
+              <p className="text-xs text-muted-foreground">
+                {formData.semana_limite.length > 1
+                  ? `Demandas de múltiplas semanas do mesmo responsável serão irmãs`
+                  : "Selecione uma ou mais semanas"}
+              </p>
+            </div>
+          )}
 
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
@@ -594,9 +761,11 @@ export default function NovaDemandaDialog({
                   </div>
                 </div>
                 <p className="text-xs text-muted-foreground">
-                  Será criada nas semanas{" "}
+                  Será criada{" "}
                   <strong>
-                    {formData.semana_limite.map((s) => `${s}ª`).join(", ")}
+                    {formData.modo_execucao === "prazo"
+                      ? `na janela ${formData.semana_inicio_prazo}ª -> ${formData.semana_fim_prazo}ª`
+                      : `nas semanas ${formData.semana_limite.map((s) => `${s}ª`).join(", ")}`}
                   </strong>{" "}
                   de <strong>{previewMonths.join(", ")}</strong>
                 </p>
@@ -647,10 +816,10 @@ export default function NovaDemandaDialog({
               <p className="text-muted-foreground">
                 {formData.responsavel_ids.length} responsável(is) ×{" "}
                 {ocorrenciasMesesNum} mês(es) ×{" "}
-                {formData.semana_limite.length} semana(s) ={" "}
+                {formData.modo_execucao === "prazo" ? "1 janela" : `${formData.semana_limite.length} semana(s)`} ={" "}
                 <strong>{totalDemandas} demandas</strong>
               </p>
-              {(formData.semana_limite.length > 1 || ocorrenciasMesesNum > 1) && (
+              {(formData.modo_execucao === "semanal" && (formData.semana_limite.length > 1 || ocorrenciasMesesNum > 1)) && (
                 <p className="text-xs text-muted-foreground mt-1">
                   Demandas de cada responsável serão irmãs entre si (mesmo grupo)
                 </p>

@@ -25,6 +25,7 @@ import MonthSettingsControl, { PastMonthWarningBanner } from "@/components/apt/M
 import AptMomentosNavigator from "@/components/apt/AptMomentosNavigator";
 import ConfigurarAptDialog from "@/components/apt/ConfigurarAptDialog";
 import TransformarDemandaPersistenteDialog from "@/components/apt/TransformarDemandaPersistenteDialog";
+import TransformarDemandaPrazoDialog from "@/components/apt/TransformarDemandaPrazoDialog";
 import DemandaCard from "@/components/apt/DemandaCard";
 import DemandaTableRow from "@/components/apt/DemandaTableRow";
 import DemandaSortHeader from "@/components/apt/DemandaSortHeader";
@@ -62,6 +63,12 @@ import TopSetoresBar from "@/components/apt/TopSetoresBar";
 import { useSolicitacoesExclusao } from "@/hooks/useSolicitacoesExclusao";
 import { buildSetorWhatsAppHref } from "@/lib/setor-actions";
 import {
+  DemandaModoExecucao,
+  buildPrazoWeeks,
+  getDemandaPrazoStatusVisual,
+  getPrazoReferenceWeek,
+} from "@/lib/demandas-prazo";
+import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
@@ -86,6 +93,9 @@ interface Demanda {
   prioritaria: boolean;
   muito_urgente?: boolean;
   grupo_id: string | null;
+  modo_execucao?: DemandaModoExecucao | null;
+  semana_inicio_prazo?: number | null;
+  semana_fim_prazo?: number | null;
   tags?: import("@/lib/tags").AptTag[];
 }
 
@@ -117,6 +127,7 @@ export default function APT() {
     getSiblingCount,
     pendingCount,
     pendingApprovalCount,
+    persistPrazoMeta,
   } = useDemandas();
 
   const {
@@ -178,6 +189,8 @@ export default function APT() {
   } | null>(null);
   const [transformingDemanda, setTransformingDemanda] = useState<Demanda | null>(null);
   const [isTransformingPersistente, setIsTransformingPersistente] = useState(false);
+  const [transformingPrazoDemanda, setTransformingPrazoDemanda] = useState<Demanda | null>(null);
+  const [isTransformingPrazo, setIsTransformingPrazo] = useState(false);
 
   // Selection state for bulk operations
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
@@ -256,6 +269,10 @@ export default function APT() {
     const today = new Date();
     return Math.min(5, Math.ceil(today.getDate() / 7));
   }, []);
+  const prazoReferenceWeek = useMemo(
+    () => getPrazoReferenceWeek({ viewedMes, viewedAno, currentWeek }),
+    [currentWeek, viewedAno, viewedMes]
+  );
 
   useEffect(() => {
     const targetMes = viewedMes ?? new Date().getMonth() + 1;
@@ -388,6 +405,35 @@ export default function APT() {
       mes: demanda.mes,
       ano: demanda.ano,
     });
+  };
+
+  const handleTransformarPrazo = async (payload: {
+    semana_inicio_prazo: number;
+    semana_fim_prazo: number;
+    comportamento: "colapsar" | "preservar";
+  }) => {
+    if (!transformingPrazoDemanda) return;
+    setIsTransformingPrazo(true);
+    try {
+      const weeks = buildPrazoWeeks(payload.semana_inicio_prazo, payload.semana_fim_prazo);
+      const { error } = await supabase
+        .from("demandas")
+        .update({
+          semana_limite: weeks,
+          semanas_repeticao: 1,
+          grupo_id: null,
+        })
+        .eq("id", transformingPrazoDemanda.id);
+      if (error) throw error;
+      await persistPrazoMeta([transformingPrazoDemanda.id], {
+        modo_execucao: "prazo",
+        semana_inicio_prazo: payload.semana_inicio_prazo,
+        semana_fim_prazo: payload.semana_fim_prazo,
+      });
+      setTransformingPrazoDemanda(null);
+    } finally {
+      setIsTransformingPrazo(false);
+    }
   };
 
   return (
@@ -694,10 +740,14 @@ export default function APT() {
                       // - Gestor/Colaborador: can only mark their own demands
                       // Block if Momento APT is active for collaborators
                       const momentoAPTBlocking = isColaborador && isMomentoAPTBloqueado;
-                      const canEditResponsavel = demandaStatusAllowed && 
-                        (isAdmin || user?.id === demanda.responsavel_id) && 
+                      const canEditResponsavel = demandaStatusAllowed &&
+                        (isAdmin || user?.id === demanda.responsavel_id) &&
                         !momentoAPTBlocking;
-                      const canEditGestor = demandaStatusAllowed && isGestorOrAdmin;
+                      const prazoStatusVisual = getDemandaPrazoStatusVisual(demanda, prazoReferenceWeek);
+                      const canEditGestor =
+                        demandaStatusAllowed &&
+                        isGestorOrAdmin &&
+                        !(prazoStatusVisual === "no_prazo" && demanda.status_responsavel === "pendente");
                       
                       // Edit/delete permissions: collaborators can now edit/delete too
                       const canEditDemanda = true;
@@ -715,6 +765,10 @@ export default function APT() {
                           statusGestor={demanda.status_gestor}
                           semanasRepeticao={demanda.semanas_repeticao}
                           semanaLimite={demanda.semana_limite}
+                          modoExecucao={demanda.modo_execucao}
+                          semanaInicioPrazo={demanda.semana_inicio_prazo}
+                          semanaFimPrazo={demanda.semana_fim_prazo}
+                          prazoStatusVisual={prazoStatusVisual}
                           prioritaria={demanda.prioritaria}
                           muitoUrgente={demanda.muito_urgente}
                           canEditResponsavel={canEditResponsavel}
@@ -738,6 +792,11 @@ export default function APT() {
                           onTransformToPersistent={
                             isGestorOrAdmin
                               ? () => setTransformingDemanda(demanda as Demanda)
+                              : undefined
+                          }
+                          onTransformToPrazo={
+                            isGestorOrAdmin
+                              ? () => setTransformingPrazoDemanda(demanda as Demanda)
                               : undefined
                           }
                           onDelete={() =>
@@ -876,10 +935,14 @@ export default function APT() {
                             // Block if Momento APT is active for collaborators
                             const momentoAPTBlocking = isColaborador && isMomentoAPTBloqueado;
                             const isAdmin = role === "admin";
-                            const canEditResponsavel = demandaStatusAllowed && 
-                              (isAdmin || user?.id === demanda.responsavel_id) && 
+                            const canEditResponsavel = demandaStatusAllowed &&
+                              (isAdmin || user?.id === demanda.responsavel_id) &&
                               !momentoAPTBlocking;
-                            const canEditGestor = demandaStatusAllowed && isGestorOrAdmin;
+                            const prazoStatusVisual = getDemandaPrazoStatusVisual(demanda, prazoReferenceWeek);
+                            const canEditGestor =
+                              demandaStatusAllowed &&
+                              isGestorOrAdmin &&
+                              !(prazoStatusVisual === "no_prazo" && demanda.status_responsavel === "pendente");
                             
                             // Edit/delete permissions: collaborators can now edit/delete too
                             const canEditDemanda = true;
@@ -898,6 +961,10 @@ export default function APT() {
                                 statusGestor={demanda.status_gestor}
                                 semanasRepeticao={demanda.semanas_repeticao}
                                 semanaLimite={demanda.semana_limite}
+                                modoExecucao={demanda.modo_execucao}
+                                semanaInicioPrazo={demanda.semana_inicio_prazo}
+                                semanaFimPrazo={demanda.semana_fim_prazo}
+                                prazoStatusVisual={prazoStatusVisual}
                                 prioritaria={demanda.prioritaria}
                                 muitoUrgente={demanda.muito_urgente}
                                 canEditResponsavel={canEditResponsavel}
@@ -930,6 +997,11 @@ export default function APT() {
                                 onTransformToPersistent={
                                   isGestorOrAdmin
                                     ? () => setTransformingDemanda(demanda as Demanda)
+                                    : undefined
+                                }
+                                onTransformToPrazo={
+                                  isGestorOrAdmin
+                                    ? () => setTransformingPrazoDemanda(demanda as Demanda)
                                     : undefined
                                 }
                                 onDelete={() =>
@@ -1050,6 +1122,15 @@ export default function APT() {
         isSaving={isTransformingPersistente}
         onOpenChange={(open) => !open && setTransformingDemanda(null)}
         onConfirm={handleTransformarPersistente}
+      />
+
+      <TransformarDemandaPrazoDialog
+        open={!!transformingPrazoDemanda}
+        title="Transformar em demanda com prazo"
+        selectedCount={transformingPrazoDemanda ? 1 : 0}
+        isSaving={isTransformingPrazo}
+        onOpenChange={(open) => !open && setTransformingPrazoDemanda(null)}
+        onConfirm={handleTransformarPrazo}
       />
 
       <ExcluirDemandasEmMassaDialog

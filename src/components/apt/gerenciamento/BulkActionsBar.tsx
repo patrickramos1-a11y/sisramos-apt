@@ -21,7 +21,7 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import {
-  Users, Building2, Repeat, Star, Flame, CircleCheck, Copy, Trash2, X,
+  Users, Building2, Repeat, Star, Flame, CircleCheck, Copy, Trash2, X, Clock3, RefreshCw,
 } from "lucide-react";
 
 interface Props {
@@ -37,6 +37,8 @@ interface Props {
   onSetUrgencia: (v: boolean) => void;
   onSetStatusResp: (s: "pendente" | "executado" | "nao_realizado") => void;
   onSetStatusGestor: (s: "pendente" | "executado" | "nao_realizado") => void;
+  onTransformPersistente: () => void;
+  onTransformPrazo: () => void;
   onDuplicate: () => void;
   onDelete: () => void;
   canDelete: boolean;
@@ -54,6 +56,8 @@ export default function BulkActionsBar({
   onSetUrgencia,
   onSetStatusResp,
   onSetStatusGestor,
+  onTransformPersistente,
+  onTransformPrazo,
   onDuplicate,
   onDelete,
   canDelete,
@@ -62,8 +66,8 @@ export default function BulkActionsBar({
 
   return (
     <div className="fixed bottom-4 left-1/2 -translate-x-1/2 z-50 max-w-[95vw]">
-      <div className="flex items-center gap-1.5 rounded-full bg-foreground text-background shadow-xl px-3 py-2 text-sm">
-        <span className="font-semibold pr-2 border-r border-background/20 mr-1">
+      <div className="flex max-w-[calc(100vw-2rem)] flex-wrap items-center justify-center gap-1.5 rounded-3xl bg-foreground px-3 py-2 text-sm text-background shadow-xl">
+        <span className="mr-1 border-r border-background/20 pr-2 font-semibold">
           {selectedCount} selecionada{selectedCount > 1 ? "s" : ""}
         </span>
 
@@ -171,6 +175,24 @@ export default function BulkActionsBar({
             <DropdownMenuItem onClick={() => onSetStatusGestor("nao_realizado")}>Não realizado</DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
+
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={onTransformPersistente}
+          className="h-7 gap-1.5 text-background hover:bg-background/10 hover:text-background"
+        >
+          <RefreshCw className="h-3.5 w-3.5" /> Persist.
+        </Button>
+
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={onTransformPrazo}
+          className="h-7 gap-1.5 text-background hover:bg-background/10 hover:text-background"
+        >
+          <Clock3 className="h-3.5 w-3.5" /> Prazo
+        </Button>
 
         <Button
           variant="ghost"

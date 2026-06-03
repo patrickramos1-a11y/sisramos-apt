@@ -29,20 +29,33 @@ import {
 } from "@/components/ui/dropdown-menu";
 import {
   Loader2, ChevronRight, MoreVertical, Pencil, Trash2,
-  ArrowUpDown, ArrowUp, ArrowDown, Flame, Star, Group, ChevronDown, RefreshCw,
+  ArrowUpDown, ArrowUp, ArrowDown, Flame, Star, Group, ChevronDown, RefreshCw, Repeat,
 } from "lucide-react";
 import StatusBolinha from "@/components/apt/StatusBolinha";
 import EditarDemandaIrmaDialog from "@/components/apt/EditarDemandaIrmaDialog";
 import ExcluirDemandaIrmaDialog from "@/components/apt/ExcluirDemandaIrmaDialog";
 import SolicitarExclusaoDialog from "@/components/apt/SolicitarExclusaoDialog";
 import DuplicarDemandasEmMassaDialog from "@/components/apt/DuplicarDemandasEmMassaDialog";
+import TransformarDemandaPersistenteDialog from "@/components/apt/TransformarDemandaPersistenteDialog";
 import { useSolicitacoesExclusao } from "@/hooks/useSolicitacoesExclusao";
 import { useBulkDemandaActions } from "@/hooks/useBulkDemandaActions";
+import { useAptRotinas } from "@/hooks/useAptRotinas";
 import { cn } from "@/lib/utils";
 import FiltersBar, { ListaFilters, MESES_FULL } from "./gerenciamento/FiltersBar";
 import BulkActionsBar from "./gerenciamento/BulkActionsBar";
 import { InlinePicker } from "./gerenciamento/InlinePickers";
 import { AptTag, uniqueTags } from "@/lib/tags";
+import TransformarDemandaPrazoDialog from "@/components/apt/TransformarDemandaPrazoDialog";
+import {
+  DemandaModoExecucao,
+  buildPrazoWeeks,
+  clearDemandasPrazoMeta,
+  formatPrazoWindow,
+  isDemandaPrazo,
+  isPrazoColumnMissingError,
+  mergeDemandasPrazoMeta,
+  saveDemandasPrazoMeta,
+} from "@/lib/demandas-prazo";
 
 interface Profile { id: string; user_id: string; nome: string; cor?: string | null; }
 interface Setor { id: string; nome: string; cor: string; }
@@ -63,6 +76,9 @@ interface Demanda {
   muito_urgente?: boolean;
   grupo_id: string | null;
   ativa: boolean;
+  modo_execucao?: DemandaModoExecucao | null;
+  semana_inicio_prazo?: number | null;
+  semana_fim_prazo?: number | null;
   tags?: AptTag[];
 }
 
@@ -74,6 +90,9 @@ interface ConsolidatedDemand {
   setor_id: string | null;
   prioritaria: boolean;
   muito_urgente: boolean;
+  modo_execucao?: DemandaModoExecucao | null;
+  semana_inicio_prazo?: number | null;
+  semana_fim_prazo?: number | null;
   mes: number;
   ano: number;
   siblings: Demanda[];
@@ -144,8 +163,20 @@ export default function GerenciamentoLista({ profiles, setores, onDemandaChange 
   const [deletingDemanda, setDeletingDemanda] = useState<{ id: string; numero: number; grupo_id: string | null } | null>(null);
   const [solicitandoExclusao, setSolicitandoExclusao] = useState<{ id: string; numero: number; grupo_id: string | null; descricao: string; responsavel_id: string; mes: number; ano: number; semanas_repeticao: number } | null>(null);
   const [duplicandoIds, setDuplicandoIds] = useState<string[] | null>(null);
+  const [showPrazoDialog, setShowPrazoDialog] = useState(false);
+  const [isSavingPrazoDialog, setIsSavingPrazoDialog] = useState(false);
+  const [transformingPersistenteDemanda, setTransformingPersistenteDemanda] = useState<Demanda | null>(null);
+  const [isSavingPersistenteDialog, setIsSavingPersistenteDialog] = useState(false);
+  const [isBulkTransformingPersistente, setIsBulkTransformingPersistente] = useState(false);
 
   const { pendingDemandaIds, refetchSolicitacoes } = useSolicitacoesExclusao();
+  const { createModelo: createRotinaModelo } = useAptRotinas({
+    mes: new Date().getMonth() + 1,
+    ano: new Date().getFullYear(),
+    semanas: [1, 2, 3, 4, 5],
+    momento: null,
+    enabled: isGestorOrAdmin,
+  });
 
   // persist prefs
   useEffect(() => {
@@ -201,10 +232,10 @@ export default function GerenciamentoLista({ profiles, setores, onDemandaChange 
     if (error) { console.error(error); setAllDemandas([]); }
     else {
       setAllDemandas(
-        ((data || []) as any[]).map((demanda) => ({
+        mergeDemandasPrazoMeta(((data || []) as any[]).map((demanda) => ({
           ...demanda,
           tags: (demanda.demanda_tags || []).map((item: any) => item.tag).filter(Boolean),
-        }))
+        })))
       );
     }
     setIsLoading(false);
@@ -295,6 +326,9 @@ export default function GerenciamentoLista({ profiles, setores, onDemandaChange 
           setor_id: d.setor_id,
           prioritaria: d.prioritaria,
           muito_urgente: d.muito_urgente || false,
+          modo_execucao: d.modo_execucao || "semanal",
+          semana_inicio_prazo: d.semana_inicio_prazo ?? null,
+          semana_fim_prazo: d.semana_fim_prazo ?? null,
           mes: d.mes,
           ano: d.ano,
           siblings: [d],
@@ -690,7 +724,7 @@ export default function GerenciamentoLista({ profiles, setores, onDemandaChange 
     if (filters.responsaveis.length !== 1 || isRebalancing) return;
 
     const targetGroups = consolidated.filter(
-      (group) => group.responsavel_id === filters.responsaveis[0]
+      (group) => group.responsavel_id === filters.responsaveis[0] && !isDemandaPrazo(group)
     );
 
     if (targetGroups.length === 0) {
@@ -760,6 +794,194 @@ export default function GerenciamentoLista({ profiles, setores, onDemandaChange 
     });
   };
 
+  const applyPrazoPatch = async (
+    ids: string[],
+    payload: {
+      modo_execucao: DemandaModoExecucao;
+      semana_inicio_prazo: number | null;
+      semana_fim_prazo: number | null;
+    }
+  ) => {
+    if (ids.length === 0) return;
+
+    const patch = {
+      modo_execucao: payload.modo_execucao,
+      semana_inicio_prazo: payload.modo_execucao === "prazo" ? payload.semana_inicio_prazo : null,
+      semana_fim_prazo: payload.modo_execucao === "prazo" ? payload.semana_fim_prazo : null,
+    };
+    const { error } = await supabase.from("demandas").update(patch).in("id", ids);
+    if (error) {
+      if (isPrazoColumnMissingError(error)) {
+        if (payload.modo_execucao === "prazo") saveDemandasPrazoMeta(ids, payload);
+        else clearDemandasPrazoMeta(ids);
+        return;
+      }
+      throw error;
+    }
+
+    if (payload.modo_execucao === "prazo") saveDemandasPrazoMeta(ids, payload);
+    else clearDemandasPrazoMeta(ids);
+  };
+
+  const handleTransformSelectedToPrazo = async (payload: {
+    semana_inicio_prazo: number;
+    semana_fim_prazo: number;
+    comportamento: "colapsar" | "preservar";
+  }) => {
+    const prazoWeeks = buildPrazoWeeks(payload.semana_inicio_prazo, payload.semana_fim_prazo);
+    const selectedDemandas = allDemandas.filter((demanda) => selectedIds.has(demanda.id));
+    if (selectedDemandas.length === 0) return;
+
+    setIsSavingPrazoDialog(true);
+    try {
+      if (payload.comportamento === "preservar") {
+        const ids = selectedDemandas.map((demanda) => demanda.id);
+        const { error } = await supabase
+          .from("demandas")
+          .update({
+            semana_limite: prazoWeeks,
+            semanas_repeticao: 1,
+          })
+          .in("id", ids);
+        if (error) throw error;
+
+        await applyPrazoPatch(ids, {
+          modo_execucao: "prazo",
+          semana_inicio_prazo: payload.semana_inicio_prazo,
+          semana_fim_prazo: payload.semana_fim_prazo,
+        });
+      } else {
+        const grouped = new Map<string, Demanda[]>();
+        selectedDemandas.forEach((demanda) => {
+          const key =
+            demanda.grupo_id ??
+            `${demanda.descricao.trim().toLowerCase()}|${demanda.responsavel_id}|${demanda.mes}|${demanda.ano}`;
+          const current = grouped.get(key) || [];
+          current.push(demanda);
+          grouped.set(key, current);
+        });
+
+        for (const items of grouped.values()) {
+          const sorted = [...items].sort((a, b) => a.numero - b.numero);
+          const keeper = sorted[0];
+          const idsToDeactivate = sorted.slice(1).map((item) => item.id);
+
+          const { error: updateError } = await supabase
+            .from("demandas")
+            .update({
+              semana_limite: prazoWeeks,
+              semanas_repeticao: 1,
+              grupo_id: null,
+            })
+            .eq("id", keeper.id);
+          if (updateError) throw updateError;
+
+          if (idsToDeactivate.length > 0) {
+            const { error: deactivateError } = await supabase
+              .from("demandas")
+              .update({ ativa: false })
+              .in("id", idsToDeactivate);
+            if (deactivateError) throw deactivateError;
+          }
+
+          await applyPrazoPatch([keeper.id], {
+            modo_execucao: "prazo",
+            semana_inicio_prazo: payload.semana_inicio_prazo,
+            semana_fim_prazo: payload.semana_fim_prazo,
+          });
+          clearDemandasPrazoMeta(idsToDeactivate);
+        }
+      }
+
+      setShowPrazoDialog(false);
+      toast({
+        title: "Demandas com prazo atualizadas",
+        description:
+          payload.comportamento === "colapsar"
+            ? "As demandas selecionadas foram convertidas para linhas únicas com prazo."
+            : "As demandas selecionadas agora usam janela de prazo.",
+      });
+      handleDemandaChange();
+    } catch (error: any) {
+      toast({
+        variant: "destructive",
+        title: "Erro ao transformar demandas",
+        description: error.message || "Não foi possível aplicar o prazo.",
+      });
+    } finally {
+      setIsSavingPrazoDialog(false);
+    }
+  };
+
+  const handleTransformSelectedToPersistente = async () => {
+    const selectedGroups = consolidated.filter((group) => group.siblings.some((demanda) => selectedIds.has(demanda.id)));
+    if (selectedGroups.length === 0) return;
+
+    setIsBulkTransformingPersistente(true);
+    let successCount = 0;
+
+    try {
+      for (const group of selectedGroups) {
+        const first = group.siblings[0];
+        const semanas = Array.from(new Set(group.siblings.flatMap((demanda) => demanda.semana_limite || []))).sort((a, b) => a - b);
+        const ok = await createRotinaModelo({
+          nome: group.descricao.trim(),
+          descricao: first.observacoes?.trim() || group.descricao.trim(),
+          setor_id: first.setor_id,
+          responsavel_padrao_id: first.responsavel_id,
+          dias_semana: [1, 2, 3, 4, 5],
+          semanas_aplicaveis: semanas.length > 0 ? semanas : [1, 2, 3, 4, 5],
+          ativo: true,
+          exige_aprovacao: true,
+          entra_calculo_apt: true,
+          cor: "#f97316",
+          icone: "clock",
+        });
+
+        if (ok) successCount += 1;
+      }
+
+      if (successCount > 0) {
+        toast({
+          title: "Rotinas persistentes criadas",
+          description:
+            successCount === selectedGroups.length
+              ? `${successCount} demanda(s) foram transformadas em rotinas persistentes.`
+              : `${successCount} de ${selectedGroups.length} demanda(s) foram transformadas em rotinas persistentes.`,
+        });
+      } else {
+        toast({
+          variant: "destructive",
+          title: "Nenhuma rotina foi criada",
+          description: "Não foi possível transformar as demandas selecionadas em persistentes.",
+        });
+      }
+    } finally {
+      setIsBulkTransformingPersistente(false);
+    }
+  };
+
+  const handleTransformSingleToPersistente = async (payload: {
+    nome: string;
+    descricao: string;
+    setor_id: string | null;
+    responsavel_padrao_id: string;
+    dias_semana: number[];
+    semanas_aplicaveis: number[];
+  }) => {
+    setIsSavingPersistenteDialog(true);
+    const ok = await createRotinaModelo({
+      ...payload,
+      ativo: true,
+      exige_aprovacao: true,
+      entra_calculo_apt: true,
+      cor: "#f97316",
+      icone: "clock",
+    });
+    setIsSavingPersistenteDialog(false);
+    if (ok) setTransformingPersistenteDemanda(null);
+  };
+
   const profileOptions = profiles.map((p) => ({ value: p.user_id, label: p.nome, color: p.cor ?? null }));
   const setorOptions = setores.map((s) => ({ value: s.id, label: s.nome, color: s.cor }));
 
@@ -792,6 +1014,8 @@ export default function GerenciamentoLista({ profiles, setores, onDemandaChange 
     const allSemanas = Array.from(new Set(c.siblings.flatMap((s) => s.semana_limite || []))).sort((a, b) => a - b);
     const allInRow = c.siblings.every((s) => selectedIds.has(s.id));
     const showMonthBadge = c.mes !== currentMes || c.ano !== currentAno;
+    const prazoWindow = formatPrazoWindow(c, "compact");
+    const isPrazo = isDemandaPrazo(c);
 
     return (
       <TableRow
@@ -833,6 +1057,11 @@ export default function GerenciamentoLista({ profiles, setores, onDemandaChange 
               </TooltipProvider>
               {(hasPending || showMonthBadge || c.tags.length > 0) && (
                 <div className="flex flex-wrap items-center gap-1.5 mt-0.5">
+                  {prazoWindow && (
+                    <span className="rounded-full border border-orange-200 bg-orange-50 px-1.5 py-0 text-[9px] font-semibold text-orange-700">
+                      Prazo {prazoWindow}
+                    </span>
+                  )}
                   {showMonthBadge && (
                     <span className="text-[9px] font-medium uppercase tracking-wide text-muted-foreground bg-muted px-1.5 py-0 rounded">
                       {MESES_FULL[c.mes - 1].slice(0, 3)}/{c.ano}
@@ -908,45 +1137,51 @@ export default function GerenciamentoLista({ profiles, setores, onDemandaChange 
 
         {/* Semanas */}
         <TableCell className="py-1 w-[180px] align-top">
-          <div className="flex flex-wrap gap-1">
-            {[1, 2, 3, 4, 5].map((semana) => {
-              const isSelected = allSemanas.includes(semana);
+          {isPrazo ? (
+            <span className="inline-flex rounded-full border border-orange-200 bg-orange-50 px-2 py-1 text-[11px] font-semibold text-orange-700">
+              {prazoWindow}
+            </span>
+          ) : (
+            <div className="flex flex-wrap gap-1">
+              {[1, 2, 3, 4, 5].map((semana) => {
+                const isSelected = allSemanas.includes(semana);
 
-              return (
-                <button
-                  key={semana}
-                  type="button"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    const nextSemanas = isSelected
-                      ? allSemanas.filter((value) => value !== semana)
-                      : [...allSemanas, semana].sort((a, b) => a - b);
+                return (
+                  <button
+                    key={semana}
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      const nextSemanas = isSelected
+                        ? allSemanas.filter((value) => value !== semana)
+                        : [...allSemanas, semana].sort((a, b) => a - b);
 
-                    if (nextSemanas.length === 0) return;
-                    void updateGroupWeeks(c, nextSemanas);
-                  }}
-                  className={cn(
-                    "h-6 min-w-6 rounded-md border px-1.5 text-[11px] font-semibold transition-colors",
-                    isSelected
-                      ? "border-primary bg-primary text-primary-foreground"
-                      : "border-border/70 bg-background text-muted-foreground hover:bg-muted hover:text-foreground"
-                  )}
-                  title={`${semana}Âª semana`}
-                >
-                  {semana}
-                </button>
-              );
-            })}
-          </div>
+                      if (nextSemanas.length === 0) return;
+                      void updateGroupWeeks(c, nextSemanas);
+                    }}
+                    className={cn(
+                      "h-6 min-w-6 rounded-md border px-1.5 text-[11px] font-semibold transition-colors",
+                      isSelected
+                        ? "border-primary bg-primary text-primary-foreground"
+                        : "border-border/70 bg-background text-muted-foreground hover:bg-muted hover:text-foreground"
+                    )}
+                    title={`${semana}ª semana`}
+                  >
+                    {semana}
+                  </button>
+                );
+              })}
+            </div>
+          )}
         </TableCell>
 
         {/* Repetições */}
         <TableCell className="py-1 w-[52px] text-center align-top">
           <div
             className="inline-flex h-6 w-9 items-center justify-center rounded-md border bg-muted text-[11px] font-semibold text-foreground/80"
-            title="Repetição calculada automaticamente pelas semanas"
+            title={isPrazo ? "Demanda com prazo" : "Repetição calculada automaticamente pelas semanas"}
           >
-            {allSemanas.length}X
+            {isPrazo ? "PZ" : `${allSemanas.length}X`}
           </div>
         </TableCell>
 
@@ -1015,6 +1250,12 @@ export default function GerenciamentoLista({ profiles, setores, onDemandaChange 
               <DropdownMenuContent align="end">
                 <DropdownMenuItem onClick={(e) => { e.stopPropagation(); setEditingDemanda(first); }}>
                   <Pencil className="mr-2 h-4 w-4" /> Editar completo
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={(e) => { e.stopPropagation(); setTransformingPersistenteDemanda(first); }}>
+                  <RefreshCw className="mr-2 h-4 w-4 text-orange-600" /> Transformar em persistente
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={(e) => { e.stopPropagation(); setSelectedIds(new Set(c.siblings.map((item) => item.id))); setShowPrazoDialog(true); }}>
+                  <Repeat className="mr-2 h-4 w-4 text-warning" /> Transformar em demanda com prazo
                 </DropdownMenuItem>
                 <DropdownMenuItem onClick={(e) => { e.stopPropagation(); handleDeleteClick(first); }} className="text-destructive">
                   <Trash2 className="mr-2 h-4 w-4" /> Excluir
@@ -1241,6 +1482,8 @@ export default function GerenciamentoLista({ profiles, setores, onDemandaChange 
           onSetUrgencia={(v) => bulk.setUrgencia(expandedSelectedIds, v)}
           onSetStatusResp={(s) => bulk.setStatusResponsavel(expandedSelectedIds, s)}
           onSetStatusGestor={(s) => bulk.setStatusGestor(expandedSelectedIds, s)}
+          onTransformPersistente={() => void handleTransformSelectedToPersistente()}
+          onTransformPrazo={() => setShowPrazoDialog(true)}
           onDuplicate={() => setDuplicandoIds(expandedSelectedIds)}
           onDelete={() => bulk.softDelete(expandedSelectedIds)}
           canDelete={isGestorOrAdmin}
@@ -1298,6 +1541,24 @@ export default function GerenciamentoLista({ profiles, setores, onDemandaChange 
           onComplete={handleDemandaChange}
         />
       )}
+
+      <TransformarDemandaPersistenteDialog
+        open={!!transformingPersistenteDemanda}
+        demanda={transformingPersistenteDemanda}
+        setores={setores}
+        profiles={profiles}
+        isSaving={isSavingPersistenteDialog || isBulkTransformingPersistente}
+        onOpenChange={(open) => !open && setTransformingPersistenteDemanda(null)}
+        onConfirm={handleTransformSingleToPersistente}
+      />
+
+      <TransformarDemandaPrazoDialog
+        open={showPrazoDialog}
+        onOpenChange={setShowPrazoDialog}
+        selectedCount={selectedIds.size}
+        isSaving={isSavingPrazoDialog}
+        onConfirm={handleTransformSelectedToPrazo}
+      />
     </div>
   );
 }
