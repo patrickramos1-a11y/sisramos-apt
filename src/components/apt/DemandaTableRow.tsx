@@ -9,7 +9,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import StatusBolinha from "./StatusBolinha";
 import { cn } from "@/lib/utils";
-import { Clock3, MoreVertical, Pencil, Trash2, Flame, Star, Repeat, MessageCircle } from "lucide-react";
+import { Clock3, MoreVertical, Pencil, Trash2, Flame, Star, Repeat, MessageCircle, RefreshCw } from "lucide-react";
 import { AptTag } from "@/lib/tags";
 import { DemandaModoExecucao, DemandaPrazoStatusVisual, formatPrazoWindow, getPrazoStatusLabel, getPrazoToneClasses } from "@/lib/demandas-prazo";
 
@@ -181,7 +181,7 @@ export default function DemandaTableRow({
             <p className="leading-snug text-foreground">{descricao}</p>
             {prazoWindow && (
               <div className="flex flex-wrap gap-1">
-                <span className="inline-flex items-center gap-1 rounded-full border border-orange-200 bg-orange-50 px-1.5 py-0.5 text-[10px] font-semibold text-orange-700">
+                <span className="inline-flex items-center gap-1 rounded-full border border-sky-200 bg-sky-50 px-1.5 py-0.5 text-[10px] font-semibold text-sky-700">
                   <Clock3 className="h-3 w-3" />
                   {prazoWindow}
                 </span>
@@ -251,7 +251,7 @@ export default function DemandaTableRow({
 
       <TableCell className="w-12 text-center">
         {prazoWindow ? (
-          <span className="inline-flex items-center gap-1 rounded-full border border-orange-200 bg-orange-50 px-2 py-0.5 text-[10px] font-semibold text-orange-700">
+          <span className="inline-flex items-center gap-1 rounded-full border border-sky-200 bg-sky-50 px-2 py-0.5 text-[10px] font-semibold text-sky-700">
             <Clock3 className="h-3 w-3" />
             Prazo
           </span>
@@ -301,13 +301,13 @@ export default function DemandaTableRow({
                   </DropdownMenuItem>
                   {onTransformToPersistent && (
                     <DropdownMenuItem onClick={onTransformToPersistent}>
-                      <Clock3 className="mr-2 h-4 w-4 text-orange-600" />
+                      <RefreshCw className="mr-2 h-4 w-4 text-orange-600" />
                       Transformar em persistente
                     </DropdownMenuItem>
                   )}
                   {onTransformToPrazo && (
                     <DropdownMenuItem onClick={onTransformToPrazo}>
-                      <Repeat className="mr-2 h-4 w-4 text-warning" />
+                      <Clock3 className="mr-2 h-4 w-4 text-sky-600" />
                       Transformar em demanda com prazo
                     </DropdownMenuItem>
                   )}

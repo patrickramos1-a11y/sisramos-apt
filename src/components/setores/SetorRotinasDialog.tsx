@@ -75,8 +75,8 @@ const DEFAULT_FORM: RotinaForm = {
   ativo: true,
   exige_aprovacao: true,
   entra_calculo_apt: true,
-  cor: "#65a30d",
-  icone: "check",
+  cor: "#f97316",
+  icone: "refresh",
 };
 
 function toggleNumber(value: number, current: number[]) {
@@ -102,7 +102,7 @@ function buildForm(modelo: AptRotinaModelo | null, fallbackColor: string): Rotin
     exige_aprovacao: modelo.exige_aprovacao,
     entra_calculo_apt: modelo.entra_calculo_apt,
     cor: modelo.cor || fallbackColor || DEFAULT_FORM.cor,
-    icone: modelo.icone || "check",
+    icone: modelo.icone || "refresh",
   };
 }
 
@@ -144,7 +144,7 @@ export default function SetorRotinasDialog({ open, onOpenChange, setor }: SetorR
   useEffect(() => {
     if (!open) return;
     setEditingModelo(null);
-    setForm(buildForm(null, setor?.cor || "#65a30d"));
+    setForm(buildForm(null, "#f97316"));
   }, [open, setor]);
 
   const estimatedOccurrences = useMemo(() => {
@@ -161,12 +161,12 @@ export default function SetorRotinasDialog({ open, onOpenChange, setor }: SetorR
 
   const startCreate = () => {
     setEditingModelo(null);
-    setForm(buildForm(null, setor?.cor || "#65a30d"));
+    setForm(buildForm(null, "#f97316"));
   };
 
   const startEdit = (modelo: AptRotinaModelo) => {
     setEditingModelo(modelo);
-    setForm(buildForm(modelo, setor?.cor || "#65a30d"));
+    setForm(buildForm(modelo, "#f97316"));
   };
 
   const handleSubmit = async (event: React.FormEvent) => {

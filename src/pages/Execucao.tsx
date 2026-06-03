@@ -1235,6 +1235,10 @@ export default function Execucao() {
   const unifiedExecutionRowsCount = executionGroups.length + filteredRotinaResumos.length;
 
   const visibleGroupKeys = useMemo(() => executionGroups.map((group) => group.key), [executionGroups]);
+  const visibleResponsavelIds = useMemo(
+    () => groupsByResponsavel.map((section) => section.responsavelId),
+    [groupsByResponsavel]
+  );
   const selectedVisibleGroups = useMemo(
     () => executionGroups.filter((group) => selectedGroupKeys.has(group.key)),
     [executionGroups, selectedGroupKeys]
@@ -1257,17 +1261,21 @@ export default function Execucao() {
       filters.responsaveis.length > 0 ||
       filters.setores.length > 0 ||
       filters.prazo ||
+      filters.persistente ||
+      executionTableTab === "persistentes" ||
       executionStatusFilter !== "todos";
 
-    setExpandedResponsaveis(shouldAutoExpand ? new Set(visibleGroupKeys) : new Set());
+    setExpandedResponsaveis(shouldAutoExpand ? new Set(visibleResponsavelIds) : new Set());
   }, [
     activeTopSetor,
     executionStatusFilter,
     filters.busca,
+    filters.persistente,
     filters.prazo,
     filters.responsaveis,
     filters.setores,
-    visibleGroupKeys,
+    executionTableTab,
+    visibleResponsavelIds,
   ]);
 
   const pendingCount = filteredByTopSetor.filter((item) => item.status_responsavel === "pendente").length;
@@ -2224,7 +2232,7 @@ export default function Execucao() {
                                     <div className="flex flex-wrap items-center gap-1.5">
                                       <p className="font-medium leading-snug">{group.descricao}</p>
                                       {isPrazo && prazoWindow && (
-                                        <Badge className="rounded-full border border-orange-200 bg-orange-50 px-2 py-0.5 text-[10px] text-orange-700 hover:bg-orange-50">
+                                        <Badge className="rounded-full border border-sky-200 bg-sky-50 px-2 py-0.5 text-[10px] text-sky-700 hover:bg-sky-50">
                                           {prazoWindow}
                                         </Badge>
                                       )}
@@ -2265,7 +2273,7 @@ export default function Execucao() {
                                   variant="outline"
                                   className={cn(
                                     "rounded-full px-2.5 py-1",
-                                    isPrazo && "border-orange-200 bg-orange-50 text-orange-700"
+                                    isPrazo && "border-sky-200 bg-sky-50 text-sky-700"
                                   )}
                                 >
                                   {repeatedLabel}
@@ -2338,13 +2346,13 @@ export default function Execucao() {
                           return (
                             <tr
                               key={`rotina-${rotina.key}`}
-                              className="border-b border-sky-100 bg-sky-50/20 transition-colors hover:bg-sky-50/50"
+                              className="border-b border-orange-100 bg-orange-50/20 transition-colors hover:bg-orange-50/50"
                             >
                               <td className="px-3 py-2 text-center align-middle">
                                 {isGestorOrAdmin && <span className="text-xs text-muted-foreground">-</span>}
                               </td>
                               <td className="whitespace-nowrap px-3 py-2 align-middle">
-                                <Badge variant="outline" className="gap-1 rounded-full border-sky-200 bg-sky-50 px-2 py-0.5 text-sky-700">
+                                <Badge variant="outline" className="gap-1 rounded-full border-orange-200 bg-orange-50 px-2 py-0.5 text-orange-700">
                                   <RefreshCcw className="h-3.5 w-3.5" />
                                   PER
                                 </Badge>
@@ -2373,7 +2381,7 @@ export default function Execucao() {
                               )}
                               <td className="min-w-0 px-3 py-2 align-middle">
                                 <div className="flex min-w-0 items-center gap-2">
-                                  <RefreshCcw className="h-4 w-4 shrink-0 text-sky-600" />
+                                  <RefreshCcw className="h-4 w-4 shrink-0 text-orange-600" />
                                   <div className="flex shrink-0 items-center gap-1">
                                     {dayStatusChips.map((chip) => (
                                       <span

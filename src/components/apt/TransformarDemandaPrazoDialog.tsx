@@ -98,7 +98,7 @@ export default function TransformarDemandaPrazoDialog({
             </div>
           </div>
 
-          <div className="rounded-md border border-warning/30 bg-warning/10 px-3 py-2 text-xs text-warning">
+          <div className="rounded-md border border-sky-200 bg-sky-50 px-3 py-2 text-xs text-sky-700">
             Disponível da {semanaInicio}ª até a {semanaFim}ª semana.
           </div>
 

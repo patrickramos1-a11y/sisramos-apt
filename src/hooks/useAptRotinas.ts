@@ -20,6 +20,8 @@ export interface AptRotinaModelo {
   entra_calculo_apt: boolean;
   cor: string;
   icone: string;
+  origem_demanda_ids?: string[] | null;
+  origem_grupo_id?: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -97,6 +99,8 @@ interface RotinaModeloPayload {
   entra_calculo_apt?: boolean;
   cor?: string;
   icone?: string;
+  origem_demanda_ids?: string[] | null;
+  origem_grupo_id?: string | null;
 }
 
 const TABLE_MISSING_RE = /apt_rotina_|schema cache|could not find|does not exist|relation .* does not exist/i;
@@ -305,8 +309,8 @@ export function useAptRotinas({
           ativo: payload.ativo ?? true,
           exige_aprovacao: payload.exige_aprovacao ?? true,
           entra_calculo_apt: payload.entra_calculo_apt ?? true,
-          cor: payload.cor || "#65a30d",
-          icone: payload.icone || "check",
+          cor: payload.cor || "#f97316",
+          icone: payload.icone || "refresh",
           created_at: now,
           updated_at: now,
         };
@@ -333,8 +337,8 @@ export function useAptRotinas({
         ativo: payload.ativo ?? true,
         exige_aprovacao: payload.exige_aprovacao ?? true,
         entra_calculo_apt: payload.entra_calculo_apt ?? true,
-        cor: payload.cor || "#65a30d",
-        icone: payload.icone || "check",
+        cor: payload.cor || "#f97316",
+        icone: payload.icone || "refresh",
       }).select("*").single();
       setIsMutating(false);
 

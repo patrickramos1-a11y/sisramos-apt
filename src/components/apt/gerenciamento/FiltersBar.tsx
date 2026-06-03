@@ -104,7 +104,7 @@ function FilterPill({
   active: boolean;
   onClick: () => void;
   children: React.ReactNode;
-  tone?: "neutral" | "blue" | "green" | "amber" | "red";
+  tone?: "neutral" | "blue" | "green" | "amber" | "orange" | "red";
   icon?: React.ReactNode;
   className?: string;
 }) {
@@ -121,6 +121,9 @@ function FilterPill({
     amber: active
       ? "border-amber-500 bg-amber-500 text-white shadow-sm"
       : "border-amber-200 bg-amber-50/80 text-amber-900 hover:bg-amber-100",
+    orange: active
+      ? "border-orange-500 bg-orange-500 text-white shadow-sm"
+      : "border-orange-200 bg-orange-50/80 text-orange-900 hover:bg-orange-100",
     red: active
       ? "border-destructive bg-destructive text-destructive-foreground shadow-sm"
       : "border-destructive/20 bg-destructive/10 text-destructive hover:bg-destructive/15",
@@ -280,7 +283,7 @@ export default function FiltersBar({ filters, onChange, profileOptions, setorOpt
 
           <FilterPill
             active={filters.persistente}
-            tone="blue"
+            tone="orange"
             icon={<RefreshCw className={cn("h-3 w-3", filters.persistente && "stroke-[3]")} />}
             onClick={() => update({ persistente: !filters.persistente })}
           >
@@ -289,7 +292,7 @@ export default function FiltersBar({ filters, onChange, profileOptions, setorOpt
 
           <FilterPill
             active={filters.prazo}
-            tone="amber"
+            tone="blue"
             icon={<Clock3 className={cn("h-3 w-3", filters.prazo && "stroke-[3]")} />}
             onClick={() => update({ prazo: !filters.prazo })}
           >

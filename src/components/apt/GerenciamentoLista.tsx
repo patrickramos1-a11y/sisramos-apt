@@ -29,7 +29,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import {
   Loader2, ChevronRight, MoreVertical, Pencil, Trash2,
-  ArrowUpDown, ArrowUp, ArrowDown, Flame, Star, Group, ChevronDown, RefreshCw, Repeat,
+  ArrowUpDown, ArrowUp, ArrowDown, Flame, Star, Group, ChevronDown, RefreshCw, Repeat, Clock3,
 } from "lucide-react";
 import StatusBolinha from "@/components/apt/StatusBolinha";
 import EditarDemandaIrmaDialog from "@/components/apt/EditarDemandaIrmaDialog";
@@ -1030,7 +1030,7 @@ export default function GerenciamentoLista({ profiles, setores, onDemandaChange 
           ativo: true,
           exige_aprovacao: true,
           entra_calculo_apt: true,
-          cor: "#0ea5e9",
+          cor: "#f97316",
           icone: "refresh",
         });
 
@@ -1095,7 +1095,7 @@ export default function GerenciamentoLista({ profiles, setores, onDemandaChange 
         ativo: true,
         exige_aprovacao: true,
         entra_calculo_apt: true,
-        cor: "#0ea5e9",
+        cor: "#f97316",
         icone: "refresh",
       });
 
@@ -1200,7 +1200,7 @@ export default function GerenciamentoLista({ profiles, setores, onDemandaChange 
               {(hasPending || showMonthBadge || c.tags.length > 0) && (
                 <div className="flex flex-wrap items-center gap-1.5 mt-0.5">
                   {prazoWindow && (
-                    <span className="rounded-full border border-orange-200 bg-orange-50 px-1.5 py-0 text-[9px] font-semibold text-orange-700">
+                    <span className="rounded-full border border-sky-200 bg-sky-50 px-1.5 py-0 text-[9px] font-semibold text-sky-700">
                       Prazo {prazoWindow}
                     </span>
                   )}
@@ -1280,7 +1280,7 @@ export default function GerenciamentoLista({ profiles, setores, onDemandaChange 
         {/* Semanas */}
         <TableCell className="py-1 w-[180px] align-top">
           {isPrazo ? (
-            <span className="inline-flex rounded-full border border-orange-200 bg-orange-50 px-2 py-1 text-[11px] font-semibold text-orange-700">
+            <span className="inline-flex rounded-full border border-sky-200 bg-sky-50 px-2 py-1 text-[11px] font-semibold text-sky-700">
               {prazoWindow}
             </span>
           ) : (
@@ -1394,7 +1394,7 @@ export default function GerenciamentoLista({ profiles, setores, onDemandaChange 
                   <Pencil className="mr-2 h-4 w-4" /> Editar completo
                 </DropdownMenuItem>
                 <DropdownMenuItem onClick={(e) => { e.stopPropagation(); setTransformingPersistenteMode("single"); setTransformingPersistenteDemanda(first); }}>
-                  <RefreshCw className="mr-2 h-4 w-4 text-sky-600" /> Transformar em persistente
+                  <RefreshCw className="mr-2 h-4 w-4 text-orange-600" /> Transformar em persistente
                 </DropdownMenuItem>
                 {isPrazo ? (
                   <DropdownMenuItem onClick={(e) => { e.stopPropagation(); void handleClearPrazo(c.siblings.map((item) => item.id)); }}>
@@ -1402,7 +1402,7 @@ export default function GerenciamentoLista({ profiles, setores, onDemandaChange 
                   </DropdownMenuItem>
                 ) : (
                   <DropdownMenuItem onClick={(e) => { e.stopPropagation(); setSelectedIds(new Set(c.siblings.map((item) => item.id))); setShowPrazoDialog(true); }}>
-                    <Repeat className="mr-2 h-4 w-4 text-warning" /> Transformar em demanda com prazo
+                    <Clock3 className="mr-2 h-4 w-4 text-sky-600" /> Transformar em demanda com prazo
                   </DropdownMenuItem>
                 )}
                 <DropdownMenuItem onClick={(e) => { e.stopPropagation(); handleDeleteClick(first); }} className="text-destructive">
@@ -1499,18 +1499,18 @@ export default function GerenciamentoLista({ profiles, setores, onDemandaChange 
       </div>
 
       {isGestorOrAdmin && filteredRotinaModelos.length > 0 && (
-        <div className="rounded-xl border border-sky-200 bg-sky-50/50 p-3">
+        <div className="rounded-xl border border-orange-200 bg-orange-50/50 p-3">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <div className="flex items-center gap-2">
-              <RefreshCw className="h-4 w-4 text-sky-600" />
+              <RefreshCw className="h-4 w-4 text-orange-600" />
               <div>
-                <p className="text-sm font-semibold text-sky-950">Demandas persistentes</p>
-                <p className="text-xs text-sky-800/80">
+                <p className="text-sm font-semibold text-orange-950">Demandas persistentes</p>
+                <p className="text-xs text-orange-800/80">
                   Modelos recorrentes filtrados junto da lista. Edite em Configurações &gt; Setores.
                 </p>
               </div>
             </div>
-            <Badge variant="outline" className="border-sky-300 bg-white/70 text-sky-800">
+            <Badge variant="outline" className="border-orange-300 bg-white/70 text-orange-800">
               {filteredRotinaModelos.length} modelo{filteredRotinaModelos.length === 1 ? "" : "s"}
             </Badge>
           </div>
@@ -1522,11 +1522,11 @@ export default function GerenciamentoLista({ profiles, setores, onDemandaChange 
               return (
                 <div
                   key={modelo.id}
-                  className="flex max-w-full items-center gap-2 rounded-full border border-sky-200 bg-white px-3 py-1.5 text-xs shadow-sm"
+                  className="flex max-w-full items-center gap-2 rounded-full border border-orange-200 bg-white px-3 py-1.5 text-xs shadow-sm"
                   title={modelo.descricao}
                 >
-                  <RefreshCw className="h-3.5 w-3.5 shrink-0 text-sky-600" />
-                  <span className="max-w-[260px] truncate font-semibold text-sky-950">{modelo.nome}</span>
+                  <RefreshCw className="h-3.5 w-3.5 shrink-0 text-orange-600" />
+                  <span className="max-w-[260px] truncate font-semibold text-orange-950">{modelo.nome}</span>
                   <span className="text-muted-foreground">{setor?.nome || "Sem setor"}</span>
                   <span className="text-muted-foreground">{profile?.nome || "Sem responsável"}</span>
                   <Badge variant="outline" className="h-5 rounded-full px-1.5 text-[10px]">

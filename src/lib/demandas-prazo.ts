@@ -186,7 +186,7 @@ export function getDemandaPrazoStatusVisual(
 }
 
 export function getPrazoToneClasses(status: DemandaPrazoStatusVisual) {
-  if (status === "no_prazo") return "border-warning/40 bg-warning/10 text-warning";
+  if (status === "no_prazo") return "border-sky-200 bg-sky-50 text-sky-700";
   if (status === "concluida_aguardando_aprovacao") return "border-sky-200 bg-sky-50 text-sky-700";
   if (status === "vencida_nao_concluida") return "border-destructive/30 bg-destructive/10 text-destructive";
   if (status === "aprovada") return "border-emerald-200 bg-emerald-50 text-emerald-700";

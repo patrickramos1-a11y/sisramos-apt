@@ -216,7 +216,10 @@ export default function APT() {
     saveConfig: saveMomentos,
     semanasDoMomento,
   } = useAptMomentos(viewedMes, viewedAno);
-  const { createModelo: createRotinaModelo } = useAptRotinas({
+  const {
+    createModelo: createRotinaModelo,
+    gerarOcorrenciasDoPeriodo,
+  } = useAptRotinas({
     mes: viewedMes ?? new Date().getMonth() + 1,
     ano: viewedAno ?? new Date().getFullYear(),
     semanas: [1, 2, 3, 4, 5],
@@ -248,17 +251,34 @@ export default function APT() {
     dias_semana: number[];
     semanas_aplicaveis: number[];
   }) => {
+    const demanda = transformingDemanda;
+    if (!demanda) return;
+
     setIsTransformingPersistente(true);
-    const ok = await createRotinaModelo({
-      ...payload,
-      ativo: true,
-      exige_aprovacao: true,
-      entra_calculo_apt: true,
-      cor: "#f97316",
-      icone: "clock",
-    });
-    setIsTransformingPersistente(false);
-    if (ok) setTransformingDemanda(null);
+    try {
+      const created = await createRotinaModelo({
+        ...payload,
+        ativo: true,
+        exige_aprovacao: true,
+        entra_calculo_apt: true,
+        cor: "#f97316",
+        icone: "refresh",
+      });
+
+      if (created) {
+        const idsToDeactivate = demanda.grupo_id
+          ? demandas.filter((item) => item.grupo_id === demanda.grupo_id).map((item) => item.id)
+          : [demanda.id];
+
+        const { error } = await supabase.from("demandas").update({ ativa: false }).in("id", idsToDeactivate);
+        if (error) throw error;
+        await gerarOcorrenciasDoPeriodo([created]);
+        await fetchDemandas();
+        setTransformingDemanda(null);
+      }
+    } finally {
+      setIsTransformingPersistente(false);
+    }
   };
   
   const handleTopSetorClick = (setorId: string | null) => {

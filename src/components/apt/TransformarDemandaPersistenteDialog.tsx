@@ -122,7 +122,7 @@ export default function TransformarDemandaPersistenteDialog({
       <DialogContent className="max-w-2xl">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <RefreshCcw className="h-5 w-5 text-sky-600" />
+            <RefreshCcw className="h-5 w-5 text-orange-600" />
             Transformar demanda em persistente
           </DialogTitle>
           <p className="pt-1 text-sm text-muted-foreground">
@@ -131,7 +131,7 @@ export default function TransformarDemandaPersistenteDialog({
         </DialogHeader>
 
         <div className="space-y-5">
-          <div className="rounded-xl border border-sky-200 bg-sky-50/70 p-3 text-sm text-sky-900">
+          <div className="rounded-xl border border-orange-200 bg-orange-50/70 p-3 text-sm text-orange-900">
             <p className="font-semibold">Conferência da transformação</p>
             <div className="mt-2 grid gap-2 text-xs md:grid-cols-2">
               <span>
@@ -195,7 +195,7 @@ export default function TransformarDemandaPersistenteDialog({
                       className={cn(
                         "rounded-full border px-3 py-1 text-sm font-semibold transition-colors",
                         active
-                          ? "border-sky-300 bg-sky-600 text-white"
+                          ? "border-orange-300 bg-orange-600 text-white"
                           : "border-border bg-background text-muted-foreground hover:bg-muted"
                       )}
                     >

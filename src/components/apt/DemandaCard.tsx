@@ -134,7 +134,7 @@ export default function DemandaCard({
               <p className="text-sm font-medium leading-snug break-words">{descricao}</p>
               {prazoWindow && (
                 <div className="flex flex-wrap gap-1">
-                  <span className="inline-flex rounded-full border border-orange-200 bg-orange-50 px-2 py-0.5 text-[10px] font-semibold text-orange-700">
+                  <span className="inline-flex rounded-full border border-sky-200 bg-sky-50 px-2 py-0.5 text-[10px] font-semibold text-sky-700">
                     {prazoWindow}
                   </span>
                   {prazoStatusLabel && (

@@ -197,7 +197,7 @@ export default function BulkActionsBar({
           </DropdownMenuTrigger>
           <DropdownMenuContent>
             <DropdownMenuItem onClick={onTransformPrazo}>
-              <Clock3 className="mr-2 h-4 w-4 text-warning" /> Transformar em demanda com prazo
+              <Clock3 className="mr-2 h-4 w-4 text-sky-600" /> Transformar em demanda com prazo
             </DropdownMenuItem>
             <DropdownMenuItem onClick={onClearPrazo} disabled={!selectedHasPrazo}>
               <Repeat className="mr-2 h-4 w-4" /> Tirar prazo e voltar ao semanal
