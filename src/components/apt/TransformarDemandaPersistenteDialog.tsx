@@ -125,12 +125,34 @@ export default function TransformarDemandaPersistenteDialog({
             <Clock3 className="h-5 w-5 text-orange-600" />
             Transformar demanda em persistente
           </DialogTitle>
+          <p className="pt-1 text-sm text-muted-foreground">
+            Ao confirmar, a demanda comum será desativada e passará a funcionar como rotina persistente. As ocorrências do mês atual serão geradas automaticamente.
+          </p>
         </DialogHeader>
 
         <div className="space-y-5">
           <div className="rounded-xl border border-orange-200 bg-orange-50/70 p-3 text-sm text-orange-900">
-            Isso cria um modelo de rotina persistente usando o setor e o responsável desta demanda. A demanda original
-            continua na APT até você decidir editar ou excluir.
+            <p className="font-semibold">Conferência da transformação</p>
+            <div className="mt-2 grid gap-2 text-xs md:grid-cols-2">
+              <span>
+                <strong>Origem:</strong> demanda comum
+              </span>
+              <span>
+                <strong>Destino:</strong> rotina persistente
+              </span>
+              <span>
+                <strong>Setor:</strong> {setor?.nome || "Sem setor"}
+              </span>
+              <span>
+                <strong>Responsável:</strong> {responsavel?.nome || "Sem responsável"}
+              </span>
+              <span>
+                <strong>Dias:</strong> {dias.map((day) => WEEK_DAYS.find((item) => item.value === day)?.label || day).join(", ")}
+              </span>
+              <span>
+                <strong>Semanas:</strong> {semanas.map((week) => `${week}ª`).join(", ")}
+              </span>
+            </div>
           </div>
 
           <div className="flex flex-wrap gap-2">

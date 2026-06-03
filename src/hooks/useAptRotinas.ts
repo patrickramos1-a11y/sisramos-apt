@@ -317,13 +317,13 @@ export function useAptRotinas({
           title: "Rotina salva localmente",
           description: "Ela aparece neste navegador. Para ficar pública, aplique a migration no Supabase via Lovable.",
         });
-        return true;
+        return nextModelo;
       };
 
       if (tableUnavailable) return localCreate();
 
       setIsMutating(true);
-      const { error } = await (supabase as any).from("apt_rotina_modelos").insert({
+      const { data, error } = await (supabase as any).from("apt_rotina_modelos").insert({
         setor_id: payload.setor_id ?? setorId ?? null,
         nome: payload.nome.trim(),
         descricao: payload.descricao.trim(),
@@ -335,7 +335,7 @@ export function useAptRotinas({
         entra_calculo_apt: payload.entra_calculo_apt ?? true,
         cor: payload.cor || "#65a30d",
         icone: payload.icone || "check",
-      });
+      }).select("*").single();
       setIsMutating(false);
 
       if (error) {
@@ -348,7 +348,7 @@ export function useAptRotinas({
 
       toast({ title: "Rotina criada", description: "A demanda persistente foi adicionada ao setor." });
       await fetchRotinas();
-      return true;
+      return data as AptRotinaModelo;
     },
     [applyLocalState, fetchRotinas, handleTableError, isGestorOrAdmin, setorId, tableUnavailable, toast]
   );

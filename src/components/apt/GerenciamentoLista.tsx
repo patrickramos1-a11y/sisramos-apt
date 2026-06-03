@@ -166,11 +166,16 @@ export default function GerenciamentoLista({ profiles, setores, onDemandaChange 
   const [showPrazoDialog, setShowPrazoDialog] = useState(false);
   const [isSavingPrazoDialog, setIsSavingPrazoDialog] = useState(false);
   const [transformingPersistenteDemanda, setTransformingPersistenteDemanda] = useState<Demanda | null>(null);
+  const [transformingPersistenteMode, setTransformingPersistenteMode] = useState<"single" | "bulk">("single");
   const [isSavingPersistenteDialog, setIsSavingPersistenteDialog] = useState(false);
   const [isBulkTransformingPersistente, setIsBulkTransformingPersistente] = useState(false);
 
   const { pendingDemandaIds, refetchSolicitacoes } = useSolicitacoesExclusao();
-  const { createModelo: createRotinaModelo } = useAptRotinas({
+  const {
+    modelos: rotinaModelos,
+    createModelo: createRotinaModelo,
+    gerarOcorrenciasDoPeriodo,
+  } = useAptRotinas({
     mes: new Date().getMonth() + 1,
     ano: new Date().getFullYear(),
     semanas: [1, 2, 3, 4, 5],
@@ -247,6 +252,31 @@ export default function GerenciamentoLista({ profiles, setores, onDemandaChange 
     () => uniqueTags(allDemandas.flatMap((demanda) => demanda.tags || [])),
     [allDemandas]
   );
+
+  const filteredRotinaModelos = useMemo(() => {
+    if (!isGestorOrAdmin) return [];
+
+    return rotinaModelos.filter((modelo) => {
+      if (filters.setores.length > 0 && (!modelo.setor_id || !filters.setores.includes(modelo.setor_id))) {
+        return false;
+      }
+      if (
+        filters.responsaveis.length > 0 &&
+        (!modelo.responsavel_padrao_id || !filters.responsaveis.includes(modelo.responsavel_padrao_id))
+      ) {
+        return false;
+      }
+      if (filters.semanas.length > 0) {
+        const wanted = filters.semanas.map((semana) => parseInt(semana, 10));
+        if (!(modelo.semanas_aplicaveis || []).some((semana) => wanted.includes(semana))) return false;
+      }
+      if (filters.busca.trim()) {
+        const q = filters.busca.toLowerCase();
+        if (!`${modelo.nome} ${modelo.descricao}`.toLowerCase().includes(q)) return false;
+      }
+      return true;
+    });
+  }, [filters.busca, filters.responsaveis, filters.semanas, filters.setores, isGestorOrAdmin, rotinaModelos]);
 
   const handleDemandaChange = () => {
     fetchAllDemandas();
@@ -913,24 +943,44 @@ export default function GerenciamentoLista({ profiles, setores, onDemandaChange 
     }
   };
 
-  const handleTransformSelectedToPersistente = async () => {
+  const openBulkPersistenteDialog = () => {
+    const selectedGroups = consolidated.filter((group) => group.siblings.some((demanda) => selectedIds.has(demanda.id)));
+    if (selectedGroups.length === 0) return;
+    setTransformingPersistenteMode("bulk");
+    setTransformingPersistenteDemanda(selectedGroups[0].siblings[0]);
+  };
+
+  const deactivateDemandas = async (ids: string[]) => {
+    if (ids.length === 0) return;
+    const { error } = await supabase.from("demandas").update({ ativa: false }).in("id", ids);
+    if (error) throw error;
+    clearDemandasPrazoMeta(ids);
+  };
+
+  const handleTransformSelectedToPersistente = async (payload: {
+    descricao: string;
+    dias_semana: number[];
+    semanas_aplicaveis: number[];
+  }) => {
     const selectedGroups = consolidated.filter((group) => group.siblings.some((demanda) => selectedIds.has(demanda.id)));
     if (selectedGroups.length === 0) return;
 
     setIsBulkTransformingPersistente(true);
     let successCount = 0;
+    const createdModelos = [];
+    const deactivateIds: string[] = [];
 
     try {
       for (const group of selectedGroups) {
         const first = group.siblings[0];
         const semanas = Array.from(new Set(group.siblings.flatMap((demanda) => demanda.semana_limite || []))).sort((a, b) => a - b);
-        const ok = await createRotinaModelo({
+        const created = await createRotinaModelo({
           nome: group.descricao.trim(),
           descricao: first.observacoes?.trim() || group.descricao.trim(),
           setor_id: first.setor_id,
           responsavel_padrao_id: first.responsavel_id,
-          dias_semana: [1, 2, 3, 4, 5],
-          semanas_aplicaveis: semanas.length > 0 ? semanas : [1, 2, 3, 4, 5],
+          dias_semana: payload.dias_semana,
+          semanas_aplicaveis: payload.semanas_aplicaveis.length > 0 ? payload.semanas_aplicaveis : semanas.length > 0 ? semanas : [1, 2, 3, 4, 5],
           ativo: true,
           exige_aprovacao: true,
           entra_calculo_apt: true,
@@ -938,17 +988,26 @@ export default function GerenciamentoLista({ profiles, setores, onDemandaChange 
           icone: "clock",
         });
 
-        if (ok) successCount += 1;
+        if (created) {
+          successCount += 1;
+          createdModelos.push(created);
+          group.siblings.forEach((demanda) => deactivateIds.push(demanda.id));
+        }
       }
 
       if (successCount > 0) {
+        await deactivateDemandas(deactivateIds);
+        await gerarOcorrenciasDoPeriodo(createdModelos);
         toast({
-          title: "Rotinas persistentes criadas",
+          title: "Demandas transformadas em persistentes",
           description:
             successCount === selectedGroups.length
-              ? `${successCount} demanda(s) foram transformadas em rotinas persistentes.`
-              : `${successCount} de ${selectedGroups.length} demanda(s) foram transformadas em rotinas persistentes.`,
+              ? `${successCount} grupo(s) saíram da lista comum e viraram rotinas persistentes.`
+              : `${successCount} de ${selectedGroups.length} grupo(s) foram transformados em rotinas persistentes.`,
         });
+        setTransformingPersistenteDemanda(null);
+        setSelectedIds(new Set());
+        handleDemandaChange();
       } else {
         toast({
           variant: "destructive",
@@ -956,6 +1015,12 @@ export default function GerenciamentoLista({ profiles, setores, onDemandaChange 
           description: "Não foi possível transformar as demandas selecionadas em persistentes.",
         });
       }
+    } catch (error: any) {
+      toast({
+        variant: "destructive",
+        title: "Erro ao transformar demandas",
+        description: error.message || "Não foi possível transformar as demandas selecionadas em persistentes.",
+      });
     } finally {
       setIsBulkTransformingPersistente(false);
     }
@@ -969,17 +1034,48 @@ export default function GerenciamentoLista({ profiles, setores, onDemandaChange 
     dias_semana: number[];
     semanas_aplicaveis: number[];
   }) => {
+    if (transformingPersistenteMode === "bulk") {
+      await handleTransformSelectedToPersistente(payload);
+      return;
+    }
+
+    const demanda = transformingPersistenteDemanda;
+    if (!demanda) return;
+
     setIsSavingPersistenteDialog(true);
-    const ok = await createRotinaModelo({
-      ...payload,
-      ativo: true,
-      exige_aprovacao: true,
-      entra_calculo_apt: true,
-      cor: "#f97316",
-      icone: "clock",
-    });
-    setIsSavingPersistenteDialog(false);
-    if (ok) setTransformingPersistenteDemanda(null);
+    try {
+      const created = await createRotinaModelo({
+        ...payload,
+        ativo: true,
+        exige_aprovacao: true,
+        entra_calculo_apt: true,
+        cor: "#f97316",
+        icone: "clock",
+      });
+
+      if (created) {
+        const idsToDeactivate = demanda.grupo_id
+          ? allDemandas.filter((item) => item.grupo_id === demanda.grupo_id).map((item) => item.id)
+          : [demanda.id];
+
+        await deactivateDemandas(idsToDeactivate);
+        await gerarOcorrenciasDoPeriodo([created]);
+        toast({
+          title: "Demanda transformada em persistente",
+          description: "A demanda saiu da lista comum e agora passa a funcionar como rotina persistente.",
+        });
+        setTransformingPersistenteDemanda(null);
+        handleDemandaChange();
+      }
+    } catch (error: any) {
+      toast({
+        variant: "destructive",
+        title: "Erro ao transformar demanda",
+        description: error.message || "Não foi possível transformar esta demanda em persistente.",
+      });
+    } finally {
+      setIsSavingPersistenteDialog(false);
+    }
   };
 
   const profileOptions = profiles.map((p) => ({ value: p.user_id, label: p.nome, color: p.cor ?? null }));
@@ -1251,7 +1347,7 @@ export default function GerenciamentoLista({ profiles, setores, onDemandaChange 
                 <DropdownMenuItem onClick={(e) => { e.stopPropagation(); setEditingDemanda(first); }}>
                   <Pencil className="mr-2 h-4 w-4" /> Editar completo
                 </DropdownMenuItem>
-                <DropdownMenuItem onClick={(e) => { e.stopPropagation(); setTransformingPersistenteDemanda(first); }}>
+                <DropdownMenuItem onClick={(e) => { e.stopPropagation(); setTransformingPersistenteMode("single"); setTransformingPersistenteDemanda(first); }}>
                   <RefreshCw className="mr-2 h-4 w-4 text-orange-600" /> Transformar em persistente
                 </DropdownMenuItem>
                 <DropdownMenuItem onClick={(e) => { e.stopPropagation(); setSelectedIds(new Set(c.siblings.map((item) => item.id))); setShowPrazoDialog(true); }}>
@@ -1349,6 +1445,50 @@ export default function GerenciamentoLista({ profiles, setores, onDemandaChange 
           {consolidated.length} grupos · {filteredDemandas.length} demandas
         </span>
       </div>
+
+      {isGestorOrAdmin && filteredRotinaModelos.length > 0 && (
+        <div className="rounded-xl border border-orange-200 bg-orange-50/40 p-3">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div className="flex items-center gap-2">
+              <RefreshCw className="h-4 w-4 text-orange-600" />
+              <div>
+                <p className="text-sm font-semibold text-orange-950">Demandas persistentes</p>
+                <p className="text-xs text-orange-800/80">
+                  Modelos recorrentes filtrados junto da lista. Edite em Configurações &gt; Setores.
+                </p>
+              </div>
+            </div>
+            <Badge variant="outline" className="border-orange-300 bg-white/70 text-orange-800">
+              {filteredRotinaModelos.length} modelo{filteredRotinaModelos.length === 1 ? "" : "s"}
+            </Badge>
+          </div>
+          <div className="mt-3 flex flex-wrap gap-2">
+            {filteredRotinaModelos.map((modelo) => {
+              const setor = getSetorById(modelo.setor_id);
+              const profile = modelo.responsavel_padrao_id ? getProfileById(modelo.responsavel_padrao_id) : null;
+              const semanas = (modelo.semanas_aplicaveis || []).join(",");
+              return (
+                <div
+                  key={modelo.id}
+                  className="flex max-w-full items-center gap-2 rounded-full border border-orange-200 bg-white px-3 py-1.5 text-xs shadow-sm"
+                  title={modelo.descricao}
+                >
+                  <span className="h-2 w-2 shrink-0 rounded-full bg-orange-500" />
+                  <span className="max-w-[260px] truncate font-semibold text-orange-950">{modelo.nome}</span>
+                  <span className="text-muted-foreground">{setor?.nome || "Sem setor"}</span>
+                  <span className="text-muted-foreground">{profile?.nome || "Sem responsável"}</span>
+                  <Badge variant="outline" className="h-5 rounded-full px-1.5 text-[10px]">
+                    {(modelo.dias_semana || []).length}x/sem.
+                  </Badge>
+                  <Badge variant="secondary" className="h-5 rounded-full px-1.5 text-[10px]">
+                    {semanas || "sem semanas"}
+                  </Badge>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       {/* Table */}
       <div className="rounded-lg border bg-card overflow-hidden">
@@ -1482,7 +1622,7 @@ export default function GerenciamentoLista({ profiles, setores, onDemandaChange 
           onSetUrgencia={(v) => bulk.setUrgencia(expandedSelectedIds, v)}
           onSetStatusResp={(s) => bulk.setStatusResponsavel(expandedSelectedIds, s)}
           onSetStatusGestor={(s) => bulk.setStatusGestor(expandedSelectedIds, s)}
-          onTransformPersistente={() => void handleTransformSelectedToPersistente()}
+          onTransformPersistente={openBulkPersistenteDialog}
           onTransformPrazo={() => setShowPrazoDialog(true)}
           onDuplicate={() => setDuplicandoIds(expandedSelectedIds)}
           onDelete={() => bulk.softDelete(expandedSelectedIds)}

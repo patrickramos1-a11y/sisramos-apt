@@ -4,7 +4,6 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 import {
-  AptRotinaOcorrencia,
   AptRotinaStatusAvaliacao,
   AptRotinaStatusOcorrencia,
   AptRotinaResumo,
@@ -31,7 +30,6 @@ interface RotinasPersistentesSectionProps {
 }
 
 type StatusFilter = "todos" | "pendentes" | "executado" | "nao_realizado";
-const WEEKDAY_LABELS = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"];
 
 const STATUS_META = {
   pendente: {
@@ -53,15 +51,6 @@ const STATUS_META = {
     dot: "bg-red-500",
   },
 } as const;
-
-function formatDate(date: string) {
-  const [year, month, day] = date.split("-").map(Number);
-  return new Date(year, month - 1, day).toLocaleDateString("pt-BR", {
-    weekday: "short",
-    day: "2-digit",
-    month: "2-digit",
-  });
-}
 
 function getTodayKey() {
   const today = new Date();
@@ -100,36 +89,12 @@ function getWeeklyFrequency(resumo: AptRotinaResumo) {
   return Math.max(0, ...Array.from(perWeek.values()));
 }
 
-function getDateWeekday(dateKey: string) {
-  const [year, month, day] = dateKey.split("-").map(Number);
-  return new Date(year, month - 1, day).getDay();
-}
-
-function getWeekdayStatus(ocorrencias: AptRotinaOcorrencia[], weekday: number): AptRotinaStatusOcorrencia | "sem_ocorrencia" {
-  const items = ocorrencias.filter((item) => getDateWeekday(item.data) === weekday);
-  if (items.length === 0) return "sem_ocorrencia";
-  if (items.some((item) => item.status_execucao === "pendente")) return "pendente";
-  if (items.some((item) => item.status_execucao === "nao_realizado")) return "nao_realizado";
-  return "executado";
-}
-
 function getRowStatus(resumo: AptRotinaResumo, todayKey: string): AptRotinaStatusOcorrencia {
   const todayOccurrence = resumo.ocorrencias.find((item) => item.data === todayKey);
   if (todayOccurrence) return todayOccurrence.status_execucao;
   if (resumo.pendentes > 0) return "pendente";
   if (resumo.nao_feitas > 0) return "nao_realizado";
   return "executado";
-}
-
-function occurrenceChipClass(status: AptRotinaStatusOcorrencia) {
-  if (status === "executado") return "border-emerald-200 bg-emerald-50 text-emerald-700";
-  if (status === "nao_realizado") return "border-red-200 bg-red-50 text-red-700";
-  return "border-amber-200 bg-amber-50 text-amber-700";
-}
-
-function weekdayChipClass(status: AptRotinaStatusOcorrencia | "sem_ocorrencia") {
-  if (status === "sem_ocorrencia") return "border-border bg-background text-muted-foreground";
-  return occurrenceChipClass(status);
 }
 
 function statusLabel(status: AptRotinaStatusAvaliacao | undefined) {
@@ -349,13 +314,12 @@ export default function RotinasPersistentesSection({
         </div>
       ) : (
         <div className="overflow-x-auto rounded-2xl border bg-card shadow-sm">
-          <div className="grid min-w-[1320px] grid-cols-[minmax(260px,1fr)_150px_140px_120px_110px_220px_190px_150px] items-center gap-3 bg-orange-50/70 px-4 py-3 text-xs font-bold uppercase tracking-[0.14em] text-orange-900">
+          <div className="grid min-w-[1080px] grid-cols-[minmax(300px,1fr)_150px_140px_90px_120px_190px_150px] items-center gap-3 bg-orange-50/70 px-4 py-3 text-xs font-bold uppercase tracking-[0.14em] text-orange-900">
             <span>Demanda persistente</span>
             <span>Responsável</span>
             <span>Setor</span>
-            <span>Dias</span>
+            <span>Rep. mês</span>
             <span>Semanas</span>
-            <span>Status dos dias</span>
             <span>Status de hoje</span>
             <span className="text-right">Aprovação</span>
           </div>
@@ -372,34 +336,22 @@ export default function RotinasPersistentesSection({
             const rowStatus = getRowStatus(resumo, todayKey);
             const statusMeta = STATUS_META[rowStatus];
             const StatusIcon = statusMeta.icon;
-            const days = resumo.modelo.dias_semana.map((day) => WEEKDAY_LABELS[day] || String(day));
-            const dayStatusChips = resumo.modelo.dias_semana.map((day) => ({
-              day,
-              label: WEEKDAY_LABELS[day] || String(day),
-              status: getWeekdayStatus(resumo.ocorrencias, day),
-            }));
-
             return (
               <article
                 key={resumo.key}
-                className="grid min-w-[1320px] grid-cols-[minmax(260px,1fr)_150px_140px_120px_110px_220px_190px_150px] items-center gap-3 border-t px-4 py-3 text-sm"
+                className="grid min-w-[1080px] grid-cols-[minmax(300px,1fr)_150px_140px_90px_120px_190px_150px] items-center gap-3 border-t px-4 py-2 text-sm"
               >
                 <div className="min-w-0">
-                  <div className="flex min-w-0 items-start gap-2">
+                  <div className="flex min-w-0 items-center gap-2">
                     <span
-                      className="mt-0.5 inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full border border-orange-200 bg-orange-100 text-orange-700"
+                      className="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full border border-orange-200 bg-orange-100 text-orange-700"
                       title="Demanda persistente"
                     >
                       <RefreshCcw className="h-3.5 w-3.5" />
                     </span>
                     <div className="min-w-0">
-                      <div className="flex flex-wrap items-center gap-2">
-                        <h3 className="font-semibold leading-tight">{resumo.modelo.nome}</h3>
-                        <Badge variant="outline" className="rounded-full">
-                          {monthlyCount}x/mês
-                        </Badge>
-                      </div>
-                      <p className="mt-1 line-clamp-2 text-xs text-muted-foreground">
+                      <h3 className="truncate font-semibold leading-tight">{resumo.modelo.nome}</h3>
+                      <p className="mt-0.5 truncate text-xs text-muted-foreground">
                         {resumo.modelo.descricao || "Sem descrição operacional."}
                       </p>
                     </div>
@@ -434,12 +386,10 @@ export default function RotinasPersistentesSection({
                   </Badge>
                 </div>
 
-                <div className="flex flex-wrap gap-1">
-                  {days.map((day) => (
-                    <Badge key={day} variant="outline" className="rounded-full px-2 py-1 text-xs">
-                      {day}
-                    </Badge>
-                  ))}
+                <div>
+                  <Badge variant="outline" className="rounded-full px-2 py-1 text-xs">
+                    {monthlyCount}x/mês
+                  </Badge>
                 </div>
 
                 <div className="flex flex-wrap gap-1">
@@ -447,29 +397,6 @@ export default function RotinasPersistentesSection({
                     <Badge key={week} variant="outline" className="rounded-full px-2 py-1 text-xs">
                       {ordinalWeek(week)}
                     </Badge>
-                  ))}
-                </div>
-
-                <div className="flex max-w-[220px] flex-wrap gap-1">
-                  {dayStatusChips.map((chip) => (
-                    <span
-                      key={chip.day}
-                      className={cn(
-                        "inline-flex h-6 min-w-8 items-center justify-center rounded-full border px-1.5 text-[10px] font-semibold",
-                        weekdayChipClass(chip.status)
-                      )}
-                      title={`${chip.label} · ${
-                        chip.status === "executado"
-                          ? "feito"
-                          : chip.status === "nao_realizado"
-                            ? "não feito"
-                            : chip.status === "pendente"
-                              ? "pendente"
-                              : "sem ocorrência"
-                      }`}
-                    >
-                      {chip.label}
-                    </span>
                   ))}
                 </div>
 
