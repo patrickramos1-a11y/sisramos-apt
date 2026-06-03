@@ -9,7 +9,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import StatusBolinha from "./StatusBolinha";
 import { cn } from "@/lib/utils";
-import { MoreVertical, Pencil, Trash2, Flame, Star, Repeat, MessageCircle } from "lucide-react";
+import { Clock3, MoreVertical, Pencil, Trash2, Flame, Star, Repeat, MessageCircle } from "lucide-react";
 import { AptTag } from "@/lib/tags";
 
 type StatusBolinha = "pendente" | "executado" | "nao_realizado";
@@ -45,6 +45,7 @@ interface DemandaTableRowProps {
   onClick?: () => void;
   onEdit?: () => void;
   onDelete?: () => void;
+  onTransformToPersistent?: () => void;
   onSelectChange?: (checked: boolean) => void;
 }
 
@@ -79,6 +80,7 @@ export default function DemandaTableRow({
   onClick,
   onEdit,
   onDelete,
+  onTransformToPersistent,
   onSelectChange,
 }: DemandaTableRowProps) {
   const semanaOrdenacao = semanaLimite?.length ? Math.min(...semanaLimite) : 0;
@@ -250,6 +252,12 @@ export default function DemandaTableRow({
                     <Pencil className="mr-2 h-4 w-4" />
                     Editar
                   </DropdownMenuItem>
+                  {onTransformToPersistent && (
+                    <DropdownMenuItem onClick={onTransformToPersistent}>
+                      <Clock3 className="mr-2 h-4 w-4 text-orange-600" />
+                      Transformar em persistente
+                    </DropdownMenuItem>
+                  )}
                   <DropdownMenuItem
                     onClick={onDelete}
                     className="text-destructive focus:text-destructive"

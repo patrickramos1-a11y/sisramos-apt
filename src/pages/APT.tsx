@@ -6,6 +6,7 @@ import { useMonthSettings } from "@/hooks/useMonthSettings";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useMomentoAPT } from "@/hooks/useMomentoAPT";
 import { useAptMomentos } from "@/hooks/useAptMomentos";
+import { useAptRotinas } from "@/hooks/useAptRotinas";
 import { resolveAptViewDate } from "@/hooks/useAptContext";
 import { supabase } from "@/integrations/supabase/client";
 import AppLayout from "@/components/layout/AppLayout";
@@ -23,6 +24,7 @@ import RolloverDemandasDialog from "@/components/apt/RolloverDemandasDialog";
 import MonthSettingsControl, { PastMonthWarningBanner } from "@/components/apt/MonthSettingsControl";
 import AptMomentosNavigator from "@/components/apt/AptMomentosNavigator";
 import ConfigurarAptDialog from "@/components/apt/ConfigurarAptDialog";
+import TransformarDemandaPersistenteDialog from "@/components/apt/TransformarDemandaPersistenteDialog";
 import DemandaCard from "@/components/apt/DemandaCard";
 import DemandaTableRow from "@/components/apt/DemandaTableRow";
 import DemandaSortHeader from "@/components/apt/DemandaSortHeader";
@@ -174,6 +176,8 @@ export default function APT() {
     ano: number;
     semanas_repeticao: number;
   } | null>(null);
+  const [transformingDemanda, setTransformingDemanda] = useState<Demanda | null>(null);
+  const [isTransformingPersistente, setIsTransformingPersistente] = useState(false);
 
   // Selection state for bulk operations
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
@@ -199,6 +203,13 @@ export default function APT() {
     saveConfig: saveMomentos,
     semanasDoMomento,
   } = useAptMomentos(viewedMes, viewedAno);
+  const { createModelo: createRotinaModelo } = useAptRotinas({
+    mes: viewedMes ?? new Date().getMonth() + 1,
+    ano: viewedAno ?? new Date().getFullYear(),
+    semanas: [1, 2, 3, 4, 5],
+    momento: null,
+    enabled: isGestorOrAdmin,
+  });
 
   // Quando o momento selecionado muda, atualiza o filtro de semanas
   const handleSelecionarMomento = (numero: number) => {
@@ -214,6 +225,27 @@ export default function APT() {
     const ok = await saveMomentos(momentos, momentoAtivo);
     setIsSavingMomentos(false);
     return ok;
+  };
+
+  const handleTransformarPersistente = async (payload: {
+    nome: string;
+    descricao: string;
+    setor_id: string | null;
+    responsavel_padrao_id: string;
+    dias_semana: number[];
+    semanas_aplicaveis: number[];
+  }) => {
+    setIsTransformingPersistente(true);
+    const ok = await createRotinaModelo({
+      ...payload,
+      ativo: true,
+      exige_aprovacao: true,
+      entra_calculo_apt: true,
+      cor: "#f97316",
+      icone: "clock",
+    });
+    setIsTransformingPersistente(false);
+    if (ok) setTransformingDemanda(null);
   };
   
   const handleTopSetorClick = (setorId: string | null) => {
@@ -703,6 +735,11 @@ export default function APT() {
                             updateStatusGestor(demanda.id, demanda.status_gestor)
                           }
                           onEdit={() => setEditingDemanda(demanda as Demanda)}
+                          onTransformToPersistent={
+                            isGestorOrAdmin
+                              ? () => setTransformingDemanda(demanda as Demanda)
+                              : undefined
+                          }
                           onDelete={() =>
                             handleDeleteClick(demanda)
                           }
@@ -890,6 +927,11 @@ export default function APT() {
                                 onEdit={() =>
                                   setEditingDemanda(demanda as Demanda)
                                 }
+                                onTransformToPersistent={
+                                  isGestorOrAdmin
+                                    ? () => setTransformingDemanda(demanda as Demanda)
+                                    : undefined
+                                }
                                 onDelete={() =>
                                   handleDeleteClick(demanda)
                                 }
@@ -998,6 +1040,16 @@ export default function APT() {
         demandaAno={solicitandoExclusao?.ano}
         demandaSemanasRepeticao={solicitandoExclusao?.semanas_repeticao}
         onSolicitacaoEnviada={() => { fetchDemandas(); refetchSolicitacoes(); }}
+      />
+
+      <TransformarDemandaPersistenteDialog
+        open={!!transformingDemanda}
+        demanda={transformingDemanda}
+        setores={setores}
+        profiles={profiles}
+        isSaving={isTransformingPersistente}
+        onOpenChange={(open) => !open && setTransformingDemanda(null)}
+        onConfirm={handleTransformarPersistente}
       />
 
       <ExcluirDemandasEmMassaDialog

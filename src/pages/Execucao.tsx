@@ -6,7 +6,7 @@ import { useDemandas } from "@/hooks/useDemandas";
 import { useMonthSettings } from "@/hooks/useMonthSettings";
 import { useMomentoAPT } from "@/hooks/useMomentoAPT";
 import { resolveAptViewDate, useAptContext } from "@/hooks/useAptContext";
-import { AptRotinaResumo, useAptRotinas } from "@/hooks/useAptRotinas";
+import { AptRotinaOcorrencia, AptRotinaResumo, AptRotinaStatusOcorrencia, useAptRotinas } from "@/hooks/useAptRotinas";
 import { supabase } from "@/integrations/supabase/client";
 import APTHorizontalFilters from "@/components/apt/APTHorizontalFilters";
 import APTFilters from "@/components/apt/APTFilters";
@@ -199,6 +199,26 @@ function getRotinaFrequency(rotina: AptRotinaResumo) {
     perWeek.set(item.semana_apt, (perWeek.get(item.semana_apt) || 0) + 1);
   });
   return Math.max(0, ...Array.from(perWeek.values()));
+}
+
+function getDateWeekday(dateKey: string) {
+  const [year, month, day] = dateKey.split("-").map(Number);
+  return new Date(year, month - 1, day).getDay();
+}
+
+function getWeekdayStatus(ocorrencias: AptRotinaOcorrencia[], weekday: number): AptRotinaStatusOcorrencia | "sem_ocorrencia" {
+  const items = ocorrencias.filter((item) => getDateWeekday(item.data) === weekday);
+  if (items.length === 0) return "sem_ocorrencia";
+  if (items.some((item) => item.status_execucao === "pendente")) return "pendente";
+  if (items.some((item) => item.status_execucao === "nao_realizado")) return "nao_realizado";
+  return "executado";
+}
+
+function weekdayChipClass(status: AptRotinaStatusOcorrencia | "sem_ocorrencia") {
+  if (status === "executado") return "border-emerald-200 bg-emerald-50 text-emerald-700";
+  if (status === "nao_realizado") return "border-red-200 bg-red-50 text-red-700";
+  if (status === "pendente") return "border-orange-200 bg-orange-50 text-orange-700";
+  return "border-border bg-background text-muted-foreground";
 }
 
 function getRotinaResponsavelStatus(rotina: AptRotinaResumo, todayKey: string): Demanda["status_responsavel"] {
@@ -2167,36 +2187,35 @@ export default function Execucao() {
                           const responsavelStatus = getRotinaResponsavelStatus(rotina, todayKey);
                           const gestorStatus = getRotinaGestorStatus(rotina);
                           const allWeeks = getRotinaWeeks(rotina);
-                          const repeatedLabel = `${getRotinaFrequency(rotina)}x`;
-                          const nextOccurrence = rotina.ocorrencias
-                            .filter((item) => item.data > todayKey)
-                            .sort((a, b) => a.data.localeCompare(b.data))[0];
-                          const dayLabels = rotina.modelo.dias_semana
-                            .map((day) => WEEKDAY_LABELS[day] || String(day))
-                            .join(" · ");
+                          const repeatedLabel = `${rotina.previstas || rotina.ocorrencias.length || rotina.modelo.dias_semana.length}x`;
+                          const dayStatusChips = rotina.modelo.dias_semana.map((day) => ({
+                            day,
+                            label: WEEKDAY_LABELS[day] || String(day),
+                            status: getWeekdayStatus(rotina.ocorrencias, day),
+                          }));
 
                           return (
                             <tr
                               key={`rotina-${rotina.key}`}
-                              className="border-b border-orange-100 bg-orange-50/25 transition-colors hover:bg-orange-50/60"
+                              className="border-b border-orange-100 bg-orange-50/20 transition-colors hover:bg-orange-50/50"
                             >
-                              <td className="px-3 py-3 text-center align-middle">
+                              <td className="px-3 py-2 text-center align-middle">
                                 {isGestorOrAdmin && <span className="text-xs text-muted-foreground">-</span>}
                               </td>
-                              <td className="whitespace-nowrap px-3 py-3 align-middle">
-                                <Badge className="gap-1 rounded-full border-orange-200 bg-orange-100 text-orange-700 hover:bg-orange-100">
+                              <td className="whitespace-nowrap px-3 py-2 align-middle">
+                                <Badge variant="outline" className="gap-1 rounded-full border-orange-200 bg-orange-50 px-2 py-0.5 text-orange-700">
                                   <Clock3 className="h-3.5 w-3.5" />
                                   REC
                                 </Badge>
                               </td>
-                              <td className="px-3 py-3 align-middle">
+                              <td className="px-3 py-2 align-middle">
                                 <Badge variant="secondary" className="gap-1.5 rounded-full px-2.5 py-1">
                                   <span className="h-2 w-2 rounded-full" style={{ backgroundColor: setor?.cor || rotina.modelo.cor }} />
                                   {setor?.nome || "Sem setor"}
                                 </Badge>
                               </td>
                               {isGestorOrAdmin && (
-                                <td className="whitespace-nowrap px-3 py-3 align-middle">
+                                <td className="whitespace-nowrap px-3 py-2 align-middle">
                                   <Badge
                                     variant="outline"
                                     className="gap-1.5 rounded-full px-2.5 py-1"
@@ -2211,40 +2230,45 @@ export default function Execucao() {
                                   </Badge>
                                 </td>
                               )}
-                              <td className="px-3 py-3 align-middle">
-                                <div className="flex min-w-0 items-start gap-2">
-                                  <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center">
-                                    <Clock3 className="h-4 w-4 text-orange-600" />
-                                  </span>
-                                  <div className="min-w-0">
-                                    <div className="flex flex-wrap items-center gap-2">
-                                      <span className="font-medium leading-snug">{rotina.modelo.nome}</span>
-                                      <Badge className="rounded-full border-orange-200 bg-orange-50 text-orange-700 hover:bg-orange-50">
-                                        Persistente
-                                      </Badge>
-                                    </div>
-                                    {rotina.modelo.descricao && (
-                                      <p className="mt-1 line-clamp-2 text-xs text-muted-foreground">
-                                        {rotina.modelo.descricao}
-                                      </p>
-                                    )}
-                                    <p className="mt-1 text-[11px] text-orange-700">
-                                      Dias: {dayLabels || "não configurado"}
-                                    </p>
+                              <td className="min-w-0 px-3 py-2 align-middle">
+                                <div className="flex min-w-0 items-center gap-2">
+                                  <Clock3 className="h-4 w-4 shrink-0 text-orange-600" />
+                                  <div className="flex shrink-0 items-center gap-1">
+                                    {dayStatusChips.map((chip) => (
+                                      <span
+                                        key={chip.day}
+                                        className={cn(
+                                          "inline-flex h-6 min-w-8 items-center justify-center rounded-full border px-1.5 text-[10px] font-semibold",
+                                          weekdayChipClass(chip.status)
+                                        )}
+                                        title={`${chip.label} · ${
+                                          chip.status === "executado"
+                                            ? "feito"
+                                            : chip.status === "nao_realizado"
+                                              ? "não feito"
+                                              : chip.status === "pendente"
+                                                ? "pendente"
+                                                : "sem ocorrência"
+                                        }`}
+                                      >
+                                        {chip.label}
+                                      </span>
+                                    ))}
                                   </div>
+                                  <span className="truncate font-medium leading-snug">{rotina.modelo.nome}</span>
                                 </div>
                               </td>
-                              <td className="whitespace-nowrap px-3 py-3 align-middle">
+                              <td className="whitespace-nowrap px-3 py-2 align-middle">
                                 <Badge variant="outline" className="rounded-full px-2.5 py-1">
                                   {semanasCompactas(allWeeks)}
                                 </Badge>
                               </td>
-                              <td className="whitespace-nowrap px-3 py-3 text-center align-middle">
+                              <td className="whitespace-nowrap px-3 py-2 text-center align-middle">
                                 <Badge variant="outline" className="rounded-full px-2.5 py-1">
                                   {repeatedLabel}
                                 </Badge>
                               </td>
-                              <td className="px-3 py-3 text-center align-middle">
+                              <td className="px-3 py-2 text-center align-middle">
                                 <div className="inline-flex items-center gap-2">
                                   <StatusBolinha
                                     status={responsavelStatus}
@@ -2260,14 +2284,12 @@ export default function Execucao() {
                                       ? todayOccurrence.status_execucao === "executado"
                                         ? "hoje"
                                         : `${rotina.feitas}/${rotina.previstas}`
-                                      : nextOccurrence
-                                        ? `próx. ${nextOccurrence.data.slice(8, 10)}/${nextOccurrence.data.slice(5, 7)}`
-                                        : `${rotina.feitas}/${rotina.previstas}`}
+                                      : `${rotina.feitas}/${rotina.previstas}`}
                                   </span>
                                 </div>
                               </td>
                               {isGestorOrAdmin && (
-                                <td className="px-3 py-3 text-center align-middle">
+                                <td className="px-3 py-2 text-center align-middle">
                                   <StatusBolinha
                                     status={gestorStatus}
                                     onClick={
@@ -2283,7 +2305,7 @@ export default function Execucao() {
                                   />
                                 </td>
                               )}
-                              <td className="px-3 py-3 text-center align-middle">
+                              <td className="px-3 py-2 text-center align-middle">
                                 <span className="text-xs text-muted-foreground">-</span>
                               </td>
                             </tr>

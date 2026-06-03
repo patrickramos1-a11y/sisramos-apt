@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 import {
+  AptRotinaOcorrencia,
   AptRotinaStatusAvaliacao,
   AptRotinaStatusOcorrencia,
   AptRotinaResumo,
@@ -99,6 +100,19 @@ function getWeeklyFrequency(resumo: AptRotinaResumo) {
   return Math.max(0, ...Array.from(perWeek.values()));
 }
 
+function getDateWeekday(dateKey: string) {
+  const [year, month, day] = dateKey.split("-").map(Number);
+  return new Date(year, month - 1, day).getDay();
+}
+
+function getWeekdayStatus(ocorrencias: AptRotinaOcorrencia[], weekday: number): AptRotinaStatusOcorrencia | "sem_ocorrencia" {
+  const items = ocorrencias.filter((item) => getDateWeekday(item.data) === weekday);
+  if (items.length === 0) return "sem_ocorrencia";
+  if (items.some((item) => item.status_execucao === "pendente")) return "pendente";
+  if (items.some((item) => item.status_execucao === "nao_realizado")) return "nao_realizado";
+  return "executado";
+}
+
 function getRowStatus(resumo: AptRotinaResumo, todayKey: string): AptRotinaStatusOcorrencia {
   const todayOccurrence = resumo.ocorrencias.find((item) => item.data === todayKey);
   if (todayOccurrence) return todayOccurrence.status_execucao;
@@ -111,6 +125,11 @@ function occurrenceChipClass(status: AptRotinaStatusOcorrencia) {
   if (status === "executado") return "border-emerald-200 bg-emerald-50 text-emerald-700";
   if (status === "nao_realizado") return "border-red-200 bg-red-50 text-red-700";
   return "border-amber-200 bg-amber-50 text-amber-700";
+}
+
+function weekdayChipClass(status: AptRotinaStatusOcorrencia | "sem_ocorrencia") {
+  if (status === "sem_ocorrencia") return "border-border bg-background text-muted-foreground";
+  return occurrenceChipClass(status);
 }
 
 function statusLabel(status: AptRotinaStatusAvaliacao | undefined) {
@@ -336,7 +355,7 @@ export default function RotinasPersistentesSection({
             <span>Setor</span>
             <span>Dias</span>
             <span>Semanas</span>
-            <span>Ocorrências</span>
+            <span>Status dos dias</span>
             <span>Status de hoje</span>
             <span className="text-right">Aprovação</span>
           </div>
@@ -345,7 +364,7 @@ export default function RotinasPersistentesSection({
             const setor = setores.find((item) => item.id === resumo.setor_id);
             const avaliacaoStatus = resumo.avaliacao?.status_gestor;
             const weeks = getResumoWeeks(resumo);
-            const frequency = getWeeklyFrequency(resumo);
+            const monthlyCount = resumo.previstas || resumo.ocorrencias.length || getWeeklyFrequency(resumo);
             const todayOccurrence = resumo.ocorrencias.find((item) => item.data === todayKey);
             const nextOccurrence = resumo.ocorrencias
               .filter((item) => item.data > todayKey)
@@ -354,6 +373,11 @@ export default function RotinasPersistentesSection({
             const statusMeta = STATUS_META[rowStatus];
             const StatusIcon = statusMeta.icon;
             const days = resumo.modelo.dias_semana.map((day) => WEEKDAY_LABELS[day] || String(day));
+            const dayStatusChips = resumo.modelo.dias_semana.map((day) => ({
+              day,
+              label: WEEKDAY_LABELS[day] || String(day),
+              status: getWeekdayStatus(resumo.ocorrencias, day),
+            }));
 
             return (
               <article
@@ -371,11 +395,8 @@ export default function RotinasPersistentesSection({
                     <div className="min-w-0">
                       <div className="flex flex-wrap items-center gap-2">
                         <h3 className="font-semibold leading-tight">{resumo.modelo.nome}</h3>
-                        <Badge className="rounded-full border-orange-200 bg-orange-50 text-orange-700 hover:bg-orange-50">
-                          Persistente
-                        </Badge>
                         <Badge variant="outline" className="rounded-full">
-                          {frequency}x/sem.
+                          {monthlyCount}x/mês
                         </Badge>
                       </div>
                       <p className="mt-1 line-clamp-2 text-xs text-muted-foreground">
@@ -430,16 +451,24 @@ export default function RotinasPersistentesSection({
                 </div>
 
                 <div className="flex max-w-[220px] flex-wrap gap-1">
-                  {resumo.ocorrencias.slice(0, 24).map((ocorrencia) => (
+                  {dayStatusChips.map((chip) => (
                     <span
-                      key={ocorrencia.id}
+                      key={chip.day}
                       className={cn(
                         "inline-flex h-6 min-w-8 items-center justify-center rounded-full border px-1.5 text-[10px] font-semibold",
-                        occurrenceChipClass(ocorrencia.status_execucao)
+                        weekdayChipClass(chip.status)
                       )}
-                      title={`${formatDate(ocorrencia.data)} · ${STATUS_META[ocorrencia.status_execucao].label}`}
+                      title={`${chip.label} · ${
+                        chip.status === "executado"
+                          ? "feito"
+                          : chip.status === "nao_realizado"
+                            ? "não feito"
+                            : chip.status === "pendente"
+                              ? "pendente"
+                              : "sem ocorrência"
+                      }`}
                     >
-                      {ocorrencia.data.slice(8, 10)}
+                      {chip.label}
                     </span>
                   ))}
                 </div>
