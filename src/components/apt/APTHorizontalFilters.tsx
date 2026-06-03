@@ -19,6 +19,7 @@ import {
   ChevronDown,
   Clock3,
   Flame,
+  RefreshCcw,
   Search,
   SlidersHorizontal,
   Star,
@@ -51,6 +52,8 @@ export interface MultiFilters {
   busca: string;
   urgente: boolean;
   prioridade: boolean;
+  persistente: boolean;
+  prazo: boolean;
   tags: string[];
 }
 
@@ -245,6 +248,8 @@ export default function APTHorizontalFilters({
     filters.busca !== "" ||
     filters.urgente ||
     filters.prioridade ||
+    filters.persistente ||
+    filters.prazo ||
     filters.tags.length > 0;
 
   const isMyQueueActive =
@@ -337,6 +342,24 @@ export default function APTHorizontalFilters({
               onClick={() => update("prioridade", !filters.prioridade)}
             >
               Prioridade
+            </FilterPill>
+
+            <FilterPill
+              active={filters.persistente}
+              tone="blue"
+              icon={<RefreshCcw className={cn("h-3 w-3", filters.persistente && "stroke-[3]")} />}
+              onClick={() => update("persistente", !filters.persistente)}
+            >
+              Persistente
+            </FilterPill>
+
+            <FilterPill
+              active={filters.prazo}
+              tone="amber"
+              icon={<Clock3 className={cn("h-3 w-3", filters.prazo && "stroke-[3]")} />}
+              onClick={() => update("prazo", !filters.prazo)}
+            >
+              Prazo
             </FilterPill>
             </div>
 

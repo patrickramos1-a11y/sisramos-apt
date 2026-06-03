@@ -314,7 +314,7 @@ export default function RotinasPersistentesSection({
         </div>
       ) : (
         <div className="overflow-x-auto rounded-2xl border bg-card shadow-sm">
-          <div className="grid min-w-[1080px] grid-cols-[minmax(300px,1fr)_150px_140px_90px_120px_190px_150px] items-center gap-3 bg-orange-50/70 px-4 py-3 text-xs font-bold uppercase tracking-[0.14em] text-orange-900">
+          <div className="grid min-w-[1080px] grid-cols-[minmax(300px,1fr)_150px_140px_90px_120px_190px_150px] items-center gap-3 bg-sky-50/80 px-4 py-3 text-xs font-bold uppercase tracking-[0.14em] text-sky-900">
             <span>Demanda persistente</span>
             <span>Responsável</span>
             <span>Setor</span>
@@ -344,7 +344,7 @@ export default function RotinasPersistentesSection({
                 <div className="min-w-0">
                   <div className="flex min-w-0 items-center gap-2">
                     <span
-                      className="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full border border-orange-200 bg-orange-100 text-orange-700"
+                      className="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full border border-sky-200 bg-sky-100 text-sky-700"
                       title="Demanda persistente"
                     >
                       <RefreshCcw className="h-3.5 w-3.5" />
@@ -409,10 +409,10 @@ export default function RotinasPersistentesSection({
                       className={cn(
                         "h-8 w-full gap-2 rounded-full",
                         todayOccurrence.status_execucao === "executado"
-                          ? "border-orange-200 bg-orange-50 text-orange-700 hover:bg-orange-100"
+                          ? "border-sky-200 bg-sky-50 text-sky-700 hover:bg-sky-100"
                           : todayOccurrence.status_execucao === "nao_realizado"
                             ? "bg-red-600 text-white hover:bg-red-700"
-                            : "bg-orange-500 text-white hover:bg-orange-600"
+                            : "bg-sky-600 text-white hover:bg-sky-700"
                       )}
                       onClick={() =>
                         marcarOcorrencia(

@@ -122,6 +122,8 @@ const DEFAULT_FILTERS: ListaFilters = {
   repeticoes: [],
   urgente: false,
   prioridade: false,
+  persistente: false,
+  prazo: false,
   pendenteAprovacao: false,
   todosOsMeses: false,
   tags: [],
@@ -255,6 +257,7 @@ export default function GerenciamentoLista({ profiles, setores, onDemandaChange 
 
   const filteredRotinaModelos = useMemo(() => {
     if (!isGestorOrAdmin) return [];
+    if (filters.prazo) return [];
 
     return rotinaModelos.filter((modelo) => {
       if (filters.setores.length > 0 && (!modelo.setor_id || !filters.setores.includes(modelo.setor_id))) {
@@ -276,7 +279,7 @@ export default function GerenciamentoLista({ profiles, setores, onDemandaChange 
       }
       return true;
     });
-  }, [filters.busca, filters.responsaveis, filters.semanas, filters.setores, isGestorOrAdmin, rotinaModelos]);
+  }, [filters.busca, filters.prazo, filters.responsaveis, filters.semanas, filters.setores, isGestorOrAdmin, rotinaModelos]);
 
   const handleDemandaChange = () => {
     fetchAllDemandas();
@@ -314,6 +317,8 @@ export default function GerenciamentoLista({ profiles, setores, onDemandaChange 
     }
     if (filters.urgente) result = result.filter((d) => d.muito_urgente);
     if (filters.prioridade) result = result.filter((d) => d.prioritaria);
+    if (filters.prazo) result = result.filter((d) => isDemandaPrazo(d));
+    if (filters.persistente) result = [];
     if (filters.pendenteAprovacao) result = result.filter((d) => d.status_responsavel === "executado" && d.status_gestor === "pendente");
     if (filters.repeticoes.length > 0) {
       const reps = filters.repeticoes.map((r) => parseInt(r));
@@ -984,8 +989,8 @@ export default function GerenciamentoLista({ profiles, setores, onDemandaChange 
           ativo: true,
           exige_aprovacao: true,
           entra_calculo_apt: true,
-          cor: "#f97316",
-          icone: "clock",
+          cor: "#0ea5e9",
+          icone: "refresh",
         });
 
         if (created) {
@@ -1049,8 +1054,8 @@ export default function GerenciamentoLista({ profiles, setores, onDemandaChange 
         ativo: true,
         exige_aprovacao: true,
         entra_calculo_apt: true,
-        cor: "#f97316",
-        icone: "clock",
+        cor: "#0ea5e9",
+        icone: "refresh",
       });
 
       if (created) {
@@ -1348,7 +1353,7 @@ export default function GerenciamentoLista({ profiles, setores, onDemandaChange 
                   <Pencil className="mr-2 h-4 w-4" /> Editar completo
                 </DropdownMenuItem>
                 <DropdownMenuItem onClick={(e) => { e.stopPropagation(); setTransformingPersistenteMode("single"); setTransformingPersistenteDemanda(first); }}>
-                  <RefreshCw className="mr-2 h-4 w-4 text-orange-600" /> Transformar em persistente
+                  <RefreshCw className="mr-2 h-4 w-4 text-sky-600" /> Transformar em persistente
                 </DropdownMenuItem>
                 <DropdownMenuItem onClick={(e) => { e.stopPropagation(); setSelectedIds(new Set(c.siblings.map((item) => item.id))); setShowPrazoDialog(true); }}>
                   <Repeat className="mr-2 h-4 w-4 text-warning" /> Transformar em demanda com prazo
@@ -1447,18 +1452,18 @@ export default function GerenciamentoLista({ profiles, setores, onDemandaChange 
       </div>
 
       {isGestorOrAdmin && filteredRotinaModelos.length > 0 && (
-        <div className="rounded-xl border border-orange-200 bg-orange-50/40 p-3">
+        <div className="rounded-xl border border-sky-200 bg-sky-50/50 p-3">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <div className="flex items-center gap-2">
-              <RefreshCw className="h-4 w-4 text-orange-600" />
+              <RefreshCw className="h-4 w-4 text-sky-600" />
               <div>
-                <p className="text-sm font-semibold text-orange-950">Demandas persistentes</p>
-                <p className="text-xs text-orange-800/80">
+                <p className="text-sm font-semibold text-sky-950">Demandas persistentes</p>
+                <p className="text-xs text-sky-800/80">
                   Modelos recorrentes filtrados junto da lista. Edite em Configurações &gt; Setores.
                 </p>
               </div>
             </div>
-            <Badge variant="outline" className="border-orange-300 bg-white/70 text-orange-800">
+            <Badge variant="outline" className="border-sky-300 bg-white/70 text-sky-800">
               {filteredRotinaModelos.length} modelo{filteredRotinaModelos.length === 1 ? "" : "s"}
             </Badge>
           </div>
@@ -1470,11 +1475,11 @@ export default function GerenciamentoLista({ profiles, setores, onDemandaChange 
               return (
                 <div
                   key={modelo.id}
-                  className="flex max-w-full items-center gap-2 rounded-full border border-orange-200 bg-white px-3 py-1.5 text-xs shadow-sm"
+                  className="flex max-w-full items-center gap-2 rounded-full border border-sky-200 bg-white px-3 py-1.5 text-xs shadow-sm"
                   title={modelo.descricao}
                 >
-                  <span className="h-2 w-2 shrink-0 rounded-full bg-orange-500" />
-                  <span className="max-w-[260px] truncate font-semibold text-orange-950">{modelo.nome}</span>
+                  <RefreshCw className="h-3.5 w-3.5 shrink-0 text-sky-600" />
+                  <span className="max-w-[260px] truncate font-semibold text-sky-950">{modelo.nome}</span>
                   <span className="text-muted-foreground">{setor?.nome || "Sem setor"}</span>
                   <span className="text-muted-foreground">{profile?.nome || "Sem responsável"}</span>
                   <Badge variant="outline" className="h-5 rounded-full px-1.5 text-[10px]">

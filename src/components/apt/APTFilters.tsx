@@ -43,6 +43,8 @@ export interface MultiFilters {
   busca: string;
   urgente: boolean;
   prioridade: boolean;
+  persistente: boolean;
+  prazo: boolean;
   tags: string[];
 }
 
@@ -278,6 +280,11 @@ export default function APTFilters({
     (showStatusFilters && draft.statusResponsavel.length > 0) ||
     (showStatusFilters && draft.statusGestor.length > 0) ||
     draft.repeticoes.length > 0 ||
+    draft.urgente ||
+    draft.prioridade ||
+    draft.persistente ||
+    draft.prazo ||
+    draft.tags.length > 0 ||
     draft.busca !== "";
 
   const responsavelOptions = profiles.map((p) => ({

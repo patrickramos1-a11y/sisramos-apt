@@ -14,7 +14,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { ChevronDown, Flame, Search, Star, X } from "lucide-react";
+import { ChevronDown, Clock3, Flame, RefreshCw, Search, Star, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { AptTag } from "@/lib/tags";
 
@@ -27,6 +27,8 @@ export interface ListaFilters {
   repeticoes: string[];
   urgente: boolean;
   prioridade: boolean;
+  persistente: boolean;
+  prazo: boolean;
   pendenteAprovacao: boolean;
   todosOsMeses: boolean;
   tags: string[];
@@ -184,6 +186,8 @@ export default function FiltersBar({ filters, onChange, profileOptions, setorOpt
       repeticoes: [],
       urgente: false,
       prioridade: false,
+      persistente: false,
+      prazo: false,
       pendenteAprovacao: false,
       todosOsMeses: false,
       tags: [],
@@ -195,6 +199,8 @@ export default function FiltersBar({ filters, onChange, profileOptions, setorOpt
     filters.repeticoes.length > 0 ||
     filters.urgente ||
     filters.prioridade ||
+    filters.persistente ||
+    filters.prazo ||
     filters.pendenteAprovacao ||
     filters.semanas.length > 0 ||
     filters.todosOsMeses ||
@@ -270,6 +276,24 @@ export default function FiltersBar({ filters, onChange, profileOptions, setorOpt
             onClick={() => update({ prioridade: !filters.prioridade })}
           >
             Prioridade
+          </FilterPill>
+
+          <FilterPill
+            active={filters.persistente}
+            tone="blue"
+            icon={<RefreshCw className={cn("h-3 w-3", filters.persistente && "stroke-[3]")} />}
+            onClick={() => update({ persistente: !filters.persistente })}
+          >
+            Persistente
+          </FilterPill>
+
+          <FilterPill
+            active={filters.prazo}
+            tone="amber"
+            icon={<Clock3 className={cn("h-3 w-3", filters.prazo && "stroke-[3]")} />}
+            onClick={() => update({ prazo: !filters.prazo })}
+          >
+            Prazo
           </FilterPill>
 
           <FilterPill
@@ -503,6 +527,10 @@ export default function FiltersBar({ filters, onChange, profileOptions, setorOpt
           {filters.prioridade && (
             <Chip onRemove={() => update({ prioridade: false })}>Prioridade</Chip>
           )}
+          {filters.persistente && (
+            <Chip onRemove={() => update({ persistente: false })}>Persistente</Chip>
+          )}
+          {filters.prazo && <Chip onRemove={() => update({ prazo: false })}>Prazo</Chip>}
           {filters.pendenteAprovacao && (
             <Chip onRemove={() => update({ pendenteAprovacao: false })}>
               Aguardando aprovacao

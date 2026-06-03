@@ -958,11 +958,19 @@ export default function Execucao() {
     await fetchDemandas();
   };
 
-  const filteredByTopSetor = activeTopSetor
-    ? demandas.filter((item) =>
-        activeTopSetor === "sem_setor" ? item.setor_id === null : item.setor_id === activeTopSetor
-      )
-    : demandas;
+  const filteredByTopSetor = (() => {
+    if (filters.persistente) return [];
+    const base = filters.prazo ? demandas.filter((item) => isDemandaPrazo(item)) : demandas;
+    if (!activeTopSetor) return base;
+    return base.filter((item) =>
+      activeTopSetor === "sem_setor" ? item.setor_id === null : item.setor_id === activeTopSetor
+    );
+  })();
+
+  useEffect(() => {
+    if (filters.persistente) setExecutionTableTab("persistentes");
+    if (filters.prazo) setExecutionTableTab("demandas");
+  }, [filters.persistente, filters.prazo]);
 
   useEffect(() => {
     const fetchResponsavelChipStats = async () => {
@@ -1124,6 +1132,7 @@ export default function Execucao() {
   const filteredRotinaResumos = useMemo(() => {
     const todayKey = getTodayKey();
     const busca = filters.busca.trim().toLowerCase();
+    if (filters.prazo) return [];
 
     return rotinaResumos.filter((rotina) => {
       const responsavelId = rotina.responsavel_id || "";
@@ -1147,6 +1156,7 @@ export default function Execucao() {
     activeTopSetor,
     executionStatusFilter,
     filters.busca,
+    filters.prazo,
     filters.responsaveis,
     filters.setores,
     isGestorOrAdmin,
@@ -1359,7 +1369,7 @@ export default function Execucao() {
             <Button variant="outline" size="sm" className="gap-2 lg:hidden" onClick={() => setShowMobileFilters((prev) => !prev)}>
               <Settings2 className="h-4 w-4" />
               Filtros
-              {(filters.responsaveis.length + filters.setores.length + filters.semanas.length + (filters.urgente ? 1 : 0) + (filters.prioridade ? 1 : 0)) > 0 && (
+              {(filters.responsaveis.length + filters.setores.length + filters.semanas.length + (filters.urgente ? 1 : 0) + (filters.prioridade ? 1 : 0) + (filters.persistente ? 1 : 0) + (filters.prazo ? 1 : 0)) > 0 && (
                 <span className="ml-1 rounded-full bg-primary px-1.5 text-[10px] text-primary-foreground">!</span>
               )}
             </Button>
@@ -2312,15 +2322,15 @@ export default function Execucao() {
                           return (
                             <tr
                               key={`rotina-${rotina.key}`}
-                              className="border-b border-orange-100 bg-orange-50/20 transition-colors hover:bg-orange-50/50"
+                              className="border-b border-sky-100 bg-sky-50/20 transition-colors hover:bg-sky-50/50"
                             >
                               <td className="px-3 py-2 text-center align-middle">
                                 {isGestorOrAdmin && <span className="text-xs text-muted-foreground">-</span>}
                               </td>
                               <td className="whitespace-nowrap px-3 py-2 align-middle">
-                                <Badge variant="outline" className="gap-1 rounded-full border-orange-200 bg-orange-50 px-2 py-0.5 text-orange-700">
-                                  <Clock3 className="h-3.5 w-3.5" />
-                                  REC
+                                <Badge variant="outline" className="gap-1 rounded-full border-sky-200 bg-sky-50 px-2 py-0.5 text-sky-700">
+                                  <RefreshCcw className="h-3.5 w-3.5" />
+                                  PER
                                 </Badge>
                               </td>
                               <td className="px-3 py-2 align-middle">
@@ -2347,7 +2357,7 @@ export default function Execucao() {
                               )}
                               <td className="min-w-0 px-3 py-2 align-middle">
                                 <div className="flex min-w-0 items-center gap-2">
-                                  <Clock3 className="h-4 w-4 shrink-0 text-orange-600" />
+                                  <RefreshCcw className="h-4 w-4 shrink-0 text-sky-600" />
                                   <div className="flex shrink-0 items-center gap-1">
                                     {dayStatusChips.map((chip) => (
                                       <span

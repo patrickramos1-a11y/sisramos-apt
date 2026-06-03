@@ -27,6 +27,8 @@ export interface MultiFilters {
   busca: string;
   urgente: boolean;
   prioridade: boolean;
+  persistente: boolean;
+  prazo: boolean;
   tags: string[];
 }
 
@@ -90,6 +92,8 @@ export function useDemandas() {
     busca: "",
     urgente: false,
     prioridade: false,
+    persistente: false,
+    prazo: false,
     tags: [],
   });
   const [sortConfig, setSortConfig] = useState<SortConfig>({
@@ -210,6 +214,14 @@ export function useDemandas() {
         filteredData = filteredData.filter((d) => d.prioritaria);
       }
 
+      if (filters.prazo) {
+        filteredData = filteredData.filter((d) => d.modo_execucao === "prazo");
+      }
+
+      if (filters.persistente) {
+        filteredData = [];
+      }
+
       if (filters.tags.length > 0) {
         const selectedTagIds = new Set(filters.tags);
         filteredData = filteredData.filter((d) =>
@@ -315,6 +327,8 @@ export function useDemandas() {
       busca: "",
       urgente: false,
       prioridade: false,
+      persistente: false,
+      prazo: false,
       tags: [],
     });
   };
