@@ -176,6 +176,7 @@ export default function GerenciamentoLista({ profiles, setores, onDemandaChange 
   const {
     modelos: rotinaModelos,
     createModelo: createRotinaModelo,
+    deleteModelo: deleteRotinaModelo,
     gerarOcorrenciasDoPeriodo,
   } = useAptRotinas({
     mes: new Date().getMonth() + 1,
@@ -515,6 +516,12 @@ export default function GerenciamentoLista({ profiles, setores, onDemandaChange 
     });
     return Array.from(new Set(ids));
   }, [consolidated, selectedIds]);
+
+  const selectedDemandas = useMemo(
+    () => allDemandas.filter((demanda) => expandedSelectedIds.includes(demanda.id)),
+    [allDemandas, expandedSelectedIds]
+  );
+  const selectedHasPrazo = selectedDemandas.some((demanda) => isDemandaPrazo(demanda));
 
   const totalSiblingsVisible = useMemo(() => consolidated.reduce((acc, c) => acc + c.siblings.length, 0), [consolidated]);
   const allSelected = totalSiblingsVisible > 0 && consolidated.every((c) => c.siblings.every((s) => selectedIds.has(s.id)));
@@ -948,6 +955,40 @@ export default function GerenciamentoLista({ profiles, setores, onDemandaChange 
     }
   };
 
+  const handleClearPrazo = async (ids: string[]) => {
+    if (ids.length === 0) return;
+    try {
+      await applyPrazoPatch(ids, {
+        modo_execucao: "semanal",
+        semana_inicio_prazo: null,
+        semana_fim_prazo: null,
+      });
+      await fetchAllDemandas();
+      onDemandaChange();
+      setSelectedIds(new Set());
+      toast({
+        title: "Prazo removido",
+        description: "As demandas selecionadas voltaram para o modelo semanal normal.",
+      });
+    } catch (error: any) {
+      toast({
+        variant: "destructive",
+        title: "Erro ao tirar prazo",
+        description: error.message || "Não foi possível voltar as demandas para o modelo semanal.",
+      });
+    }
+  };
+
+  const handleDeleteRotinaModelo = async (modeloId: string) => {
+    const ok = await deleteRotinaModelo(modeloId);
+    if (ok) {
+      toast({
+        title: "Persistência removida",
+        description: "O modelo persistente foi removido das rotinas.",
+      });
+    }
+  };
+
   const openBulkPersistenteDialog = () => {
     const selectedGroups = consolidated.filter((group) => group.siblings.some((demanda) => selectedIds.has(demanda.id)));
     if (selectedGroups.length === 0) return;
@@ -1355,9 +1396,15 @@ export default function GerenciamentoLista({ profiles, setores, onDemandaChange 
                 <DropdownMenuItem onClick={(e) => { e.stopPropagation(); setTransformingPersistenteMode("single"); setTransformingPersistenteDemanda(first); }}>
                   <RefreshCw className="mr-2 h-4 w-4 text-sky-600" /> Transformar em persistente
                 </DropdownMenuItem>
-                <DropdownMenuItem onClick={(e) => { e.stopPropagation(); setSelectedIds(new Set(c.siblings.map((item) => item.id))); setShowPrazoDialog(true); }}>
-                  <Repeat className="mr-2 h-4 w-4 text-warning" /> Transformar em demanda com prazo
-                </DropdownMenuItem>
+                {isPrazo ? (
+                  <DropdownMenuItem onClick={(e) => { e.stopPropagation(); void handleClearPrazo(c.siblings.map((item) => item.id)); }}>
+                    <Repeat className="mr-2 h-4 w-4" /> Tirar prazo
+                  </DropdownMenuItem>
+                ) : (
+                  <DropdownMenuItem onClick={(e) => { e.stopPropagation(); setSelectedIds(new Set(c.siblings.map((item) => item.id))); setShowPrazoDialog(true); }}>
+                    <Repeat className="mr-2 h-4 w-4 text-warning" /> Transformar em demanda com prazo
+                  </DropdownMenuItem>
+                )}
                 <DropdownMenuItem onClick={(e) => { e.stopPropagation(); handleDeleteClick(first); }} className="text-destructive">
                   <Trash2 className="mr-2 h-4 w-4" /> Excluir
                 </DropdownMenuItem>
@@ -1488,6 +1535,15 @@ export default function GerenciamentoLista({ profiles, setores, onDemandaChange 
                   <Badge variant="secondary" className="h-5 rounded-full px-1.5 text-[10px]">
                     {semanas || "sem semanas"}
                   </Badge>
+                  <button
+                    type="button"
+                    onClick={() => void handleDeleteRotinaModelo(modelo.id)}
+                    className="ml-1 rounded-full p-0.5 text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive"
+                    title="Tirar persistência"
+                    aria-label="Tirar persistência"
+                  >
+                    <Trash2 className="h-3.5 w-3.5" />
+                  </button>
                 </div>
               );
             })}
@@ -1629,6 +1685,8 @@ export default function GerenciamentoLista({ profiles, setores, onDemandaChange 
           onSetStatusGestor={(s) => bulk.setStatusGestor(expandedSelectedIds, s)}
           onTransformPersistente={openBulkPersistenteDialog}
           onTransformPrazo={() => setShowPrazoDialog(true)}
+          onClearPrazo={() => handleClearPrazo(expandedSelectedIds)}
+          selectedHasPrazo={selectedHasPrazo}
           onDuplicate={() => setDuplicandoIds(expandedSelectedIds)}
           onDelete={() => bulk.softDelete(expandedSelectedIds)}
           canDelete={isGestorOrAdmin}

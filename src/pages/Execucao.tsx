@@ -1251,8 +1251,24 @@ export default function Execucao() {
   }, [visibleGroupKeys]);
 
   useEffect(() => {
-    setExpandedResponsaveis(new Set());
-  }, [visibleGroupKeys]);
+    const shouldAutoExpand =
+      !!activeTopSetor ||
+      filters.busca.trim() !== "" ||
+      filters.responsaveis.length > 0 ||
+      filters.setores.length > 0 ||
+      filters.prazo ||
+      executionStatusFilter !== "todos";
+
+    setExpandedResponsaveis(shouldAutoExpand ? new Set(visibleGroupKeys) : new Set());
+  }, [
+    activeTopSetor,
+    executionStatusFilter,
+    filters.busca,
+    filters.prazo,
+    filters.responsaveis,
+    filters.setores,
+    visibleGroupKeys,
+  ]);
 
   const pendingCount = filteredByTopSetor.filter((item) => item.status_responsavel === "pendente").length;
   const doneCount = filteredByTopSetor.filter((item) => item.status_responsavel === "executado").length;

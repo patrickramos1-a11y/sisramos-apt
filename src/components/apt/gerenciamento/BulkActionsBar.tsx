@@ -39,6 +39,8 @@ interface Props {
   onSetStatusGestor: (s: "pendente" | "executado" | "nao_realizado") => void;
   onTransformPersistente: () => void;
   onTransformPrazo: () => void;
+  onClearPrazo: () => void;
+  selectedHasPrazo?: boolean;
   onDuplicate: () => void;
   onDelete: () => void;
   canDelete: boolean;
@@ -58,6 +60,8 @@ export default function BulkActionsBar({
   onSetStatusGestor,
   onTransformPersistente,
   onTransformPrazo,
+  onClearPrazo,
+  selectedHasPrazo,
   onDuplicate,
   onDelete,
   canDelete,
@@ -185,14 +189,21 @@ export default function BulkActionsBar({
           <RefreshCw className="h-3.5 w-3.5" /> Persist.
         </Button>
 
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={onTransformPrazo}
-          className="h-7 gap-1.5 text-background hover:bg-background/10 hover:text-background"
-        >
-          <Clock3 className="h-3.5 w-3.5" /> Prazo
-        </Button>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="ghost" size="sm" className="h-7 gap-1.5 text-background hover:bg-background/10 hover:text-background">
+              <Clock3 className="h-3.5 w-3.5" /> Prazo
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent>
+            <DropdownMenuItem onClick={onTransformPrazo}>
+              <Clock3 className="mr-2 h-4 w-4 text-warning" /> Transformar em demanda com prazo
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={onClearPrazo} disabled={!selectedHasPrazo}>
+              <Repeat className="mr-2 h-4 w-4" /> Tirar prazo e voltar ao semanal
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
 
         <Button
           variant="ghost"
