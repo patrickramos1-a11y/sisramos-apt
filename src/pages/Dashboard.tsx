@@ -44,6 +44,13 @@ interface Demanda {
   tags?: AptTag[];
 }
 
+function getDemandaRepetitionCount(demanda: Pick<Demanda, "semanas_repeticao" | "semana_limite">) {
+  const semanasMarcadas = Array.isArray(demanda.semana_limite)
+    ? new Set(demanda.semana_limite.filter((semana) => Number.isFinite(Number(semana)))).size
+    : 0;
+  return Math.max(Number(demanda.semanas_repeticao) || 0, semanasMarcadas);
+}
+
 interface Profile {
   id: string;
   user_id: string;
@@ -142,7 +149,7 @@ export default function Dashboard() {
     }
     if (filters.repeticoes.length > 0) {
       const repNums = filters.repeticoes.map(Number);
-      filteredData = filteredData.filter((d) => repNums.includes(d.semanas_repeticao));
+      filteredData = filteredData.filter((d) => repNums.includes(getDemandaRepetitionCount(d)));
     }
     if (filters.urgente) {
       filteredData = filteredData.filter((d) => d.muito_urgente);

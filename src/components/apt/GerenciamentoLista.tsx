@@ -99,6 +99,13 @@ interface ConsolidatedDemand {
   tags: AptTag[];
 }
 
+function getDemandaRepetitionCount(demanda: Pick<Demanda, "semanas_repeticao" | "semana_limite">) {
+  const semanasMarcadas = Array.isArray(demanda.semana_limite)
+    ? new Set(demanda.semana_limite.filter((semana) => Number.isFinite(Number(semana)))).size
+    : 0;
+  return Math.max(Number(demanda.semanas_repeticao) || 0, semanasMarcadas);
+}
+
 type GroupBy = "nenhum" | "responsavel" | "setor" | "setor_responsavel";
 type SortCol = "descricao" | "responsavel" | "setor" | "repeticao" | "semana" | null;
 
@@ -324,7 +331,7 @@ export default function GerenciamentoLista({ profiles, setores, onDemandaChange 
     if (filters.pendenteAprovacao) result = result.filter((d) => d.status_responsavel === "executado" && d.status_gestor === "pendente");
     if (filters.repeticoes.length > 0) {
       const reps = filters.repeticoes.map((r) => parseInt(r));
-      result = result.filter((d) => reps.includes(d.semanas_repeticao));
+      result = result.filter((d) => reps.includes(getDemandaRepetitionCount(d)));
     }
     if (filters.tags.length > 0) {
       const selected = new Set(filters.tags);
@@ -1022,6 +1029,7 @@ export default function GerenciamentoLista({ profiles, setores, onDemandaChange 
       for (const group of selectedGroups) {
         const first = group.siblings[0];
         const semanas = Array.from(new Set(group.siblings.flatMap((demanda) => demanda.semana_limite || []))).sort((a, b) => a - b);
+        const origemDemandaIds = group.siblings.map((demanda) => demanda.id);
         const created = await createRotinaModelo({
           nome: group.descricao.trim(),
           descricao: first.observacoes?.trim() || group.descricao.trim(),
@@ -1034,18 +1042,20 @@ export default function GerenciamentoLista({ profiles, setores, onDemandaChange 
           entra_calculo_apt: true,
           cor: "#f97316",
           icone: "refresh",
+          origem_demanda_ids: origemDemandaIds,
+          origem_grupo_id: group.grupo_id,
         });
 
         if (created) {
           successCount += 1;
           createdModelos.push(created);
-          group.siblings.forEach((demanda) => deactivateIds.push(demanda.id));
+          deactivateIds.push(...origemDemandaIds);
         }
       }
 
       if (successCount > 0) {
-        await deactivateDemandas(deactivateIds);
         await gerarOcorrenciasDoPeriodo(createdModelos);
+        await deactivateDemandas(deactivateIds);
         toast({
           title: "Demandas transformadas em persistentes",
           description:
@@ -1092,6 +1102,10 @@ export default function GerenciamentoLista({ profiles, setores, onDemandaChange 
 
     setIsSavingPersistenteDialog(true);
     try {
+      const idsToDeactivate = demanda.grupo_id
+        ? allDemandas.filter((item) => item.grupo_id === demanda.grupo_id).map((item) => item.id)
+        : [demanda.id];
+
       const created = await createRotinaModelo({
         ...payload,
         ativo: true,
@@ -1099,15 +1113,13 @@ export default function GerenciamentoLista({ profiles, setores, onDemandaChange 
         entra_calculo_apt: true,
         cor: "#f97316",
         icone: "refresh",
+        origem_demanda_ids: idsToDeactivate,
+        origem_grupo_id: demanda.grupo_id,
       });
 
       if (created) {
-        const idsToDeactivate = demanda.grupo_id
-          ? allDemandas.filter((item) => item.grupo_id === demanda.grupo_id).map((item) => item.id)
-          : [demanda.id];
-
-        await deactivateDemandas(idsToDeactivate);
         await gerarOcorrenciasDoPeriodo([created]);
+        await deactivateDemandas(idsToDeactivate);
         toast({
           title: "Demanda transformada em persistente",
           description: "A demanda saiu da lista comum e agora passa a funcionar como rotina persistente.",
@@ -1797,7 +1809,18 @@ export default function GerenciamentoLista({ profiles, setores, onDemandaChange 
         setores={setores}
         profiles={profiles}
         isSaving={isSavingPersistenteDialog || isBulkTransformingPersistente}
-        onOpenChange={(open) => !open && setTransformingPersistenteDemanda(null)}
+        mode={transformingPersistenteMode}
+        selectedCount={
+          transformingPersistenteMode === "bulk"
+            ? consolidated.filter((group) => group.siblings.some((demanda) => selectedIds.has(demanda.id))).length
+            : 1
+        }
+        onOpenChange={(open) => {
+          if (!open) {
+            setTransformingPersistenteDemanda(null);
+            setTransformingPersistenteMode("single");
+          }
+        }}
         onConfirm={handleTransformSingleToPersistente}
       />
 

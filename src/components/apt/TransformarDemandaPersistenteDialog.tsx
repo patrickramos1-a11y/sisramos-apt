@@ -29,6 +29,8 @@ interface TransformarDemandaPersistenteDialogProps {
   setores: Array<{ id: string; nome: string; cor?: string | null }>;
   profiles: Array<{ user_id: string; nome: string; cor?: string | null }>;
   isSaving?: boolean;
+  mode?: "single" | "bulk";
+  selectedCount?: number;
   onOpenChange: (open: boolean) => void;
   onConfirm: (payload: {
     nome: string;
@@ -66,6 +68,8 @@ export default function TransformarDemandaPersistenteDialog({
   setores,
   profiles,
   isSaving = false,
+  mode = "single",
+  selectedCount = 1,
   onOpenChange,
   onConfirm,
 }: TransformarDemandaPersistenteDialogProps) {
@@ -90,6 +94,7 @@ export default function TransformarDemandaPersistenteDialog({
     () => profiles.find((item) => item.user_id === demanda?.responsavel_id),
     [demanda?.responsavel_id, profiles]
   );
+  const isBulkMode = mode === "bulk";
 
   const toggleDay = (value: number) => {
     setDias((current) =>
@@ -103,7 +108,11 @@ export default function TransformarDemandaPersistenteDialog({
     );
   };
 
-  const canSave = !!demanda && nome.trim().length > 0 && descricao.trim().length > 0 && dias.length > 0 && semanas.length > 0;
+  const canSave =
+    !!demanda &&
+    dias.length > 0 &&
+    semanas.length > 0 &&
+    (isBulkMode || (nome.trim().length > 0 && descricao.trim().length > 0));
 
   const handleConfirm = async () => {
     if (!demanda || !canSave) return;
@@ -123,10 +132,12 @@ export default function TransformarDemandaPersistenteDialog({
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <RefreshCcw className="h-5 w-5 text-orange-600" />
-            Transformar demanda em persistente
+            {isBulkMode ? "Transformar seleção em persistente" : "Transformar demanda em persistente"}
           </DialogTitle>
           <p className="pt-1 text-sm text-muted-foreground">
-            Ao confirmar, a demanda comum será desativada e passará a funcionar como rotina persistente. As ocorrências do mês atual serão geradas automaticamente.
+            {isBulkMode
+              ? "Cada demanda/grupo selecionado manterá o próprio nome e descrição. Aqui você define apenas os dias e semanas da rotina persistente."
+              : "Ao confirmar, a demanda comum será desativada e passará a funcionar como rotina persistente. As ocorrências do mês atual serão geradas automaticamente."}
           </p>
         </DialogHeader>
 
@@ -140,6 +151,11 @@ export default function TransformarDemandaPersistenteDialog({
               <span>
                 <strong>Destino:</strong> rotina persistente
               </span>
+              {isBulkMode && (
+                <span>
+                  <strong>Seleção:</strong> {selectedCount} {selectedCount === 1 ? "item" : "itens"}
+                </span>
+              )}
               <span>
                 <strong>Setor:</strong> {setor?.nome || "Sem setor"}
               </span>
@@ -166,20 +182,36 @@ export default function TransformarDemandaPersistenteDialog({
             </Badge>
           </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="rotina-nome">Nome da rotina</Label>
-            <Input id="rotina-nome" value={nome} onChange={(event) => setNome(event.target.value)} />
-          </div>
+          {isBulkMode ? (
+            <div className="rounded-xl border border-border bg-muted/30 p-3 text-sm">
+              <p className="font-semibold text-foreground">Nome e descrição serão preservados</p>
+              <p className="mt-1 text-muted-foreground">
+                Na conversão em massa, o sistema cria uma rotina para cada demanda/grupo selecionado usando o texto original. Isso evita que todas virem a mesma rotina por engano.
+              </p>
+              {demanda && (
+                <p className="mt-2 line-clamp-2 text-xs text-muted-foreground">
+                  Exemplo do primeiro item: {demanda.descricao}
+                </p>
+              )}
+            </div>
+          ) : (
+            <>
+              <div className="space-y-2">
+                <Label htmlFor="rotina-nome">Nome da rotina</Label>
+                <Input id="rotina-nome" value={nome} onChange={(event) => setNome(event.target.value)} />
+              </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="rotina-descricao">Descrição operacional</Label>
-            <Textarea
-              id="rotina-descricao"
-              value={descricao}
-              onChange={(event) => setDescricao(event.target.value)}
-              rows={4}
-            />
-          </div>
+              <div className="space-y-2">
+                <Label htmlFor="rotina-descricao">Descrição operacional</Label>
+                <Textarea
+                  id="rotina-descricao"
+                  value={descricao}
+                  onChange={(event) => setDescricao(event.target.value)}
+                  rows={4}
+                />
+              </div>
+            </>
+          )}
 
           <div className="grid gap-4 md:grid-cols-2">
             <div className="space-y-2">

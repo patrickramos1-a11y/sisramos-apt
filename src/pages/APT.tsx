@@ -256,6 +256,10 @@ export default function APT() {
 
     setIsTransformingPersistente(true);
     try {
+      const idsToDeactivate = demanda.grupo_id
+        ? demandas.filter((item) => item.grupo_id === demanda.grupo_id).map((item) => item.id)
+        : [demanda.id];
+
       const created = await createRotinaModelo({
         ...payload,
         ativo: true,
@@ -263,16 +267,14 @@ export default function APT() {
         entra_calculo_apt: true,
         cor: "#f97316",
         icone: "refresh",
+        origem_demanda_ids: idsToDeactivate,
+        origem_grupo_id: demanda.grupo_id,
       });
 
       if (created) {
-        const idsToDeactivate = demanda.grupo_id
-          ? demandas.filter((item) => item.grupo_id === demanda.grupo_id).map((item) => item.id)
-          : [demanda.id];
-
+        await gerarOcorrenciasDoPeriodo([created]);
         const { error } = await supabase.from("demandas").update({ ativa: false }).in("id", idsToDeactivate);
         if (error) throw error;
-        await gerarOcorrenciasDoPeriodo([created]);
         await fetchDemandas();
         setTransformingDemanda(null);
       }

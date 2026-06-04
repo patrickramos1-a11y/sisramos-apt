@@ -76,6 +76,13 @@ interface Demanda {
   tags?: AptTag[];
 }
 
+function getDemandaRepetitionCount(demanda: Pick<Demanda, "semanas_repeticao" | "semana_limite">) {
+  const semanasMarcadas = Array.isArray(demanda.semana_limite)
+    ? new Set(demanda.semana_limite.filter((semana) => Number.isFinite(Number(semana)))).size
+    : 0;
+  return Math.max(Number(demanda.semanas_repeticao) || 0, semanasMarcadas);
+}
+
 interface ExecutionGroup {
   key: string;
   descricao: string;
@@ -1007,7 +1014,7 @@ export default function Execucao() {
 
       if (filters.repeticoes.length > 0) {
         const repeticaoNumbers = filters.repeticoes.map((r) => parseInt(r, 10));
-        filteredData = filteredData.filter((demanda) => repeticaoNumbers.includes(demanda.semanas_repeticao));
+        filteredData = filteredData.filter((demanda) => repeticaoNumbers.includes(getDemandaRepetitionCount(demanda)));
       }
 
       if (filters.urgente) filteredData = filteredData.filter((demanda) => demanda.muito_urgente);

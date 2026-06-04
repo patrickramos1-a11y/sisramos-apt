@@ -311,6 +311,8 @@ export function useAptRotinas({
           entra_calculo_apt: payload.entra_calculo_apt ?? true,
           cor: payload.cor || "#f97316",
           icone: payload.icone || "refresh",
+          origem_demanda_ids: payload.origem_demanda_ids ?? null,
+          origem_grupo_id: payload.origem_grupo_id ?? null,
           created_at: now,
           updated_at: now,
         };
@@ -326,8 +328,7 @@ export function useAptRotinas({
 
       if (tableUnavailable) return localCreate();
 
-      setIsMutating(true);
-      const { data, error } = await (supabase as any).from("apt_rotina_modelos").insert({
+      const insertPayload = {
         setor_id: payload.setor_id ?? setorId ?? null,
         nome: payload.nome.trim(),
         descricao: payload.descricao.trim(),
@@ -339,8 +340,25 @@ export function useAptRotinas({
         entra_calculo_apt: payload.entra_calculo_apt ?? true,
         cor: payload.cor || "#f97316",
         icone: payload.icone || "refresh",
-      }).select("*").single();
+        origem_demanda_ids: payload.origem_demanda_ids ?? null,
+        origem_grupo_id: payload.origem_grupo_id ?? null,
+      };
+
+      setIsMutating(true);
+      let result = await (supabase as any).from("apt_rotina_modelos").insert(insertPayload).select("*").single();
+
+      if (
+        result.error &&
+        /origem_demanda_ids|origem_grupo_id|schema cache/i.test(result.error.message || "")
+      ) {
+        const payloadWithoutOrigin = { ...insertPayload } as Record<string, unknown>;
+        delete payloadWithoutOrigin.origem_demanda_ids;
+        delete payloadWithoutOrigin.origem_grupo_id;
+        result = await (supabase as any).from("apt_rotina_modelos").insert(payloadWithoutOrigin).select("*").single();
+      }
+
       setIsMutating(false);
+      const { data, error } = result;
 
       if (error) {
         if (!handleTableError(error)) {
@@ -373,6 +391,8 @@ export function useAptRotinas({
       if (payload.entra_calculo_apt !== undefined) updatePayload.entra_calculo_apt = payload.entra_calculo_apt;
       if (payload.cor !== undefined) updatePayload.cor = payload.cor;
       if (payload.icone !== undefined) updatePayload.icone = payload.icone;
+      if (payload.origem_demanda_ids !== undefined) updatePayload.origem_demanda_ids = payload.origem_demanda_ids;
+      if (payload.origem_grupo_id !== undefined) updatePayload.origem_grupo_id = payload.origem_grupo_id;
 
       const localUpdate = async () => {
         const rows = readLocalArray<AptRotinaModelo>(LOCAL_MODELOS_KEY).map((modelo) =>

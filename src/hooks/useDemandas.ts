@@ -58,6 +58,13 @@ export interface Demanda {
   tags?: AptTag[];
 }
 
+function getDemandaRepetitionCount(demanda: Pick<Demanda, "semanas_repeticao" | "semana_limite">) {
+  const semanasMarcadas = Array.isArray(demanda.semana_limite)
+    ? new Set(demanda.semana_limite.filter((semana) => Number.isFinite(Number(semana)))).size
+    : 0;
+  return Math.max(Number(demanda.semanas_repeticao) || 0, semanasMarcadas);
+}
+
 interface Profile {
   id: string;
   user_id: string;
@@ -200,7 +207,7 @@ export function useDemandas() {
       if (filters.repeticoes.length > 0) {
         const repeticaoNumbers = filters.repeticoes.map((r) => parseInt(r));
         filteredData = filteredData.filter((d) =>
-          repeticaoNumbers.includes(d.semanas_repeticao)
+          repeticaoNumbers.includes(getDemandaRepetitionCount(d))
         );
       }
       
