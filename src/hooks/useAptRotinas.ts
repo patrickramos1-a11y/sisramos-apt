@@ -123,6 +123,21 @@ function writeLocalArray<T>(key: string, rows: T[]) {
   window.localStorage.setItem(key, JSON.stringify(rows));
 }
 
+function removeLocalRowsByModelIds(modelIds: Set<string>) {
+  writeLocalArray(
+    LOCAL_MODELOS_KEY,
+    readLocalArray<AptRotinaModelo>(LOCAL_MODELOS_KEY).filter((modelo) => !modelIds.has(modelo.id))
+  );
+  writeLocalArray(
+    LOCAL_OCORRENCIAS_KEY,
+    readLocalArray<AptRotinaOcorrencia>(LOCAL_OCORRENCIAS_KEY).filter((ocorrencia) => !modelIds.has(ocorrencia.modelo_id))
+  );
+  writeLocalArray(
+    LOCAL_AVALIACOES_KEY,
+    readLocalArray<AptRotinaAvaliacao>(LOCAL_AVALIACOES_KEY).filter((avaliacao) => !modelIds.has(avaliacao.modelo_id))
+  );
+}
+
 function newLocalId() {
   if (typeof crypto !== "undefined" && "randomUUID" in crypto) return crypto.randomUUID();
   return `local-${Date.now()}-${Math.random().toString(16).slice(2)}`;
@@ -147,6 +162,16 @@ function semanaAptDoDia(dia: number) {
 function percentual(feitas: number, previstas: number) {
   if (previstas <= 0) return 0;
   return Math.round((feitas / previstas) * 10000) / 100;
+}
+
+function rotinaSignature(modelo: Pick<AptRotinaModelo, "nome" | "setor_id" | "responsavel_padrao_id" | "dias_semana" | "semanas_aplicaveis">) {
+  return [
+    modelo.nome.trim().toLocaleLowerCase("pt-BR"),
+    modelo.setor_id || "",
+    modelo.responsavel_padrao_id || "",
+    normalizeDiasSemana(modelo.dias_semana).join(","),
+    normalizeWeeks(modelo.semanas_aplicaveis).join(","),
+  ].join("|");
 }
 
 export function useAptRotinas({
@@ -213,6 +238,104 @@ export function useAptRotinas({
     }
     return false;
   }, []);
+
+  const migrateLocalRowsToSupabase = useCallback(
+    async (remoteModelos: AptRotinaModelo[]) => {
+      const localModelos = readLocalArray<AptRotinaModelo>(LOCAL_MODELOS_KEY)
+        .filter((modelo) => !setorId || modelo.setor_id === setorId);
+
+      if (localModelos.length === 0) return false;
+
+      const remoteSignatures = new Set(remoteModelos.map(rotinaSignature));
+      const modelosToMigrate = localModelos.filter((modelo) => !remoteSignatures.has(rotinaSignature(modelo)));
+      const duplicateModelIds = localModelos
+        .filter((modelo) => remoteSignatures.has(rotinaSignature(modelo)))
+        .map((modelo) => modelo.id);
+
+      if (duplicateModelIds.length > 0) {
+        removeLocalRowsByModelIds(new Set(duplicateModelIds));
+      }
+
+      if (modelosToMigrate.length === 0) return false;
+
+      const modelIds = new Set(modelosToMigrate.map((modelo) => modelo.id));
+      const ocorrenciasToMigrate = readLocalArray<AptRotinaOcorrencia>(LOCAL_OCORRENCIAS_KEY)
+        .filter((ocorrencia) => modelIds.has(ocorrencia.modelo_id));
+      const avaliacoesToMigrate = readLocalArray<AptRotinaAvaliacao>(LOCAL_AVALIACOES_KEY)
+        .filter((avaliacao) => modelIds.has(avaliacao.modelo_id));
+
+      const modelosPayload = modelosToMigrate.map((modelo) => ({
+        id: modelo.id,
+        setor_id: modelo.setor_id,
+        nome: modelo.nome,
+        descricao: modelo.descricao,
+        responsavel_padrao_id: modelo.responsavel_padrao_id,
+        dias_semana: normalizeDiasSemana(modelo.dias_semana),
+        semanas_aplicaveis: normalizeWeeks(modelo.semanas_aplicaveis),
+        ativo: modelo.ativo,
+        exige_aprovacao: modelo.exige_aprovacao,
+        entra_calculo_apt: modelo.entra_calculo_apt,
+        cor: modelo.cor || "#f97316",
+        icone: modelo.icone || "refresh",
+        origem_demanda_ids: modelo.origem_demanda_ids ?? null,
+        origem_grupo_id: modelo.origem_grupo_id ?? null,
+        created_at: modelo.created_at,
+        updated_at: modelo.updated_at,
+      }));
+
+      let result = await (supabase as any)
+        .from("apt_rotina_modelos")
+        .insert(modelosPayload)
+        .select("*");
+
+      if (
+        result.error &&
+        /origem_demanda_ids|origem_grupo_id|schema cache/i.test(result.error.message || "")
+      ) {
+        const payloadWithoutOrigin = modelosPayload.map((modelo) => {
+          const next = { ...modelo } as Record<string, unknown>;
+          delete next.origem_demanda_ids;
+          delete next.origem_grupo_id;
+          return next;
+        });
+        result = await (supabase as any)
+          .from("apt_rotina_modelos")
+          .insert(payloadWithoutOrigin)
+          .select("*");
+      }
+
+      if (result.error) {
+        console.error("Erro ao migrar rotinas locais para Supabase:", result.error);
+        return false;
+      }
+
+      if (ocorrenciasToMigrate.length > 0) {
+        const { error } = await (supabase as any)
+          .from("apt_rotina_ocorrencias")
+          .upsert(ocorrenciasToMigrate, { onConflict: "modelo_id,data", ignoreDuplicates: true });
+        if (error) console.error("Erro ao migrar ocorrências locais:", error);
+      }
+
+      if (avaliacoesToMigrate.length > 0) {
+        const { error } = await (supabase as any)
+          .from("apt_rotina_avaliacoes")
+          .upsert(avaliacoesToMigrate, { onConflict: "modelo_id,responsavel_id,mes,ano,momento", ignoreDuplicates: true });
+        if (error) console.error("Erro ao migrar avaliações locais:", error);
+      }
+
+      removeLocalRowsByModelIds(modelIds);
+      toast({
+        title: "Rotinas locais recuperadas",
+        description: `${modelosToMigrate.length} rotina(s) persistente(s) foram enviadas para o Supabase.`,
+      });
+      return {
+        modelos: modelosToMigrate,
+        ocorrencias: ocorrenciasToMigrate,
+        avaliacoes: avaliacoesToMigrate,
+      };
+    },
+    [setorId, toast]
+  );
 
   const fetchRotinas = useCallback(async () => {
     if (!enabled || !user) {
@@ -282,11 +405,31 @@ export function useAptRotinas({
       return;
     }
 
-    setModelos((modelosResult.data || []) as AptRotinaModelo[]);
-    setOcorrencias((ocorrenciasResult.data || []) as AptRotinaOcorrencia[]);
-    setAvaliacoes((avaliacoesResult.data || []) as AptRotinaAvaliacao[]);
+    const remoteModelos = (modelosResult.data || []) as AptRotinaModelo[];
+    const migratedLocalRows = await migrateLocalRowsToSupabase(remoteModelos);
+    const migratedOcorrencias = migratedLocalRows
+      ? migratedLocalRows.ocorrencias
+          .filter((ocorrencia) => ocorrencia.mes === mes && ocorrencia.ano === ano)
+          .filter((ocorrencia) => !setorId || ocorrencia.setor_id === setorId)
+          .filter((ocorrencia) => semanasAtivas.length === 0 || semanasAtivas.includes(ocorrencia.semana_apt))
+          .filter((ocorrencia) => isGestorOrAdmin || ocorrencia.responsavel_id === user.id)
+      : [];
+    const migratedAvaliacoes = migratedLocalRows
+      ? migratedLocalRows.avaliacoes
+          .filter((avaliacao) => avaliacao.mes === mes && avaliacao.ano === ano)
+          .filter((avaliacao) => !setorId || avaliacao.setor_id === setorId)
+          .filter((avaliacao) => momento === null || avaliacao.momento === momento)
+          .filter((avaliacao) => isGestorOrAdmin || avaliacao.responsavel_id === user.id)
+      : [];
+
+    setModelos(
+      [...remoteModelos, ...(migratedLocalRows ? migratedLocalRows.modelos : [])]
+        .sort((a, b) => a.nome.localeCompare(b.nome, "pt-BR"))
+    );
+    setOcorrencias([...(ocorrenciasResult.data || []) as AptRotinaOcorrencia[], ...migratedOcorrencias]);
+    setAvaliacoes([...(avaliacoesResult.data || []) as AptRotinaAvaliacao[], ...migratedAvaliacoes]);
     setIsLoading(false);
-  }, [ano, applyLocalState, enabled, handleTableError, isGestorOrAdmin, mes, momento, semanasAtivas, setorId, user]);
+  }, [ano, applyLocalState, enabled, handleTableError, isGestorOrAdmin, mes, migrateLocalRowsToSupabase, momento, semanasAtivas, setorId, user]);
 
   useEffect(() => {
     void fetchRotinas();
