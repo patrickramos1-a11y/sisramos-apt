@@ -39,6 +39,8 @@ interface DemandaCardProps {
   onStatusGestorChange: () => void;
   onEdit?: () => void;
   onDelete?: () => void;
+  onTransformToPersistent?: () => void;
+  onTransformToPrazo?: () => void;
 }
 
 export default function DemandaCard({

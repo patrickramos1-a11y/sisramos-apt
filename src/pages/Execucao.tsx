@@ -482,7 +482,7 @@ export default function Execucao() {
     currentMonth,
     currentYear
   );
-  const prazoReferenceWeek = getPrazoReferenceWeek({ mes: viewedMes, ano: viewedAno, currentWeek });
+  const prazoReferenceWeek = getPrazoReferenceWeek({ viewedMes, viewedAno, currentWeek });
 
   useEffect(() => {
     if (executionStatusDefaultApplied || !user) return;
