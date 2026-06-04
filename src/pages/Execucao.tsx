@@ -1242,6 +1242,7 @@ export default function Execucao() {
     () => groupsByResponsavel.map((section) => section.responsavelId),
     [groupsByResponsavel]
   );
+  const visibleResponsavelIdsKey = visibleResponsavelIds.join("|");
   const selectedVisibleGroups = useMemo(
     () => executionGroups.filter((group) => selectedGroupKeys.has(group.key)),
     [executionGroups, selectedGroupKeys]
@@ -1269,7 +1270,17 @@ export default function Execucao() {
       executionTableTab === "persistentes" ||
       executionStatusFilter !== "todos";
 
-    setExpandedResponsaveis(shouldAutoExpand ? new Set(visibleResponsavelIds) : new Set());
+    setExpandedResponsaveis((prev) => {
+      const visibleIds = visibleResponsavelIdsKey ? visibleResponsavelIdsKey.split("|") : [];
+      const visible = new Set(visibleIds);
+
+      if (shouldAutoExpand) {
+        return new Set(visibleIds);
+      }
+
+      const next = new Set([...prev].filter((responsavelId) => visible.has(responsavelId)));
+      return next.size === prev.size ? prev : next;
+    });
   }, [
     activeTopSetor,
     executionStatusFilter,
@@ -1279,7 +1290,7 @@ export default function Execucao() {
     filters.responsaveis,
     filters.setores,
     executionTableTab,
-    visibleResponsavelIds,
+    visibleResponsavelIdsKey,
   ]);
 
   const pendingCount = filteredByTopSetor.filter((item) => item.status_responsavel === "pendente").length;
