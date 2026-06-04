@@ -103,7 +103,8 @@ interface RotinaModeloPayload {
   origem_grupo_id?: string | null;
 }
 
-const TABLE_MISSING_RE = /apt_rotina_|schema cache|could not find|does not exist|relation .* does not exist/i;
+const TABLE_MISSING_CODES = new Set(["42P01", "PGRST205"]);
+const TABLE_MISSING_RE = /(?:could not find the table|relation\s+["']?public\.apt_rotina_|relation\s+["']?apt_rotina_).*does not exist|apt_rotina_.*schema cache/i;
 const EMPTY_WEEKS: number[] = [];
 const LOCAL_MODELOS_KEY = "sisramos:apt_rotina_modelos:v1";
 const LOCAL_OCORRENCIAS_KEY = "sisramos:apt_rotina_ocorrencias:v1";
@@ -231,8 +232,9 @@ export function useAptRotinas({
     setAvaliacoes(localAvaliacoes.sort((a, b) => b.created_at.localeCompare(a.created_at)));
   }, [ano, isGestorOrAdmin, mes, momento, semanasAtivas, setorId, user]);
 
-  const handleTableError = useCallback((error: { message?: string } | null) => {
-    if (error?.message && TABLE_MISSING_RE.test(error.message)) {
+  const handleTableError = useCallback((error: { code?: string; message?: string; details?: string } | null) => {
+    const message = [error?.message, error?.details].filter(Boolean).join(" ");
+    if ((error?.code && TABLE_MISSING_CODES.has(error.code)) || TABLE_MISSING_RE.test(message)) {
       setTableUnavailable(true);
       return true;
     }
@@ -357,6 +359,16 @@ export function useAptRotinas({
     if (modelosResult.error) {
       if (!handleTableError(modelosResult.error)) {
         console.error("Erro ao carregar modelos de rotina:", modelosResult.error);
+        toast({
+          variant: "destructive",
+          title: "Erro ao carregar rotinas persistentes",
+          description: modelosResult.error.message,
+        });
+        setModelos([]);
+        setOcorrencias([]);
+        setAvaliacoes([]);
+        setIsLoading(false);
+        return;
       }
       applyLocalState();
       setIsLoading(false);
@@ -378,6 +390,15 @@ export function useAptRotinas({
     if (ocorrenciasResult.error) {
       if (!handleTableError(ocorrenciasResult.error)) {
         console.error("Erro ao carregar ocorrências de rotina:", ocorrenciasResult.error);
+        toast({
+          variant: "destructive",
+          title: "Erro ao carregar ocorrências persistentes",
+          description: ocorrenciasResult.error.message,
+        });
+        setOcorrencias([]);
+        setAvaliacoes([]);
+        setIsLoading(false);
+        return;
       }
       applyLocalState();
       setIsLoading(false);
@@ -399,6 +420,14 @@ export function useAptRotinas({
     if (avaliacoesResult.error) {
       if (!handleTableError(avaliacoesResult.error)) {
         console.error("Erro ao carregar avaliações de rotina:", avaliacoesResult.error);
+        toast({
+          variant: "destructive",
+          title: "Erro ao carregar avaliações persistentes",
+          description: avaliacoesResult.error.message,
+        });
+        setAvaliacoes([]);
+        setIsLoading(false);
+        return;
       }
       applyLocalState();
       setIsLoading(false);
