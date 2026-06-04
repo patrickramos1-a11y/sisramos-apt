@@ -172,7 +172,7 @@ export function getDemandaPrazoStatusVisual(
   if (!isDemandaPrazo(demanda)) return null;
 
   if (demanda.status_gestor === "executado") return "aprovada";
-  if (demanda.status_responsavel === "executado" && demanda.status_gestor !== "executado") {
+  if (demanda.status_responsavel === "executado") {
     return "concluida_aguardando_aprovacao";
   }
   if (demanda.status_responsavel === "nao_realizado") return "vencida_nao_concluida";

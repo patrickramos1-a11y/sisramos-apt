@@ -44,6 +44,215 @@ export type Database = {
         }
         Relationships: []
       }
+      apt_rotina_avaliacoes: {
+        Row: {
+          ano: number
+          avaliado_em: string | null
+          avaliado_por: string | null
+          created_at: string
+          feitas: number
+          id: string
+          mes: number
+          modelo_id: string
+          momento: number | null
+          nao_feitas: number
+          observacao_gestor: string | null
+          percentual: number
+          previstas: number
+          responsavel_id: string
+          semanas_agrupadas: number[]
+          setor_id: string | null
+          status_gestor: string
+          updated_at: string
+        }
+        Insert: {
+          ano: number
+          avaliado_em?: string | null
+          avaliado_por?: string | null
+          created_at?: string
+          feitas?: number
+          id?: string
+          mes: number
+          modelo_id: string
+          momento?: number | null
+          nao_feitas?: number
+          observacao_gestor?: string | null
+          percentual?: number
+          previstas?: number
+          responsavel_id: string
+          semanas_agrupadas?: number[]
+          setor_id?: string | null
+          status_gestor?: string
+          updated_at?: string
+        }
+        Update: {
+          ano?: number
+          avaliado_em?: string | null
+          avaliado_por?: string | null
+          created_at?: string
+          feitas?: number
+          id?: string
+          mes?: number
+          modelo_id?: string
+          momento?: number | null
+          nao_feitas?: number
+          observacao_gestor?: string | null
+          percentual?: number
+          previstas?: number
+          responsavel_id?: string
+          semanas_agrupadas?: number[]
+          setor_id?: string | null
+          status_gestor?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "apt_rotina_avaliacoes_modelo_id_fkey"
+            columns: ["modelo_id"]
+            isOneToOne: false
+            referencedRelation: "apt_rotina_modelos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "apt_rotina_avaliacoes_setor_id_fkey"
+            columns: ["setor_id"]
+            isOneToOne: false
+            referencedRelation: "setores"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      apt_rotina_modelos: {
+        Row: {
+          ativo: boolean
+          cor: string
+          created_at: string
+          descricao: string
+          dias_semana: number[]
+          entra_calculo_apt: boolean
+          exige_aprovacao: boolean
+          icone: string
+          id: string
+          nome: string
+          origem_demanda_ids: string[] | null
+          origem_grupo_id: string | null
+          responsavel_padrao_id: string
+          semanas_aplicaveis: number[]
+          setor_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          ativo?: boolean
+          cor?: string
+          created_at?: string
+          descricao: string
+          dias_semana?: number[]
+          entra_calculo_apt?: boolean
+          exige_aprovacao?: boolean
+          icone?: string
+          id?: string
+          nome: string
+          origem_demanda_ids?: string[] | null
+          origem_grupo_id?: string | null
+          responsavel_padrao_id: string
+          semanas_aplicaveis?: number[]
+          setor_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          ativo?: boolean
+          cor?: string
+          created_at?: string
+          descricao?: string
+          dias_semana?: number[]
+          entra_calculo_apt?: boolean
+          exige_aprovacao?: boolean
+          icone?: string
+          id?: string
+          nome?: string
+          origem_demanda_ids?: string[] | null
+          origem_grupo_id?: string | null
+          responsavel_padrao_id?: string
+          semanas_aplicaveis?: number[]
+          setor_id?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "apt_rotina_modelos_setor_id_fkey"
+            columns: ["setor_id"]
+            isOneToOne: false
+            referencedRelation: "setores"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      apt_rotina_ocorrencias: {
+        Row: {
+          ano: number
+          created_at: string
+          data: string
+          id: string
+          marcado_em: string | null
+          marcado_por: string | null
+          mes: number
+          modelo_id: string
+          observacao: string | null
+          responsavel_id: string
+          semana_apt: number
+          setor_id: string | null
+          status_execucao: string
+          updated_at: string
+        }
+        Insert: {
+          ano: number
+          created_at?: string
+          data: string
+          id?: string
+          marcado_em?: string | null
+          marcado_por?: string | null
+          mes: number
+          modelo_id: string
+          observacao?: string | null
+          responsavel_id: string
+          semana_apt: number
+          setor_id?: string | null
+          status_execucao?: string
+          updated_at?: string
+        }
+        Update: {
+          ano?: number
+          created_at?: string
+          data?: string
+          id?: string
+          marcado_em?: string | null
+          marcado_por?: string | null
+          mes?: number
+          modelo_id?: string
+          observacao?: string | null
+          responsavel_id?: string
+          semana_apt?: number
+          setor_id?: string | null
+          status_execucao?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "apt_rotina_ocorrencias_modelo_id_fkey"
+            columns: ["modelo_id"]
+            isOneToOne: false
+            referencedRelation: "apt_rotina_modelos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "apt_rotina_ocorrencias_setor_id_fkey"
+            columns: ["setor_id"]
+            isOneToOne: false
+            referencedRelation: "setores"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       checklist_instance_assignees: {
         Row: {
           created_at: string
@@ -542,6 +751,7 @@ export type Database = {
       }
       profiles: {
         Row: {
+          avatar_url: string | null
           cor: string | null
           created_at: string
           deleted_at: string | null
@@ -552,6 +762,7 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          avatar_url?: string | null
           cor?: string | null
           created_at?: string
           deleted_at?: string | null
@@ -562,6 +773,7 @@ export type Database = {
           user_id: string
         }
         Update: {
+          avatar_url?: string | null
           cor?: string | null
           created_at?: string
           deleted_at?: string | null
@@ -697,6 +909,7 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      apt_rotina_marcar_atrasadas: { Args: never; Returns: number }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
