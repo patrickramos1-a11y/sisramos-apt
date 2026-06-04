@@ -4,9 +4,9 @@ import { Button } from "@/components/ui/button";
 import StatusBolinha from "./StatusBolinha";
 import SwipeableCard from "./SwipeableCard";
 import { cn } from "@/lib/utils";
-import { User, RefreshCw, Calendar, Flame, Star, MessageCircle } from "lucide-react";
+import { User, RefreshCw, Calendar, Flame, Star, MessageCircle, Clock3 } from "lucide-react";
 import type { AptTag } from "@/lib/tags";
-import { DemandaModoExecucao, DemandaPrazoStatusVisual, formatPrazoWindow, getPrazoStatusLabel, getPrazoToneClasses } from "@/lib/demandas-prazo";
+import { DemandaModoExecucao, DemandaPrazoStatusVisual, formatPrazoWindow } from "@/lib/demandas-prazo";
 
 type StatusBolinha = "pendente" | "executado" | "nao_realizado";
 
@@ -55,7 +55,6 @@ export default function DemandaCard({
   modoExecucao,
   semanaInicioPrazo,
   semanaFimPrazo,
-  prazoStatusVisual,
   prioritaria,
   muitoUrgente,
   canEditResponsavel,
@@ -81,7 +80,7 @@ export default function DemandaCard({
     },
     "compact"
   );
-  const prazoStatusLabel = getPrazoStatusLabel(prazoStatusVisual ?? null);
+  const isPrazo = Boolean(prazoWindow);
 
   const cardContent = (
     <Card
@@ -122,28 +121,20 @@ export default function DemandaCard({
 
         <div className="px-3 py-2">
           <div className="flex items-start gap-2">
-            <span className="flex h-5 w-5 shrink-0 items-center justify-center pt-0.5">
-              {muitoUrgente ? (
+            <span className="flex min-h-5 shrink-0 items-center justify-center gap-1 pt-0.5">
+              {muitoUrgente && (
                 <Flame className="h-3.5 w-3.5 fill-destructive text-destructive" />
-              ) : prioritaria ? (
+              )}
+              {prioritaria && (
                 <Star className="h-3.5 w-3.5 fill-warning text-warning" />
-              ) : null}
+              )}
+              {isPrazo && (
+                <Clock3 className="h-3.5 w-3.5 text-sky-600" />
+              )}
             </span>
 
             <div className="min-w-0 space-y-1">
               <p className="text-sm font-medium leading-snug break-words">{descricao}</p>
-              {prazoWindow && (
-                <div className="flex flex-wrap gap-1">
-                  <span className="inline-flex rounded-full border border-sky-200 bg-sky-50 px-2 py-0.5 text-[10px] font-semibold text-sky-700">
-                    {prazoWindow}
-                  </span>
-                  {prazoStatusLabel && (
-                    <span className={cn("inline-flex rounded-full border px-2 py-0.5 text-[10px] font-semibold", getPrazoToneClasses(prazoStatusVisual ?? null))}>
-                      {prazoStatusLabel}
-                    </span>
-                  )}
-                </div>
-              )}
               {pendingExclusao && (
                 <span className="inline-flex items-center rounded-full border border-warning/30 bg-warning/15 px-2 py-0.5 text-[10px] font-medium text-warning">
                   Aguardando exclusao

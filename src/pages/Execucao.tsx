@@ -30,7 +30,6 @@ import {
   formatPrazoWindow,
   getDemandaPrazoStatusVisual,
   getPrazoReferenceWeek,
-  getPrazoStatusLabel,
   getPrazoToneClasses,
   isDemandaPrazo,
   isPrazoColumnMissingError,
@@ -466,7 +465,7 @@ export default function Execucao() {
   const [selectedGroupKeys, setSelectedGroupKeys] = useState<Set<string>>(new Set());
   const [executionSortKey, setExecutionSortKey] = useState<ExecutionSortKey>("responsavel");
   const [executionStatusFilter, setExecutionStatusFilter] = useState<ExecutionStatusFilter>("todos");
-  const [executionTableTab, setExecutionTableTab] = useState<"demandas" | "persistentes">("demandas");
+  const [executionTableTab, setExecutionTableTab] = useState<"demandas" | "prazo" | "persistentes">("demandas");
   const [expandedResponsaveis, setExpandedResponsaveis] = useState<Set<string>>(new Set());
   const [executionStatusDefaultApplied, setExecutionStatusDefaultApplied] = useState(false);
   const [executionDefaultsApplied, setExecutionDefaultsApplied] = useState(false);
@@ -959,8 +958,9 @@ export default function Execucao() {
   };
 
   const filteredByTopSetor = (() => {
-    if (filters.persistente) return [];
-    const base = filters.prazo ? demandas.filter((item) => isDemandaPrazo(item)) : demandas;
+    if (filters.persistente || executionTableTab === "persistentes") return [];
+    const shouldShowPrazo = filters.prazo || executionTableTab === "prazo";
+    const base = demandas.filter((item) => shouldShowPrazo ? isDemandaPrazo(item) : !isDemandaPrazo(item));
     if (!activeTopSetor) return base;
     return base.filter((item) =>
       activeTopSetor === "sem_setor" ? item.setor_id === null : item.setor_id === activeTopSetor
@@ -969,7 +969,7 @@ export default function Execucao() {
 
   useEffect(() => {
     if (filters.persistente) setExecutionTableTab("persistentes");
-    if (filters.prazo) setExecutionTableTab("demandas");
+    if (filters.prazo) setExecutionTableTab("prazo");
   }, [filters.persistente, filters.prazo]);
 
   useEffect(() => {
@@ -1132,7 +1132,8 @@ export default function Execucao() {
   const filteredRotinaResumos = useMemo(() => {
     const todayKey = getTodayKey();
     const busca = filters.busca.trim().toLowerCase();
-    if (filters.prazo) return [];
+    if (filters.prazo || executionTableTab === "prazo") return [];
+    if (!filters.persistente && executionTableTab !== "persistentes") return [];
 
     return rotinaResumos.filter((rotina) => {
       const responsavelId = rotina.responsavel_id || "";
@@ -1155,7 +1156,9 @@ export default function Execucao() {
   }, [
     activeTopSetor,
     executionStatusFilter,
+    executionTableTab,
     filters.busca,
+    filters.persistente,
     filters.prazo,
     filters.responsaveis,
     filters.setores,
@@ -1262,6 +1265,7 @@ export default function Execucao() {
       filters.setores.length > 0 ||
       filters.prazo ||
       filters.persistente ||
+      executionTableTab === "prazo" ||
       executionTableTab === "persistentes" ||
       executionStatusFilter !== "todos";
 
@@ -1808,11 +1812,6 @@ export default function Execucao() {
                                 <Badge variant="outline" className="rounded-full px-2 py-0.5 text-[10px]">
                                   {isPrazo && prazoWindow ? prazoWindow : semanasCompactas(allWeeks)}
                                 </Badge>
-                                {isPrazo && prazoVisual && (
-                                  <Badge className={cn("rounded-full px-2 py-0.5 text-[10px]", getPrazoToneClasses(prazoVisual))}>
-                                    {getPrazoStatusLabel(prazoVisual)}
-                                  </Badge>
-                                )}
                                 {isGestorOrAdmin && (
                                   <Badge variant="outline" className="gap-1 rounded-full px-2 py-0.5 text-[10px]">
                                     <span className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: responsavel?.cor || "#65a30d" }} />
@@ -1829,12 +1828,16 @@ export default function Execucao() {
                               </div>
 
                               <div className="flex items-start gap-2">
-                                <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center">
-                                  {group.muito_urgente ? (
+                                <span className="mt-0.5 flex min-h-5 shrink-0 items-center justify-center gap-1">
+                                  {group.muito_urgente && (
                                     <Flame className="h-4 w-4 fill-destructive text-destructive" />
-                                  ) : group.prioritaria ? (
+                                  )}
+                                  {group.prioritaria && (
                                     <Star className="h-4 w-4 fill-warning text-warning" />
-                                  ) : null}
+                                  )}
+                                  {isPrazo && (
+                                    <Clock3 className="h-4 w-4 text-sky-600" />
+                                  )}
                                 </span>
                                 <p className="text-sm font-semibold leading-snug">{group.descricao}</p>
                               </div>
@@ -1915,16 +1918,34 @@ export default function Execucao() {
           <div className="hidden lg:block">
             <Tabs
               value={executionTableTab}
-              onValueChange={(value) => setExecutionTableTab(value as "demandas" | "persistentes")}
+              onValueChange={(value) => {
+                const next = value as "demandas" | "prazo" | "persistentes";
+                setExecutionTableTab(next);
+                setFilters((prev) => ({
+                  ...prev,
+                  prazo: next === "prazo",
+                  persistente: next === "persistentes",
+                }));
+              }}
               className="space-y-3"
             >
               <div className="rounded-2xl border border-border/70 bg-card p-2 shadow-sm">
-                <TabsList className="grid h-auto w-full grid-cols-2 bg-muted/40 p-1">
+                <TabsList className="grid h-auto w-full grid-cols-3 bg-muted/40 p-1">
                   <TabsTrigger value="demandas" className="gap-2 rounded-xl py-2 text-sm">
                     <ListChecks className="h-4 w-4" />
                     Demandas do momento
                     <Badge variant="secondary" className="rounded-full">
                       {unifiedExecutionRowsCount}
+                    </Badge>
+                  </TabsTrigger>
+                  <TabsTrigger
+                    value="prazo"
+                    className="gap-2 rounded-xl py-2 text-sm data-[state=active]:bg-sky-600 data-[state=active]:text-white"
+                  >
+                    <Clock3 className="h-4 w-4" />
+                    Com prazo
+                    <Badge variant="secondary" className="rounded-full">
+                      {executionTableTab === "prazo" ? unifiedExecutionRowsCount : demandas.filter((item) => isDemandaPrazo(item)).length}
                     </Badge>
                   </TabsTrigger>
                   <TabsTrigger value="persistentes" className="gap-2 rounded-xl py-2 text-sm">
@@ -1946,7 +1967,7 @@ export default function Execucao() {
                 />
               </TabsContent>
 
-              <TabsContent value="demandas" className="mt-0">
+              <TabsContent value={executionTableTab === "prazo" ? "prazo" : "demandas"} className="mt-0">
                 {unifiedExecutionRowsCount === 0 ? (
                   <Card>
                     <CardContent className="py-14 text-center">
@@ -2221,26 +2242,20 @@ export default function Execucao() {
                               )}
                               <td className="px-3 py-3 align-middle">
                                 <div className="flex min-w-0 items-start gap-2">
-                                  <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center">
-                                    {group.muito_urgente ? (
+                                  <span className="mt-0.5 flex min-h-5 shrink-0 items-center justify-center gap-1">
+                                    {group.muito_urgente && (
                                       <Flame className="h-4 w-4 fill-destructive text-destructive" />
-                                    ) : group.prioritaria ? (
+                                    )}
+                                    {group.prioritaria && (
                                       <Star className="h-4 w-4 fill-warning text-warning" />
-                                    ) : null}
+                                    )}
+                                    {isPrazo && (
+                                      <Clock3 className="h-4 w-4 text-sky-600" />
+                                    )}
                                   </span>
                                   <div className="min-w-0">
                                     <div className="flex flex-wrap items-center gap-1.5">
                                       <p className="font-medium leading-snug">{group.descricao}</p>
-                                      {isPrazo && prazoWindow && (
-                                        <Badge className="rounded-full border border-sky-200 bg-sky-50 px-2 py-0.5 text-[10px] text-sky-700 hover:bg-sky-50">
-                                          {prazoWindow}
-                                        </Badge>
-                                      )}
-                                      {isPrazo && prazoVisual && (
-                                        <Badge className={cn("rounded-full px-2 py-0.5 text-[10px]", getPrazoToneClasses(prazoVisual))}>
-                                          {getPrazoStatusLabel(prazoVisual)}
-                                        </Badge>
-                                      )}
                                     </div>
                                     {group.tags.length > 0 && (
                                       <div className="mt-1 flex flex-wrap gap-1">

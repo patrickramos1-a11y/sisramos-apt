@@ -258,6 +258,7 @@ export default function GerenciamentoLista({ profiles, setores, onDemandaChange 
 
   const filteredRotinaModelos = useMemo(() => {
     if (!isGestorOrAdmin) return [];
+    if (!filters.persistente) return [];
     if (filters.prazo) return [];
 
     return rotinaModelos.filter((modelo) => {
@@ -525,6 +526,7 @@ export default function GerenciamentoLista({ profiles, setores, onDemandaChange 
 
   const totalSiblingsVisible = useMemo(() => consolidated.reduce((acc, c) => acc + c.siblings.length, 0), [consolidated]);
   const allSelected = totalSiblingsVisible > 0 && consolidated.every((c) => c.siblings.every((s) => selectedIds.has(s.id)));
+  const hasTableRows = consolidated.length > 0 || filteredRotinaModelos.length > 0;
 
   const toggleAll = () => {
     if (allSelected) setSelectedIds(new Set());
@@ -1181,12 +1183,16 @@ export default function GerenciamentoLista({ profiles, setores, onDemandaChange 
         {/* Descrição */}
         <TableCell className="py-1.5 align-top" style={{ width: descWidth, maxWidth: descWidth }}>
           <div className="flex items-start gap-1.5 min-w-0">
-            <div className="flex h-4 w-4 shrink-0 items-start justify-center pt-0.5">
-              {c.muito_urgente ? (
+            <div className="flex h-4 w-4 shrink-0 items-start justify-center gap-0.5 pt-0.5">
+              {c.muito_urgente && (
                 <Flame className="h-3.5 w-3.5 text-destructive" />
-              ) : c.prioritaria ? (
+              )}
+              {c.prioritaria && (
                 <Star className="h-3.5 w-3.5 text-warning" />
-              ) : null}
+              )}
+              {isPrazo && (
+                <Clock3 className="h-3.5 w-3.5 text-sky-600" />
+              )}
             </div>
             <div className="min-w-0 flex-1">
               <TooltipProvider delayDuration={400}>
@@ -1199,11 +1205,6 @@ export default function GerenciamentoLista({ profiles, setores, onDemandaChange 
               </TooltipProvider>
               {(hasPending || showMonthBadge || c.tags.length > 0) && (
                 <div className="flex flex-wrap items-center gap-1.5 mt-0.5">
-                  {prazoWindow && (
-                    <span className="rounded-full border border-sky-200 bg-sky-50 px-1.5 py-0 text-[9px] font-semibold text-sky-700">
-                      Prazo {prazoWindow}
-                    </span>
-                  )}
                   {showMonthBadge && (
                     <span className="text-[9px] font-medium uppercase tracking-wide text-muted-foreground bg-muted px-1.5 py-0 rounded">
                       {MESES_FULL[c.mes - 1].slice(0, 3)}/{c.ano}
@@ -1424,6 +1425,99 @@ export default function GerenciamentoLista({ profiles, setores, onDemandaChange 
     );
   };
 
+  const renderRotinaModeloRow = (modelo: (typeof filteredRotinaModelos)[number]) => {
+    const setor = getSetorById(modelo.setor_id);
+    const profile = modelo.responsavel_padrao_id ? getProfileById(modelo.responsavel_padrao_id) : null;
+    const semanas = [...(modelo.semanas_aplicaveis || [])].sort((a, b) => a - b);
+    const repeticoes = (modelo.dias_semana || []).length;
+
+    return (
+      <TableRow
+        key={`rotina-${modelo.id}`}
+        className="group h-10 border-orange-100 bg-orange-50/30 hover:bg-orange-50/70 transition-colors"
+      >
+        <TableCell className="w-[36px] py-1">
+          <span className="block h-4 w-4" />
+        </TableCell>
+        <TableCell className="py-1.5 align-top" style={{ width: descWidth, maxWidth: descWidth }}>
+          <div className="flex items-start gap-1.5 min-w-0">
+            <div className="flex h-4 w-4 shrink-0 items-start justify-center pt-0.5">
+              <RefreshCw className="h-3.5 w-3.5 text-orange-600" />
+            </div>
+            <div className="min-w-0 flex-1">
+              <TooltipProvider delayDuration={400}>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <p className="text-sm leading-tight line-clamp-2 break-words text-orange-950">
+                      {modelo.nome}
+                    </p>
+                  </TooltipTrigger>
+                  <TooltipContent className="max-w-md">
+                    <p className="text-xs">{modelo.descricao || modelo.nome}</p>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+            </div>
+          </div>
+        </TableCell>
+        <TableCell className="py-1 w-[132px] align-top">
+          <span className="inline-flex items-center gap-1.5 rounded-full border bg-background px-2 py-0.5 text-xs">
+            <span
+              className="h-2 w-2 rounded-full"
+              style={{ backgroundColor: profile?.cor || "#f97316" }}
+            />
+            {profile?.nome || "Sem responsável"}
+          </span>
+        </TableCell>
+        <TableCell className="py-1 w-[140px] align-top">
+          <span className="inline-flex items-center gap-1.5 rounded-full border bg-background px-2 py-0.5 text-xs">
+            <span
+              className="h-2 w-2 rounded-full"
+              style={{ backgroundColor: setor?.cor || "#f97316" }}
+            />
+            {setor?.nome || "Sem setor"}
+          </span>
+        </TableCell>
+        <TableCell className="py-1 w-[180px] align-top">
+          <div className="flex flex-wrap gap-1">
+            {semanas.map((semana) => (
+              <span
+                key={semana}
+                className="inline-flex h-6 min-w-6 items-center justify-center rounded-md border border-orange-200 bg-orange-50 px-1.5 text-[11px] font-semibold text-orange-700"
+              >
+                {semana}
+              </span>
+            ))}
+          </div>
+        </TableCell>
+        <TableCell className="py-1 w-[52px] text-center align-top">
+          <div className="inline-flex h-6 w-9 items-center justify-center rounded-md border border-orange-200 bg-orange-50 text-[11px] font-semibold text-orange-700">
+            {repeticoes}X
+          </div>
+        </TableCell>
+        <TableCell className="py-1 w-[60px] align-top text-center text-muted-foreground">-</TableCell>
+        <TableCell className="py-1 w-[56px] align-top text-center text-muted-foreground">-</TableCell>
+        {isGestorOrAdmin && (
+          <TableCell className="py-1 w-[56px] align-top text-center text-muted-foreground">-</TableCell>
+        )}
+        <TableCell className="py-1 w-[72px] align-top">
+          <div className="flex items-center gap-0.5 opacity-60 group-hover:opacity-100">
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              className="h-7 w-7 text-muted-foreground hover:text-destructive"
+              title="Tirar persistência"
+              onClick={() => void handleDeleteRotinaModelo(modelo.id)}
+            >
+              <Trash2 className="h-3.5 w-3.5" />
+            </Button>
+          </div>
+        </TableCell>
+      </TableRow>
+    );
+  };
+
   if (isLoading) {
     return <div className="flex items-center justify-center py-12"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>;
   }
@@ -1495,61 +1589,9 @@ export default function GerenciamentoLista({ profiles, setores, onDemandaChange 
         <div className="flex-1" />
         <span className="text-xs text-muted-foreground">
           {consolidated.length} grupos · {filteredDemandas.length} demandas
+          {filteredRotinaModelos.length > 0 ? ` · ${filteredRotinaModelos.length} persistentes` : ""}
         </span>
       </div>
-
-      {isGestorOrAdmin && filteredRotinaModelos.length > 0 && (
-        <div className="rounded-xl border border-orange-200 bg-orange-50/50 p-3">
-          <div className="flex flex-wrap items-center justify-between gap-2">
-            <div className="flex items-center gap-2">
-              <RefreshCw className="h-4 w-4 text-orange-600" />
-              <div>
-                <p className="text-sm font-semibold text-orange-950">Demandas persistentes</p>
-                <p className="text-xs text-orange-800/80">
-                  Modelos recorrentes filtrados junto da lista. Edite em Configurações &gt; Setores.
-                </p>
-              </div>
-            </div>
-            <Badge variant="outline" className="border-orange-300 bg-white/70 text-orange-800">
-              {filteredRotinaModelos.length} modelo{filteredRotinaModelos.length === 1 ? "" : "s"}
-            </Badge>
-          </div>
-          <div className="mt-3 flex flex-wrap gap-2">
-            {filteredRotinaModelos.map((modelo) => {
-              const setor = getSetorById(modelo.setor_id);
-              const profile = modelo.responsavel_padrao_id ? getProfileById(modelo.responsavel_padrao_id) : null;
-              const semanas = (modelo.semanas_aplicaveis || []).join(",");
-              return (
-                <div
-                  key={modelo.id}
-                  className="flex max-w-full items-center gap-2 rounded-full border border-orange-200 bg-white px-3 py-1.5 text-xs shadow-sm"
-                  title={modelo.descricao}
-                >
-                  <RefreshCw className="h-3.5 w-3.5 shrink-0 text-orange-600" />
-                  <span className="max-w-[260px] truncate font-semibold text-orange-950">{modelo.nome}</span>
-                  <span className="text-muted-foreground">{setor?.nome || "Sem setor"}</span>
-                  <span className="text-muted-foreground">{profile?.nome || "Sem responsável"}</span>
-                  <Badge variant="outline" className="h-5 rounded-full px-1.5 text-[10px]">
-                    {(modelo.dias_semana || []).length}x/sem.
-                  </Badge>
-                  <Badge variant="secondary" className="h-5 rounded-full px-1.5 text-[10px]">
-                    {semanas || "sem semanas"}
-                  </Badge>
-                  <button
-                    type="button"
-                    onClick={() => void handleDeleteRotinaModelo(modelo.id)}
-                    className="ml-1 rounded-full p-0.5 text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive"
-                    title="Tirar persistência"
-                    aria-label="Tirar persistência"
-                  >
-                    <Trash2 className="h-3.5 w-3.5" />
-                  </button>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      )}
 
       {/* Table */}
       <div className="rounded-lg border bg-card overflow-hidden">
@@ -1589,47 +1631,51 @@ export default function GerenciamentoLista({ profiles, setores, onDemandaChange 
               </TableRow>
             </TableHeader>
             <TableBody>
-              {grouped.length === 0 || consolidated.length === 0 ? (
+              {!hasTableRows ? (
                 <TableRow>
                   <TableCell colSpan={isGestorOrAdmin ? 10 : 9} className="text-center py-12 text-muted-foreground text-sm">
                     Nenhuma demanda encontrada
                   </TableCell>
                 </TableRow>
               ) : (
-                grouped.map((g) => {
-                  if (groupBy === "nenhum") {
-                    return g.items.map((c) => <Fragment key={c.key}>{renderRow(c)}</Fragment>);
-                  }
-                  const collapsed = collapsedGroups.has(g.label);
-                  const groupAllSelected = g.items.every((c) => c.siblings.every((s) => selectedIds.has(s.id)));
-                  return (
-                    <Fragment key={`g-${g.label}`}>
-                      <TableRow className="bg-muted/40 hover:bg-muted/60 border-t border-b border-border/60">
-                        <TableCell className="py-1.5">
-                          <Checkbox checked={groupAllSelected} onCheckedChange={() => toggleGroup(g.items)} />
-                        </TableCell>
-                        <TableCell colSpan={isGestorOrAdmin ? 9 : 8} className="py-1.5">
-                          <button
-                            type="button"
-                            onClick={() => {
-                              const next = new Set(collapsedGroups);
-                              collapsed ? next.delete(g.label) : next.add(g.label);
-                              setCollapsedGroups(next);
-                            }}
-                            className="inline-flex items-center gap-1.5 text-sm font-semibold"
-                          >
-                            {collapsed ? <ChevronRight className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
-                            {g.label}
-                            <Badge variant="secondary" className="ml-2 h-5 text-[10px] font-normal">
-                              {g.count} grupo{g.count > 1 ? "s" : ""}
-                            </Badge>
-                          </button>
-                        </TableCell>
-                      </TableRow>
-                      {!collapsed && g.items.map((c) => <Fragment key={c.key}>{renderRow(c)}</Fragment>)}
-                    </Fragment>
-                  );
-                })
+                <>
+                  {filteredRotinaModelos.map(renderRotinaModeloRow)}
+                  {consolidated.length > 0 &&
+                    grouped.map((g) => {
+                      if (groupBy === "nenhum") {
+                        return g.items.map((c) => <Fragment key={c.key}>{renderRow(c)}</Fragment>);
+                      }
+                      const collapsed = collapsedGroups.has(g.label);
+                      const groupAllSelected = g.items.every((c) => c.siblings.every((s) => selectedIds.has(s.id)));
+                      return (
+                        <Fragment key={`g-${g.label}`}>
+                          <TableRow className="bg-muted/40 hover:bg-muted/60 border-t border-b border-border/60">
+                            <TableCell className="py-1.5">
+                              <Checkbox checked={groupAllSelected} onCheckedChange={() => toggleGroup(g.items)} />
+                            </TableCell>
+                            <TableCell colSpan={isGestorOrAdmin ? 9 : 8} className="py-1.5">
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  const next = new Set(collapsedGroups);
+                                  collapsed ? next.delete(g.label) : next.add(g.label);
+                                  setCollapsedGroups(next);
+                                }}
+                                className="inline-flex items-center gap-1.5 text-sm font-semibold"
+                              >
+                                {collapsed ? <ChevronRight className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
+                                {g.label}
+                                <Badge variant="secondary" className="ml-2 h-5 text-[10px] font-normal">
+                                  {g.count} grupo{g.count > 1 ? "s" : ""}
+                                </Badge>
+                              </button>
+                            </TableCell>
+                          </TableRow>
+                          {!collapsed && g.items.map((c) => <Fragment key={c.key}>{renderRow(c)}</Fragment>)}
+                        </Fragment>
+                      );
+                    })}
+                </>
               )}
             </TableBody>
           </Table>

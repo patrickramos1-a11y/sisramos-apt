@@ -11,7 +11,7 @@ import StatusBolinha from "./StatusBolinha";
 import { cn } from "@/lib/utils";
 import { Clock3, MoreVertical, Pencil, Trash2, Flame, Star, Repeat, MessageCircle, RefreshCw } from "lucide-react";
 import { AptTag } from "@/lib/tags";
-import { DemandaModoExecucao, DemandaPrazoStatusVisual, formatPrazoWindow, getPrazoStatusLabel, getPrazoToneClasses } from "@/lib/demandas-prazo";
+import { DemandaModoExecucao, DemandaPrazoStatusVisual, formatPrazoWindow } from "@/lib/demandas-prazo";
 
 type StatusBolinha = "pendente" | "executado" | "nao_realizado";
 
@@ -70,7 +70,6 @@ export default function DemandaTableRow({
   modoExecucao,
   semanaInicioPrazo,
   semanaFimPrazo,
-  prazoStatusVisual,
   prioritaria,
   muitoUrgente,
   canEditResponsavel,
@@ -105,7 +104,7 @@ export default function DemandaTableRow({
     },
     "compact"
   );
-  const prazoStatusLabel = getPrazoStatusLabel(prazoStatusVisual ?? null);
+  const isPrazo = Boolean(prazoWindow);
 
   return (
     <TableRow
@@ -169,34 +168,20 @@ export default function DemandaTableRow({
 
       <TableCell className="whitespace-normal break-words">
         <div className="flex items-start gap-2">
-          <span className="flex h-5 w-5 shrink-0 items-center justify-center pt-0.5">
-            {muitoUrgente ? (
+          <span className="flex min-h-5 shrink-0 items-center justify-center gap-1 pt-0.5">
+            {muitoUrgente && (
               <Flame className="h-3.5 w-3.5 fill-destructive text-destructive" />
-            ) : prioritaria ? (
+            )}
+            {prioritaria && (
               <Star className="h-3.5 w-3.5 fill-warning text-warning" />
-            ) : null}
+            )}
+            {isPrazo && (
+              <Clock3 className="h-3.5 w-3.5 text-sky-600" />
+            )}
           </span>
 
           <div className="min-w-0 space-y-1">
             <p className="leading-snug text-foreground">{descricao}</p>
-            {prazoWindow && (
-              <div className="flex flex-wrap gap-1">
-                <span className="inline-flex items-center gap-1 rounded-full border border-sky-200 bg-sky-50 px-1.5 py-0.5 text-[10px] font-semibold text-sky-700">
-                  <Clock3 className="h-3 w-3" />
-                  {prazoWindow}
-                </span>
-                {prazoStatusLabel && (
-                  <span
-                    className={cn(
-                      "inline-flex rounded-full border px-1.5 py-0.5 text-[10px] font-semibold",
-                      getPrazoToneClasses(prazoStatusVisual ?? null)
-                    )}
-                  >
-                    {prazoStatusLabel}
-                  </span>
-                )}
-              </div>
-            )}
             {tags.length > 0 && (
               <div className="flex flex-wrap gap-1">
                 {tags.map((tag) => (
