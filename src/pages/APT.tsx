@@ -2,6 +2,7 @@ import { useState, useMemo, useEffect } from "react";
 import { useSearchParams } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { useDemandas } from "@/hooks/useDemandas";
+import { useToast } from "@/hooks/use-toast";
 import { useMonthSettings } from "@/hooks/useMonthSettings";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useMomentoAPT } from "@/hooks/useMomentoAPT";
@@ -104,6 +105,7 @@ const rowLimitOptions = [50, 100, 500, 1000, 2000];
 export default function APT() {
   const [searchParams] = useSearchParams();
   const { user, isGestorOrAdmin, role } = useAuth();
+  const { toast } = useToast();
   const isAdmin = role === "admin";
   const isColaborador = role === "colaborador";
   const isMobile = useIsMobile();
@@ -272,7 +274,15 @@ export default function APT() {
       });
 
       if (created) {
-        await gerarOcorrenciasDoPeriodo([created]);
+        const generatedCount = await gerarOcorrenciasDoPeriodo([created]);
+        if (generatedCount <= 0) {
+          toast({
+            variant: "destructive",
+            title: "Ocorrências não geradas",
+            description: "A demanda comum não foi desativada porque o sistema não conseguiu gerar as ocorrências persistentes do mês.",
+          });
+          return;
+        }
         const { error } = await supabase.from("demandas").update({ ativa: false }).in("id", idsToDeactivate);
         if (error) throw error;
         await fetchDemandas();

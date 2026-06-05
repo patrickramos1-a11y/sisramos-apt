@@ -24,7 +24,6 @@ import { cn } from "@/lib/utils";
 import { buildSetorWhatsAppHref } from "@/lib/setor-actions";
 import { AptTag, uniqueTags } from "@/lib/tags";
 import {
-  clearDemandasPrazoMeta,
   DemandaModoExecucao,
   DemandaPrazoStatusVisual,
   formatPrazoWindow,
@@ -33,7 +32,6 @@ import {
   getPrazoToneClasses,
   isDemandaPrazo,
   isPrazoColumnMissingError,
-  saveDemandasPrazoMeta,
 } from "@/lib/demandas-prazo";
 import {
   CalendarDays,
@@ -938,18 +936,8 @@ export default function Execucao() {
 
     if (error) {
       if (isPrazoColumnMissingError(error)) {
-        if (isPrazo) {
-          saveDemandasPrazoMeta(
-            group.siblings.map((demanda) => demanda.id),
-            {
-              modo_execucao: "prazo",
-              semana_inicio_prazo: nextWeeks[0],
-              semana_fim_prazo: nextWeeks[nextWeeks.length - 1],
-            }
-          );
-        } else {
-          clearDemandasPrazoMeta(group.siblings.map((demanda) => demanda.id));
-        }
+        console.error("As colunas de demanda com prazo ainda não estão disponíveis no Supabase. Nada foi salvo localmente.");
+        return;
       } else {
       console.error("Erro ao editar semanas do grupo de execução:", error);
         return;
@@ -2092,7 +2080,12 @@ export default function Execucao() {
                       section.rotinas.reduce((acc, rotina) => acc + rotina.previstas, 0);
                     const sectionSelection = getSectionSelectedState(section.groups);
                     const sectionStats = getSectionExecutionSummary(section.groups);
-                    const isExpanded = expandedResponsaveis.has(section.responsavelId);
+                    const shouldForceExpanded =
+                      filters.prazo ||
+                      filters.persistente ||
+                      executionTableTab === "prazo" ||
+                      executionTableTab === "persistentes";
+                    const isExpanded = shouldForceExpanded || expandedResponsaveis.has(section.responsavelId);
 
                     return (
                       <Fragment key={section.responsavelId}>
@@ -2206,9 +2199,7 @@ export default function Execucao() {
                           const prazoVisual = isPrazo ? getGroupPrazoVisual(group, prazoReferenceWeek) : null;
                           const prazoWindow = isPrazo ? formatPrazoWindow(group.siblings[0]) : null;
                           const repeatedLabel =
-                            isPrazo
-                              ? "Prazo"
-                              : group.siblings.length > 1
+                            group.siblings.length > 1
                               ? `${group.siblings.length}x`
                               : `${group.siblings[0]?.semanas_repeticao ?? 1}x`;
 
@@ -2302,15 +2293,18 @@ export default function Execucao() {
                                 />
                               </td>
                               <td className="whitespace-nowrap px-3 py-3 text-center align-middle">
-                                <Badge
-                                  variant="outline"
-                                  className={cn(
-                                    "rounded-full px-2.5 py-1",
-                                    isPrazo && "border-sky-200 bg-sky-50 text-sky-700"
-                                  )}
-                                >
-                                  {repeatedLabel}
-                                </Badge>
+                                {isPrazo ? (
+                                  <span
+                                    className="inline-flex h-7 w-7 items-center justify-center rounded-full border border-sky-200 bg-sky-50 text-sky-700"
+                                    title="Demanda com prazo"
+                                  >
+                                    <Clock3 className="h-3.5 w-3.5" />
+                                  </span>
+                                ) : (
+                                  <Badge variant="outline" className="rounded-full px-2.5 py-1">
+                                    {repeatedLabel}
+                                  </Badge>
+                                )}
                               </td>
                               <td className="px-3 py-3 text-center align-middle">
                                 <div className="inline-flex items-center gap-2">
@@ -2385,10 +2379,12 @@ export default function Execucao() {
                                 {isGestorOrAdmin && <span className="text-xs text-muted-foreground">-</span>}
                               </td>
                               <td className="whitespace-nowrap px-3 py-2 align-middle">
-                                <Badge variant="outline" className="gap-1 rounded-full border-orange-200 bg-orange-50 px-2 py-0.5 text-orange-700">
+                                <span
+                                  className="inline-flex h-7 w-7 items-center justify-center rounded-full border border-orange-200 bg-orange-50 text-orange-700"
+                                  title="Demanda persistente"
+                                >
                                   <RefreshCcw className="h-3.5 w-3.5" />
-                                  PER
-                                </Badge>
+                                </span>
                               </td>
                               <td className="px-3 py-2 align-middle">
                                 <Badge variant="secondary" className="gap-1.5 rounded-full px-2.5 py-1">

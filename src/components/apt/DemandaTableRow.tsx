@@ -236,9 +236,11 @@ export default function DemandaTableRow({
 
       <TableCell className="w-12 text-center">
         {prazoWindow ? (
-          <span className="inline-flex items-center gap-1 rounded-full border border-sky-200 bg-sky-50 px-2 py-0.5 text-[10px] font-semibold text-sky-700">
+          <span
+            className="inline-flex h-7 w-7 items-center justify-center rounded-full border border-sky-200 bg-sky-50 text-sky-700"
+            title="Demanda com prazo"
+          >
             <Clock3 className="h-3 w-3" />
-            Prazo
           </span>
         ) : (
           <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">

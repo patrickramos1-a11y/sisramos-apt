@@ -62,10 +62,11 @@ export function useBulkDemandaActions(onDone: () => void) {
       const { error } = await supabase.from("demandas").update(patch).in("id", ids);
       if (error) {
         if (isPrazoColumnMissingError(error)) {
-          if (payload.modo_execucao === "prazo") saveDemandasPrazoMeta(ids, payload);
-          else clearDemandasPrazoMeta(ids);
-          toast({ title: label, description: `${ids.length} demanda(s) atualizada(s) em modo local` });
-          onDone();
+          toast({
+            variant: "destructive",
+            title: "Prazo não salvo",
+            description: "As colunas de demanda com prazo não estão disponíveis no Supabase. Nada foi salvo apenas neste navegador.",
+          });
           return;
         }
         toast({ variant: "destructive", title: "Erro", description: error.message });

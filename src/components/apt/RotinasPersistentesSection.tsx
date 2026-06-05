@@ -228,9 +228,9 @@ export default function RotinasPersistentesSection({
         <Card className="border-amber-200 bg-amber-50/70">
           <CardContent className="flex flex-col gap-2 p-4 text-sm text-amber-900 md:flex-row md:items-center md:justify-between">
             <div>
-              <p className="font-semibold">Rotinas persistentes em modo local</p>
+              <p className="font-semibold">Rotinas persistentes aguardando Supabase</p>
               <p className="text-xs">
-                Você consegue testar neste navegador. Para ficar público para todos, a migration `apt_rotinas_persistentes` precisa ser aplicada no Lovable.
+                O app não vai mais salvar rotinas só neste navegador. A migration `apt_rotinas_persistentes` precisa estar ativa no Supabase para criar, marcar e aprovar.
               </p>
             </div>
             <Badge variant="outline" className="w-fit border-amber-300 bg-white/60 text-amber-800">

@@ -174,8 +174,12 @@ export default function DemandaCard({
             <span className="truncate font-medium">{responsavel}</span>
           </div>
           <div className="flex items-center justify-center gap-1.5 text-xs text-muted-foreground">
-            <RefreshCw className="h-3.5 w-3.5 shrink-0" />
-            <span className="font-medium">{prazoWindow ? "Prazo" : `${semanasRepeticao}x`}</span>
+            {prazoWindow ? (
+              <Clock3 className="h-3.5 w-3.5 shrink-0 text-sky-600" />
+            ) : (
+              <RefreshCw className="h-3.5 w-3.5 shrink-0" />
+            )}
+            <span className="font-medium">{prazoWindow ? prazoWindow : `${semanasRepeticao}x`}</span>
           </div>
           <div className="flex items-center justify-end gap-1.5 text-xs text-muted-foreground">
             <Calendar className="h-3.5 w-3.5 shrink-0" />

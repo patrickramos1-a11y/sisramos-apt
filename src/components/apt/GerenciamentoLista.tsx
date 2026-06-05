@@ -863,9 +863,7 @@ export default function GerenciamentoLista({ profiles, setores, onDemandaChange 
     const { error } = await supabase.from("demandas").update(patch).in("id", ids);
     if (error) {
       if (isPrazoColumnMissingError(error)) {
-        if (payload.modo_execucao === "prazo") saveDemandasPrazoMeta(ids, payload);
-        else clearDemandasPrazoMeta(ids);
-        return;
+        throw new Error("As colunas de demanda com prazo ainda não estão disponíveis no Supabase. Nada foi salvo localmente.");
       }
       throw error;
     }
@@ -988,13 +986,34 @@ export default function GerenciamentoLista({ profiles, setores, onDemandaChange 
     }
   };
 
-  const handleDeleteRotinaModelo = async (modeloId: string) => {
-    const ok = await deleteRotinaModelo(modeloId);
+  const handleDeleteRotinaModelo = async (modelo: (typeof filteredRotinaModelos)[number]) => {
+    const origemIds = Array.isArray(modelo.origem_demanda_ids)
+      ? modelo.origem_demanda_ids.filter(Boolean)
+      : [];
+
+    if (origemIds.length > 0) {
+      const { error } = await supabase.from("demandas").update({ ativa: true }).in("id", origemIds);
+      if (error) {
+        toast({
+          variant: "destructive",
+          title: "Não foi possível restaurar a demanda",
+          description: error.message || "A persistência não foi removida para evitar perda de vínculo.",
+        });
+        return;
+      }
+      clearDemandasPrazoMeta(origemIds);
+    }
+
+    const ok = await deleteRotinaModelo(modelo.id);
     if (ok) {
       toast({
         title: "Persistência removida",
-        description: "O modelo persistente foi removido das rotinas.",
+        description:
+          origemIds.length > 0
+            ? "A demanda comum original foi restaurada e o modelo persistente foi removido."
+            : "O modelo persistente foi removido. Ele não tinha origem salva para restaurar uma demanda comum automaticamente.",
       });
+      await fetchDemandas();
     }
   };
 
@@ -1054,7 +1073,15 @@ export default function GerenciamentoLista({ profiles, setores, onDemandaChange 
       }
 
       if (successCount > 0) {
-        await gerarOcorrenciasDoPeriodo(createdModelos);
+        const generatedCount = await gerarOcorrenciasDoPeriodo(createdModelos);
+        if (generatedCount <= 0) {
+          toast({
+            variant: "destructive",
+            title: "Ocorrências não geradas",
+            description: "As demandas comuns não foram desativadas porque o sistema não conseguiu gerar as ocorrências persistentes do mês.",
+          });
+          return;
+        }
         await deactivateDemandas(deactivateIds);
         toast({
           title: "Demandas transformadas em persistentes",
@@ -1118,7 +1145,15 @@ export default function GerenciamentoLista({ profiles, setores, onDemandaChange 
       });
 
       if (created) {
-        await gerarOcorrenciasDoPeriodo([created]);
+        const generatedCount = await gerarOcorrenciasDoPeriodo([created]);
+        if (generatedCount <= 0) {
+          toast({
+            variant: "destructive",
+            title: "Ocorrências não geradas",
+            description: "A demanda comum não foi desativada porque o sistema não conseguiu gerar as ocorrências persistentes do mês.",
+          });
+          return;
+        }
         await deactivateDemandas(idsToDeactivate);
         toast({
           title: "Demanda transformada em persistente",
@@ -1332,12 +1367,21 @@ export default function GerenciamentoLista({ profiles, setores, onDemandaChange 
 
         {/* Repetições */}
         <TableCell className="py-1 w-[52px] text-center align-top">
-          <div
-            className="inline-flex h-6 w-9 items-center justify-center rounded-md border bg-muted text-[11px] font-semibold text-foreground/80"
-            title={isPrazo ? "Demanda com prazo" : "Repetição calculada automaticamente pelas semanas"}
-          >
-            {isPrazo ? "PZ" : `${allSemanas.length}X`}
-          </div>
+          {isPrazo ? (
+            <span
+              className="inline-flex h-6 w-7 items-center justify-center rounded-md border border-sky-200 bg-sky-50 text-sky-700"
+              title="Demanda com prazo"
+            >
+              <Clock3 className="h-3.5 w-3.5" />
+            </span>
+          ) : (
+            <div
+              className="inline-flex h-6 w-9 items-center justify-center rounded-md border bg-muted text-[11px] font-semibold text-foreground/80"
+              title="Repetição calculada automaticamente pelas semanas"
+            >
+              {allSemanas.length}X
+            </div>
+          )}
         </TableCell>
 
         {/* Flags */}
@@ -1520,7 +1564,7 @@ export default function GerenciamentoLista({ profiles, setores, onDemandaChange 
               size="icon"
               className="h-7 w-7 text-muted-foreground hover:text-destructive"
               title="Tirar persistência"
-              onClick={() => void handleDeleteRotinaModelo(modelo.id)}
+              onClick={() => void handleDeleteRotinaModelo(modelo)}
             >
               <Trash2 className="h-3.5 w-3.5" />
             </Button>

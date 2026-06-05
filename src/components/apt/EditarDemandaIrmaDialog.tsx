@@ -312,9 +312,11 @@ export default function EditarDemandaIrmaDialog({
             semana_fim_prazo: parseInt(formData.semana_fim_prazo, 10),
           };
           const { error } = await supabase.from("demandas").update(patch).in("id", ids);
-          if (error && isPrazoColumnMissingError(error)) saveDemandasPrazoMeta(ids, patch);
-          else if (error) throw error;
-          else saveDemandasPrazoMeta(ids, patch);
+          if (error && isPrazoColumnMissingError(error)) {
+            throw new Error("As colunas de demanda com prazo não estão disponíveis no Supabase. Nada foi salvo apenas neste navegador.");
+          }
+          if (error) throw error;
+          saveDemandasPrazoMeta(ids, patch);
           return;
         }
 
@@ -326,7 +328,10 @@ export default function EditarDemandaIrmaDialog({
             semana_fim_prazo: null,
           })
           .in("id", ids);
-        if (error && !isPrazoColumnMissingError(error)) throw error;
+        if (error && isPrazoColumnMissingError(error)) {
+          throw new Error("As colunas de demanda com prazo não estão disponíveis no Supabase. Nada foi salvo apenas neste navegador.");
+        }
+        if (error) throw error;
         clearDemandasPrazoMeta(ids);
       };
 

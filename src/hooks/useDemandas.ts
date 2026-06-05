@@ -465,10 +465,7 @@ export function useDemandas() {
 
       if (error) {
         if (isPrazoColumnMissingError(error)) {
-          if (payload.modo_execucao === "prazo") saveDemandasPrazoMeta(demandaIds, payload);
-          else clearDemandasPrazoMeta(demandaIds);
-          await fetchDemandas();
-          return { localOnly: true };
+          throw new Error("As colunas de demanda com prazo ainda não estão disponíveis no Supabase. Nada foi salvo localmente.");
         }
         throw error;
       }

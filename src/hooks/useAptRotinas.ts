@@ -139,11 +139,6 @@ function removeLocalRowsByModelIds(modelIds: Set<string>) {
   );
 }
 
-function newLocalId() {
-  if (typeof crypto !== "undefined" && "randomUUID" in crypto) return crypto.randomUUID();
-  return `local-${Date.now()}-${Math.random().toString(16).slice(2)}`;
-}
-
 function normalizeWeeks(semanas: number[] | undefined) {
   return [...new Set(semanas || [])].filter((semana) => semana >= 1 && semana <= 5).sort((a, b) => a - b);
 }
@@ -198,39 +193,6 @@ export function useAptRotinas({
     () => (semanasKey ? semanasKey.split("|").map((semana) => parseInt(semana, 10)) : []),
     [semanasKey]
   );
-
-  const applyLocalState = useCallback(() => {
-    const localModelos = readLocalArray<AptRotinaModelo>(LOCAL_MODELOS_KEY)
-      .filter((modelo) => !setorId || modelo.setor_id === setorId)
-      .sort((a, b) => a.nome.localeCompare(b.nome, "pt-BR"));
-
-    let localOcorrencias = readLocalArray<AptRotinaOcorrencia>(LOCAL_OCORRENCIAS_KEY)
-      .filter((ocorrencia) => ocorrencia.mes === mes && ocorrencia.ano === ano)
-      .filter((ocorrencia) => !setorId || ocorrencia.setor_id === setorId);
-
-    if (semanasAtivas.length > 0) {
-      localOcorrencias = localOcorrencias.filter((ocorrencia) =>
-        semanasAtivas.includes(ocorrencia.semana_apt)
-      );
-    }
-
-    if (user && !isGestorOrAdmin) {
-      localOcorrencias = localOcorrencias.filter((ocorrencia) => ocorrencia.responsavel_id === user.id);
-    }
-
-    let localAvaliacoes = readLocalArray<AptRotinaAvaliacao>(LOCAL_AVALIACOES_KEY)
-      .filter((avaliacao) => avaliacao.mes === mes && avaliacao.ano === ano)
-      .filter((avaliacao) => !setorId || avaliacao.setor_id === setorId);
-
-    if (momento !== null) localAvaliacoes = localAvaliacoes.filter((avaliacao) => avaliacao.momento === momento);
-    if (user && !isGestorOrAdmin) {
-      localAvaliacoes = localAvaliacoes.filter((avaliacao) => avaliacao.responsavel_id === user.id);
-    }
-
-    setModelos(localModelos);
-    setOcorrencias(localOcorrencias.sort((a, b) => a.data.localeCompare(b.data)));
-    setAvaliacoes(localAvaliacoes.sort((a, b) => b.created_at.localeCompare(a.created_at)));
-  }, [ano, isGestorOrAdmin, mes, momento, semanasAtivas, setorId, user]);
 
   const handleTableError = useCallback((error: { code?: string; message?: string; details?: string } | null) => {
     const message = [error?.message, error?.details].filter(Boolean).join(" ");
@@ -370,7 +332,9 @@ export function useAptRotinas({
         setIsLoading(false);
         return;
       }
-      applyLocalState();
+      setModelos([]);
+      setOcorrencias([]);
+      setAvaliacoes([]);
       setIsLoading(false);
       return;
     }
@@ -400,7 +364,8 @@ export function useAptRotinas({
         setIsLoading(false);
         return;
       }
-      applyLocalState();
+      setOcorrencias([]);
+      setAvaliacoes([]);
       setIsLoading(false);
       return;
     }
@@ -429,7 +394,7 @@ export function useAptRotinas({
         setIsLoading(false);
         return;
       }
-      applyLocalState();
+      setAvaliacoes([]);
       setIsLoading(false);
       return;
     }
@@ -458,7 +423,7 @@ export function useAptRotinas({
     setOcorrencias([...(ocorrenciasResult.data || []) as AptRotinaOcorrencia[], ...migratedOcorrencias]);
     setAvaliacoes([...(avaliacoesResult.data || []) as AptRotinaAvaliacao[], ...migratedAvaliacoes]);
     setIsLoading(false);
-  }, [ano, applyLocalState, enabled, handleTableError, isGestorOrAdmin, mes, migrateLocalRowsToSupabase, momento, semanasAtivas, setorId, user]);
+  }, [ano, enabled, handleTableError, isGestorOrAdmin, mes, migrateLocalRowsToSupabase, momento, semanasAtivas, setorId, user]);
 
   useEffect(() => {
     void fetchRotinas();
@@ -469,33 +434,13 @@ export function useAptRotinas({
       if (!isGestorOrAdmin) return false;
 
       const localCreate = async () => {
-        const now = new Date().toISOString();
-        const nextModelo: AptRotinaModelo = {
-          id: newLocalId(),
-          setor_id: payload.setor_id ?? setorId ?? null,
-          nome: payload.nome.trim(),
-          descricao: payload.descricao.trim(),
-          responsavel_padrao_id: payload.responsavel_padrao_id ?? null,
-          dias_semana: normalizeDiasSemana(payload.dias_semana).length > 0 ? normalizeDiasSemana(payload.dias_semana) : [1, 2, 3, 4, 5],
-          semanas_aplicaveis: normalizeWeeks(payload.semanas_aplicaveis).length > 0 ? normalizeWeeks(payload.semanas_aplicaveis) : [1, 2, 3, 4, 5],
-          ativo: payload.ativo ?? true,
-          exige_aprovacao: payload.exige_aprovacao ?? true,
-          entra_calculo_apt: payload.entra_calculo_apt ?? true,
-          cor: payload.cor || "#f97316",
-          icone: payload.icone || "refresh",
-          origem_demanda_ids: payload.origem_demanda_ids ?? null,
-          origem_grupo_id: payload.origem_grupo_id ?? null,
-          created_at: now,
-          updated_at: now,
-        };
-        writeLocalArray(LOCAL_MODELOS_KEY, [...readLocalArray<AptRotinaModelo>(LOCAL_MODELOS_KEY), nextModelo]);
         setTableUnavailable(true);
-        applyLocalState();
         toast({
-          title: "Rotina salva localmente",
-          description: "Ela aparece neste navegador. Para ficar pública, aplique a migration no Supabase via Lovable.",
+          variant: "destructive",
+          title: "Rotina não salva",
+          description: "As tabelas de rotinas persistentes não estão disponíveis no Supabase. Nada foi salvo apenas neste navegador.",
         });
-        return nextModelo;
+        return false;
       };
 
       if (tableUnavailable) return localCreate();
@@ -544,7 +489,7 @@ export function useAptRotinas({
       await fetchRotinas();
       return data as AptRotinaModelo;
     },
-    [applyLocalState, fetchRotinas, handleTableError, isGestorOrAdmin, setorId, tableUnavailable, toast]
+    [fetchRotinas, handleTableError, isGestorOrAdmin, setorId, tableUnavailable, toast]
   );
 
   const updateModelo = useCallback(
@@ -567,19 +512,13 @@ export function useAptRotinas({
       if (payload.origem_grupo_id !== undefined) updatePayload.origem_grupo_id = payload.origem_grupo_id;
 
       const localUpdate = async () => {
-        const rows = readLocalArray<AptRotinaModelo>(LOCAL_MODELOS_KEY).map((modelo) =>
-          modelo.id === id
-            ? {
-                ...modelo,
-                ...updatePayload,
-                updated_at: new Date().toISOString(),
-              }
-            : modelo
-        ) as AptRotinaModelo[];
-        writeLocalArray(LOCAL_MODELOS_KEY, rows);
         setTableUnavailable(true);
-        applyLocalState();
-        return true;
+        toast({
+          variant: "destructive",
+          title: "Rotina não atualizada",
+          description: "As tabelas de rotinas persistentes não estão disponíveis no Supabase. A alteração não foi salva localmente.",
+        });
+        return false;
       };
 
       if (tableUnavailable) return localUpdate();
@@ -599,7 +538,7 @@ export function useAptRotinas({
       await fetchRotinas();
       return true;
     },
-    [applyLocalState, fetchRotinas, handleTableError, isGestorOrAdmin, tableUnavailable, toast]
+    [fetchRotinas, handleTableError, isGestorOrAdmin, tableUnavailable, toast]
   );
 
   const deleteModelo = useCallback(
@@ -607,21 +546,13 @@ export function useAptRotinas({
       if (!isGestorOrAdmin) return false;
 
       const localDelete = async () => {
-        writeLocalArray(
-          LOCAL_MODELOS_KEY,
-          readLocalArray<AptRotinaModelo>(LOCAL_MODELOS_KEY).filter((modelo) => modelo.id !== id)
-        );
-        writeLocalArray(
-          LOCAL_OCORRENCIAS_KEY,
-          readLocalArray<AptRotinaOcorrencia>(LOCAL_OCORRENCIAS_KEY).filter((ocorrencia) => ocorrencia.modelo_id !== id)
-        );
-        writeLocalArray(
-          LOCAL_AVALIACOES_KEY,
-          readLocalArray<AptRotinaAvaliacao>(LOCAL_AVALIACOES_KEY).filter((avaliacao) => avaliacao.modelo_id !== id)
-        );
         setTableUnavailable(true);
-        applyLocalState();
-        return true;
+        toast({
+          variant: "destructive",
+          title: "Rotina não removida",
+          description: "As tabelas de rotinas persistentes não estão disponíveis no Supabase. A remoção não foi salva localmente.",
+        });
+        return false;
       };
 
       if (tableUnavailable) return localDelete();
@@ -641,7 +572,7 @@ export function useAptRotinas({
       await fetchRotinas();
       return true;
     },
-    [applyLocalState, fetchRotinas, handleTableError, isGestorOrAdmin, tableUnavailable, toast]
+    [fetchRotinas, handleTableError, isGestorOrAdmin, tableUnavailable, toast]
   );
 
   const gerarOcorrenciasDoPeriodo = useCallback(
@@ -677,25 +608,13 @@ export function useAptRotinas({
       if (rows.length === 0) return 0;
 
       const localGenerate = async () => {
-        const existingRows = readLocalArray<AptRotinaOcorrencia>(LOCAL_OCORRENCIAS_KEY);
-        const existingKeys = new Set(existingRows.map((row) => `${row.modelo_id}|${row.data}`));
-        const now = new Date().toISOString();
-        const newRows = rows
-          .filter((row) => !existingKeys.has(`${row.modelo_id}|${row.data}`))
-          .map((row) => ({
-            id: newLocalId(),
-            ...row,
-            status_execucao: "pendente" as AptRotinaStatusOcorrencia,
-            marcado_em: null,
-            marcado_por: null,
-            observacao: null,
-            created_at: now,
-            updated_at: now,
-          }));
-        writeLocalArray(LOCAL_OCORRENCIAS_KEY, [...existingRows, ...newRows]);
         setTableUnavailable(true);
-        applyLocalState();
-        return newRows.length;
+        toast({
+          variant: "destructive",
+          title: "Ocorrências não geradas",
+          description: "As tabelas de rotinas persistentes não estão disponíveis no Supabase. Nenhuma ocorrência foi salva localmente.",
+        });
+        return 0;
       };
 
       if (tableUnavailable) return localGenerate();
@@ -717,7 +636,7 @@ export function useAptRotinas({
       await fetchRotinas();
       return rows.length;
     },
-    [ano, applyLocalState, fetchRotinas, handleTableError, isGestorOrAdmin, mes, modelos, semanasAtivas, tableUnavailable, toast]
+    [ano, fetchRotinas, handleTableError, isGestorOrAdmin, mes, modelos, semanasAtivas, tableUnavailable, toast]
   );
 
   const marcarOcorrencia = useCallback(
@@ -725,23 +644,13 @@ export function useAptRotinas({
       if (!user) return false;
 
       const localUpdate = async () => {
-        const now = new Date().toISOString();
-        const rows = readLocalArray<AptRotinaOcorrencia>(LOCAL_OCORRENCIAS_KEY).map((item) =>
-          item.id === ocorrenciaId
-            ? {
-                ...item,
-                status_execucao: status,
-                marcado_em: now,
-                marcado_por: user.id,
-                observacao: observacao ?? null,
-                updated_at: now,
-              }
-            : item
-        );
-        writeLocalArray(LOCAL_OCORRENCIAS_KEY, rows);
         setTableUnavailable(true);
-        applyLocalState();
-        return true;
+        toast({
+          variant: "destructive",
+          title: "Rotina não marcada",
+          description: "As tabelas de rotinas persistentes não estão disponíveis no Supabase. A marcação não foi salva localmente.",
+        });
+        return false;
       };
 
       if (tableUnavailable) return localUpdate();
@@ -779,7 +688,7 @@ export function useAptRotinas({
       );
       return true;
     },
-    [applyLocalState, handleTableError, tableUnavailable, toast, user]
+    [handleTableError, tableUnavailable, toast, user]
   );
 
   const resumos = useMemo<AptRotinaResumo[]>(() => {
@@ -859,42 +768,13 @@ export function useAptRotinas({
     }));
 
     const localCalculate = async () => {
-      const now = new Date().toISOString();
-      const existing = readLocalArray<AptRotinaAvaliacao>(LOCAL_AVALIACOES_KEY);
-      const next = [...existing];
-
-      rows.forEach((row) => {
-        const index = next.findIndex(
-          (avaliacao) =>
-            avaliacao.modelo_id === row.modelo_id &&
-            avaliacao.responsavel_id === row.responsavel_id &&
-            avaliacao.mes === row.mes &&
-            avaliacao.ano === row.ano &&
-            avaliacao.momento === row.momento
-        );
-
-        if (index >= 0) {
-          next[index] = {
-            ...next[index],
-            ...row,
-            updated_at: now,
-          };
-          return;
-        }
-
-        next.push({
-          id: newLocalId(),
-          ...row,
-          status_gestor: row.status_gestor as AptRotinaStatusAvaliacao,
-          created_at: now,
-          updated_at: now,
-        });
-      });
-
-      writeLocalArray(LOCAL_AVALIACOES_KEY, next);
       setTableUnavailable(true);
-      applyLocalState();
-      return true;
+      toast({
+        variant: "destructive",
+        title: "Resumo não calculado",
+        description: "As tabelas de rotinas persistentes não estão disponíveis no Supabase. O resumo não foi salvo localmente.",
+      });
+      return false;
     };
 
     if (tableUnavailable) return localCalculate();
@@ -913,30 +793,20 @@ export function useAptRotinas({
 
     await fetchRotinas();
     return true;
-  }, [ano, applyLocalState, fetchRotinas, handleTableError, isGestorOrAdmin, mes, momento, resumos, semanasAtivas, tableUnavailable, toast]);
+  }, [ano, fetchRotinas, handleTableError, isGestorOrAdmin, mes, momento, resumos, semanasAtivas, tableUnavailable, toast]);
 
   const atualizarAvaliacao = useCallback(
     async (avaliacaoId: string, status: AptRotinaStatusAvaliacao, observacao?: string) => {
       if (!isGestorOrAdmin || !user) return false;
 
       const localUpdate = async () => {
-        const now = new Date().toISOString();
-        const rows = readLocalArray<AptRotinaAvaliacao>(LOCAL_AVALIACOES_KEY).map((avaliacao) =>
-          avaliacao.id === avaliacaoId
-            ? {
-                ...avaliacao,
-                status_gestor: status,
-                observacao_gestor: observacao ?? null,
-                avaliado_em: now,
-                avaliado_por: user.id,
-                updated_at: now,
-              }
-            : avaliacao
-        );
-        writeLocalArray(LOCAL_AVALIACOES_KEY, rows);
         setTableUnavailable(true);
-        applyLocalState();
-        return true;
+        toast({
+          variant: "destructive",
+          title: "Avaliação não salva",
+          description: "As tabelas de rotinas persistentes não estão disponíveis no Supabase. A avaliação não foi salva localmente.",
+        });
+        return false;
       };
 
       if (tableUnavailable) return localUpdate();
@@ -962,7 +832,7 @@ export function useAptRotinas({
       await fetchRotinas();
       return true;
     },
-    [applyLocalState, fetchRotinas, handleTableError, isGestorOrAdmin, tableUnavailable, toast, user]
+    [fetchRotinas, handleTableError, isGestorOrAdmin, tableUnavailable, toast, user]
   );
 
   return {
