@@ -1011,7 +1011,7 @@ export default function GerenciamentoLista({ profiles, setores, onDemandaChange 
             ? "A demanda comum original foi restaurada e o modelo persistente foi removido."
             : "O modelo persistente foi removido. Ele não tinha origem salva para restaurar uma demanda comum automaticamente.",
       });
-      await fetchDemandas();
+      await fetchAllDemandas();
     }
   };
 
