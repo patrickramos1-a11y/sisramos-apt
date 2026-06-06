@@ -30,7 +30,6 @@ import {
   clearDemandasPrazoMeta,
   isDemandaPrazo,
   isPrazoColumnMissingError,
-  saveDemandasPrazoMeta,
 } from "@/lib/demandas-prazo";
 
 interface Profile {
@@ -316,7 +315,7 @@ export default function EditarDemandaIrmaDialog({
             throw new Error("As colunas de demanda com prazo não estão disponíveis no Supabase. Nada foi salvo apenas neste navegador.");
           }
           if (error) throw error;
-          saveDemandasPrazoMeta(ids, patch);
+          clearDemandasPrazoMeta(ids);
           return;
         }
 

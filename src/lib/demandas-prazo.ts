@@ -70,24 +70,10 @@ export function saveDemandasPrazoMeta(
     semana_fim_prazo?: number | null;
   }
 ) {
-  if (ids.length === 0) return;
-  const rows = readDemandasPrazoMeta();
-  const byId = new Map(rows.map((row) => [row.demanda_id, row]));
-  const start = normalizeWeek(payload.semana_inicio_prazo);
-  const end = normalizeWeek(payload.semana_fim_prazo);
-  const nextUpdatedAt = new Date().toISOString();
-
-  ids.forEach((id) => {
-    byId.set(id, {
-      demanda_id: id,
-      modo_execucao: payload.modo_execucao,
-      semana_inicio_prazo: payload.modo_execucao === "prazo" ? start : null,
-      semana_fim_prazo: payload.modo_execucao === "prazo" ? end : null,
-      updated_at: nextUpdatedAt,
-    });
-  });
-
-  writeDemandasPrazoMeta(Array.from(byId.values()));
+  // Mantido apenas para compatibilidade com código antigo. O fluxo oficial agora
+  // exige Supabase; não gravamos mais prazo silenciosamente no navegador.
+  void ids;
+  void payload;
 }
 
 export function clearDemandasPrazoMeta(ids: string[]) {
@@ -97,14 +83,11 @@ export function clearDemandasPrazoMeta(ids: string[]) {
 }
 
 export function mergeDemandasPrazoMeta<T extends DemandaPrazoFields>(rows: T[]): T[] {
-  const localMeta = new Map(readDemandasPrazoMeta().map((row) => [row.demanda_id, row]));
-
   return rows.map((row) => {
-    const local = localMeta.get(row.id);
     const dbMode = row.modo_execucao ?? null;
-    const modo_execucao = (dbMode || local?.modo_execucao || "semanal") as DemandaModoExecucao;
-    const semana_inicio_prazo = normalizeWeek(row.semana_inicio_prazo ?? local?.semana_inicio_prazo);
-    const semana_fim_prazo = normalizeWeek(row.semana_fim_prazo ?? local?.semana_fim_prazo);
+    const modo_execucao = (dbMode || "semanal") as DemandaModoExecucao;
+    const semana_inicio_prazo = normalizeWeek(row.semana_inicio_prazo);
+    const semana_fim_prazo = normalizeWeek(row.semana_fim_prazo);
 
     if (modo_execucao !== "prazo" || !semana_inicio_prazo || !semana_fim_prazo) {
       return {
@@ -137,7 +120,7 @@ export function formatPrazoWindow(
   const start = normalizeWeek(demanda.semana_inicio_prazo);
   const end = normalizeWeek(demanda.semana_fim_prazo);
   if (!start || !end) return null;
-  if (mode === "compact") return `${start}ª -> ${end}ª`;
+  if (mode === "compact") return `${start}ª → ${end}ª`;
   if (start === end) return `Até ${end}ª semana`;
   return `${start}ª até ${end}ª semana`;
 }

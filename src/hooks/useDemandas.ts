@@ -9,7 +9,6 @@ import {
   clearDemandasPrazoMeta,
   isPrazoColumnMissingError,
   mergeDemandasPrazoMeta,
-  saveDemandasPrazoMeta,
 } from "@/lib/demandas-prazo";
 
 
@@ -223,10 +222,6 @@ export function useDemandas() {
 
       if (filters.prazo) {
         filteredData = filteredData.filter((d) => d.modo_execucao === "prazo");
-      }
-
-      if (filters.persistente) {
-        filteredData = [];
       }
 
       if (filters.tags.length > 0) {
@@ -470,8 +465,7 @@ export function useDemandas() {
         throw error;
       }
 
-      if (payload.modo_execucao === "prazo") saveDemandasPrazoMeta(demandaIds, payload);
-      else clearDemandasPrazoMeta(demandaIds);
+      clearDemandasPrazoMeta(demandaIds);
       await fetchDemandas();
       return { localOnly: false };
     },

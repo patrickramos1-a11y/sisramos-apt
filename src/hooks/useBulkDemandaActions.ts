@@ -1,7 +1,7 @@
 import { useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { DemandaModoExecucao, clearDemandasPrazoMeta, isPrazoColumnMissingError, saveDemandasPrazoMeta } from "@/lib/demandas-prazo";
+import { DemandaModoExecucao, clearDemandasPrazoMeta, isPrazoColumnMissingError } from "@/lib/demandas-prazo";
 
 type Status = "pendente" | "executado" | "nao_realizado";
 
@@ -72,8 +72,7 @@ export function useBulkDemandaActions(onDone: () => void) {
         toast({ variant: "destructive", title: "Erro", description: error.message });
         return;
       }
-      if (payload.modo_execucao === "prazo") saveDemandasPrazoMeta(ids, payload);
-      else clearDemandasPrazoMeta(ids);
+      clearDemandasPrazoMeta(ids);
       toast({ title: label, description: `${ids.length} demanda(s) atualizada(s)` });
       onDone();
     },

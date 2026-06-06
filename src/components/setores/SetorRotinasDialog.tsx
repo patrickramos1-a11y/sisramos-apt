@@ -119,6 +119,8 @@ export default function SetorRotinasDialog({ open, onOpenChange, setor }: SetorR
     isLoading,
     isMutating,
     tableUnavailable,
+    hasLegacyLocalRows,
+    recuperarRotinasLocais,
     createModelo,
     updateModelo,
     deleteModelo,
@@ -220,9 +222,24 @@ export default function SetorRotinasDialog({ open, onOpenChange, setor }: SetorR
 
         {tableUnavailable && (
           <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
-            Modo local ativo: as tabelas de rotinas persistentes ainda não existem no Supabase.
-            Você consegue testar e visualizar neste navegador, mas para todos enxergarem igual o Lovable precisa aplicar
+            Banco pendente: a estrutura de rotinas persistentes ainda não está completa no Supabase.
+            O app não salva mais rotinas apenas neste navegador. Para todos enxergarem igual, o Lovable precisa aplicar
             <span className="font-mono"> 20260530120000_apt_rotinas_persistentes.sql</span>.
+          </div>
+        )}
+
+        {hasLegacyLocalRows && !tableUnavailable && (
+          <div className="flex flex-col gap-3 rounded-2xl border border-orange-200 bg-orange-50 p-4 text-sm text-orange-900 sm:flex-row sm:items-center sm:justify-between">
+            <span>Existem rotinas antigas salvas apenas neste navegador. Recupere para enviar ao Supabase.</span>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="w-fit border-orange-300 bg-white text-orange-700 hover:bg-orange-100"
+              onClick={() => void recuperarRotinasLocais()}
+            >
+              Recuperar dados locais antigos
+            </Button>
           </div>
         )}
 

@@ -288,6 +288,12 @@ export default function APT() {
         await fetchDemandas();
         setTransformingDemanda(null);
       }
+    } catch (error: any) {
+      toast({
+        variant: "destructive",
+        title: "Erro ao transformar demanda",
+        description: error.message || "Não foi possível transformar esta demanda em persistente.",
+      });
     } finally {
       setIsTransformingPersistente(false);
     }
@@ -463,6 +469,12 @@ export default function APT() {
         semana_fim_prazo: payload.semana_fim_prazo,
       });
       setTransformingPrazoDemanda(null);
+    } catch (error: any) {
+      toast({
+        variant: "destructive",
+        title: "Erro ao transformar demanda",
+        description: error.message || "Não foi possível aplicar o prazo nesta demanda.",
+      });
     } finally {
       setIsTransformingPrazo(false);
     }

@@ -54,7 +54,6 @@ import {
   isDemandaPrazo,
   isPrazoColumnMissingError,
   mergeDemandasPrazoMeta,
-  saveDemandasPrazoMeta,
 } from "@/lib/demandas-prazo";
 
 interface Profile { id: string; user_id: string; nome: string; cor?: string | null; }
@@ -868,8 +867,7 @@ export default function GerenciamentoLista({ profiles, setores, onDemandaChange 
       throw error;
     }
 
-    if (payload.modo_execucao === "prazo") saveDemandasPrazoMeta(ids, payload);
-    else clearDemandasPrazoMeta(ids);
+    clearDemandasPrazoMeta(ids);
   };
 
   const handleTransformSelectedToPrazo = async (payload: {

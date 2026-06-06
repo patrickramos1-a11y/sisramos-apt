@@ -187,6 +187,7 @@ export function useAptRotinas({
   const [isLoading, setIsLoading] = useState(false);
   const [isMutating, setIsMutating] = useState(false);
   const [tableUnavailable, setTableUnavailable] = useState(false);
+  const [hasLegacyLocalRows, setHasLegacyLocalRows] = useState(false);
 
   const semanasKey = normalizeWeeks(semanas).join("|");
   const semanasAtivas = useMemo(
@@ -251,22 +252,6 @@ export function useAptRotinas({
         .from("apt_rotina_modelos")
         .insert(modelosPayload)
         .select("*");
-
-      if (
-        result.error &&
-        /origem_demanda_ids|origem_grupo_id|schema cache/i.test(result.error.message || "")
-      ) {
-        const payloadWithoutOrigin = modelosPayload.map((modelo) => {
-          const next = { ...modelo } as Record<string, unknown>;
-          delete next.origem_demanda_ids;
-          delete next.origem_grupo_id;
-          return next;
-        });
-        result = await (supabase as any)
-          .from("apt_rotina_modelos")
-          .insert(payloadWithoutOrigin)
-          .select("*");
-      }
 
       if (result.error) {
         console.error("Erro ao migrar rotinas locais para Supabase:", result.error);
@@ -400,30 +385,16 @@ export function useAptRotinas({
     }
 
     const remoteModelos = (modelosResult.data || []) as AptRotinaModelo[];
-    const migratedLocalRows = await migrateLocalRowsToSupabase(remoteModelos);
-    const migratedOcorrencias = migratedLocalRows
-      ? migratedLocalRows.ocorrencias
-          .filter((ocorrencia) => ocorrencia.mes === mes && ocorrencia.ano === ano)
-          .filter((ocorrencia) => !setorId || ocorrencia.setor_id === setorId)
-          .filter((ocorrencia) => semanasAtivas.length === 0 || semanasAtivas.includes(ocorrencia.semana_apt))
-          .filter((ocorrencia) => isGestorOrAdmin || ocorrencia.responsavel_id === user.id)
-      : [];
-    const migratedAvaliacoes = migratedLocalRows
-      ? migratedLocalRows.avaliacoes
-          .filter((avaliacao) => avaliacao.mes === mes && avaliacao.ano === ano)
-          .filter((avaliacao) => !setorId || avaliacao.setor_id === setorId)
-          .filter((avaliacao) => momento === null || avaliacao.momento === momento)
-          .filter((avaliacao) => isGestorOrAdmin || avaliacao.responsavel_id === user.id)
-      : [];
-
-    setModelos(
-      [...remoteModelos, ...(migratedLocalRows ? migratedLocalRows.modelos : [])]
-        .sort((a, b) => a.nome.localeCompare(b.nome, "pt-BR"))
+    const legacyRows = readLocalArray<AptRotinaModelo>(LOCAL_MODELOS_KEY).filter(
+      (modelo) => !setorId || modelo.setor_id === setorId
     );
-    setOcorrencias([...(ocorrenciasResult.data || []) as AptRotinaOcorrencia[], ...migratedOcorrencias]);
-    setAvaliacoes([...(avaliacoesResult.data || []) as AptRotinaAvaliacao[], ...migratedAvaliacoes]);
+
+    setHasLegacyLocalRows(legacyRows.length > 0);
+    setModelos(remoteModelos.sort((a, b) => a.nome.localeCompare(b.nome, "pt-BR")));
+    setOcorrencias((ocorrenciasResult.data || []) as AptRotinaOcorrencia[]);
+    setAvaliacoes((avaliacoesResult.data || []) as AptRotinaAvaliacao[]);
     setIsLoading(false);
-  }, [ano, enabled, handleTableError, isGestorOrAdmin, mes, migrateLocalRowsToSupabase, momento, semanasAtivas, setorId, user]);
+  }, [ano, enabled, handleTableError, isGestorOrAdmin, mes, momento, semanasAtivas, setorId, user]);
 
   useEffect(() => {
     void fetchRotinas();
@@ -438,7 +409,7 @@ export function useAptRotinas({
         toast({
           variant: "destructive",
           title: "Rotina não salva",
-          description: "As tabelas de rotinas persistentes não estão disponíveis no Supabase. Nada foi salvo apenas neste navegador.",
+          description: "A estrutura de rotinas persistentes não está completa no Supabase. Nada foi salvo apenas neste navegador.",
         });
         return false;
       };
@@ -462,18 +433,7 @@ export function useAptRotinas({
       };
 
       setIsMutating(true);
-      let result = await (supabase as any).from("apt_rotina_modelos").insert(insertPayload).select("*").single();
-
-      if (
-        result.error &&
-        /origem_demanda_ids|origem_grupo_id|schema cache/i.test(result.error.message || "")
-      ) {
-        const payloadWithoutOrigin = { ...insertPayload } as Record<string, unknown>;
-        delete payloadWithoutOrigin.origem_demanda_ids;
-        delete payloadWithoutOrigin.origem_grupo_id;
-        result = await (supabase as any).from("apt_rotina_modelos").insert(payloadWithoutOrigin).select("*").single();
-      }
-
+      const result = await (supabase as any).from("apt_rotina_modelos").insert(insertPayload).select("*").single();
       setIsMutating(false);
       const { data, error } = result;
 
@@ -491,6 +451,22 @@ export function useAptRotinas({
     },
     [fetchRotinas, handleTableError, isGestorOrAdmin, setorId, tableUnavailable, toast]
   );
+
+  const recuperarRotinasLocais = useCallback(async () => {
+    if (!isGestorOrAdmin) return false;
+
+    const migratedRows = await migrateLocalRowsToSupabase(modelos);
+    if (!migratedRows) {
+      toast({
+        title: "Nenhuma rotina local para recuperar",
+        description: "Não encontrei rotinas antigas deste setor salvas apenas neste navegador.",
+      });
+      return false;
+    }
+
+    await fetchRotinas();
+    return true;
+  }, [fetchRotinas, isGestorOrAdmin, migrateLocalRowsToSupabase, modelos, toast]);
 
   const updateModelo = useCallback(
     async (id: string, payload: Partial<RotinaModeloPayload>) => {
@@ -516,7 +492,7 @@ export function useAptRotinas({
         toast({
           variant: "destructive",
           title: "Rotina não atualizada",
-          description: "As tabelas de rotinas persistentes não estão disponíveis no Supabase. A alteração não foi salva localmente.",
+          description: "A estrutura de rotinas persistentes não está completa no Supabase. A alteração não foi salva localmente.",
         });
         return false;
       };
@@ -550,7 +526,7 @@ export function useAptRotinas({
         toast({
           variant: "destructive",
           title: "Rotina não removida",
-          description: "As tabelas de rotinas persistentes não estão disponíveis no Supabase. A remoção não foi salva localmente.",
+          description: "A estrutura de rotinas persistentes não está completa no Supabase. A remoção não foi salva localmente.",
         });
         return false;
       };
@@ -612,7 +588,7 @@ export function useAptRotinas({
         toast({
           variant: "destructive",
           title: "Ocorrências não geradas",
-          description: "As tabelas de rotinas persistentes não estão disponíveis no Supabase. Nenhuma ocorrência foi salva localmente.",
+          description: "A estrutura de rotinas persistentes não está completa no Supabase. Nenhuma ocorrência foi salva localmente.",
         });
         return 0;
       };
@@ -648,7 +624,7 @@ export function useAptRotinas({
         toast({
           variant: "destructive",
           title: "Rotina não marcada",
-          description: "As tabelas de rotinas persistentes não estão disponíveis no Supabase. A marcação não foi salva localmente.",
+          description: "A estrutura de rotinas persistentes não está completa no Supabase. A marcação não foi salva localmente.",
         });
         return false;
       };
@@ -772,7 +748,7 @@ export function useAptRotinas({
       toast({
         variant: "destructive",
         title: "Resumo não calculado",
-        description: "As tabelas de rotinas persistentes não estão disponíveis no Supabase. O resumo não foi salvo localmente.",
+        description: "A estrutura de rotinas persistentes não está completa no Supabase. O resumo não foi salvo localmente.",
       });
       return false;
     };
@@ -804,7 +780,7 @@ export function useAptRotinas({
         toast({
           variant: "destructive",
           title: "Avaliação não salva",
-          description: "As tabelas de rotinas persistentes não estão disponíveis no Supabase. A avaliação não foi salva localmente.",
+          description: "A estrutura de rotinas persistentes não está completa no Supabase. A avaliação não foi salva localmente.",
         });
         return false;
       };
@@ -843,6 +819,8 @@ export function useAptRotinas({
     isLoading,
     isMutating,
     tableUnavailable,
+    hasLegacyLocalRows,
+    recuperarRotinasLocais,
     fetchRotinas,
     createModelo,
     updateModelo,

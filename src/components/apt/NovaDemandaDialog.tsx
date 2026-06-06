@@ -35,7 +35,6 @@ import {
   DemandaModoExecucao,
   buildPrazoWeeks,
   isPrazoColumnMissingError,
-  saveDemandasPrazoMeta,
 } from "@/lib/demandas-prazo";
 
 interface Profile {
@@ -278,7 +277,13 @@ export default function NovaDemandaDialog({
 
         const { error: prazoError } = await supabase.from("demandas").update(patch).in("id", insertedIds);
         if (prazoError && isPrazoColumnMissingError(prazoError)) {
-          saveDemandasPrazoMeta(insertedIds, patch);
+          toast({
+            variant: "destructive",
+            title: "Prazo não salvo",
+            description: "As colunas de demanda com prazo não estão disponíveis no Supabase. Nada foi salvo apenas neste navegador.",
+          });
+          setIsLoading(false);
+          return;
         } else if (prazoError) {
           toast({
             variant: "destructive",
@@ -764,7 +769,7 @@ export default function NovaDemandaDialog({
                   Será criada{" "}
                   <strong>
                     {formData.modo_execucao === "prazo"
-                      ? `na janela ${formData.semana_inicio_prazo}ª -> ${formData.semana_fim_prazo}ª`
+                      ? `na janela ${formData.semana_inicio_prazo}ª → ${formData.semana_fim_prazo}ª`
                       : `nas semanas ${formData.semana_limite.map((s) => `${s}ª`).join(", ")}`}
                   </strong>{" "}
                   de <strong>{previewMonths.join(", ")}</strong>
