@@ -401,7 +401,7 @@ export function useAptRotinas({
   }, [fetchRotinas]);
 
   const createModelo = useCallback(
-    async (payload: RotinaModeloPayload) => {
+    async (payload: RotinaModeloPayload): Promise<AptRotinaModelo | false> => {
       if (!isGestorOrAdmin) return false;
 
       const localCreate = async () => {
