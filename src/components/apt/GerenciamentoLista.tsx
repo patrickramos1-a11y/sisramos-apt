@@ -1572,6 +1572,206 @@ export default function GerenciamentoLista({ profiles, setores, onDemandaChange 
     );
   };
 
+  const renderMobileDemandCard = (c: ConsolidatedDemand) => {
+    const profile = getProfileById(c.responsavel_id);
+    const setor = getSetorById(c.setor_id);
+    const first = c.siblings[0];
+    const allSemanas = Array.from(new Set(c.siblings.flatMap((s) => s.semana_limite || []))).sort((a, b) => a - b);
+    const isPrazo = isDemandaPrazo(c);
+    const prazoWindow = formatPrazoWindow(c, "compact");
+    const allInRow = c.siblings.every((s) => selectedIds.has(s.id));
+    const hasPending = c.siblings.some((s) => pendingDemandaIds.has(s.id));
+
+    return (
+      <article
+        key={`mobile-card-${c.key}`}
+        className={cn(
+          "rounded-2xl border bg-card p-3 shadow-sm transition-colors",
+          allInRow && "border-primary/50 bg-primary/5",
+          isPrazo && "border-sky-200 bg-sky-50/40",
+          c.muito_urgente && "shadow-[inset_3px_0_0_0_hsl(var(--destructive))]",
+          !c.muito_urgente && c.prioritaria && "shadow-[inset_3px_0_0_0_hsl(var(--warning))]"
+        )}
+      >
+        <div className="flex items-start gap-3">
+          {!isColaborador && (
+            <Checkbox
+              checked={allInRow}
+              onCheckedChange={() => toggleRow(c)}
+              className="mt-1"
+              aria-label="Selecionar demanda"
+            />
+          )}
+          <div className="min-w-0 flex-1">
+            <div className="mb-2 flex flex-wrap items-center gap-1.5">
+              {setor && (
+                <Badge variant="secondary" className="gap-1 rounded-full px-2 py-0.5 text-[10px]">
+                  <span className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: setor.cor }} />
+                  {setor.nome}
+                </Badge>
+              )}
+              <Badge variant="outline" className="gap-1 rounded-full px-2 py-0.5 text-[10px]">
+                <span className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: profile?.cor || "#6b7280" }} />
+                {profile?.nome || "Sem responsável"}
+              </Badge>
+              {isPrazo ? (
+                <Badge className="gap-1 rounded-full border border-sky-200 bg-sky-50 px-2 py-0.5 text-[10px] text-sky-700 hover:bg-sky-50">
+                  <Clock3 className="h-3 w-3" />
+                  {prazoWindow}
+                </Badge>
+              ) : (
+                <>
+                  <Badge variant="outline" className="rounded-full px-2 py-0.5 text-[10px]">
+                    {allSemanas.join(",") || "-"}
+                  </Badge>
+                  <Badge variant="outline" className="rounded-full px-2 py-0.5 text-[10px]">
+                    {allSemanas.length}X
+                  </Badge>
+                </>
+              )}
+            </div>
+
+            <div className="flex items-start gap-2">
+              <div className="mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center">
+                {c.muito_urgente ? (
+                  <Flame className="h-3.5 w-3.5 text-destructive" />
+                ) : c.prioritaria ? (
+                  <Star className="h-3.5 w-3.5 text-warning" />
+                ) : isPrazo ? (
+                  <Clock3 className="h-3.5 w-3.5 text-sky-600" />
+                ) : null}
+              </div>
+              <p className="line-clamp-3 text-sm font-semibold leading-snug">{c.descricao}</p>
+            </div>
+
+            {c.tags.length > 0 && (
+              <div className="mt-2 flex flex-wrap gap-1">
+                {c.tags.slice(0, 3).map((tag) => (
+                  <span
+                    key={tag.id}
+                    className="rounded-full px-2 py-0.5 text-[10px] font-semibold"
+                    style={{ backgroundColor: `${tag.cor || "#65a30d"}22`, color: tag.cor || "#3f6212" }}
+                  >
+                    {tag.nome}
+                  </span>
+                ))}
+              </div>
+            )}
+
+            <div className="mt-3 flex items-center gap-2">
+              <div className="flex flex-1 items-center gap-2 rounded-xl border bg-background px-2 py-1.5">
+                <StatusBolinha size="sm" status={first.status_responsavel} disabled />
+                <span className="text-[11px] text-muted-foreground">
+                  Feito {c.siblings.filter((s) => s.status_responsavel === "executado").length}/{c.siblings.length}
+                </span>
+              </div>
+              {isGestorOrAdmin && (
+                <div className="flex flex-1 items-center gap-2 rounded-xl border bg-background px-2 py-1.5">
+                  <StatusBolinha size="sm" status={first.status_gestor} disabled />
+                  <span className="text-[11px] text-muted-foreground">
+                    Aprov. {c.siblings.filter((s) => s.status_gestor === "executado").length}/{c.siblings.length}
+                  </span>
+                </div>
+              )}
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" size="icon" className="h-9 w-9 rounded-xl">
+                    <MoreVertical className="h-4 w-4" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuItem onClick={() => setSelectedDemand(c)}>
+                    <ChevronRight className="mr-2 h-4 w-4" /> Detalhes
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => setEditingDemanda(first)}>
+                    <Pencil className="mr-2 h-4 w-4" /> Editar
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => { setTransformingPersistenteMode("single"); setTransformingPersistenteDemanda(first); }}>
+                    <RefreshCw className="mr-2 h-4 w-4 text-orange-600" /> Transformar em persistente
+                  </DropdownMenuItem>
+                  {isPrazo ? (
+                    <DropdownMenuItem onClick={() => void handleClearPrazo(c.siblings.map((item) => item.id))}>
+                      <Repeat className="mr-2 h-4 w-4" /> Tirar prazo
+                    </DropdownMenuItem>
+                  ) : (
+                    <DropdownMenuItem onClick={() => { setSelectedIds(new Set(c.siblings.map((item) => item.id))); setShowPrazoDialog(true); }}>
+                      <Clock3 className="mr-2 h-4 w-4 text-sky-600" /> Transformar em prazo
+                    </DropdownMenuItem>
+                  )}
+                  <DropdownMenuItem onClick={() => handleDeleteClick(first)} className="text-destructive">
+                    <Trash2 className="mr-2 h-4 w-4" /> Excluir
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
+
+            {hasPending && (
+              <p className="mt-2 text-[11px] font-medium text-warning">Exclusão pendente de aprovação.</p>
+            )}
+          </div>
+        </div>
+      </article>
+    );
+  };
+
+  const renderMobileRotinaCard = (modelo: (typeof filteredRotinaModelos)[number]) => {
+    const setor = getSetorById(modelo.setor_id);
+    const profile = modelo.responsavel_padrao_id ? getProfileById(modelo.responsavel_padrao_id) : null;
+    const semanas = [...(modelo.semanas_aplicaveis || [])].sort((a, b) => a - b);
+    const repeticoes = (modelo.dias_semana || []).length;
+
+    return (
+      <article key={`mobile-rotina-${modelo.id}`} className="rounded-2xl border border-orange-200 bg-orange-50/40 p-3 shadow-sm">
+        <div className="mb-2 flex flex-wrap items-center gap-1.5">
+          <Badge className="gap-1 rounded-full border border-orange-200 bg-orange-50 px-2 py-0.5 text-[10px] text-orange-700 hover:bg-orange-50">
+            <RefreshCw className="h-3 w-3" />
+            Persistente
+          </Badge>
+          {setor && (
+            <Badge variant="secondary" className="gap-1 rounded-full px-2 py-0.5 text-[10px]">
+              <span className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: setor.cor }} />
+              {setor.nome}
+            </Badge>
+          )}
+          <Badge variant="outline" className="gap-1 rounded-full px-2 py-0.5 text-[10px]">
+            <span className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: profile?.cor || "#f97316" }} />
+            {profile?.nome || "Sem responsável"}
+          </Badge>
+          <Badge variant="outline" className="rounded-full px-2 py-0.5 text-[10px]">{repeticoes}X</Badge>
+        </div>
+        <div className="flex items-start gap-2">
+          <RefreshCw className="mt-0.5 h-4 w-4 shrink-0 text-orange-600" />
+          <div className="min-w-0 flex-1">
+            <p className="line-clamp-2 text-sm font-semibold leading-snug text-orange-950">{modelo.nome}</p>
+            {modelo.descricao && modelo.descricao !== modelo.nome && (
+              <p className="mt-1 line-clamp-2 text-xs text-muted-foreground">{modelo.descricao}</p>
+            )}
+          </div>
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            className="h-9 w-9 shrink-0 rounded-xl text-muted-foreground hover:text-destructive"
+            title="Tirar persistência"
+            onClick={() => void handleDeleteRotinaModelo(modelo)}
+          >
+            <Trash2 className="h-4 w-4" />
+          </Button>
+        </div>
+        <div className="mt-2 flex flex-wrap gap-1">
+          {semanas.map((semana) => (
+            <span
+              key={semana}
+              className="inline-flex h-6 min-w-7 items-center justify-center rounded-full border border-orange-200 bg-background px-2 text-[10px] font-semibold text-orange-700"
+            >
+              {semana}ª
+            </span>
+          ))}
+        </div>
+      </article>
+    );
+  };
+
   if (isLoading) {
     return <div className="flex items-center justify-center py-12"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>;
   }
@@ -1647,8 +1847,52 @@ export default function GerenciamentoLista({ profiles, setores, onDemandaChange 
         </span>
       </div>
 
+      <div className="space-y-2 md:hidden">
+        {!hasTableRows ? (
+          <div className="rounded-2xl border bg-card px-5 py-10 text-center shadow-sm">
+            <p className="text-sm font-semibold">Nenhuma demanda encontrada</p>
+            <p className="mt-1 text-xs text-muted-foreground">
+              Ajuste os filtros ou limpe a seleção para visualizar as demandas no celular.
+            </p>
+          </div>
+        ) : (
+          <>
+            {filteredRotinaModelos.map(renderMobileRotinaCard)}
+            {groupBy === "nenhum"
+              ? grouped.flatMap((g) => g.items).map(renderMobileDemandCard)
+              : grouped.map((g) => {
+                  const collapsed = collapsedGroups.has(g.label);
+                  return (
+                    <div key={`mobile-group-${g.label}`} className="overflow-hidden rounded-2xl border bg-card shadow-sm">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const next = new Set(collapsedGroups);
+                          collapsed ? next.delete(g.label) : next.add(g.label);
+                          setCollapsedGroups(next);
+                        }}
+                        className="flex w-full items-center justify-between gap-3 px-3 py-3 text-left"
+                      >
+                        <span className="min-w-0">
+                          <span className="block truncate text-sm font-bold">{g.label}</span>
+                          <span className="text-xs text-muted-foreground">{g.count} grupo{g.count > 1 ? "s" : ""}</span>
+                        </span>
+                        {collapsed ? <ChevronRight className="h-4 w-4 shrink-0" /> : <ChevronDown className="h-4 w-4 shrink-0" />}
+                      </button>
+                      {!collapsed && (
+                        <div className="space-y-2 border-t bg-muted/20 p-2">
+                          {g.items.map(renderMobileDemandCard)}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+          </>
+        )}
+      </div>
+
       {/* Table */}
-      <div className="rounded-lg border bg-card overflow-hidden">
+      <div className="hidden rounded-lg border bg-card overflow-hidden md:block">
         <div className="overflow-auto max-h-[calc(100vh-280px)]">
           <Table>
             <TableHeader className="sticky top-0 bg-muted/60 backdrop-blur z-10">

@@ -17,6 +17,7 @@ import {
   BarChart3,
   ChevronDown,
   CheckSquare,
+  ClipboardList,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -47,6 +48,31 @@ export default function AppLayout({ children }: AppLayoutProps) {
     { name: "Configurações", href: "/configuracoes", icon: Settings },
   ];
 
+  const getMobilePageMeta = () => {
+    if (location.pathname === "/" || location.pathname === "/execucao") {
+      return { title: "Execução", helper: "Momento APT", icon: ClipboardList };
+    }
+    if (location.pathname.startsWith("/apt")) {
+      return { title: "APT", helper: "Planejamento", icon: CheckSquare };
+    }
+    if (location.pathname.startsWith("/checklist")) {
+      return { title: "Checklist", helper: "Pré-momento", icon: CheckSquare };
+    }
+    if (location.pathname.startsWith("/gerenciamento")) {
+      return { title: "Gestão", helper: "Demandas", icon: BarChart3 };
+    }
+    if (location.pathname.startsWith("/dashboard")) {
+      return { title: "Dashboard", helper: "Indicadores", icon: BarChart3 };
+    }
+    if (location.pathname.startsWith("/configuracoes")) {
+      return { title: "Configurações", helper: "Perfil e sistema", icon: Settings };
+    }
+    return { title: "SISRAMOS", helper: "APT", icon: ClipboardList };
+  };
+
+  const mobilePageMeta = getMobilePageMeta();
+  const MobilePageIcon = mobilePageMeta.icon;
+
   const getRoleBadge = () => {
     switch (role) {
       case "admin":
@@ -62,9 +88,9 @@ export default function AppLayout({ children }: AppLayoutProps) {
     <div className="min-h-screen bg-background">
       {/* Header */}
       <header className="sticky top-0 z-50 border-b bg-card/95 backdrop-blur-lg shadow-sm">
-        <div className="flex h-12 md:h-14 items-center justify-between px-3 md:px-6">
+        <div className="flex h-14 items-center justify-between px-3 md:h-14 md:px-6">
           {/* Logo and nav */}
-          <div className="flex items-center gap-6 lg:gap-8">
+          <div className="flex min-w-0 items-center gap-3 md:gap-6 lg:gap-8">
             {/* Logo */}
             <Link to="/" className="flex items-center gap-2 group shrink-0">
               <img
@@ -83,6 +109,18 @@ export default function AppLayout({ children }: AppLayoutProps) {
                 className="hidden dark:md:block h-8 transition-transform group-hover:scale-105"
               />
             </Link>
+
+            <div className="flex min-w-0 items-center gap-2 md:hidden">
+              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-2xl bg-primary/10 text-primary">
+                <MobilePageIcon className="h-4 w-4" />
+              </div>
+              <div className="min-w-0">
+                <p className="truncate text-sm font-black leading-tight">{mobilePageMeta.title}</p>
+                <p className="truncate text-[10px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+                  {mobilePageMeta.helper}
+                </p>
+              </div>
+            </div>
 
             {/* Desktop nav */}
             <nav className="hidden md:flex items-center gap-1">
@@ -170,8 +208,42 @@ export default function AppLayout({ children }: AppLayoutProps) {
               </DropdownMenu>
             </div>
 
-            {/* Mobile: user initial - hidden to save space */}
-          
+            {/* Mobile user menu */}
+            <div className="md:hidden">
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" size="icon" className="h-10 w-10 rounded-2xl">
+                    <div className="flex h-9 w-9 items-center justify-center rounded-2xl bg-primary/10 text-sm font-bold text-primary">
+                      {profile?.nome?.charAt(0)?.toUpperCase() || "U"}
+                    </div>
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-64 rounded-xl">
+                  <DropdownMenuLabel className="p-4">
+                    <div className="flex items-center gap-3">
+                      <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10 text-primary font-bold">
+                        {profile?.nome?.charAt(0)?.toUpperCase() || "U"}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="font-semibold truncate">{profile?.nome}</p>
+                        <p className="text-xs text-muted-foreground truncate">{profile?.email}</p>
+                      </div>
+                    </div>
+                    <div className="pt-2">{getRoleBadge()}</div>
+                  </DropdownMenuLabel>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onClick={() => navigate("/configuracoes")} className="cursor-pointer">
+                    <User className="mr-2 h-4 w-4" />
+                    Perfil e configurações
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={handleSignOut} className="cursor-pointer text-destructive focus:text-destructive">
+                    <LogOut className="mr-2 h-4 w-4" />
+                    Trocar usuário
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
+
           </div>
         </div>
         {/* Gradient accent line */}

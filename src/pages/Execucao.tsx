@@ -15,6 +15,7 @@ import ConfigurarAptDialog from "@/components/apt/ConfigurarAptDialog";
 import TopSetoresBar from "@/components/apt/TopSetoresBar";
 import RotinasPersistentesSection from "@/components/apt/RotinasPersistentesSection";
 import StatusBolinha from "@/components/apt/StatusBolinha";
+import { MobileBulkBar, MobileEmptyState, MobileFilterTrigger, MobileMetricStrip } from "@/components/mobile/MobilePrimitives";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -1231,6 +1232,16 @@ export default function Execucao() {
   }, [filteredRotinaResumos, filters.responsaveis, isGestorOrAdmin, profiles, responsavelChipStats]);
 
   const unifiedExecutionRowsCount = executionGroups.length + filteredRotinaResumos.length;
+  const unifiedExecutionOccurrencesCount = groupsByResponsavel.reduce(
+    (acc, section) => acc + sumSectionExecution(section).total,
+    0
+  );
+  const mobileExecutionTitle =
+    filters.prazo || executionTableTab === "prazo"
+      ? "Demandas com prazo"
+      : filters.persistente || executionTableTab === "persistentes"
+        ? "Demandas persistentes"
+        : "Demandas do momento";
 
   const visibleGroupKeys = useMemo(() => executionGroups.map((group) => group.key), [executionGroups]);
   const visibleResponsavelIds = useMemo(
@@ -1366,6 +1377,16 @@ export default function Execucao() {
     },
   ];
 
+  const activeMobileFilterCount =
+    filters.responsaveis.length +
+    filters.setores.length +
+    filters.semanas.length +
+    (filters.tags?.length ?? 0) +
+    (filters.urgente ? 1 : 0) +
+    (filters.prioridade ? 1 : 0) +
+    (filters.persistente ? 1 : 0) +
+    (filters.prazo ? 1 : 0);
+
   const getWhatsappHref = (demanda: Demanda) => {
     const setor = getSetorById(demanda.setor_id);
     const profile = getProfileById(demanda.responsavel_id);
@@ -1400,13 +1421,12 @@ export default function Execucao() {
               <Settings2 className="h-4 w-4" />
               {showFilters ? "Recolher filtros" : "Mostrar filtros"}
             </Button>
-            <Button variant="outline" size="sm" className="gap-2 lg:hidden" onClick={() => setShowMobileFilters((prev) => !prev)}>
-              <Settings2 className="h-4 w-4" />
-              Filtros
-              {(filters.responsaveis.length + filters.setores.length + filters.semanas.length + (filters.urgente ? 1 : 0) + (filters.prioridade ? 1 : 0) + (filters.persistente ? 1 : 0) + (filters.prazo ? 1 : 0)) > 0 && (
-                <span className="ml-1 rounded-full bg-primary px-1.5 text-[10px] text-primary-foreground">!</span>
-              )}
-            </Button>
+            <div className="lg:hidden">
+              <MobileFilterTrigger
+                count={activeMobileFilterCount}
+                onClick={() => setShowMobileFilters((prev) => !prev)}
+              />
+            </div>
             <Button asChild variant="outline" size="sm" className="gap-2">
               <Link to="/checklist">
                 <ClipboardCheck className="h-4 w-4" />
@@ -1422,24 +1442,39 @@ export default function Execucao() {
           </div>
         </div>
 
-        <div className="mb-3 grid grid-cols-4 overflow-hidden rounded-2xl border border-border/70 bg-card shadow-sm lg:hidden">
-          <div className="border-r border-border/60 p-2">
-            <p className="text-[9px] font-semibold uppercase tracking-wide text-muted-foreground">Mês</p>
-            <p className="truncate text-xs font-bold">{MONTH_NAMES[viewedMes - 1].slice(0, 3)} {viewedAno}</p>
-          </div>
-          <div className="border-r border-border/60 p-2">
-            <p className="text-[9px] font-semibold uppercase tracking-wide text-muted-foreground">Momento</p>
-            <p className="truncate text-xs font-bold">{activeMomentLabel}</p>
-          </div>
-          <div className="border-r border-border/60 p-2">
-            <p className="text-[9px] font-semibold uppercase tracking-wide text-muted-foreground">Pend.</p>
-            <p className="text-sm font-bold text-warning">{pendingCount}</p>
-          </div>
-          <div className="p-2">
-            <p className="text-[9px] font-semibold uppercase tracking-wide text-muted-foreground">Aprov.</p>
-            <p className="text-sm font-bold text-primary">{waitingApprovalCount}</p>
-          </div>
-        </div>
+        <MobileMetricStrip
+          className="mb-3 lg:hidden"
+          items={[
+            {
+              label: "Mês",
+              value: `${MONTH_NAMES[viewedMes - 1].slice(0, 3)} ${viewedAno}`,
+              helper: "ciclo atual",
+              icon: CalendarDays,
+              tone: "green",
+            },
+            {
+              label: "Momento",
+              value: activeMomentLabel,
+              helper: activeMomentWeeks.length > 0 ? semanasCompactas(activeMomentWeeks) : "sem ativo",
+              icon: Layers3,
+              tone: "blue",
+            },
+            {
+              label: "Pendentes",
+              value: pendingCount,
+              helper: "para executar",
+              icon: ListChecks,
+              tone: "orange",
+            },
+            {
+              label: "Aprovação",
+              value: waitingApprovalCount,
+              helper: "gestor",
+              icon: CheckCircle2,
+              tone: "green",
+            },
+          ]}
+        />
 
         <div className="mb-4 hidden gap-3 md:grid-cols-2 lg:grid xl:grid-cols-4">
           {contextCards.map((card) => (
@@ -1730,28 +1765,20 @@ export default function Execucao() {
             )}
 
             <div className="space-y-3 lg:hidden">
-              {isGestorOrAdmin && selectedVisibleGroups.length > 0 && (
-                <div className="sticky top-[58px] z-40 flex items-center gap-2 rounded-2xl border border-primary/30 bg-background/95 p-2 shadow-lg backdrop-blur">
-                  <span className="flex-1 text-xs font-semibold text-primary">
-                    {selectedVisibleGroups.length} selecionada{selectedVisibleGroups.length === 1 ? "" : "s"}
-                  </span>
-                  <Button size="sm" className="h-8 bg-emerald-600 px-3 text-xs hover:bg-emerald-700" onClick={() => updateSelectedGestorStatus("executado")}>
-                    Aprovar
-                  </Button>
-                  <Button variant="destructive" size="sm" className="h-8 px-3 text-xs" onClick={() => updateSelectedGestorStatus("nao_realizado")}>
-                    Rejeitar
-                  </Button>
-                  <Button variant="ghost" size="sm" className="h-8 px-2 text-xs" onClick={() => setSelectedGroupKeys(new Set())}>
-                    Limpar
-                  </Button>
-                </div>
+              {isGestorOrAdmin && (
+                <MobileBulkBar
+                  count={selectedVisibleGroups.length}
+                  onApprove={() => updateSelectedGestorStatus("executado")}
+                  onReject={() => updateSelectedGestorStatus("nao_realizado")}
+                  onClear={() => setSelectedGroupKeys(new Set())}
+                />
               )}
 
               <div className="flex items-center justify-between px-1">
                 <div>
-                  <p className="text-sm font-bold">Demandas do momento</p>
+                  <p className="text-sm font-bold">{mobileExecutionTitle}</p>
                   <p className="text-xs text-muted-foreground">
-                    {executionGroups.length} linhas · {filteredByTopSetor.length} ocorrências
+                    {unifiedExecutionRowsCount} linhas · {unifiedExecutionOccurrencesCount} ocorrências
                   </p>
                 </div>
                 {isGestorOrAdmin && (
@@ -1761,8 +1788,16 @@ export default function Execucao() {
                 )}
               </div>
 
-              {groupsByResponsavel.map((section) => {
+              {unifiedExecutionRowsCount === 0 ? (
+                <MobileEmptyState
+                  icon={ListChecks}
+                  title="Nenhuma demanda neste recorte"
+                  description="Ajuste os filtros ou selecione outro momento para visualizar demandas no celular."
+                />
+              ) : groupsByResponsavel.map((section) => {
                 const sectionProfile = getProfileById(section.responsavelId);
+                const sectionStats = sumSectionExecution(section);
+                const sectionRows = section.groups.length + section.rotinas.length;
                 return (
                   <div key={`mobile-${section.responsavelId}`} className="space-y-2">
                     {isGestorOrAdmin && (
@@ -1772,7 +1807,10 @@ export default function Execucao() {
                           style={{ backgroundColor: sectionProfile?.cor || "#65a30d" }}
                         />
                         <span className="text-xs font-bold">{sectionProfile?.nome || "Sem responsável"}</span>
-                        <span className="text-[11px] text-muted-foreground">{section.groups.length} metas</span>
+                        <span className="text-[11px] text-muted-foreground">{sectionRows} metas</span>
+                        <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-semibold text-amber-700">
+                          {sectionStats.pendentes} pend.
+                        </span>
                       </div>
                     )}
 
@@ -1911,6 +1949,137 @@ export default function Execucao() {
                                   </>
                                 )}
                               </div>
+                            </div>
+                          </div>
+                        </article>
+                      );
+                    })}
+
+                    {section.rotinas.map((rotina) => {
+                      const setor = getSetorById(rotina.setor_id);
+                      const responsavel = getProfileById(rotina.responsavel_id || "");
+                      const todayKey = getTodayKey();
+                      const todayOccurrence = rotina.ocorrencias.find((item) => item.data === todayKey);
+                      const responsavelStatus = getRotinaResponsavelStatus(rotina, todayKey);
+                      const gestorStatus = getRotinaGestorStatus(rotina);
+                      const allWeeks = getRotinaWeeks(rotina);
+                      const repeatedLabel = `${getRotinaFrequency(rotina)}x`;
+                      const dayStatusChips = rotina.modelo.dias_semana.map((day) => ({
+                        day,
+                        label: WEEKDAY_LABELS[day] || String(day),
+                        status: getWeekdayStatus(rotina.ocorrencias, day),
+                      }));
+
+                      return (
+                        <article
+                          key={`mobile-rotina-${rotina.key}`}
+                          className="rounded-2xl border border-orange-200 bg-orange-50/30 p-3 shadow-sm"
+                        >
+                          <div className="min-w-0">
+                            <div className="mb-2 flex flex-wrap items-center gap-1.5">
+                              <Badge variant="secondary" className="gap-1 rounded-full px-2 py-0.5 text-[10px]">
+                                <span
+                                  className="h-1.5 w-1.5 rounded-full"
+                                  style={{ backgroundColor: setor?.cor || rotina.modelo.cor || "#f97316" }}
+                                />
+                                {setor?.nome || "Sem setor"}
+                              </Badge>
+                              <Badge variant="outline" className="rounded-full px-2 py-0.5 text-[10px]">
+                                {semanasCompactas(allWeeks)}
+                              </Badge>
+                              <Badge variant="outline" className="rounded-full px-2 py-0.5 text-[10px]">
+                                {repeatedLabel}
+                              </Badge>
+                              {isGestorOrAdmin && (
+                                <Badge variant="outline" className="gap-1 rounded-full px-2 py-0.5 text-[10px]">
+                                  <span className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: responsavel?.cor || "#65a30d" }} />
+                                  {responsavel?.nome || "Sem responsável"}
+                                </Badge>
+                              )}
+                            </div>
+
+                            <div className="flex items-start gap-2">
+                              <RefreshCcw className="mt-0.5 h-4 w-4 shrink-0 text-orange-600" />
+                              <p className="text-sm font-semibold leading-snug">{rotina.modelo.nome}</p>
+                            </div>
+
+                            {rotina.modelo.descricao && rotina.modelo.descricao !== rotina.modelo.nome && (
+                              <p className="mt-1 line-clamp-2 text-xs text-muted-foreground">{rotina.modelo.descricao}</p>
+                            )}
+
+                            <div className="mt-2 flex flex-wrap gap-1">
+                              {dayStatusChips.map((chip) => (
+                                <span
+                                  key={chip.day}
+                                  className={cn(
+                                    "inline-flex h-6 min-w-8 items-center justify-center rounded-full border px-1.5 text-[10px] font-semibold",
+                                    weekdayChipClass(chip.status)
+                                  )}
+                                  title={`${chip.label} · ${
+                                    chip.status === "executado"
+                                      ? "feito"
+                                      : chip.status === "nao_realizado"
+                                        ? "não feito"
+                                        : chip.status === "pendente"
+                                          ? "pendente"
+                                          : "sem ocorrência"
+                                  }`}
+                                >
+                                  {chip.label}
+                                </span>
+                              ))}
+                            </div>
+
+                            <div className="mt-3 flex items-center gap-2">
+                              {isGestorOrAdmin ? (
+                                <>
+                                  <div className="flex flex-1 items-center gap-2 rounded-xl border bg-background/70 px-2.5 py-2">
+                                    <StatusBolinha status={responsavelStatus} disabled size="sm" />
+                                    <span className="text-[11px] text-muted-foreground">
+                                      Rotina {rotina.feitas}/{rotina.previstas}
+                                    </span>
+                                  </div>
+                                  <div className="flex flex-1 items-center gap-2 rounded-xl border bg-background/70 px-2.5 py-2">
+                                    <StatusBolinha
+                                      status={gestorStatus}
+                                      onClick={
+                                        rotina.avaliacao
+                                          ? () =>
+                                              atualizarRotinaAvaliacao(
+                                                rotina.avaliacao!.id,
+                                                rotina.avaliacao!.status_gestor === "aprovado" ? "reprovado" : "aprovado"
+                                              )
+                                          : undefined
+                                      }
+                                      disabled={!rotina.avaliacao}
+                                      size="sm"
+                                    />
+                                    <span className="text-[11px] text-muted-foreground">Gestor</span>
+                                  </div>
+                                </>
+                              ) : (
+                                <>
+                                  <Button
+                                    size="sm"
+                                    className="h-9 flex-1 gap-1 rounded-xl bg-emerald-600/90 text-xs hover:bg-emerald-700"
+                                    disabled={!todayOccurrence}
+                                    onClick={() => todayOccurrence && marcarRotinaOcorrencia(todayOccurrence.id, "executado")}
+                                  >
+                                    <Check className="h-3.5 w-3.5" />
+                                    Feito
+                                  </Button>
+                                  <Button
+                                    variant={responsavelStatus === "nao_realizado" ? "destructive" : "outline"}
+                                    size="sm"
+                                    className="h-9 flex-1 gap-1 rounded-xl text-xs"
+                                    disabled={!todayOccurrence}
+                                    onClick={() => todayOccurrence && marcarRotinaOcorrencia(todayOccurrence.id, "nao_realizado")}
+                                  >
+                                    <X className="h-3.5 w-3.5" />
+                                    Não feito
+                                  </Button>
+                                </>
+                              )}
                             </div>
                           </div>
                         </article>
@@ -2079,7 +2248,7 @@ export default function Execucao() {
                       section.groups.reduce((acc, group) => acc + group.siblings.length, 0) +
                       section.rotinas.reduce((acc, rotina) => acc + rotina.previstas, 0);
                     const sectionSelection = getSectionSelectedState(section.groups);
-                    const sectionStats = getSectionExecutionSummary(section.groups);
+                    const sectionStats = sumSectionExecution(section);
                     const shouldForceExpanded =
                       filters.prazo ||
                       filters.persistente ||
