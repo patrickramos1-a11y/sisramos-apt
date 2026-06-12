@@ -20,7 +20,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { MultiSelectDropdown } from "@/components/ui/multi-select-dropdown";
-import { Plus } from "lucide-react";
+import { Layers, Plus } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
 import type { TipoItem, Prioridade } from "@/hooks/useChecklistV2";
@@ -29,6 +29,14 @@ interface Profile {
   id: string;
   user_id: string;
   nome: string;
+}
+
+interface ChecklistMomentOption {
+  id: string;
+  label: string;
+  description: string;
+  semanas: number[];
+  isActive?: boolean;
 }
 
 interface NovoItemChecklistDialogProps {
@@ -45,6 +53,8 @@ interface NovoItemChecklistDialogProps {
   defaultMes?: number;
   defaultAno?: number;
   defaultSemana?: number;
+  defaultSemanas?: number[];
+  momentOptions?: ChecklistMomentOption[];
 }
 
 const MESES = [
@@ -81,8 +91,18 @@ export default function NovoItemChecklistDialog({
   defaultMes,
   defaultAno,
   defaultSemana,
+  defaultSemanas,
+  momentOptions = [],
 }: NovoItemChecklistDialogProps) {
   const now = new Date();
+  const getDefaultSemanaValues = () => {
+    const source = defaultSemanas?.length ? defaultSemanas : [defaultSemana ?? 1];
+    return [...new Set(source)]
+      .filter((week) => week >= 1 && week <= 5)
+      .sort((a, b) => a - b)
+      .map(String);
+  };
+
   const [open, setOpen] = useState(false);
   const [texto, setTexto] = useState("");
   const [link, setLink] = useState("");
@@ -90,7 +110,7 @@ export default function NovoItemChecklistDialog({
   const [prioridade, setPrioridade] = useState<Prioridade>(null);
   const [meses, setMeses] = useState<string[]>([String(defaultMes ?? now.getMonth() + 1)]);
   const [anos, setAnos] = useState<string[]>([String(defaultAno ?? now.getFullYear())]);
-  const [semanas, setSemanas] = useState<string[]>([String(defaultSemana ?? 1)]);
+  const [semanas, setSemanas] = useState<string[]>(getDefaultSemanaValues);
   const [selectedResponsaveis, setSelectedResponsaveis] = useState<string[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [profiles, setProfiles] = useState<Profile[]>([]);
@@ -146,12 +166,13 @@ export default function NovoItemChecklistDialog({
       setPrioridade(null);
       setMeses([String(defaultMes ?? now.getMonth() + 1)]);
       setAnos([String(defaultAno ?? now.getFullYear())]);
-      setSemanas([String(defaultSemana ?? 1)]);
+      setSemanas(getDefaultSemanaValues());
       setSelectedResponsaveis([]);
     }
   };
 
   const isValid = texto.trim() && anos.length > 0 && meses.length > 0 && semanas.length > 0;
+  const selectedSemanaNumbers = semanas.map(Number).sort((a, b) => a - b);
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
@@ -171,6 +192,48 @@ export default function NovoItemChecklistDialog({
         </DialogHeader>
 
         <div className="space-y-4 py-4">
+          {momentOptions.length > 0 && (
+            <div className="space-y-2 rounded-lg border bg-muted/20 p-3">
+              <div className="flex items-center gap-2">
+                <Layers className="h-4 w-4 text-primary" />
+                <Label className="text-sm">Momento APT</Label>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {momentOptions.map((option) => {
+                  const optionWeeks = [...option.semanas].sort((a, b) => a - b);
+                  const active =
+                    optionWeeks.length === selectedSemanaNumbers.length &&
+                    optionWeeks.every((week, index) => week === selectedSemanaNumbers[index]);
+
+                  return (
+                    <button
+                      key={option.id}
+                      type="button"
+                      onClick={() => setSemanas(optionWeeks.map(String))}
+                      className={cn(
+                        "rounded-xl border px-3 py-2 text-left text-xs transition-all",
+                        active
+                          ? "border-primary bg-primary/10 text-primary shadow-sm"
+                          : "border-border bg-background hover:border-primary/40 hover:bg-primary/5"
+                      )}
+                    >
+                      <span className="block font-semibold">{option.label}</span>
+                      <span className="block text-[11px] text-muted-foreground">{option.description}</span>
+                      {option.isActive && (
+                        <span className="mt-1 inline-flex rounded-full bg-primary/15 px-1.5 py-0.5 text-[10px] font-semibold text-primary">
+                          Em andamento
+                        </span>
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+              <p className="text-[11px] text-muted-foreground">
+                Escolha outro momento para preencher automaticamente as semanas do item avulso ou recorrente.
+              </p>
+            </div>
+          )}
+
           {/* Type selection */}
           <div className="space-y-2">
             <Label>Tipo do Item</Label>

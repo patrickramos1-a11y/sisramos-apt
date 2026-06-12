@@ -654,11 +654,18 @@ function AddAvulsoInline({ semana, onAdd }: { semana: number; onAdd: (descricao:
       <Input
         value={text}
         onChange={(e) => setText(e.target.value)}
-        placeholder="Adicionar item avulso..."
+        placeholder={`Adicionar avulso na ${semana}ª semana...`}
         className="h-7 text-xs flex-1"
         onKeyDown={(e) => e.key === "Enter" && handleAdd()}
       />
-      <Button size="sm" variant="ghost" className="h-7 px-2" onClick={handleAdd} disabled={!text.trim() || adding}>
+      <Button
+        size="sm"
+        variant="ghost"
+        className="h-7 px-2"
+        onClick={handleAdd}
+        disabled={!text.trim() || adding}
+        title={`Adicionar na ${semana}ª semana`}
+      >
         <Plus className="h-3.5 w-3.5" />
       </Button>
     </div>

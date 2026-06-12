@@ -310,6 +310,32 @@ export default function Checklist() {
       .filter(Boolean) as ChecklistDisplayCard[];
   }, [aptMomentosConfig]);
 
+  const checklistMomentOptions = useMemo(() => {
+    return aptMomentCards.map((card, index) => {
+      const semanas = card.type === "merged" ? card.semanas : [card.semana];
+      const label = card.momentoNumero ? `Momento ${card.momentoNumero}` : `Momento ${index + 1}`;
+      const description =
+        semanas.length > 1
+          ? `Semanas ${semanas.map((week) => `${week}ª`).join(" + ")}`
+          : `${semanas[0]}ª semana`;
+
+      return {
+        id: card.momentoNumero ? `momento-${card.momentoNumero}` : `semanas-${semanas.join("-")}`,
+        label,
+        description,
+        semanas,
+        isActive: card.isActiveMoment,
+      };
+    });
+  }, [aptMomentCards]);
+
+  const defaultNovoItemSemanas = useMemo(() => {
+    if (isUsingAptMoment && selectedMomentWeeks.length > 0) return selectedMomentWeeks;
+    if (selectedWeek) return [selectedWeek];
+    if (isUsingAptMoment && aptMomentWeeks.length > 0) return aptMomentWeeks;
+    return [1];
+  }, [aptMomentWeeks, isUsingAptMoment, selectedMomentWeeks, selectedWeek]);
+
   // Week filter
   const semanasToShow = weekFilter.length > 0 ? weekFilter.map((s) => parseInt(s)) : SEMANAS;
 
@@ -569,7 +595,9 @@ export default function Checklist() {
                   onAddItem={handleAddItem}
                   defaultMes={currentMes}
                   defaultAno={currentAno}
-                  defaultSemana={selectedWeek || 1}
+                  defaultSemana={defaultNovoItemSemanas[0] || 1}
+                  defaultSemanas={defaultNovoItemSemanas}
+                  momentOptions={checklistMomentOptions}
                 />
 
                 {/* Desktop: all actions visible */}
@@ -815,7 +843,10 @@ export default function Checklist() {
                 onUpdateAssignees={updateAssignees}
                 onReorder={reorderItem}
                 onReorderSubItem={reorderSubItem}
-                onClose={() => setSelectedWeek(null)}
+                onClose={() => {
+                  setSelectedWeek(null);
+                  if (isUsingAptMoment) setSelectedMomentWeeks([]);
+                }}
                 onAddSubItem={addSubItem}
                 onAddQuickAvulso={addQuickAvulso}
                 onDeleteAllWeek={async (semana) => {
