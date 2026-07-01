@@ -93,10 +93,12 @@ function applyTemplate(
   template: string,
   context: DemandaWhatsappContext
 ): string {
-  const normalizedTemplate = template.replace(
-    /Numero:\s*#?\s*\{\{numero\}\}/gi,
-    "Repeticoes no mes: {{repeticoes}}"
-  );
+  const normalizedTemplate = template
+    .replace(
+      /Numero:\s*#?\s*\{\{numero\}\}/gi,
+      "Repeticoes no mes: {{repeticoes}}"
+    )
+    .replace(/#\s*\{\{repeticoes\}\}/gi, "{{repeticoes}}");
   const repeticoes = formatRepeticoes(context.repeticoes ?? context.numero);
   const replacements: Record<string, string> = {
     numero: repeticoes,
