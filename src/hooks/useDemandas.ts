@@ -237,6 +237,14 @@ export function useDemandas() {
     setIsLoading(false);
   }, [user, filters, toast, isGestorOrAdmin]);
 
+  const patchDemandasLocal = useCallback((demandaIds: string[], patch: Partial<Demanda>) => {
+    if (demandaIds.length === 0) return;
+    const ids = new Set(demandaIds);
+    setDemandas((prev) =>
+      prev.map((demanda) => (ids.has(demanda.id) ? { ...demanda, ...patch } : demanda))
+    );
+  }, []);
+
   const fetchProfiles = useCallback(async () => {
     const { data } = await supabase.from("profiles").select("*");
     if (data) {
@@ -485,6 +493,7 @@ export function useDemandas() {
     toggleSort,
     resetSort,
     fetchDemandas,
+    patchDemandasLocal,
     updateStatusResponsavel,
     updateStatusGestor,
     getProfileById,

@@ -101,27 +101,25 @@ export default function SortableChecklistItem({
     setEditingPrioridade(null);
   };
 
-  const handleStatusClick = useCallback(async () => {
+  const handleStatusChange = useCallback(async (targetStatus: ChecklistStatus) => {
     const currentStatus: ChecklistStatus = item.status || "pendente";
-    let newStatus: ChecklistStatus;
-    if (currentStatus === "pendente") newStatus = "concluido";
-    else if (currentStatus === "concluido") newStatus = "nao_realizado";
-    else newStatus = "pendente";
+    const newStatus: ChecklistStatus = currentStatus === targetStatus ? "pendente" : targetStatus;
     setJustChanged(true);
     await onUpdateItem(item.id, { status: newStatus, concluido: newStatus === "concluido" });
     setTimeout(() => setJustChanged(false), 600);
   }, [item.id, item.status, onUpdateItem]);
 
-  const getStatusIcon = (status: ChecklistStatus | undefined) => {
-    const effectiveStatus = status || "pendente";
-    switch (effectiveStatus) {
-      case "concluido":
-        return <CheckCircle2 className={cn("h-5 w-5 text-primary", justChanged && "animate-check-bounce")} />;
-      case "nao_realizado":
-        return <XCircle className={cn("h-5 w-5 text-destructive", justChanged && "animate-check-bounce")} />;
-      default:
-        return <Circle className="h-5 w-5 text-muted-foreground" />;
+  const getStatusActionIcon = (targetStatus: "concluido" | "nao_realizado") => {
+    const active = item.status === targetStatus;
+    const Icon = targetStatus === "concluido" ? CheckCircle2 : XCircle;
+    const inactiveColor = targetStatus === "concluido" ? "text-primary/35" : "text-destructive/35";
+    const activeColor = targetStatus === "concluido" ? "text-primary" : "text-destructive";
+
+    if (active) {
+      return <Icon className={cn("h-5 w-5", activeColor, justChanged && "animate-check-bounce")} />;
     }
+
+    return <Circle className={cn("h-5 w-5", inactiveColor)} />;
   };
 
   const getInitials = (nome: string) => {
@@ -162,20 +160,33 @@ export default function SortableChecklistItem({
         </button>
       )}
 
-      {/* Status button */}
-      <button
-        type="button"
-        onClick={handleStatusClick}
-        className="shrink-0 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 rounded-full disabled:opacity-50 disabled:cursor-not-allowed transition-transform hover:scale-110 min-w-[36px] min-h-[36px] flex items-center justify-center"
-        disabled={!canCompleteItem || (isLocked && !canEdit)}
-        title={
-          isCompleted ? "Concluído (clique para marcar como não realizado)"
-          : isNotDone ? "Não realizado (clique para marcar como pendente)"
-          : "Pendente (clique para marcar como concluído)"
-        }
-      >
-        {getStatusIcon(item.status)}
-      </button>
+      {/* Status buttons */}
+      <div className="shrink-0 flex items-center gap-1" aria-label="Status da tarefa">
+        <button
+          type="button"
+          onClick={() => handleStatusChange("concluido")}
+          className={cn(
+            "focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 rounded-full disabled:opacity-50 disabled:cursor-not-allowed transition-transform hover:scale-110 min-w-[32px] min-h-[36px] flex items-center justify-center",
+            isCompleted && "bg-primary/10"
+          )}
+          disabled={!canCompleteItem || (isLocked && !canEdit)}
+          title={isCompleted ? "Concluído (clique para voltar a pendente)" : "Marcar como concluído"}
+        >
+          {getStatusActionIcon("concluido")}
+        </button>
+        <button
+          type="button"
+          onClick={() => handleStatusChange("nao_realizado")}
+          className={cn(
+            "focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 rounded-full disabled:opacity-50 disabled:cursor-not-allowed transition-transform hover:scale-110 min-w-[32px] min-h-[36px] flex items-center justify-center",
+            isNotDone && "bg-destructive/10"
+          )}
+          disabled={!canCompleteItem || (isLocked && !canEdit)}
+          title={isNotDone ? "Não realizado (clique para voltar a pendente)" : "Marcar como não realizado"}
+        >
+          {getStatusActionIcon("nao_realizado")}
+        </button>
+      </div>
       
       {isEditing ? (
         <div className="flex-1 space-y-2">

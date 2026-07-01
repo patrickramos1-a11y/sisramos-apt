@@ -455,6 +455,7 @@ export default function Execucao() {
     setFilters,
     clearFilters,
     fetchDemandas,
+    patchDemandasLocal,
     getProfileById,
     getSetorById,
   } = useDemandas();
@@ -750,17 +751,18 @@ export default function Execucao() {
     if (!canEditGroupResponsavel(group)) return;
 
     const next = nextStatus(getGroupStatus(group, "status_responsavel"));
+    const ids = group.siblings.map((demanda) => demanda.id);
     const { error } = await supabase
       .from("demandas")
       .update({ status_responsavel: next })
-      .in("id", group.siblings.map((demanda) => demanda.id));
+      .in("id", ids);
 
     if (error) {
       console.error("Erro ao atualizar grupo de execução:", error);
       return;
     }
 
-    await fetchDemandas();
+    patchDemandasLocal(ids, { status_responsavel: next });
   };
 
   const updateGroupResponsavelToStatus = async (
@@ -769,34 +771,36 @@ export default function Execucao() {
   ) => {
     if (!canEditGroupResponsavel(group)) return;
 
+    const ids = group.siblings.map((demanda) => demanda.id);
     const { error } = await supabase
       .from("demandas")
       .update({ status_responsavel: status })
-      .in("id", group.siblings.map((demanda) => demanda.id));
+      .in("id", ids);
 
     if (error) {
       console.error("Erro ao atualizar status do grupo de execução:", error);
       return;
     }
 
-    await fetchDemandas();
+    patchDemandasLocal(ids, { status_responsavel: status });
   };
 
   const updateGroupGestorStatus = async (group: ExecutionGroup) => {
     if (!canEditGroupGestor(group)) return;
 
     const next = nextStatus(getGroupStatus(group, "status_gestor"));
+    const ids = group.siblings.map((demanda) => demanda.id);
     const { error } = await supabase
       .from("demandas")
       .update({ status_gestor: next })
-      .in("id", group.siblings.map((demanda) => demanda.id));
+      .in("id", ids);
 
     if (error) {
       console.error("Erro ao atualizar aprovação do grupo de execução:", error);
       return;
     }
 
-    await fetchDemandas();
+    patchDemandasLocal(ids, { status_gestor: next });
   };
 
   const toggleGroupSelection = (groupKey: string) => {
@@ -847,7 +851,7 @@ export default function Execucao() {
     if (clearSelected) {
       setSelectedGroupKeys(new Set());
     }
-    await fetchDemandas();
+    patchDemandasLocal(ids, { status_gestor: status });
   };
 
   const getSectionSelectedState = (groups: ExecutionGroup[]) => {
@@ -1236,6 +1240,8 @@ export default function Execucao() {
     (acc, section) => acc + sumSectionExecution(section).total,
     0
   );
+  const commonDemandasCount = demandas.filter((item) => !isDemandaPrazo(item)).length;
+  const prazoDemandasCount = demandas.filter((item) => isDemandaPrazo(item)).length;
   const mobileExecutionTitle =
     filters.prazo || executionTableTab === "prazo"
       ? "Demandas com prazo"
@@ -2099,8 +2105,8 @@ export default function Execucao() {
                 setExecutionTableTab(next);
                 setFilters((prev) => ({
                   ...prev,
-                  prazo: next === "prazo",
-                  persistente: next === "persistentes",
+                  prazo: false,
+                  persistente: false,
                 }));
               }}
               className="space-y-3"
@@ -2111,7 +2117,7 @@ export default function Execucao() {
                     <ListChecks className="h-4 w-4" />
                     Demandas do momento
                     <Badge variant="secondary" className="rounded-full">
-                      {unifiedExecutionRowsCount}
+                      {executionTableTab === "demandas" ? unifiedExecutionRowsCount : commonDemandasCount}
                     </Badge>
                   </TabsTrigger>
                   <TabsTrigger
@@ -2121,7 +2127,7 @@ export default function Execucao() {
                     <Clock3 className="h-4 w-4" />
                     Com prazo
                     <Badge variant="secondary" className="rounded-full">
-                      {executionTableTab === "prazo" ? unifiedExecutionRowsCount : demandas.filter((item) => isDemandaPrazo(item)).length}
+                      {executionTableTab === "prazo" ? unifiedExecutionRowsCount : prazoDemandasCount}
                     </Badge>
                   </TabsTrigger>
                   <TabsTrigger value="persistentes" className="gap-2 rounded-xl py-2 text-sm">
