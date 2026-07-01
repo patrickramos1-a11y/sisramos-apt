@@ -1393,6 +1393,7 @@ export default function Execucao() {
 
     return buildSetorWhatsAppHref(setor, {
       numero: demanda.numero,
+      repeticoes: getDemandaRepetitionCount(demanda) || 1,
       descricao: demanda.descricao,
       observacoes: demanda.observacoes,
       responsavel: profile?.nome || "Desconhecido",

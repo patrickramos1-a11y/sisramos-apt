@@ -15,6 +15,7 @@ export interface SetorActionSource {
 
 export interface DemandaWhatsappContext {
   numero: number;
+  repeticoes?: number;
   descricao: string;
   observacoes?: string | null;
   responsavel: string;
@@ -25,7 +26,7 @@ export interface DemandaWhatsappContext {
 }
 
 export const DEFAULT_SETOR_WHATSAPP_TEMPLATE =
-  "Patrick, estou com uma duvida sobre a demanda:\n\n*{{descricao}}*\n\nNumero: #{{numero}}\nSetor: {{setor}}\nResponsavel: {{responsavel}}\nSemanas: {{semanas}}\nMes/Ano: {{mes}}/{{ano}}";
+  "Patrick, estou com uma duvida sobre a demanda:\n\n*{{descricao}}*\n\nRepeticoes no mes: {{repeticoes}}\nSetor: {{setor}}\nResponsavel: {{responsavel}}\nSemanas: {{semanas}}\nMes/Ano: {{mes}}/{{ano}}";
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
@@ -83,12 +84,23 @@ function formatWeeks(semanas: number[]): string {
     .join(", ");
 }
 
+function formatRepeticoes(value: number | undefined): string {
+  const repeticoes = Math.max(Number(value) || 1, 1);
+  return `${repeticoes}x`;
+}
+
 function applyTemplate(
   template: string,
   context: DemandaWhatsappContext
 ): string {
+  const normalizedTemplate = template.replace(
+    /Numero:\s*#?\s*\{\{numero\}\}/gi,
+    "Repeticoes no mes: {{repeticoes}}"
+  );
+  const repeticoes = formatRepeticoes(context.repeticoes ?? context.numero);
   const replacements: Record<string, string> = {
-    numero: String(context.numero),
+    numero: repeticoes,
+    repeticoes,
     descricao: context.descricao,
     observacoes: context.observacoes?.trim() || "-",
     responsavel: context.responsavel,
@@ -98,7 +110,7 @@ function applyTemplate(
     ano: String(context.ano),
   };
 
-  return template.replace(/\{\{(\w+)\}\}/g, (_, key: string) => replacements[key] ?? "");
+  return normalizedTemplate.replace(/\{\{(\w+)\}\}/g, (_, key: string) => replacements[key] ?? "");
 }
 
 export function buildSetorWhatsAppHref(

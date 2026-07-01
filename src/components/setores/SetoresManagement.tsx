@@ -417,7 +417,7 @@ export default function SetoresManagement() {
               rows={7}
             />
             <p className="text-xs text-muted-foreground">
-              Variaveis disponiveis: {"{{descricao}}"}, {"{{numero}}"}, {"{{setor}}"}, {"{{responsavel}}"}, {"{{semanas}}"}, {"{{mes}}"}, {"{{ano}}"}, {"{{observacoes}}"}.
+              Variaveis disponiveis: {"{{descricao}}"}, {"{{repeticoes}}"}, {"{{numero}}"}, {"{{setor}}"}, {"{{responsavel}}"}, {"{{semanas}}"}, {"{{mes}}"}, {"{{ano}}"}, {"{{observacoes}}"}.
             </p>
           </div>
         </div>

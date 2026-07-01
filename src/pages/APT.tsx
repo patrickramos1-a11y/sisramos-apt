@@ -435,6 +435,7 @@ export default function APT() {
 
     return buildSetorWhatsAppHref(setor, {
       numero: demanda.numero,
+      repeticoes: Math.max(Number(demanda.semanas_repeticao) || 0, demanda.semana_limite?.length || 0, 1),
       descricao: demanda.descricao,
       observacoes: demanda.observacoes,
       responsavel: profile?.nome || "Desconhecido",
