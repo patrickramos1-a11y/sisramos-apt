@@ -8,6 +8,7 @@ import {
   DemandaModoExecucao,
   clearDemandasPrazoMeta,
   isPrazoColumnMissingError,
+  isDemandaPrazo,
   mergeDemandasPrazoMeta,
 } from "@/lib/demandas-prazo";
 
@@ -221,7 +222,7 @@ export function useDemandas() {
       }
 
       if (filters.prazo) {
-        filteredData = filteredData.filter((d) => d.modo_execucao === "prazo");
+        filteredData = filteredData.filter((d) => isDemandaPrazo(d));
       }
 
       if (filters.tags.length > 0) {

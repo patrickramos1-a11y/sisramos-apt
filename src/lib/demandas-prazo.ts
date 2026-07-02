@@ -3,6 +3,7 @@ export type DemandaModoExecucao = "semanal" | "prazo";
 export interface DemandaPrazoFields {
   id: string;
   semana_limite: number[];
+  semanas_repeticao?: number | null;
   modo_execucao?: DemandaModoExecucao | null;
   semana_inicio_prazo?: number | null;
   semana_fim_prazo?: number | null;
@@ -30,6 +31,31 @@ const PRAZO_COLUMN_MISSING_RE =
 function normalizeWeek(week: number | null | undefined) {
   if (!week || Number.isNaN(week)) return null;
   return Math.min(5, Math.max(1, Math.trunc(week)));
+}
+
+function normalizeWeeks(weeks: number[] | null | undefined) {
+  return [...new Set((weeks || []).map(normalizeWeek).filter(Boolean) as number[])].sort((a, b) => a - b);
+}
+
+export function isLegacyDemandaPrazo(demanda: Partial<DemandaPrazoFields>) {
+  const weeks = normalizeWeeks(demanda.semana_limite);
+  return demanda.modo_execucao !== "prazo" && Number(demanda.semanas_repeticao) === 1 && weeks.length > 1;
+}
+
+export function getDemandaPrazoWindow(demanda: Partial<DemandaPrazoFields>) {
+  const start = normalizeWeek(demanda.semana_inicio_prazo);
+  const end = normalizeWeek(demanda.semana_fim_prazo);
+
+  if (demanda.modo_execucao === "prazo" && start && end) {
+    return { start: Math.min(start, end), end: Math.max(start, end) };
+  }
+
+  if (isLegacyDemandaPrazo(demanda)) {
+    const weeks = normalizeWeeks(demanda.semana_limite);
+    return { start: weeks[0], end: weeks[weeks.length - 1] };
+  }
+
+  return null;
 }
 
 export function buildPrazoWeeks(startWeek: number, endWeek: number) {
@@ -86,10 +112,9 @@ export function mergeDemandasPrazoMeta<T extends DemandaPrazoFields>(rows: T[]):
   return rows.map((row) => {
     const dbMode = row.modo_execucao ?? null;
     const modo_execucao = (dbMode || "semanal") as DemandaModoExecucao;
-    const semana_inicio_prazo = normalizeWeek(row.semana_inicio_prazo);
-    const semana_fim_prazo = normalizeWeek(row.semana_fim_prazo);
+    const prazoWindow = getDemandaPrazoWindow({ ...row, modo_execucao });
 
-    if (modo_execucao !== "prazo" || !semana_inicio_prazo || !semana_fim_prazo) {
+    if (!prazoWindow) {
       return {
         ...row,
         modo_execucao,
@@ -100,16 +125,16 @@ export function mergeDemandasPrazoMeta<T extends DemandaPrazoFields>(rows: T[]):
 
     return {
       ...row,
-      modo_execucao,
-      semana_inicio_prazo,
-      semana_fim_prazo,
-      semana_limite: buildPrazoWeeks(semana_inicio_prazo, semana_fim_prazo),
+      modo_execucao: "prazo",
+      semana_inicio_prazo: prazoWindow.start,
+      semana_fim_prazo: prazoWindow.end,
+      semana_limite: buildPrazoWeeks(prazoWindow.start, prazoWindow.end),
     };
   });
 }
 
 export function isDemandaPrazo(demanda: Partial<DemandaPrazoFields>) {
-  return demanda.modo_execucao === "prazo" && !!demanda.semana_inicio_prazo && !!demanda.semana_fim_prazo;
+  return getDemandaPrazoWindow(demanda) !== null;
 }
 
 export function formatPrazoWindow(
@@ -117,9 +142,9 @@ export function formatPrazoWindow(
   mode: "full" | "compact" = "full"
 ) {
   if (!isDemandaPrazo(demanda)) return null;
-  const start = normalizeWeek(demanda.semana_inicio_prazo);
-  const end = normalizeWeek(demanda.semana_fim_prazo);
-  if (!start || !end) return null;
+  const window = getDemandaPrazoWindow(demanda);
+  if (!window) return null;
+  const { start, end } = window;
   if (mode === "compact") return `${start}ª → ${end}ª`;
   if (start === end) return `Até ${end}ª semana`;
   return `${start}ª até ${end}ª semana`;
