@@ -592,6 +592,7 @@ export function useChecklistV2({ mes, ano }: UseChecklistV2Options) {
         ordem_override: inst.ordem_override ?? inst.ordem,
         is_group: inst.is_group,
         descricao_override: inst.descricao_override,
+        prioridade: inst.prioridade || null,
       }));
 
       const { data: inserted, error } = await (supabase.from("checklist_instances") as any)
@@ -635,6 +636,7 @@ export function useChecklistV2({ mes, ano }: UseChecklistV2Options) {
               descricao_override: child.descricao_override,
               link_override: child.link_override,
               ordem_override: child.ordem_override ?? idx,
+              prioridade: child.prioridade || null,
               parent_id: inserted[i].id,
             }));
             const { data: insertedChildren } = await (supabase.from("checklist_instances") as any)
