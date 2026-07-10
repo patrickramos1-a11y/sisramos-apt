@@ -1,13 +1,11 @@
-import { useSortable } from "@dnd-kit/sortable";
-import { CSS } from "@dnd-kit/utilities";
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip";
 
-import { Pencil, Trash2, Check, X, CheckCircle2, Link as LinkIcon, ExternalLink, Circle, XCircle, GripVertical } from "lucide-react";
+import { Pencil, Trash2, Check, X, CheckCircle2, Link as LinkIcon, ExternalLink, Circle, XCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
 import UserAssignmentPopover from "./UserAssignmentPopover";
 import type { ChecklistStatus } from "@/hooks/useChecklist";
@@ -43,6 +41,10 @@ interface SortableChecklistItemProps {
   onUpdateItem: (id: string, updates: Partial<{ texto: string; concluido: boolean; link: string | null; status: ChecklistStatus; prioridade: Prioridade | null }>) => Promise<void>;
   onDeleteItem: (id: string) => Promise<void>;
   onUpdateAssignees: (itemId: string, userIds: string[]) => Promise<void>;
+  position?: number;
+  maxPosition?: number;
+  reorderDisabled?: boolean;
+  onMoveToPosition?: (itemId: string, position: number) => Promise<void>;
 }
 
 export default function SortableChecklistItem({
@@ -56,26 +58,22 @@ export default function SortableChecklistItem({
   onUpdateItem,
   onDeleteItem,
   onUpdateAssignees,
+  position,
+  maxPosition,
+  reorderDisabled = false,
+  onMoveToPosition,
 }: SortableChecklistItemProps) {
   const [isEditing, setIsEditing] = useState(false);
   const [editingText, setEditingText] = useState("");
   const [editingLink, setEditingLink] = useState("");
   const [editingPrioridade, setEditingPrioridade] = useState<Prioridade | null>(null);
   const [justChanged, setJustChanged] = useState(false);
+  const [positionValue, setPositionValue] = useState(String(position ?? index + 1));
+  const canReorder = canModify && !reorderDisabled && !!onMoveToPosition && !!position && !!maxPosition && maxPosition > 1;
 
-  const {
-    attributes,
-    listeners,
-    setNodeRef,
-    transform,
-    transition,
-    isDragging,
-  } = useSortable({ id: item.id, disabled: !canModify });
-
-  const style = {
-    transform: CSS.Transform.toString(transform),
-    transition,
-  };
+  useEffect(() => {
+    setPositionValue(String(position ?? index + 1));
+  }, [index, position]);
 
   const handleStartEdit = () => {
     setIsEditing(true);
@@ -109,6 +107,21 @@ export default function SortableChecklistItem({
     setTimeout(() => setJustChanged(false), 600);
   }, [item.id, item.status, onUpdateItem]);
 
+  const commitPositionChange = useCallback(async () => {
+    if (!canReorder || !position || !maxPosition || !onMoveToPosition) {
+      setPositionValue(String(position ?? index + 1));
+      return;
+    }
+
+    const parsed = Number.parseInt(positionValue, 10);
+    if (!Number.isFinite(parsed) || parsed < 1 || parsed > maxPosition || parsed === position) {
+      setPositionValue(String(position));
+      return;
+    }
+
+    await onMoveToPosition(item.id, parsed);
+  }, [canReorder, index, item.id, maxPosition, onMoveToPosition, position, positionValue]);
+
   const getStatusActionIcon = (targetStatus: "concluido" | "nao_realizado") => {
     const active = item.status === targetStatus;
     const Icon = targetStatus === "concluido" ? CheckCircle2 : XCircle;
@@ -137,27 +150,36 @@ export default function SortableChecklistItem({
 
   return (
     <div
-      ref={setNodeRef}
-      style={style}
       className={cn(
         "group flex items-center gap-3 p-3 rounded-lg border transition-all duration-200",
         isZebra ? "bg-muted/20" : "bg-card",
         isCompleted && "bg-primary/5 border-primary/20",
         isNotDone && "bg-destructive/5 border-destructive/20",
         !isCompleted && !isNotDone && "border-transparent hover:bg-muted/30 hover:border-border",
-        isDragging && "shadow-xl z-50 border-primary/50 opacity-80 scale-[1.02]",
         justChanged && "animate-highlight-flash"
       )}
     >
-      {/* Drag handle - larger touch area */}
+      {/* Order control */}
       {canModify && (
-        <button
-          {...attributes}
-          {...listeners}
-          className="shrink-0 cursor-grab active:cursor-grabbing focus:outline-none text-muted-foreground hover:text-foreground transition-colors p-1 -m-1 min-w-[36px] min-h-[36px] flex items-center justify-center"
-        >
-          <GripVertical className="h-5 w-5" />
-        </button>
+        <Input
+          type="number"
+          min={1}
+          max={maxPosition || 1}
+          value={positionValue}
+          disabled={!canReorder}
+          title={reorderDisabled ? "Limpe filtros e ordenação por prioridade para reorganizar" : "Digite a posição da tarefa"}
+          onChange={(event) => setPositionValue(event.target.value)}
+          onFocus={() => setPositionValue(String(position ?? index + 1))}
+          onBlur={commitPositionChange}
+          onKeyDown={(event) => {
+            if (event.key === "Enter") event.currentTarget.blur();
+            if (event.key === "Escape") {
+              setPositionValue(String(position ?? index + 1));
+              event.currentTarget.blur();
+            }
+          }}
+          className="h-8 w-12 shrink-0 px-1 text-center text-xs font-semibold [appearance:textfield] disabled:opacity-60 [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+        />
       )}
 
       {/* Status buttons */}

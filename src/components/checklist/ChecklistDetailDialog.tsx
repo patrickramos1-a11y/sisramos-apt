@@ -1,19 +1,5 @@
 import { useMemo } from "react";
 import {
-  DndContext,
-  closestCenter,
-  KeyboardSensor,
-  PointerSensor,
-  useSensor,
-  useSensors,
-  DragEndEvent,
-} from "@dnd-kit/core";
-import {
-  SortableContext,
-  sortableKeyboardCoordinates,
-  verticalListSortingStrategy,
-} from "@dnd-kit/sortable";
-import {
   Dialog,
   DialogContent,
   DialogHeader,
@@ -79,11 +65,6 @@ export default function ChecklistDetailDialog({
   onUpdateAssignees,
   onReorderItems,
 }: ChecklistDetailDialogProps) {
-  const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
-    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
-  );
-
   const sortedItems = useMemo(() => 
     [...items].sort((a, b) => (a.ordem ?? 0) - (b.ordem ?? 0)),
     [items]
@@ -108,16 +89,6 @@ export default function ChecklistDetailDialog({
   };
 
   const weekColor = weekColors[semana] || weekColors[1];
-
-  const handleDragEnd = async (event: DragEndEvent) => {
-    const { active, over } = event;
-    if (!over || active.id === over.id || !onReorderItems || !mes || !ano) return;
-    const oldIndex = sortedItems.findIndex((item) => item.id === active.id);
-    const newIndex = sortedItems.findIndex((item) => item.id === over.id);
-    if (oldIndex !== -1 && newIndex !== -1) {
-      await onReorderItems(active.id as string, newIndex, semana, mes, ano);
-    }
-  };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -176,7 +147,7 @@ export default function ChecklistDetailDialog({
         {/* Table header - desktop only */}
         {sortedItems.length > 0 && (
         <div className="hidden md:flex items-center gap-3 px-6 py-2 border-b bg-muted/30 text-xs font-medium text-muted-foreground uppercase tracking-wider">
-          {canModify && <span className="w-5 shrink-0" />}
+          {canModify && <span className="w-12 shrink-0 text-center">Ordem</span>}
           <span className="w-5 shrink-0">Status</span>
           <span className="flex-1">Tarefa</span>
           <span className="w-24 text-center">Responsáveis</span>
@@ -198,8 +169,7 @@ export default function ChecklistDetailDialog({
                 </p>
               </div>
             ) : (
-              <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
-                <SortableContext items={sortedItems.map((item) => item.id)} strategy={verticalListSortingStrategy}>
+              <>
                   {sortedItems.map((item, index) => {
                     const itemAssignees = item.assignees || [];
                     const isAssignedToMe = currentUserId && itemAssignees.includes(currentUserId);
@@ -218,11 +188,17 @@ export default function ChecklistDetailDialog({
                         onUpdateItem={onUpdateItem}
                         onDeleteItem={onDeleteItem}
                         onUpdateAssignees={onUpdateAssignees}
+                        position={index + 1}
+                        maxPosition={sortedItems.length}
+                        reorderDisabled={!onReorderItems || !mes || !ano}
+                        onMoveToPosition={async (itemId, targetPosition) => {
+                          if (!onReorderItems || !mes || !ano) return;
+                          await onReorderItems(itemId, targetPosition - 1, semana, mes, ano);
+                        }}
                       />
                     );
                   })}
-                </SortableContext>
-              </DndContext>
+              </>
             )}
           </div>
         </ScrollArea>
@@ -238,7 +214,7 @@ export default function ChecklistDetailDialog({
         {canModify && sortedItems.length > 1 && (
           <div className="px-6 py-2 border-t bg-muted/20">
             <p className="text-xs text-muted-foreground text-center">
-              Arraste os itens para reorganizar a ordem
+              Use o número para mover a tarefa na lista
             </p>
           </div>
         )}
