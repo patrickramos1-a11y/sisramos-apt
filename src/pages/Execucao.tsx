@@ -476,6 +476,8 @@ export default function Execucao() {
   const [expandedResponsaveis, setExpandedResponsaveis] = useState<Set<string>>(new Set());
   const [executionStatusDefaultApplied, setExecutionStatusDefaultApplied] = useState(false);
   const [executionDefaultsApplied, setExecutionDefaultsApplied] = useState(false);
+  const [momentWeeksDefaultApplied, setMomentWeeksDefaultApplied] = useState(false);
+  const [suggestedWeekLoaded, setSuggestedWeekLoaded] = useState(false);
   const [responsavelChipStats, setResponsavelChipStats] = useState<Record<string, { groups: number; total: number }>>({});
 
   const now = new Date();
@@ -517,6 +519,13 @@ export default function Execucao() {
     currentWeek,
   });
 
+  const executionVisibleWeeks = useMemo(() => {
+    const filterWeeks = filters.semanas
+      .map((semana) => parseInt(semana, 10))
+      .filter((semana) => semana >= 1 && semana <= 5);
+    return filterWeeks.length > 0 ? filterWeeks : activeMomentWeeks;
+  }, [activeMomentWeeks, filters.semanas]);
+
   const {
     resumos: rotinaResumos,
     marcarOcorrencia: marcarRotinaOcorrencia,
@@ -524,7 +533,7 @@ export default function Execucao() {
   } = useAptRotinas({
     mes: viewedMes,
     ano: viewedAno,
-    semanas: activeMomentWeeks,
+    semanas: executionVisibleWeeks,
     momento: activeMomentNumber,
   });
 
@@ -594,7 +603,12 @@ export default function Execucao() {
   }, [currentMonth, currentYear, executionDefaultsApplied, setFilters]);
 
   useEffect(() => {
+    setMomentWeeksDefaultApplied(false);
+  }, [viewedMes, viewedAno]);
+
+  useEffect(() => {
     const fetchSuggestedWeek = async () => {
+      setSuggestedWeekLoaded(false);
       const { data, error } = await supabase
         .from("checklist_timers")
         .select("semana, stopped_at, started_at")
@@ -604,26 +618,26 @@ export default function Execucao() {
 
       if (error || !data || data.length === 0) {
         setSuggestedWeek(null);
+        setSuggestedWeekLoaded(true);
         return;
       }
 
       const activeTimer = data.find((timer) => !timer.stopped_at);
       setSuggestedWeek(activeTimer?.semana ?? data[0].semana ?? null);
+      setSuggestedWeekLoaded(true);
     };
 
     fetchSuggestedWeek();
   }, [viewedMes, viewedAno]);
 
   useEffect(() => {
-    if (!executionDefaultsApplied) return;
+    if (!executionDefaultsApplied || momentWeeksDefaultApplied || !suggestedWeekLoaded) return;
 
     if (momentosConfig && momentosConfig.momento_ativo === null) {
       if (momentoSelecionado !== null) {
         setMomentoSelecionado(null);
       }
-      if (filters.semanas.length > 0) {
-        setFilters((prev) => ({ ...prev, semanas: [] }));
-      }
+      setMomentWeeksDefaultApplied(true);
       return;
     }
 
@@ -639,17 +653,23 @@ export default function Execucao() {
         [...filters.semanas].sort().join("|") === [...nextWeeks].sort().join("|");
 
       setMomentoSelecionado(momentoAtivo);
-      if (!sameWeeks) {
+      if (!sameWeeks && filters.semanas.length === 0) {
         setFilters((prev) => ({ ...prev, semanas: nextWeeks }));
       }
+      setMomentWeeksDefaultApplied(true);
       return;
     }
 
     const fallbackWeeks = suggestedWeek !== null ? [suggestedWeek] : [currentWeek];
-    setFilters((prev) => ({ ...prev, semanas: fallbackWeeks.map(String) }));
+    if (filters.semanas.length === 0) {
+      setFilters((prev) => ({ ...prev, semanas: fallbackWeeks.map(String) }));
+    }
+    setMomentWeeksDefaultApplied(true);
   }, [
     currentWeek,
     executionDefaultsApplied,
+    momentWeeksDefaultApplied,
+    suggestedWeekLoaded,
     filters.semanas.length,
     filters.semanas,
     momentoSelecionado,
@@ -1523,6 +1543,7 @@ export default function Execucao() {
                     clearFilters();
                     setActiveTopSetor(null);
                     setMomentoSelecionado(null);
+                    setMomentWeeksDefaultApplied(false);
                   }}
                   showResponsavelFilter={isGestorOrAdmin}
                   showStatusFilters={false}
@@ -1544,6 +1565,7 @@ export default function Execucao() {
                   clearFilters();
                   setActiveTopSetor(null);
                   setMomentoSelecionado(null);
+                  setMomentWeeksDefaultApplied(false);
                 }}
                 showResponsavelFilter={isGestorOrAdmin}
                 showStatusFilters={false}
@@ -2141,7 +2163,7 @@ export default function Execucao() {
                 <RotinasPersistentesSection
                   mes={viewedMes}
                   ano={viewedAno}
-                  semanas={activeMomentWeeks}
+                  semanas={executionVisibleWeeks}
                   momento={activeMomentNumber}
                   isGestorOrAdmin={isGestorOrAdmin}
                   profiles={profiles}

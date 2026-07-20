@@ -95,6 +95,7 @@ export default function Checklist() {
   const [profiles, setProfiles] = useState<Profile[]>([]);
   const [selectedWeek, setSelectedWeek] = useState<number | null>(null);
   const [selectedMomentWeeks, setSelectedMomentWeeks] = useState<number[]>([]);
+  const [momentDefaultApplied, setMomentDefaultApplied] = useState(false);
   const [currentMes, setCurrentMes] = useState(now.getMonth() + 1);
   const [currentAno, setCurrentAno] = useState(now.getFullYear());
   const [weekFilter, setWeekFilter] = useState<string[]>([]);
@@ -116,6 +117,7 @@ export default function Checklist() {
       const stored = localStorage.getItem(getMergeKey(currentMes, currentAno));
       setMergedWeeks(stored ? JSON.parse(stored) : []);
     } catch { setMergedWeeks([]); }
+    setMomentDefaultApplied(false);
   }, [currentMes, currentAno]);
 
   const handleMerge = useCallback((weeks: number[]) => {
@@ -231,6 +233,7 @@ export default function Checklist() {
   }, [isUsingAptMoment, mergedWeeks, instances, getInstancesByWeek, handleUnmerge]);
 
   useEffect(() => {
+    if (momentDefaultApplied) return;
     if (!isUsingAptMoment || aptMomentWeeks.length === 0) return;
     setSelectedMomentWeeks((prev) => {
       const sameSelection =
@@ -239,7 +242,8 @@ export default function Checklist() {
       return sameSelection ? prev : aptMomentWeeks;
     });
     setSelectedWeek((prev) => (prev && aptMomentWeeks.includes(prev) ? prev : aptMomentWeeks[0]));
-  }, [aptMomentWeeks, isUsingAptMoment]);
+    setMomentDefaultApplied(true);
+  }, [aptMomentWeeks, isUsingAptMoment, momentDefaultApplied]);
 
   // Month navigation
   const goToPrevMonth = () => {
