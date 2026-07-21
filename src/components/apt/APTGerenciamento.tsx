@@ -1002,7 +1002,7 @@ export default function APTGerenciamento({
 
       {/* Demand Siblings Dialog */}
       <Dialog open={!!selectedDemand} onOpenChange={() => setSelectedDemand(null)}>
-        <DialogContent className="max-w-lg">
+        <DialogContent className="max-h-[88vh] max-w-[calc(100vw-1rem)] overflow-y-auto sm:max-w-lg">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               {selectedDemand?.setor_id && (
@@ -1021,7 +1021,7 @@ export default function APTGerenciamento({
                 <p className="font-medium">{selectedDemand.descricao}</p>
               </div>
               
-              <div className="flex gap-4">
+              <div className="grid gap-3 sm:grid-cols-2">
                 <div>
                   <p className="text-sm text-muted-foreground mb-1">Responsável</p>
                   <p className="font-medium">
@@ -1044,7 +1044,7 @@ export default function APTGerenciamento({
                   {selectedDemand.siblings.map((sibling) => (
                     <div 
                       key={sibling.id}
-                      className="flex items-center justify-between p-3 rounded-lg border bg-muted/30"
+                      className="flex flex-col gap-3 rounded-lg border bg-muted/30 p-3 sm:flex-row sm:items-center sm:justify-between"
                     >
                       <div className="flex items-center gap-2">
                         <Calendar className="h-4 w-4 text-muted-foreground" />
@@ -1055,7 +1055,7 @@ export default function APTGerenciamento({
                           }
                         </span>
                       </div>
-                      <div className="flex items-center gap-3">
+                      <div className="flex flex-wrap items-center gap-3">
                         <div className="flex items-center gap-1">
                           <span className="text-xs text-muted-foreground">Feito:</span>
                           <StatusBolinha status={sibling.status_responsavel} />
@@ -1066,42 +1066,40 @@ export default function APTGerenciamento({
                             <StatusBolinha status={sibling.status_gestor} />
                           </div>
                         )}
-                        {true && (
-                          <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                              <Button variant="ghost" size="icon" className="h-7 w-7">
-                                <MoreVertical className="h-4 w-4" />
-                              </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end">
-                              <DropdownMenuItem
-                                onClick={() => {
-                                  const demanda = getDemandaById(sibling.id);
-                                  if (demanda) {
-                                    setSelectedDemand(null);
-                                    setEditingDemanda(demanda);
-                                  }
-                                }}
-                              >
-                                <Pencil className="mr-2 h-4 w-4" />
-                                Editar
-                              </DropdownMenuItem>
-                  <DropdownMenuItem
-                    onClick={() => {
-                      setSelectedDemand(null);
-                      const fullDemanda = getDemandaById(sibling.id);
-                      if (fullDemanda) {
-                        handleDeleteClick(fullDemanda);
-                      }
-                    }}
-                    className="text-destructive"
-                  >
-                                <Trash2 className="mr-2 h-4 w-4" />
-                                Excluir
-                              </DropdownMenuItem>
-                            </DropdownMenuContent>
-                          </DropdownMenu>
-                        )}
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" size="icon" className="h-7 w-7">
+                              <MoreVertical className="h-4 w-4" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuItem
+                              onClick={() => {
+                                const demanda = getDemandaById(sibling.id);
+                                if (demanda) {
+                                  setSelectedDemand(null);
+                                  setEditingDemanda(demanda);
+                                }
+                              }}
+                            >
+                              <Pencil className="mr-2 h-4 w-4" />
+                              Editar
+                            </DropdownMenuItem>
+                            <DropdownMenuItem
+                              onClick={() => {
+                                setSelectedDemand(null);
+                                const fullDemanda = getDemandaById(sibling.id);
+                                if (fullDemanda) {
+                                  handleDeleteClick(fullDemanda);
+                                }
+                              }}
+                              className="text-destructive"
+                            >
+                              <Trash2 className="mr-2 h-4 w-4" />
+                              Excluir
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
                       </div>
                     </div>
                   ))}
@@ -1114,7 +1112,7 @@ export default function APTGerenciamento({
 
       {/* Sector Details Dialog */}
       <Dialog open={!!selectedSetor} onOpenChange={() => setSelectedSetor(null)}>
-        <DialogContent className="max-w-3xl max-h-[85vh] flex flex-col min-h-0">
+        <DialogContent className="max-h-[88vh] max-w-[calc(100vw-1rem)] flex flex-col min-h-0 sm:max-w-3xl">
           <DialogHeader>
             <DialogTitle className="flex items-center justify-between">
               <div className="flex items-center gap-2">
@@ -1124,19 +1122,95 @@ export default function APTGerenciamento({
                 />
                 {selectedSetor?.nome || "Sem Setor"}
               </div>
-              {true && (
-                <NovaDemandaDialog
-                  profiles={profiles}
-                  setores={setores}
-                  onDemandaCriada={handleDemandaChange}
-                  lockedSetorId={selectedSetor?.id !== "sem-setor" ? selectedSetor?.id : undefined}
-                />
-              )}
+              <NovaDemandaDialog
+                profiles={profiles}
+                setores={setores}
+                onDemandaCriada={handleDemandaChange}
+                lockedSetorId={selectedSetor?.id !== "sem-setor" ? selectedSetor?.id : undefined}
+              />
             </DialogTitle>
           </DialogHeader>
           
           <ScrollArea className="flex-1 min-h-0 overflow-y-auto">
-            <Table>
+            <div className="space-y-2 pr-1 sm:hidden">
+              {sectorConsolidatedDemands.length === 0 ? (
+                <div className="rounded-2xl border border-dashed p-6 text-center text-sm text-muted-foreground">
+                  Nenhuma demanda neste setor
+                </div>
+              ) : (
+                sectorConsolidatedDemands.map((demand, idx) => {
+                  const profile = getProfileById(demand.responsavel_id);
+                  const setor = getSetorById(demand.setor_id);
+                  const firstSibling = demand.siblings[0];
+                  const hasPendingExclusao = demand.siblings.some((s) => pendingDemandaIds.has(s.id));
+                  return (
+                    <article
+                      key={`sector-mobile-${demand.grupo_id || idx}`}
+                      className={cn(
+                        "rounded-2xl border bg-card p-3 shadow-sm",
+                        demand.muito_urgente && "border-destructive/30 bg-destructive/[0.04]",
+                        demand.prioritaria && !demand.muito_urgente && "border-warning/30 bg-warning/[0.04]"
+                      )}
+                      onClick={() => setSelectedDemand(demand)}
+                    >
+                      <div className="mb-2 flex flex-wrap items-center gap-1.5">
+                        <Badge variant="outline" className="gap-1 rounded-full px-2 py-0.5 text-[10px]">
+                          <span className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: profile?.cor || "#6b7280" }} />
+                          {profile?.nome || "Desconhecido"}
+                        </Badge>
+                        {setor && (
+                          <Badge variant="secondary" className="gap-1 rounded-full px-2 py-0.5 text-[10px]">
+                            <span className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: setor.cor || "#E5E7EB" }} />
+                            {setor.nome}
+                          </Badge>
+                        )}
+                        <Badge variant="outline" className="rounded-full px-2 py-0.5 text-[10px]">
+                          {demand.siblings.length}X
+                        </Badge>
+                        {hasPendingExclusao && (
+                          <Badge className="rounded-full bg-warning/20 px-2 py-0.5 text-[10px] text-warning hover:bg-warning/20">
+                            Aguardando exclusÃ£o
+                          </Badge>
+                        )}
+                      </div>
+                      <p className="line-clamp-3 text-sm font-semibold leading-snug">{demand.descricao}</p>
+                      <div className="mt-3 flex items-center justify-between gap-2">
+                        <span className="text-xs text-muted-foreground">{demand.siblings.length} ocorrÃªncia(s)</span>
+                        <div className="flex items-center gap-1">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8"
+                            onClick={(event) => {
+                              event.stopPropagation();
+                              const demanda = getDemandaById(firstSibling.id);
+                              if (demanda) setEditingDemanda(demanda);
+                            }}
+                            aria-label="Editar demanda"
+                          >
+                            <Pencil className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8 text-destructive hover:text-destructive"
+                            onClick={(event) => {
+                              event.stopPropagation();
+                              const fullDemanda = getDemandaById(firstSibling.id);
+                              if (fullDemanda) handleDeleteClick(fullDemanda);
+                            }}
+                            aria-label="Excluir demanda"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </div>
+                    </article>
+                  );
+                })
+              )}
+            </div>
+            <Table className="hidden sm:table">
               <TableHeader>
                 <TableRow>
                   <TableHead>Descrição</TableHead>

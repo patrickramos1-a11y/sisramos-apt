@@ -69,9 +69,9 @@ export default function BulkActionsBar({
   if (selectedCount === 0) return null;
 
   return (
-    <div className="fixed bottom-4 left-1/2 -translate-x-1/2 z-50 max-w-[95vw]">
-      <div className="flex max-w-[calc(100vw-2rem)] flex-wrap items-center justify-center gap-1.5 rounded-3xl bg-foreground px-3 py-2 text-sm text-background shadow-xl">
-        <span className="mr-1 border-r border-background/20 pr-2 font-semibold">
+    <div className="fixed inset-x-2 bottom-[72px] z-50 sm:bottom-4 sm:left-1/2 sm:right-auto sm:max-w-[95vw] sm:-translate-x-1/2">
+      <div className="flex max-h-[42vh] w-full max-w-[calc(100vw-1rem)] flex-wrap items-center justify-center gap-1.5 overflow-y-auto rounded-3xl bg-foreground px-3 py-2 text-sm text-background shadow-xl sm:w-auto sm:max-w-[calc(100vw-2rem)]">
+        <span className="mr-1 border-r border-background/20 pr-2 text-xs font-semibold sm:text-sm">
           {selectedCount} selecionada{selectedCount > 1 ? "s" : ""}
         </span>
 

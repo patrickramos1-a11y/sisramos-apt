@@ -1982,12 +1982,36 @@ export default function GerenciamentoLista({ profiles, setores, onDemandaChange 
 
       {/* Detail dialog */}
       <Dialog open={selectedDemand !== null} onOpenChange={() => setSelectedDemand(null)}>
-        <DialogContent className="max-w-2xl">
+        <DialogContent className="max-h-[88vh] max-w-[calc(100vw-1rem)] overflow-y-auto sm:max-w-2xl">
           <DialogHeader><DialogTitle>Detalhes</DialogTitle></DialogHeader>
           {selectedDemand && (
             <div className="space-y-4">
               <p className="text-sm">{selectedDemand.descricao}</p>
-              <Table>
+              <div className="space-y-2 sm:hidden">
+                {selectedDemand.siblings.map((s) => (
+                  <div key={s.id} className="rounded-2xl border bg-muted/25 p-3">
+                    <div className="mb-2 flex items-center justify-between gap-2">
+                      <span className="text-sm font-bold">#{s.numero}</span>
+                      <Badge variant="outline" className="rounded-full text-xs">
+                        {s.semana_limite.join(", ")}Âª
+                      </Badge>
+                    </div>
+                    <div className="grid grid-cols-2 gap-2">
+                      <div className="rounded-xl border bg-background px-2.5 py-2">
+                        <p className="mb-1 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">Feito</p>
+                        <StatusBolinha status={s.status_responsavel} disabled size="sm" />
+                      </div>
+                      {isGestorOrAdmin && (
+                        <div className="rounded-xl border bg-background px-2.5 py-2">
+                          <p className="mb-1 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">Aprovado</p>
+                          <StatusBolinha status={s.status_gestor} disabled size="sm" />
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+              <Table className="hidden sm:table">
                 <TableHeader>
                   <TableRow>
                     <TableHead>Nº</TableHead>

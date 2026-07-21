@@ -1262,6 +1262,32 @@ export default function Execucao() {
   );
   const commonDemandasCount = demandas.filter((item) => !isDemandaPrazo(item)).length;
   const prazoDemandasCount = demandas.filter((item) => isDemandaPrazo(item)).length;
+  const executionTabOptions = [
+    {
+      key: "demandas" as const,
+      label: "Momento",
+      description: "Demandas do momento",
+      count: executionTableTab === "demandas" ? unifiedExecutionRowsCount : commonDemandasCount,
+      icon: ListChecks,
+      tone: "text-primary",
+    },
+    {
+      key: "prazo" as const,
+      label: "Prazo",
+      description: "Demandas com prazo",
+      count: executionTableTab === "prazo" ? unifiedExecutionRowsCount : prazoDemandasCount,
+      icon: Clock3,
+      tone: "text-sky-600",
+    },
+    {
+      key: "persistentes" as const,
+      label: "Persist.",
+      description: "Demandas persistentes",
+      count: executionTableTab === "persistentes" ? unifiedExecutionRowsCount : rotinaResumos.length,
+      icon: RefreshCcw,
+      tone: "text-orange-600",
+    },
+  ];
   const mobileExecutionTitle =
     filters.prazo || executionTableTab === "prazo"
       ? "Demandas com prazo"
@@ -1600,6 +1626,43 @@ export default function Execucao() {
           })}
         </div>
 
+        <div className="mb-3 grid grid-cols-3 gap-2 lg:hidden">
+          {executionTabOptions.map((option) => {
+            const Icon = option.icon;
+            const active = executionTableTab === option.key;
+            return (
+              <button
+                key={option.key}
+                type="button"
+                onClick={() => {
+                  setExecutionTableTab(option.key);
+                  setFilters((prev) => ({
+                    ...prev,
+                    prazo: false,
+                    persistente: false,
+                  }));
+                }}
+                className={cn(
+                  "min-w-0 rounded-2xl border px-2.5 py-2 text-left transition-all",
+                  active
+                    ? "border-primary bg-primary/10 shadow-sm"
+                    : "border-border bg-card text-muted-foreground"
+                )}
+                aria-pressed={active}
+              >
+                <span className="flex items-center gap-1.5">
+                  <Icon className={cn("h-3.5 w-3.5 shrink-0", active ? option.tone : "text-muted-foreground")} />
+                  <span className="truncate text-xs font-bold">{option.label}</span>
+                </span>
+                <span className="mt-1 block truncate text-[10px] text-muted-foreground">{option.description}</span>
+                <span className={cn("mt-1 block text-sm font-black", active ? "text-foreground" : "text-muted-foreground")}>
+                  {option.count}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+
         <div className="mb-3 space-y-2 lg:hidden">
           <div className="flex gap-2 overflow-x-auto pb-1">
             {[
@@ -1855,6 +1918,11 @@ export default function Execucao() {
                       const prazoVisual = isPrazo ? getGroupPrazoVisual(group, prazoReferenceWeek) : null;
                       const prazoWindow = isPrazo ? formatPrazoWindow(group.siblings[0]) : null;
                       const canEditResponsavel = canEditGroupResponsavel(group);
+                      const repeatedLabel =
+                        group.siblings.length > 1
+                          ? `${group.siblings.length}x`
+                          : `${group.siblings[0]?.semanas_repeticao ?? 1}x`;
+                      const firstNumber = group.siblings[0]?.numero;
 
                       return (
                         <article
@@ -1882,8 +1950,16 @@ export default function Execucao() {
                                   <span className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: setor?.cor || "#CBD5E1" }} />
                                   {setor?.nome || "Sem setor"}
                                 </Badge>
+                                {firstNumber && (
+                                  <Badge variant="outline" className="rounded-full px-2 py-0.5 text-[10px]">
+                                    #{firstNumber}
+                                  </Badge>
+                                )}
                                 <Badge variant="outline" className="rounded-full px-2 py-0.5 text-[10px]">
                                   {isPrazo && prazoWindow ? prazoWindow : semanasCompactas(allWeeks)}
+                                </Badge>
+                                <Badge variant="outline" className="rounded-full px-2 py-0.5 text-[10px]">
+                                  {isPrazo ? "Prazo" : repeatedLabel}
                                 </Badge>
                                 {isGestorOrAdmin && (
                                   <Badge variant="outline" className="gap-1 rounded-full px-2 py-0.5 text-[10px]">
@@ -1943,9 +2019,21 @@ export default function Execucao() {
                                       </span>
                                     </div>
                                     <div className="flex flex-1 items-center gap-2 rounded-xl border px-2.5 py-2">
-                                      <StatusBolinha status={gestorStatus} disabled size="sm" />
+                                      {prazoVisual === "no_prazo" && responsavelStatus === "pendente" ? (
+                                        <Badge className={cn("rounded-full px-2 py-0.5 text-[10px]", getPrazoToneClasses("no_prazo"))}>
+                                          No prazo
+                                        </Badge>
+                                      ) : (
+                                        <StatusBolinha
+                                          status={gestorStatus}
+                                          onClick={() => updateGroupGestorStatus(group)}
+                                          disabled={!canEditGroupGestor(group)}
+                                          size="sm"
+                                        />
+                                      )}
                                       <span className="text-[11px] text-muted-foreground">
-                                        {prazoVisual === "no_prazo" && responsavelStatus === "pendente" ? "No prazo" : "Gestor"}
+                                        Gestor
+                                        {summary.aguardandoGestor > 0 ? ` ${summary.aguardandoGestor}` : ""}
                                       </span>
                                     </div>
                                   </>
