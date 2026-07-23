@@ -473,7 +473,7 @@ export default function Execucao() {
   const [selectedGroupKeys, setSelectedGroupKeys] = useState<Set<string>>(new Set());
   const [executionSortKey, setExecutionSortKey] = useState<ExecutionSortKey>("responsavel");
   const [executionStatusFilter, setExecutionStatusFilter] = useState<ExecutionStatusFilter>("todos");
-  const [executionTableTab, setExecutionTableTab] = useState<ExecutionTableTab>("demandas");
+  const [executionTableTab, setExecutionTableTab] = useState<ExecutionTableTab>("todas");
   const [expandedResponsaveis, setExpandedResponsaveis] = useState<Set<string>>(new Set());
   const [executionStatusDefaultApplied, setExecutionStatusDefaultApplied] = useState(false);
   const [executionDefaultsApplied, setExecutionDefaultsApplied] = useState(false);
@@ -2843,3 +2843,4 @@ export default function Execucao() {
     </AppLayout>
   );
 }
+

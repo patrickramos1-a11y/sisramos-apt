@@ -334,7 +334,12 @@ export function useChecklistV2({ mes, ano }: UseChecklistV2Options) {
       }
 
       const siblingIds = instances
-        .filter((instance) => instance.template_id === current.template_id && instance.mes === mes && instance.ano === ano)
+        .filter((instance) => {
+          if (instance.mes !== mes || instance.ano !== ano || instance.parent_id) return false;
+          const sameTemplate = Boolean(current.template_id && instance.template_id === current.template_id);
+          const sameLegacyRecurring = instance.tipo_item === "recorrente" && instance.descricao === current.descricao;
+          return sameTemplate || sameLegacyRecurring;
+        })
         .map((instance) => instance.id);
 
       if (siblingIds.length > 0 && Object.keys(instanceUpdates).length > 0) {
@@ -353,7 +358,7 @@ export function useChecklistV2({ mes, ano }: UseChecklistV2Options) {
         ...(updates.descricao_override !== undefined && { descricao: updates.descricao_override }),
         ...(updates.link_override !== undefined && { link_default: updates.link_override }),
       } : template));
-      setInstances((previous) => previous.map((instance) => instance.template_id === current.template_id && instance.mes === mes && instance.ano === ano ? {
+      setInstances((previous) => previous.map((instance) => siblingIds.includes(instance.id) ? {
         ...instance,
         ...(updates.descricao_override !== undefined && { descricao: updates.descricao_override, descricao_override: null }),
         ...(updates.link_override !== undefined && { link: updates.link_override, link_override: null }),
@@ -515,7 +520,7 @@ export function useChecklistV2({ mes, ano }: UseChecklistV2Options) {
     }
   }, [templates, loadData, toast]);
 
-  // Reorder item
+  // Reorder item. Recurring order becomes the month pattern, not only one week.
   const reorderItem = useCallback(async (instanceId: string, newIndex: number, semana: number) => {
     const weekItems = instances
       .filter((i) => i.semana === semana && i.tipo_item !== "avulso_mes" && !i.parent_id)
@@ -529,26 +534,61 @@ export function useChecklistV2({ mes, ano }: UseChecklistV2Options) {
     reordered.splice(oldIndex, 1);
     reordered.splice(newIndex, 0, movedItem);
 
-    // Set ordem_override on EVERY item in this week (independent per week)
+    const recurringOrderByTemplate = new Map<string, number>();
+    const recurringOrderByDescription = new Map<string, number>();
+    reordered.forEach((item, idx) => {
+      if (item.tipo_item !== "recorrente") return;
+      if (item.template_id) recurringOrderByTemplate.set(item.template_id, idx);
+      recurringOrderByDescription.set(item.descricao, idx);
+    });
+
     setInstances((prev) =>
       prev.map((inst) => {
-        const newPos = reordered.findIndex((r) => r.id === inst.id);
-        if (newPos !== -1 && inst.semana === semana && !inst.parent_id) {
-          return { ...inst, ordem: newPos, ordem_override: newPos };
+        const directPos = reordered.findIndex((r) => r.id === inst.id);
+        if (directPos !== -1 && inst.semana === semana && !inst.parent_id) {
+          return { ...inst, ordem: directPos, ordem_override: directPos };
+        }
+        if (inst.tipo_item === "recorrente" && inst.mes === mes && inst.ano === ano && !inst.parent_id) {
+          const recurringPos = inst.template_id
+            ? recurringOrderByTemplate.get(inst.template_id)
+            : recurringOrderByDescription.get(inst.descricao);
+          if (recurringPos !== undefined) return { ...inst, ordem: recurringPos, ordem_override: recurringPos };
         }
         return inst;
       })
     );
 
-    // Batch update all items in this week with their new ordem_override
-    const updates = reordered.map((item, idx) => 
-      (supabase.from("checklist_instances") as any)
-        .update({ ordem_override: idx })
-        .eq("id", item.id)
-    );
-    await Promise.all(updates);
-  }, [instances]);
+    const instanceUpdates = instances
+      .filter((inst) => {
+        if (inst.semana === semana && !inst.parent_id && reordered.some((r) => r.id === inst.id)) return true;
+        if (inst.tipo_item !== "recorrente" || inst.mes !== mes || inst.ano !== ano || inst.parent_id) return false;
+        if (inst.template_id && recurringOrderByTemplate.has(inst.template_id)) return true;
+        return recurringOrderByDescription.has(inst.descricao);
+      })
+      .map((inst) => {
+        const directPos = reordered.findIndex((r) => r.id === inst.id);
+        const ordem = directPos !== -1
+          ? directPos
+          : inst.template_id
+            ? recurringOrderByTemplate.get(inst.template_id)
+            : recurringOrderByDescription.get(inst.descricao);
+        return ordem === undefined ? null : { id: inst.id, ordem };
+      })
+      .filter(Boolean) as Array<{ id: string; ordem: number }>;
 
+    await Promise.all([
+      ...instanceUpdates.map((item) =>
+        (supabase.from("checklist_instances") as any)
+          .update({ ordem_override: item.ordem })
+          .eq("id", item.id)
+      ),
+      ...Array.from(recurringOrderByTemplate.entries()).map(([templateId, ordem]) =>
+        (supabase.from("checklist_templates") as any)
+          .update({ ordem_global: ordem })
+          .eq("id", templateId)
+      ),
+    ]);
+  }, [ano, instances, mes]);
   // Reorder sub-item within a parent group
   const reorderSubItem = useCallback(async (instanceId: string, newIndex: number, parentId: string) => {
     const children = instances
@@ -889,3 +929,5 @@ export function useChecklistV2({ mes, ano }: UseChecklistV2Options) {
     refetch: loadData,
   };
 }
+
+

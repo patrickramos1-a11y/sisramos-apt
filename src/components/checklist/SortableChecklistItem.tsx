@@ -152,6 +152,10 @@ export default function SortableChecklistItem({
         </button>
       )}
 
+      <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-border bg-background text-xs font-semibold text-muted-foreground">
+        {index + 1}
+      </div>
+
       {/* Compact status selector with four explicit outcomes. */}
       <Select
         value={normalizedStatus}
@@ -351,3 +355,4 @@ export default function SortableChecklistItem({
     </div>
   );
 }
+
