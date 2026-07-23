@@ -1,14 +1,17 @@
-import { useState, useCallback, useEffect } from "react";
+import { useSortable } from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
+import { useState, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip";
+import { Select, SelectContent, SelectItem, SelectTrigger } from "@/components/ui/select";
 
-import { Pencil, Trash2, Check, X, CheckCircle2, Link as LinkIcon, ExternalLink, Circle, XCircle } from "lucide-react";
+import { Pencil, Trash2, Check, X, Link as LinkIcon, ExternalLink, GripVertical } from "lucide-react";
 import { cn } from "@/lib/utils";
 import UserAssignmentPopover from "./UserAssignmentPopover";
-import type { ChecklistStatus } from "@/hooks/useChecklist";
+import { CHECKLIST_STATUS_OPTIONS, getChecklistStatusOption, normalizeChecklistStatus, type ChecklistStatus } from "@/lib/checklist-status";
 import type { Prioridade } from "@/hooks/useChecklistV2";
 
 interface Profile {
@@ -41,10 +44,6 @@ interface SortableChecklistItemProps {
   onUpdateItem: (id: string, updates: Partial<{ texto: string; concluido: boolean; link: string | null; status: ChecklistStatus; prioridade: Prioridade | null }>) => Promise<void>;
   onDeleteItem: (id: string) => Promise<void>;
   onUpdateAssignees: (itemId: string, userIds: string[]) => Promise<void>;
-  position?: number;
-  maxPosition?: number;
-  reorderDisabled?: boolean;
-  onMoveToPosition?: (itemId: string, position: number) => Promise<void>;
 }
 
 export default function SortableChecklistItem({
@@ -58,22 +57,26 @@ export default function SortableChecklistItem({
   onUpdateItem,
   onDeleteItem,
   onUpdateAssignees,
-  position,
-  maxPosition,
-  reorderDisabled = false,
-  onMoveToPosition,
 }: SortableChecklistItemProps) {
   const [isEditing, setIsEditing] = useState(false);
   const [editingText, setEditingText] = useState("");
   const [editingLink, setEditingLink] = useState("");
   const [editingPrioridade, setEditingPrioridade] = useState<Prioridade | null>(null);
   const [justChanged, setJustChanged] = useState(false);
-  const [positionValue, setPositionValue] = useState(String(position ?? index + 1));
-  const canReorder = canModify && !reorderDisabled && !!onMoveToPosition && !!position && !!maxPosition && maxPosition > 1;
 
-  useEffect(() => {
-    setPositionValue(String(position ?? index + 1));
-  }, [index, position]);
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: item.id, disabled: !canModify });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+  };
 
   const handleStartEdit = () => {
     setIsEditing(true);
@@ -99,41 +102,12 @@ export default function SortableChecklistItem({
     setEditingPrioridade(null);
   };
 
-  const handleStatusChange = useCallback(async (targetStatus: ChecklistStatus) => {
-    const currentStatus: ChecklistStatus = item.status || "pendente";
-    const newStatus: ChecklistStatus = currentStatus === targetStatus ? "pendente" : targetStatus;
+  const handleStatusChange = useCallback(async (newStatus: ChecklistStatus) => {
+    const normalized = normalizeChecklistStatus(newStatus);
     setJustChanged(true);
-    await onUpdateItem(item.id, { status: newStatus, concluido: newStatus === "concluido" });
+    await onUpdateItem(item.id, { status: normalized, concluido: normalized === "feito" });
     setTimeout(() => setJustChanged(false), 600);
-  }, [item.id, item.status, onUpdateItem]);
-
-  const commitPositionChange = useCallback(async () => {
-    if (!canReorder || !position || !maxPosition || !onMoveToPosition) {
-      setPositionValue(String(position ?? index + 1));
-      return;
-    }
-
-    const parsed = Number.parseInt(positionValue, 10);
-    if (!Number.isFinite(parsed) || parsed < 1 || parsed > maxPosition || parsed === position) {
-      setPositionValue(String(position));
-      return;
-    }
-
-    await onMoveToPosition(item.id, parsed);
-  }, [canReorder, index, item.id, maxPosition, onMoveToPosition, position, positionValue]);
-
-  const getStatusActionIcon = (targetStatus: "concluido" | "nao_realizado") => {
-    const active = item.status === targetStatus;
-    const Icon = targetStatus === "concluido" ? CheckCircle2 : XCircle;
-    const inactiveColor = targetStatus === "concluido" ? "text-primary/35" : "text-destructive/35";
-    const activeColor = targetStatus === "concluido" ? "text-primary" : "text-destructive";
-
-    if (active) {
-      return <Icon className={cn("h-5 w-5", activeColor, justChanged && "animate-check-bounce")} />;
-    }
-
-    return <Circle className={cn("h-5 w-5", inactiveColor)} />;
-  };
+  }, [item.id, onUpdateItem]);
 
   const getInitials = (nome: string) => {
     const parts = nome.split(" ").filter(Boolean);
@@ -144,71 +118,73 @@ export default function SortableChecklistItem({
 
   const itemAssignees = item.assignees || [];
   const assignedProfiles = profiles.filter((p) => itemAssignees.includes(p.user_id));
-  const isCompleted = item.status === "concluido" || item.concluido;
-  const isNotDone = item.status === "nao_realizado";
+  const normalizedStatus = normalizeChecklistStatus(item.status);
+  const statusOption = getChecklistStatusOption(normalizedStatus);
+  const StatusIcon = statusOption.icon;
+  const isCompleted = normalizedStatus === "feito" || item.concluido;
+  const isNotDone = normalizedStatus === "nao_feito";
   const isZebra = index % 2 === 1;
 
   return (
     <div
+      ref={setNodeRef}
+      style={style}
       className={cn(
         "group flex items-center gap-3 p-3 rounded-lg border transition-all duration-200",
         isZebra ? "bg-muted/20" : "bg-card",
         isCompleted && "bg-primary/5 border-primary/20",
         isNotDone && "bg-destructive/5 border-destructive/20",
+        normalizedStatus === "nao_relevante" && "bg-sky-50/70 border-sky-200",
+        normalizedStatus === "nao_consegui" && "bg-amber-50/70 border-amber-200",
         !isCompleted && !isNotDone && "border-transparent hover:bg-muted/30 hover:border-border",
+        isDragging && "shadow-xl z-50 border-primary/50 opacity-80 scale-[1.02]",
         justChanged && "animate-highlight-flash"
       )}
     >
-      {/* Order control */}
+      {/* Drag handle - larger touch area */}
       {canModify && (
-        <Input
-          type="number"
-          min={1}
-          max={maxPosition || 1}
-          value={positionValue}
-          disabled={!canReorder}
-          title={reorderDisabled ? "Limpe filtros e ordenação por prioridade para reorganizar" : "Digite a posição da tarefa"}
-          onChange={(event) => setPositionValue(event.target.value)}
-          onFocus={() => setPositionValue(String(position ?? index + 1))}
-          onBlur={commitPositionChange}
-          onKeyDown={(event) => {
-            if (event.key === "Enter") event.currentTarget.blur();
-            if (event.key === "Escape") {
-              setPositionValue(String(position ?? index + 1));
-              event.currentTarget.blur();
-            }
-          }}
-          className="h-8 w-12 shrink-0 px-1 text-center text-xs font-semibold [appearance:textfield] disabled:opacity-60 [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
-        />
+        <button
+          {...attributes}
+          {...listeners}
+          className="shrink-0 cursor-grab active:cursor-grabbing focus:outline-none text-muted-foreground hover:text-foreground transition-colors p-1 -m-1 min-w-[36px] min-h-[36px] flex items-center justify-center"
+        >
+          <GripVertical className="h-5 w-5" />
+        </button>
       )}
 
-      {/* Status buttons */}
-      <div className="shrink-0 flex items-center gap-1" aria-label="Status da tarefa">
-        <button
-          type="button"
-          onClick={() => handleStatusChange("concluido")}
-          className={cn(
-            "focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 rounded-full disabled:opacity-50 disabled:cursor-not-allowed transition-transform hover:scale-110 min-w-[32px] min-h-[36px] flex items-center justify-center",
-            isCompleted && "bg-primary/10"
-          )}
-          disabled={!canCompleteItem || (isLocked && !canEdit)}
-          title={isCompleted ? "Concluído (clique para voltar a pendente)" : "Marcar como concluído"}
-        >
-          {getStatusActionIcon("concluido")}
-        </button>
-        <button
-          type="button"
-          onClick={() => handleStatusChange("nao_realizado")}
-          className={cn(
-            "focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 rounded-full disabled:opacity-50 disabled:cursor-not-allowed transition-transform hover:scale-110 min-w-[32px] min-h-[36px] flex items-center justify-center",
-            isNotDone && "bg-destructive/10"
-          )}
-          disabled={!canCompleteItem || (isLocked && !canEdit)}
-          title={isNotDone ? "Não realizado (clique para voltar a pendente)" : "Marcar como não realizado"}
-        >
-          {getStatusActionIcon("nao_realizado")}
-        </button>
-      </div>
+      {/* Compact status selector with four explicit outcomes. */}
+      <Select
+        value={normalizedStatus}
+        onValueChange={(value) => handleStatusChange(value as ChecklistStatus)}
+        disabled={!canCompleteItem || (isLocked && !canEdit)}
+      >
+        <TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <SelectTrigger
+                aria-label={`Status: ${statusOption.label}`}
+                className={cn("h-9 w-9 shrink-0 rounded-full border p-0 [&>svg:last-child]:hidden", statusOption.className, justChanged && "animate-check-bounce")}
+              >
+                <StatusIcon className="mx-auto h-4 w-4" />
+              </SelectTrigger>
+            </TooltipTrigger>
+            <TooltipContent>{statusOption.label}</TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
+        <SelectContent align="start">
+          {CHECKLIST_STATUS_OPTIONS.map((option) => {
+            const OptionIcon = option.icon;
+            return (
+              <SelectItem key={option.value} value={option.value}>
+                <span className="flex items-center gap-2">
+                  <OptionIcon className="h-4 w-4" />
+                  {option.label}
+                </span>
+              </SelectItem>
+            );
+          })}
+        </SelectContent>
+      </Select>
       
       {isEditing ? (
         <div className="flex-1 space-y-2">

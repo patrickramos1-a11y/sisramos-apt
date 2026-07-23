@@ -114,6 +114,7 @@ interface ProfileSummary {
 
 type ExecutionSortKey = "numero" | "responsavel" | "setor" | "descricao" | "semana";
 type ExecutionStatusFilter = "todos" | "pendentes" | "aguardando" | "feitas" | "nao_realizadas";
+type ExecutionTableTab = "todas" | "demandas" | "prazo" | "persistentes";
 
 const MONTH_NAMES = [
   "Janeiro",
@@ -472,7 +473,7 @@ export default function Execucao() {
   const [selectedGroupKeys, setSelectedGroupKeys] = useState<Set<string>>(new Set());
   const [executionSortKey, setExecutionSortKey] = useState<ExecutionSortKey>("responsavel");
   const [executionStatusFilter, setExecutionStatusFilter] = useState<ExecutionStatusFilter>("todos");
-  const [executionTableTab, setExecutionTableTab] = useState<"demandas" | "prazo" | "persistentes">("demandas");
+  const [executionTableTab, setExecutionTableTab] = useState<ExecutionTableTab>("demandas");
   const [expandedResponsaveis, setExpandedResponsaveis] = useState<Set<string>>(new Set());
   const [executionStatusDefaultApplied, setExecutionStatusDefaultApplied] = useState(false);
   const [executionDefaultsApplied, setExecutionDefaultsApplied] = useState(false);
@@ -979,6 +980,12 @@ export default function Execucao() {
 
   const filteredByTopSetor = (() => {
     if (filters.persistente || executionTableTab === "persistentes") return [];
+    if (executionTableTab === "todas") {
+      if (!activeTopSetor) return demandas;
+      return demandas.filter((item) =>
+        activeTopSetor === "sem_setor" ? item.setor_id === null : item.setor_id === activeTopSetor
+      );
+    }
     const shouldShowPrazo = filters.prazo || executionTableTab === "prazo";
     const base = demandas.filter((item) => shouldShowPrazo ? isDemandaPrazo(item) : !isDemandaPrazo(item));
     if (!activeTopSetor) return base;
@@ -1152,8 +1159,8 @@ export default function Execucao() {
   const filteredRotinaResumos = useMemo(() => {
     const todayKey = getTodayKey();
     const busca = filters.busca.trim().toLowerCase();
-    if (filters.prazo || executionTableTab === "prazo") return [];
-    if (!filters.persistente && executionTableTab !== "persistentes") return [];
+    if (filters.prazo || executionTableTab === "prazo" || executionTableTab === "demandas") return [];
+    if (!filters.persistente && executionTableTab !== "persistentes" && executionTableTab !== "todas") return [];
 
     return rotinaResumos.filter((rotina) => {
       const responsavelId = rotina.responsavel_id || "";
@@ -1289,7 +1296,9 @@ export default function Execucao() {
     },
   ];
   const mobileExecutionTitle =
-    filters.prazo || executionTableTab === "prazo"
+    executionTableTab === "todas"
+      ? "Todas as demandas"
+      : filters.prazo || executionTableTab === "prazo"
       ? "Demandas com prazo"
       : filters.persistente || executionTableTab === "persistentes"
         ? "Demandas persistentes"
@@ -1324,6 +1333,7 @@ export default function Execucao() {
       filters.setores.length > 0 ||
       filters.prazo ||
       filters.persistente ||
+      executionTableTab === "todas" ||
       executionTableTab === "prazo" ||
       executionTableTab === "persistentes" ||
       executionStatusFilter !== "todos";
@@ -2211,7 +2221,7 @@ export default function Execucao() {
             <Tabs
               value={executionTableTab}
               onValueChange={(value) => {
-                const next = value as "demandas" | "prazo" | "persistentes";
+                const next = value as ExecutionTableTab;
                 setExecutionTableTab(next);
                 setFilters((prev) => ({
                   ...prev,
@@ -2222,8 +2232,23 @@ export default function Execucao() {
               className="space-y-3"
             >
               <div className="rounded-2xl border border-border/70 bg-card p-2 shadow-sm">
-                <TabsList className="grid h-auto w-full grid-cols-3 bg-muted/40 p-1">
-                  <TabsTrigger value="demandas" className="gap-2 rounded-xl py-2 text-sm">
+                <TabsList className="grid h-auto w-full grid-cols-4 bg-muted/40 p-1">
+                  <TabsTrigger
+                    value="todas"
+                    className="gap-2 rounded-xl py-2 text-sm data-[state=active]:bg-emerald-600 data-[state=active]:text-white"
+                  >
+                    <Layers3 className="h-4 w-4" />
+                    Todas
+                    <Badge variant="secondary" className="rounded-full">
+                      {executionTableTab === "todas"
+                        ? unifiedExecutionRowsCount
+                        : demandas.length + rotinaResumos.length}
+                    </Badge>
+                  </TabsTrigger>
+                  <TabsTrigger
+                    value="demandas"
+                    className="gap-2 rounded-xl py-2 text-sm data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
+                  >
                     <ListChecks className="h-4 w-4" />
                     Demandas do momento
                     <Badge variant="secondary" className="rounded-full">
@@ -2240,9 +2265,15 @@ export default function Execucao() {
                       {executionTableTab === "prazo" ? unifiedExecutionRowsCount : prazoDemandasCount}
                     </Badge>
                   </TabsTrigger>
-                  <TabsTrigger value="persistentes" className="gap-2 rounded-xl py-2 text-sm">
+                  <TabsTrigger
+                    value="persistentes"
+                    className="gap-2 rounded-xl py-2 text-sm data-[state=active]:bg-orange-500 data-[state=active]:text-white"
+                  >
                     <RefreshCcw className="h-4 w-4" />
                     Demandas persistentes
+                    <Badge variant="secondary" className="rounded-full">
+                      {executionTableTab === "persistentes" ? filteredRotinaResumos.length : rotinaResumos.length}
+                    </Badge>
                   </TabsTrigger>
                 </TabsList>
               </div>
@@ -2259,7 +2290,16 @@ export default function Execucao() {
                 />
               </TabsContent>
 
-              <TabsContent value={executionTableTab === "prazo" ? "prazo" : "demandas"} className="mt-0">
+              <TabsContent
+                value={
+                  executionTableTab === "todas"
+                    ? "todas"
+                    : executionTableTab === "prazo"
+                      ? "prazo"
+                      : "demandas"
+                }
+                className="mt-0"
+              >
                 {unifiedExecutionRowsCount === 0 ? (
                   <Card>
                     <CardContent className="py-14 text-center">
@@ -2369,6 +2409,7 @@ export default function Execucao() {
                     const shouldForceExpanded =
                       filters.prazo ||
                       filters.persistente ||
+                      executionTableTab === "todas" ||
                       executionTableTab === "prazo" ||
                       executionTableTab === "persistentes";
                     const isExpanded = shouldForceExpanded || expandedResponsaveis.has(section.responsavelId);

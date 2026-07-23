@@ -13,9 +13,12 @@ function formatDuration(seconds: number): string {
 interface ChecklistSummaryCardProps {
   semana: number;
   mergedWeeks?: number[];
+  momentNumber?: number;
   totalItems: number;
   completedItems: number;
   notDoneItems?: number;
+  notRelevantItems?: number;
+  couldNotItems?: number;
   duration?: number | null;
   onClick: () => void;
   isSelected?: boolean;
@@ -24,15 +27,18 @@ interface ChecklistSummaryCardProps {
 export default function ChecklistSummaryCard({
   semana,
   mergedWeeks,
+  momentNumber,
   totalItems,
   completedItems,
   notDoneItems = 0,
+  notRelevantItems = 0,
+  couldNotItems = 0,
   duration,
   onClick,
   isSelected = false,
 }: ChecklistSummaryCardProps) {
   const isMerged = mergedWeeks && mergedWeeks.length >= 2;
-  const processedItems = completedItems + notDoneItems;
+  const processedItems = completedItems + notDoneItems + notRelevantItems + couldNotItems;
   const progress = totalItems > 0 ? (processedItems / totalItems) * 100 : 0;
   const allCompleted = totalItems > 0 && completedItems === totalItems;
   const allProcessed = totalItems > 0 && !allCompleted && processedItems === totalItems && notDoneItems > 0;
@@ -71,13 +77,14 @@ export default function ChecklistSummaryCard({
         ? "bg-indigo-500/20 text-indigo-600 dark:text-indigo-400"
         : weekColor.badge;
 
-  const title = allCompleted
+  const resultTitle = allCompleted
     ? "Completa ✓"
     : allProcessed
       ? "Finalizada ⚠"
       : isMerged
         ? `Sem. ${mergedWeeks.join(" e ")}`
         : `${semana}ª Semana`;
+  const title = momentNumber ? `Momento ${momentNumber}` : resultTitle;
 
   return (
     <Card
@@ -124,7 +131,7 @@ export default function ChecklistSummaryCard({
                 </div>
               )}
             </div>
-            <CircularProgress value={progress} size={40} strokeWidth={3} completedCount={completedItems} notDoneCount={notDoneItems} totalCount={totalItems} />
+            <CircularProgress value={progress} size={40} strokeWidth={3} completedCount={processedItems} notDoneCount={0} totalCount={totalItems} />
           </div>
         </div>
       </CardHeader>
@@ -149,6 +156,18 @@ export default function ChecklistSummaryCard({
             <div
               className="h-full bg-destructive transition-all duration-500 ease-out"
               style={{ width: `${(notDoneItems / totalItems) * 100}%` }}
+            />
+          )}
+          {notRelevantItems > 0 && totalItems > 0 && (
+            <div
+              className="h-full bg-sky-500 transition-all duration-500 ease-out"
+              style={{ width: `${(notRelevantItems / totalItems) * 100}%` }}
+            />
+          )}
+          {couldNotItems > 0 && totalItems > 0 && (
+            <div
+              className="h-full bg-amber-500 transition-all duration-500 ease-out"
+              style={{ width: `${(couldNotItems / totalItems) * 100}%` }}
             />
           )}
         </div>

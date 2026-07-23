@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect, useCallback } from "react";
+import { useState, useMemo, useEffect, useCallback, useRef } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useChecklistV2, type TipoItem } from "@/hooks/useChecklistV2";
 import { useChecklistTimer } from "@/hooks/useChecklistTimer";
@@ -10,6 +10,7 @@ import ChecklistSummaryCard from "@/components/checklist/ChecklistSummaryCard";
 import ChecklistTimer from "@/components/checklist/ChecklistTimer";
 import ChecklistTimerHistory from "@/components/checklist/ChecklistTimerHistory";
 import ChecklistWeekTable from "@/components/checklist/ChecklistWeekTable";
+import ChecklistMonthlyAvulsos from "@/components/checklist/ChecklistMonthlyAvulsos";
 import NovoItemChecklistDialog from "@/components/checklist/NovoItemChecklistDialog";
 import MergeWeeksDialog from "@/components/checklist/MergeWeeksDialog";
 import { Loader2, Info, Copy, Lock, Unlock, ChevronLeft, ChevronRight, CalendarDays, Trash2, MoreHorizontal } from "lucide-react";
@@ -54,6 +55,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { isChecklistStatusFinal } from "@/lib/checklist-status";
 
 interface Profile {
   id: string;
@@ -95,7 +97,7 @@ export default function Checklist() {
   const [profiles, setProfiles] = useState<Profile[]>([]);
   const [selectedWeek, setSelectedWeek] = useState<number | null>(null);
   const [selectedMomentWeeks, setSelectedMomentWeeks] = useState<number[]>([]);
-  const [momentDefaultApplied, setMomentDefaultApplied] = useState(false);
+  const selectionContextRef = useRef("");
   const [currentMes, setCurrentMes] = useState(now.getMonth() + 1);
   const [currentAno, setCurrentAno] = useState(now.getFullYear());
   const [weekFilter, setWeekFilter] = useState<string[]>([]);
@@ -117,7 +119,6 @@ export default function Checklist() {
       const stored = localStorage.getItem(getMergeKey(currentMes, currentAno));
       setMergedWeeks(stored ? JSON.parse(stored) : []);
     } catch { setMergedWeeks([]); }
-    setMomentDefaultApplied(false);
   }, [currentMes, currentAno]);
 
   const handleMerge = useCallback((weeks: number[]) => {
@@ -149,6 +150,7 @@ export default function Checklist() {
 
   const {
     instances,
+    monthlyAvulsos,
     isLoading,
     getInstancesByWeek,
     getWeekStats,
@@ -226,24 +228,35 @@ export default function Checklist() {
     if (mergedWeeks.length < 2) return;
     const allMergedItems = mergedWeeks.flatMap((sem) => getInstancesByWeek(sem));
     const totalItems = allMergedItems.filter((i) => !i.parent_id).length;
-    const processedItems = allMergedItems.filter((i) => !i.parent_id && (i.status === "concluido" || i.status === "nao_realizado")).length;
+    const processedItems = allMergedItems.filter((i) => !i.parent_id && isChecklistStatusFinal(i.status)).length;
     if (totalItems > 0 && processedItems === totalItems) {
       handleUnmerge();
     }
   }, [isUsingAptMoment, mergedWeeks, instances, getInstancesByWeek, handleUnmerge]);
 
+  const aptMomentWeeksKey = aptMomentWeeks.join(",");
+
   useEffect(() => {
-    if (momentDefaultApplied) return;
-    if (!isUsingAptMoment || aptMomentWeeks.length === 0) return;
-    setSelectedMomentWeeks((prev) => {
-      const sameSelection =
-        prev.length === aptMomentWeeks.length &&
-        prev.every((week, index) => week === aptMomentWeeks[index]);
-      return sameSelection ? prev : aptMomentWeeks;
-    });
-    setSelectedWeek((prev) => (prev && aptMomentWeeks.includes(prev) ? prev : aptMomentWeeks[0]));
-    setMomentDefaultApplied(true);
-  }, [aptMomentWeeks, isUsingAptMoment, momentDefaultApplied]);
+    const contextKey = `${currentAno}-${currentMes}-${aptMomentosConfig?.momento_ativo ?? "none"}-${aptMomentWeeksKey}`;
+    if (selectionContextRef.current === contextKey) return;
+    selectionContextRef.current = contextKey;
+
+    if (isUsingAptMoment && aptMomentWeeks.length > 0) {
+      setSelectedMomentWeeks(aptMomentWeeks);
+      setSelectedWeek(aptMomentWeeks[0]);
+      return;
+    }
+
+    setSelectedMomentWeeks([]);
+    setSelectedWeek(null);
+  }, [
+    aptMomentWeeks,
+    aptMomentWeeksKey,
+    aptMomentosConfig?.momento_ativo,
+    currentAno,
+    currentMes,
+    isUsingAptMoment,
+  ]);
 
   // Month navigation
   const goToPrevMonth = () => {
@@ -345,7 +358,7 @@ export default function Checklist() {
 
   // Week stats
   const weekStats = useMemo(() => {
-    const stats: Record<number, { total: number; completed: number; notDone: number }> = {};
+    const stats: Record<number, ReturnType<typeof getWeekStats>> = {};
     semanasToShow.forEach((sem) => {
       stats[sem] = getWeekStats(sem);
     });
@@ -395,14 +408,20 @@ export default function Checklist() {
 
   // Merged stats
   const getMergedStats = (semanas: number[]) => {
-    let total = 0, completed = 0, notDone = 0;
+    let total = 0;
+    let completed = 0;
+    let notDone = 0;
+    let notRelevant = 0;
+    let couldNot = 0;
     semanas.forEach((sem) => {
       const s = getWeekStats(sem);
       total += s.total;
       completed += s.completed;
       notDone += s.notDone;
+      notRelevant += s.notRelevant;
+      couldNot += s.couldNot;
     });
-    return { total, completed, notDone };
+    return { total, completed, notDone, notRelevant, couldNot };
   };
 
   const getMergedDuration = (semanas: number[]) => {
@@ -439,13 +458,13 @@ export default function Checklist() {
       });
     }
 
-    // Deduplicate by descricao (normalized)
+    // Recurring tasks keep the same template identity even after their text changes.
     const dupMap = new Map<string, { ids: string[]; semanas: number[] }>();
-    const seen = new Map<string, string>(); // descricao → representative id
+    const seen = new Map<string, string>();
     const deduped: typeof interleaved = [];
 
     interleaved.forEach((item) => {
-      const key = item.descricao.trim().toLowerCase();
+      const key = item.template_id ? `template:${item.template_id}` : `instance:${item.id}`;
       if (seen.has(key)) {
         // This is a duplicate — add its ID and semana to the existing entry
         const repId = seen.get(key)!;
@@ -761,6 +780,16 @@ export default function Checklist() {
         ) : (
           <>
             {/* Timer */}
+            <ChecklistMonthlyAvulsos
+              items={monthlyAvulsos}
+              canModify={isGestorOrAdmin && !isLocked}
+              currentUserId={user?.id}
+              isGestorOrAdmin={isGestorOrAdmin}
+              onUpdateStatus={updateInstanceStatus}
+              onDelete={deleteInstance}
+              onAdd={addQuickAvulso}
+            />
+
             <ChecklistTimer
               isRunning={timerIsRunning}
               isPaused={timerIsPaused}
@@ -781,22 +810,24 @@ export default function Checklist() {
                 if (card.type === "merged") {
                   const stats = getMergedStats(card.semanas);
                   const dur = getMergedDuration(card.semanas);
-                  const isSelected = selectedWeek !== null && card.semanas.includes(selectedWeek);
+                  const isSelected =
+                    isUsingAptMoment
+                      ? selectedMomentWeeks.length === card.semanas.length &&
+                        card.semanas.every((week, index) => selectedMomentWeeks[index] === week)
+                      : selectedWeek !== null && card.semanas.includes(selectedWeek);
                   return (
                     <ChecklistSummaryCard
                       key={card.momentoNumero ? `momento-${card.momentoNumero}` : `merged-${card.semanas.join("-")}`}
                       semana={card.semanas[0]}
                       mergedWeeks={card.semanas}
+                      momentNumber={card.momentoNumero}
                       totalItems={stats.total}
                       completedItems={stats.completed}
                       notDoneItems={stats.notDone}
+                      notRelevantItems={stats.notRelevant}
+                      couldNotItems={stats.couldNot}
                       duration={dur}
                       onClick={() => {
-                        if (isSelected) {
-                          setSelectedWeek(null);
-                          if (isUsingAptMoment) setSelectedMomentWeeks([]);
-                          return;
-                        }
                         if (isUsingAptMoment) setSelectedMomentWeeks(card.semanas);
                         setSelectedWeek(card.semanas[0]);
                       }}
@@ -809,21 +840,22 @@ export default function Checklist() {
                   <ChecklistSummaryCard
                     key={card.momentoNumero ? `momento-${card.momentoNumero}` : sem}
                     semana={sem}
+                    momentNumber={card.momentoNumero}
                     totalItems={weekStats[sem]?.total || 0}
                     completedItems={weekStats[sem]?.completed || 0}
                     notDoneItems={weekStats[sem]?.notDone || 0}
+                    notRelevantItems={weekStats[sem]?.notRelevant || 0}
+                    couldNotItems={weekStats[sem]?.couldNot || 0}
                     duration={weekDurations[sem] || null}
                     onClick={() => {
-                      const isSelectedSingle = selectedWeek === sem;
-                      if (isSelectedSingle) {
-                        setSelectedWeek(null);
-                        if (isUsingAptMoment) setSelectedMomentWeeks([]);
-                        return;
-                      }
                       if (isUsingAptMoment) setSelectedMomentWeeks([sem]);
                       setSelectedWeek(sem);
                     }}
-                    isSelected={selectedWeek === sem}
+                    isSelected={
+                      isUsingAptMoment
+                        ? selectedMomentWeeks.length === 1 && selectedMomentWeeks[0] === sem
+                        : selectedWeek === sem
+                    }
                   />
                 );
               })}
@@ -852,7 +884,6 @@ export default function Checklist() {
                   if (isUsingAptMoment) setSelectedMomentWeeks([]);
                 }}
                 onAddSubItem={addSubItem}
-                onAddQuickAvulso={addQuickAvulso}
                 onDeleteAllWeek={async (semana) => {
                   await deleteAllWeekInstances(semana);
                   setSelectedWeek(null);

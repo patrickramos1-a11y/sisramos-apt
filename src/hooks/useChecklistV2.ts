@@ -1,8 +1,9 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { isChecklistStatusFinal, normalizeChecklistStatus, type ChecklistStatus } from "@/lib/checklist-status";
 
-export type ChecklistStatus = "pendente" | "concluido" | "nao_realizado";
+export type { ChecklistStatus } from "@/lib/checklist-status";
 export type TipoItem = "recorrente" | "avulso_semana" | "avulso_mes";
 
 export interface ChecklistTemplate {
@@ -130,6 +131,7 @@ export function useChecklistV2({ mes, ano }: UseChecklistV2Options) {
       const template = tpls.find((t) => t.id === inst.template_id);
       return {
         ...inst,
+        status: normalizeChecklistStatus(inst.status),
         descricao: inst.descricao_override || template?.descricao || "(Sem descrição)",
         link: inst.link_override ?? template?.link_default ?? null,
         ordem: inst.ordem_override ?? template?.ordem_global ?? 0,
@@ -212,7 +214,7 @@ export function useChecklistV2({ mes, ano }: UseChecklistV2Options) {
   // Get instances by week, building hierarchy
   const getInstancesByWeek = useCallback((semana: number) => {
     const weekInstances = instances
-      .filter((i) => i.semana === semana && !i.parent_id)
+      .filter((i) => i.semana === semana && i.tipo_item !== "avulso_mes" && !i.parent_id)
       .sort((a, b) => a.ordem - b.ordem);
 
     // Attach children
@@ -228,33 +230,36 @@ export function useChecklistV2({ mes, ano }: UseChecklistV2Options) {
 
   // Week stats
   const getWeekStats = useCallback((semana: number) => {
-    const weekItems = instances.filter((i) => i.semana === semana && !i.parent_id);
+    const weekItems = instances.filter((i) => i.semana === semana && i.tipo_item !== "avulso_mes" && !i.parent_id);
+    const resolveGroupStatus = (item: ChecklistInstance) => {
+      if (!item.is_group) return normalizeChecklistStatus(item.status);
+      const children = instances.filter((child) => child.parent_id === item.id);
+      if (children.length === 0) return normalizeChecklistStatus(item.status);
+      const childStatuses = children.map((child) => normalizeChecklistStatus(child.status));
+      if (childStatuses.every((status) => status === "feito")) return "feito";
+      if (childStatuses.every((status) => status === "nao_feito")) return "nao_feito";
+      if (childStatuses.every((status) => status === "nao_relevante")) return "nao_relevante";
+      if (childStatuses.every((status) => status === "nao_consegui")) return "nao_consegui";
+      return childStatuses.every((status) => status !== "pendente") ? "feito" : "pendente";
+    };
+
     const total = weekItems.length;
-    const completed = weekItems.filter((i) => {
-      if (i.is_group) {
-        const children = instances.filter((c) => c.parent_id === i.id);
-        return children.length > 0 && children.every((c) => c.status === "concluido");
-      }
-      return i.status === "concluido";
-    }).length;
-    const notDone = weekItems.filter((i) => {
-      if (i.is_group) {
-        const children = instances.filter((c) => c.parent_id === i.id);
-        return children.length > 0 && children.every((c) => c.status === "nao_realizado");
-      }
-      return i.status === "nao_realizado";
-    }).length;
-    return { total, completed, notDone };
+    const completed = weekItems.filter((item) => resolveGroupStatus(item) === "feito").length;
+    const notDone = weekItems.filter((item) => resolveGroupStatus(item) === "nao_feito").length;
+    const notRelevant = weekItems.filter((item) => resolveGroupStatus(item) === "nao_relevante").length;
+    const couldNot = weekItems.filter((item) => resolveGroupStatus(item) === "nao_consegui").length;
+    return { total, completed, notDone, notRelevant, couldNot };
   }, [instances]);
 
   // Update instance status
   const updateInstanceStatus = useCallback(async (instanceId: string, newStatus: ChecklistStatus) => {
+    const normalizedNewStatus = normalizeChecklistStatus(newStatus);
     // Optimistic update + recalculate parent in one pass
     let parentId: string | null = null;
     let parentNewStatus: ChecklistStatus | null = null;
 
     setInstances((prev) => {
-      const updated = prev.map((i) => (i.id === instanceId ? { ...i, status: newStatus } : i));
+      const updated = prev.map((i) => (i.id === instanceId ? { ...i, status: normalizedNewStatus } : i));
       
       // Find parent and recalculate
       const instance = updated.find((i) => i.id === instanceId);
@@ -262,13 +267,13 @@ export function useChecklistV2({ mes, ano }: UseChecklistV2Options) {
         parentId = instance.parent_id;
         const children = updated.filter((i) => i.parent_id === parentId);
         if (children.length > 0) {
-          const allConcluido = children.every((c) => c.status === "concluido");
-          const allNaoRealizado = children.every((c) => c.status === "nao_realizado");
-          const allProcessed = children.every((c) => c.status !== "pendente");
+          const allConcluido = children.every((c) => normalizeChecklistStatus(c.status) === "feito");
+          const allNaoRealizado = children.every((c) => normalizeChecklistStatus(c.status) === "nao_feito");
+          const allProcessed = children.every((c) => isChecklistStatusFinal(c.status));
 
-          if (allConcluido) parentNewStatus = "concluido";
-          else if (allNaoRealizado) parentNewStatus = "nao_realizado";
-          else if (allProcessed) parentNewStatus = "nao_realizado";
+          if (allConcluido) parentNewStatus = "feito";
+          else if (allNaoRealizado) parentNewStatus = "nao_feito";
+          else if (allProcessed) parentNewStatus = "feito";
           else parentNewStatus = "pendente";
 
           return updated.map((i) => (i.id === parentId ? { ...i, status: parentNewStatus! } : i));
@@ -279,7 +284,7 @@ export function useChecklistV2({ mes, ano }: UseChecklistV2Options) {
 
     const { error } = await (supabase
       .from("checklist_instances") as any)
-      .update({ status: newStatus })
+      .update({ status: normalizedNewStatus })
       .eq("id", instanceId);
 
     if (error) {
@@ -297,31 +302,81 @@ export function useChecklistV2({ mes, ano }: UseChecklistV2Options) {
     }
   }, [loadData, toast]);
 
-  // Update instance text/link/prioridade
+  // Recurring edits update the current-month series and the template used by future months.
   const updateInstance = useCallback(async (instanceId: string, updates: { descricao_override?: string; link_override?: string | null; prioridade?: Prioridade }) => {
-    setInstances((prev) =>
-      prev.map((i) => {
-        if (i.id !== instanceId) return i;
-        return {
-          ...i,
-          ...(updates.descricao_override !== undefined && { descricao: updates.descricao_override }),
-          ...(updates.link_override !== undefined && { link: updates.link_override }),
-          ...(updates.prioridade !== undefined && { prioridade: updates.prioridade }),
-          ...updates,
-        };
-      })
-    );
+    const current = instances.find((instance) => instance.id === instanceId);
+    if (!current) return;
 
-    const { error } = await (supabase.from("checklist_instances") as any)
-      .update(updates)
-      .eq("id", instanceId);
+    if (current.tipo_item === "recorrente" && current.template_id) {
+      const templateUpdates: Record<string, unknown> = {};
+      const instanceUpdates: Record<string, unknown> = {};
 
+      if (updates.descricao_override !== undefined) {
+        templateUpdates.descricao = updates.descricao_override;
+        instanceUpdates.descricao_override = null;
+      }
+      if (updates.link_override !== undefined) {
+        templateUpdates.link_default = updates.link_override;
+        instanceUpdates.link_override = null;
+      }
+      if (updates.prioridade !== undefined) {
+        templateUpdates.prioridade_default = updates.prioridade;
+        instanceUpdates.prioridade = updates.prioridade;
+      }
+
+      const { error: templateError } = await (supabase.from("checklist_templates") as any)
+        .update(templateUpdates)
+        .eq("id", current.template_id);
+
+      if (templateError) {
+        toast({ variant: "destructive", title: "Erro ao atualizar a série", description: templateError.message });
+        return;
+      }
+
+      const siblingIds = instances
+        .filter((instance) => instance.template_id === current.template_id && instance.mes === mes && instance.ano === ano)
+        .map((instance) => instance.id);
+
+      if (siblingIds.length > 0 && Object.keys(instanceUpdates).length > 0) {
+        const { error: instancesError } = await (supabase.from("checklist_instances") as any)
+          .update(instanceUpdates)
+          .in("id", siblingIds);
+        if (instancesError) {
+          loadData();
+          toast({ variant: "destructive", title: "Erro ao atualizar as semanas", description: instancesError.message });
+          return;
+        }
+      }
+
+      setTemplates((previous) => previous.map((template) => template.id === current.template_id ? {
+        ...template,
+        ...(updates.descricao_override !== undefined && { descricao: updates.descricao_override }),
+        ...(updates.link_override !== undefined && { link_default: updates.link_override }),
+      } : template));
+      setInstances((previous) => previous.map((instance) => instance.template_id === current.template_id && instance.mes === mes && instance.ano === ano ? {
+        ...instance,
+        ...(updates.descricao_override !== undefined && { descricao: updates.descricao_override, descricao_override: null }),
+        ...(updates.link_override !== undefined && { link: updates.link_override, link_override: null }),
+        ...(updates.prioridade !== undefined && { prioridade: updates.prioridade }),
+      } : instance));
+      toast({ title: "Série atualizada", description: "A alteração foi aplicada às semanas deste mês e ao modelo futuro." });
+      return;
+    }
+
+    setInstances((previous) => previous.map((instance) => instance.id === instanceId ? {
+      ...instance,
+      ...(updates.descricao_override !== undefined && { descricao: updates.descricao_override }),
+      ...(updates.link_override !== undefined && { link: updates.link_override }),
+      ...(updates.prioridade !== undefined && { prioridade: updates.prioridade }),
+      ...updates,
+    } : instance));
+
+    const { error } = await (supabase.from("checklist_instances") as any).update(updates).eq("id", instanceId);
     if (error) {
-      console.error("Error updating instance:", error);
       loadData();
       toast({ variant: "destructive", title: "Erro ao atualizar", description: error.message });
     }
-  }, [loadData, toast]);
+  }, [ano, instances, loadData, mes, toast]);
 
   // Delete instance
   const deleteInstance = useCallback(async (instanceId: string) => {
@@ -382,7 +437,7 @@ export function useChecklistV2({ mes, ano }: UseChecklistV2Options) {
         const instancesInsert: any[] = [];
         for (const year of params.anos) {
           for (const month of params.meses) {
-            for (const week of params.semanas) {
+            for (const week of (params.tipo_item === "avulso_mes" ? [params.semanas[0] ?? 1] : params.semanas)) {
               instancesInsert.push({
                 template_id: templateData.id,
                 ano: year,
@@ -418,7 +473,7 @@ export function useChecklistV2({ mes, ano }: UseChecklistV2Options) {
         const instancesInsert: any[] = [];
         for (const year of params.anos) {
           for (const month of params.meses) {
-            for (const week of params.semanas) {
+            for (const week of (params.tipo_item === "avulso_mes" ? [params.semanas[0] ?? 1] : params.semanas)) {
               instancesInsert.push({
                 template_id: null,
                 ano: year,
@@ -463,7 +518,7 @@ export function useChecklistV2({ mes, ano }: UseChecklistV2Options) {
   // Reorder item
   const reorderItem = useCallback(async (instanceId: string, newIndex: number, semana: number) => {
     const weekItems = instances
-      .filter((i) => i.semana === semana && !i.parent_id)
+      .filter((i) => i.semana === semana && i.tipo_item !== "avulso_mes" && !i.parent_id)
       .sort((a, b) => a.ordem - b.ordem);
 
     const oldIndex = weekItems.findIndex((i) => i.id === instanceId);
@@ -525,31 +580,34 @@ export function useChecklistV2({ mes, ano }: UseChecklistV2Options) {
     await Promise.all(updates);
   }, [instances]);
 
-  // Update assignees for an instance
+  // Assignment changes on recurring items follow the same series identity.
   const updateAssignees = useCallback(async (instanceId: string, userIds: string[]) => {
-    const current = instances.find((i) => i.id === instanceId);
+    const current = instances.find((instance) => instance.id === instanceId);
     if (!current) return;
 
-    const currentAssignees = current.assignees || [];
-    const toAdd = userIds.filter((id) => !currentAssignees.includes(id));
-    const toRemove = currentAssignees.filter((id) => !userIds.includes(id));
+    const targets = current.tipo_item === "recorrente" && current.template_id
+      ? instances.filter((instance) => instance.template_id === current.template_id && instance.mes === mes && instance.ano === ano)
+      : [current];
+    const targetIds = targets.map((instance) => instance.id);
 
-    if (toRemove.length > 0) {
-      await (supabase.from("checklist_instance_assignees") as any)
-        .delete()
-        .eq("instance_id", instanceId)
-        .in("user_id", toRemove);
+    await (supabase.from("checklist_instance_assignees") as any).delete().in("instance_id", targetIds);
+    if (userIds.length > 0) {
+      await (supabase.from("checklist_instance_assignees") as any).insert(
+        targetIds.flatMap((targetId) => userIds.map((userId) => ({ instance_id: targetId, user_id: userId }))),
+      );
     }
 
-    if (toAdd.length > 0) {
-      await (supabase.from("checklist_instance_assignees") as any)
-        .insert(toAdd.map((userId) => ({ instance_id: instanceId, user_id: userId })));
+    if (current.tipo_item === "recorrente" && current.template_id) {
+      await (supabase.from("checklist_template_assignees") as any).delete().eq("template_id", current.template_id);
+      if (userIds.length > 0) {
+        await (supabase.from("checklist_template_assignees") as any).insert(
+          userIds.map((userId) => ({ template_id: current.template_id, user_id: userId })),
+        );
+      }
     }
 
-    setInstances((prev) =>
-      prev.map((i) => (i.id === instanceId ? { ...i, assignees: userIds } : i))
-    );
-  }, [instances]);
+    setInstances((previous) => previous.map((instance) => targetIds.includes(instance.id) ? { ...instance, assignees: userIds } : instance));
+  }, [ano, instances, mes]);
 
   // Rollover to next month - only recorrentes
   const rolloverToNextMonth = useCallback(async (fromMes: number, fromAno: number) => {
@@ -719,7 +777,7 @@ export function useChecklistV2({ mes, ano }: UseChecklistV2Options) {
   }, [instances, mes, ano, toast]);
 
   // Quick add avulso item
-  const addQuickAvulso = useCallback(async (descricao: string, semana: number) => {
+  const addQuickAvulso = useCallback(async (descricao: string, semana = 1) => {
     try {
       const { data: inserted, error } = await (supabase.from("checklist_instances") as any)
         .insert({
@@ -727,7 +785,7 @@ export function useChecklistV2({ mes, ano }: UseChecklistV2Options) {
           ano,
           mes,
           semana,
-          tipo_item: "avulso_semana",
+          tipo_item: "avulso_mes",
           descricao_override: descricao,
           status: "pendente",
         })
@@ -754,7 +812,7 @@ export function useChecklistV2({ mes, ano }: UseChecklistV2Options) {
   // Delete all instances for a specific week
   const deleteAllWeekInstances = useCallback(async (semana: number) => {
     try {
-      const weekIds = instances.filter((i) => i.semana === semana).map((i) => i.id);
+      const weekIds = instances.filter((i) => i.semana === semana && i.tipo_item !== "avulso_mes").map((i) => i.id);
       if (weekIds.length === 0) return;
 
       // Delete assignees first
@@ -767,11 +825,12 @@ export function useChecklistV2({ mes, ano }: UseChecklistV2Options) {
         .delete()
         .eq("mes", mes)
         .eq("ano", ano)
-        .eq("semana", semana);
+        .eq("semana", semana)
+        .neq("tipo_item", "avulso_mes");
 
       if (error) throw error;
 
-      setInstances((prev) => prev.filter((i) => i.semana !== semana));
+      setInstances((prev) => prev.filter((i) => i.semana !== semana || i.tipo_item === "avulso_mes"));
       toast({ title: "Semana limpa", description: `Todos os itens da ${semana}ª semana foram removidos.` });
     } catch (error: any) {
       console.error("Error deleting week instances:", error);
@@ -813,6 +872,7 @@ export function useChecklistV2({ mes, ano }: UseChecklistV2Options) {
     instances,
     isLoading,
     getInstancesByWeek,
+    monthlyAvulsos: instances.filter((instance) => instance.tipo_item === "avulso_mes" && !instance.parent_id),
     getWeekStats,
     updateInstanceStatus,
     updateInstance,

@@ -10,6 +10,20 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  DragEndEvent,
+} from "@dnd-kit/core";
+import {
+  SortableContext,
+  sortableKeyboardCoordinates,
+  verticalListSortingStrategy,
+} from "@dnd-kit/sortable";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import {
@@ -24,7 +38,8 @@ import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/comp
 import { cn } from "@/lib/utils";
 import CircularProgress from "./CircularProgress";
 import SortableChecklistItem from "./SortableChecklistItem";
-import type { ChecklistInstance, ChecklistStatus } from "@/hooks/useChecklistV2";
+import type { ChecklistInstance, ChecklistStatus, Prioridade } from "@/hooks/useChecklistV2";
+import { CHECKLIST_STATUS_OPTIONS, isChecklistStatusFinal, normalizeChecklistStatus } from "@/lib/checklist-status";
 
 interface Profile {
   id: string;
@@ -33,7 +48,6 @@ interface Profile {
   email: string;
   cor?: string | null;
 }
-
 interface ChecklistWeekTableProps {
   semana: number;
   semanas?: number[];
@@ -45,14 +59,13 @@ interface ChecklistWeekTableProps {
   profiles: Profile[];
   duplicateMap?: Map<string, { ids: string[]; semanas: number[] }>;
   onUpdateStatus: (id: string, status: ChecklistStatus) => Promise<void>;
-  onUpdateInstance: (id: string, updates: { descricao_override?: string; link_override?: string | null }) => Promise<void>;
+  onUpdateInstance: (id: string, updates: { descricao_override?: string; link_override?: string | null; prioridade?: Prioridade }) => Promise<void>;
   onDeleteInstance: (id: string) => Promise<void>;
   onUpdateAssignees: (instanceId: string, userIds: string[]) => Promise<void>;
   onReorder: (instanceId: string, newIndex: number, semana: number) => Promise<void>;
   onReorderSubItem?: (instanceId: string, newIndex: number, parentId: string) => Promise<void>;
   onClose: () => void;
   onAddSubItem?: (parentId: string, descricao: string, semana: number) => Promise<void>;
-  onAddQuickAvulso?: (descricao: string, semana: number) => Promise<void>;
   onDeleteAllWeek?: (semana: number) => Promise<void>;
 }
 
@@ -74,7 +87,6 @@ export default function ChecklistWeekTable({
   onReorderSubItem,
   onClose,
   onAddSubItem,
-  onAddQuickAvulso,
   onDeleteAllWeek,
 }: ChecklistWeekTableProps) {
   const [searchTerm, setSearchTerm] = useState("");
@@ -84,15 +96,22 @@ export default function ChecklistWeekTable({
   const [sortByPriority, setSortByPriority] = useState<"off" | "desc" | "asc">("off");
   const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set());
 
-  // Stats
-  const completedCount = items.filter((i) => i.status === "concluido").length;
-  const notDoneCount = items.filter((i) => i.status === "nao_realizado").length;
-  const pendingCount = items.filter((i) => i.status === "pendente").length;
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
+  );
+
+  // Every final outcome counts as processed; the colors preserve why it ended.
+  const completedCount = items.filter((item) => normalizeChecklistStatus(item.status) === "feito").length;
+  const notDoneCount = items.filter((item) => normalizeChecklistStatus(item.status) === "nao_feito").length;
+  const notRelevantCount = items.filter((item) => normalizeChecklistStatus(item.status) === "nao_relevante").length;
+  const couldNotCount = items.filter((item) => normalizeChecklistStatus(item.status) === "nao_consegui").length;
+  const pendingCount = items.filter((item) => !isChecklistStatusFinal(item.status)).length;
   const totalCount = items.length;
-  const processedCount = completedCount + notDoneCount;
+  const processedCount = completedCount + notDoneCount + notRelevantCount + couldNotCount;
   const progress = totalCount > 0 ? (processedCount / totalCount) * 100 : 0;
   const allCompleted = totalCount > 0 && completedCount === totalCount;
-  const allProcessed = totalCount > 0 && !allCompleted && processedCount === totalCount && notDoneCount > 0;
+  const allProcessed = totalCount > 0 && processedCount === totalCount && !allCompleted;
 
   // Filtered items
   const filteredItems = useMemo(() => {
@@ -102,7 +121,7 @@ export default function ChecklistWeekTable({
       result = result.filter((i) => i.descricao.toLowerCase().includes(term));
     }
     if (filterStatus !== "all") {
-      result = result.filter((i) => i.status === filterStatus);
+      result = result.filter((i) => normalizeChecklistStatus(i.status) === filterStatus);
     }
     if (filterTipo !== "all") {
       result = result.filter((i) => i.tipo_item === filterTipo);
@@ -131,6 +150,16 @@ export default function ChecklistWeekTable({
   };
   const isMerged = semanas && semanas.length >= 2;
   const weekColor = weekColors[semana] || weekColors[1];
+
+  const handleDragEnd = async (event: DragEndEvent) => {
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
+    const oldIndex = filteredItems.findIndex((item) => item.id === active.id);
+    const newIndex = filteredItems.findIndex((item) => item.id === over.id);
+    if (oldIndex !== -1 && newIndex !== -1) {
+      await onReorder(active.id as string, newIndex, semana);
+    }
+  };
 
   const toggleGroup = (id: string) => {
     setExpandedGroups((prev) => {
@@ -162,7 +191,7 @@ export default function ChecklistWeekTable({
       return {
         id: inst.id,
         texto: inst.descricao,
-        concluido: inst.status === "concluido",
+        concluido: normalizeChecklistStatus(inst.status) === "feito",
         status: inst.status as ChecklistStatus,
         link: inst.link,
         assignees: inst.assignees,
@@ -183,25 +212,16 @@ export default function ChecklistWeekTable({
 
   const showRecorrente = filterTipo === "all" || filterTipo === "recorrente";
   const showAvulso = filterTipo === "all" || filterTipo === "avulso_semana";
-  const isReorderBlocked = searchTerm.trim() !== "" || filterStatus !== "all" || filterTipo !== "all" || filterPrioridade !== "all" || sortByPriority !== "off" || !!isMerged;
-  const parentOrderItems = useMemo(
-    () => [...items].filter((i) => !i.parent_id).sort((a, b) => a.ordem - b.ordem),
-    [items]
-  );
-  const parentPositionById = useMemo(
-    () => new Map(parentOrderItems.map((item, idx) => [item.id, idx + 1])),
-    [parentOrderItems]
-  );
 
   // Helper to render a section of items
   const renderItemSection = (sectionItems: typeof adaptedItems, allAdapted: typeof adaptedItems) => (
-    <>
+    <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+      <SortableContext items={sectionItems.map((i) => i.id)} strategy={verticalListSortingStrategy}>
         {sectionItems.map((item) => {
           const globalIndex = allAdapted.findIndex((a) => a.id === item.id);
           const itemAssignees = item.assignees || [];
           const isAssignedToMe = currentUserId && itemAssignees.includes(currentUserId);
           const canCompleteItem = isGestorOrAdmin || isAssignedToMe || itemAssignees.length === 0;
-          const position = parentPositionById.get(item.id) ?? globalIndex + 1;
 
           return (
             <div key={item.id}>
@@ -223,12 +243,6 @@ export default function ChecklistWeekTable({
                     onUpdateItem={handleUpdateItem}
                     onDeleteItem={onDeleteInstance}
                     onUpdateAssignees={onUpdateAssignees}
-                    position={position}
-                    maxPosition={parentOrderItems.length}
-                    reorderDisabled={isReorderBlocked}
-                    onMoveToPosition={async (itemId, targetPosition) => {
-                      await onReorder(itemId, targetPosition - 1, semana);
-                    }}
                   />
                 </div>
                 {isMerged && item.sourceWeeks && item.sourceWeeks.length > 0 && (
@@ -279,7 +293,21 @@ export default function ChecklistWeekTable({
               {expandedGroups.has(item.id) && (
                 <div className="ml-8 border-l-2 border-muted pl-3 space-y-0.5 mt-1 mb-2">
                   {item.is_group && item.children && item.children.length > 0 && (
-                    <>
+                    <DndContext
+                      sensors={sensors}
+                      collisionDetection={closestCenter}
+                      onDragEnd={async (event: DragEndEvent) => {
+                        const { active, over } = event;
+                        if (!over || active.id === over.id || !onReorderSubItem) return;
+                        const children = item.children!;
+                        const oldIdx = children.findIndex((c) => c.id === active.id);
+                        const newIdx = children.findIndex((c) => c.id === over.id);
+                        if (oldIdx !== -1 && newIdx !== -1) {
+                          await onReorderSubItem(active.id as string, newIdx, item.id);
+                        }
+                      }}
+                    >
+                      <SortableContext items={item.children.map((c) => c.id)} strategy={verticalListSortingStrategy}>
                         {item.children.map((child, childIdx) => {
                           const childAssignees = child.assignees || [];
                           const childIsAssigned = currentUserId && childAssignees.includes(currentUserId);
@@ -290,7 +318,7 @@ export default function ChecklistWeekTable({
                               item={{
                                 id: child.id,
                                 texto: child.descricao,
-                                concluido: child.status === "concluido",
+                                concluido: normalizeChecklistStatus(child.status) === "feito",
                                 status: child.status,
                                 link: child.link,
                                 assignees: child.assignees,
@@ -304,17 +332,11 @@ export default function ChecklistWeekTable({
                               onUpdateItem={handleUpdateItem}
                               onDeleteItem={onDeleteInstance}
                               onUpdateAssignees={onUpdateAssignees}
-                              position={childIdx + 1}
-                              maxPosition={item.children?.length || 1}
-                              reorderDisabled={isReorderBlocked || !onReorderSubItem}
-                              onMoveToPosition={async (childId, targetPosition) => {
-                                if (!onReorderSubItem) return;
-                                await onReorderSubItem(childId, targetPosition - 1, item.id);
-                              }}
                             />
                           );
                         })}
-                    </>
+                      </SortableContext>
+                    </DndContext>
                   )}
                   {!item.is_group && !item.children?.length && (
                     <p className="text-xs text-muted-foreground py-2">Nenhuma subtarefa ainda. Adicione abaixo:</p>
@@ -327,7 +349,8 @@ export default function ChecklistWeekTable({
             </div>
           );
         })}
-    </>
+      </SortableContext>
+    </DndContext>
   );
 
   return (
@@ -369,13 +392,23 @@ export default function ChecklistWeekTable({
             )}
             {notDoneCount > 0 && (
               <span className="px-2 py-0.5 rounded-full bg-destructive/15 text-destructive font-medium">
-                {notDoneCount} não realizada{notDoneCount > 1 ? "s" : ""}
+                {notDoneCount} não feita{notDoneCount > 1 ? "s" : ""}
+              </span>
+            )}
+            {notRelevantCount > 0 && (
+              <span className="rounded-full bg-sky-100 px-2 py-0.5 font-medium text-sky-700">
+                {notRelevantCount} irrelevante{notRelevantCount > 1 ? "s" : ""}
+              </span>
+            )}
+            {couldNotCount > 0 && (
+              <span className="rounded-full bg-amber-100 px-2 py-0.5 font-medium text-amber-700">
+                {couldNotCount} não conseguida{couldNotCount > 1 ? "s" : ""}
               </span>
             )}
           </div>
         </div>
         <div className="flex items-center gap-2">
-          <CircularProgress value={progress} size={36} strokeWidth={3} completedCount={completedCount} notDoneCount={notDoneCount} totalCount={totalCount} />
+          <CircularProgress value={progress} size={36} strokeWidth={3} completedCount={processedCount} notDoneCount={0} totalCount={totalCount} />
           {canModify && onDeleteAllWeek && totalCount > 0 && (
             <AlertDialog>
               <AlertDialogTrigger asChild>
@@ -426,9 +459,17 @@ export default function ChecklistWeekTable({
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">Todos</SelectItem>
-              <SelectItem value="pendente">Pendente</SelectItem>
-              <SelectItem value="concluido">Concluído</SelectItem>
-              <SelectItem value="nao_realizado">Não realizado</SelectItem>
+              {CHECKLIST_STATUS_OPTIONS.map((option) => {
+                const Icon = option.icon;
+                return (
+                  <SelectItem key={option.value} value={option.value}>
+                    <span className="flex items-center gap-2">
+                      <Icon className="h-4 w-4" />
+                      {option.label}
+                    </span>
+                  </SelectItem>
+                );
+              })}
             </SelectContent>
           </Select>
           <Select value={filterTipo} onValueChange={setFilterTipo}>
@@ -438,7 +479,7 @@ export default function ChecklistWeekTable({
             <SelectContent>
               <SelectItem value="all">Todos</SelectItem>
               <SelectItem value="recorrente">Recorrente</SelectItem>
-              <SelectItem value="avulso_semana">Avulso</SelectItem>
+              <SelectItem value="avulso_semana">Avulso semanal antigo</SelectItem>
             </SelectContent>
           </Select>
           <Select value={filterPrioridade} onValueChange={setFilterPrioridade}>
@@ -483,7 +524,7 @@ export default function ChecklistWeekTable({
       {/* Table header - desktop only */}
       {adaptedItems.length > 0 && (
         <div className="hidden md:flex items-center gap-3 px-4 py-2 border-b bg-muted/30 text-xs font-medium text-muted-foreground uppercase tracking-wider">
-          {canModify && <span className="w-12 shrink-0 text-center">Ordem</span>}
+          {canModify && <span className="w-5 shrink-0" />}
           <span className="w-5 shrink-0">Status</span>
           <span className="flex-1">Tarefa</span>
           <span className="w-24 text-center">Responsáveis</span>
@@ -529,9 +570,6 @@ export default function ChecklistWeekTable({
                   {avulsoItems.length === 0 && !searchTerm && filterStatus === "all" && (
                     <p className="text-xs text-muted-foreground py-2 pl-5">Nenhum item avulso</p>
                   )}
-                  {canModify && onAddQuickAvulso && semanas && semanas.map((s) => (
-                    <AddAvulsoInline key={s} semana={s} onAdd={onAddQuickAvulso} />
-                  ))}
                 </div>
               )}
             </>
@@ -562,9 +600,6 @@ export default function ChecklistWeekTable({
                   {avulsoItems.length === 0 && !searchTerm && filterStatus === "all" && (
                     <p className="text-xs text-muted-foreground py-2 pl-5">Nenhum item avulso nesta semana</p>
                   )}
-                  {canModify && onAddQuickAvulso && (
-                    <AddAvulsoInline semana={semana} onAdd={onAddQuickAvulso} />
-                  )}
                 </div>
               )}
             </>
@@ -575,7 +610,7 @@ export default function ChecklistWeekTable({
       {canModify && adaptedItems.length > 1 && (
         <div className="px-4 py-2 border-t bg-muted/20">
           <p className="text-xs text-muted-foreground text-center">
-            {isReorderBlocked ? "Limpe filtros e ordenação por prioridade para reorganizar" : "Use o número para mover a tarefa na lista"}
+            Arraste os itens para reorganizar a ordem
           </p>
         </div>
       )}
@@ -606,43 +641,6 @@ function AddSubItemInline({ parentId, semana, onAdd }: { parentId: string; seman
         onKeyDown={(e) => e.key === "Enter" && handleAdd()}
       />
       <Button size="sm" variant="ghost" className="h-7 px-2" onClick={handleAdd} disabled={!text.trim() || adding}>
-        <Plus className="h-3.5 w-3.5" />
-      </Button>
-    </div>
-  );
-}
-
-// Inline avulso add
-function AddAvulsoInline({ semana, onAdd }: { semana: number; onAdd: (descricao: string, semana: number) => Promise<void> }) {
-  const [text, setText] = useState("");
-  const [adding, setAdding] = useState(false);
-
-  const handleAdd = async () => {
-    if (!text.trim()) return;
-    setAdding(true);
-    await onAdd(text.trim(), semana);
-    setText("");
-    setAdding(false);
-  };
-
-  return (
-    <div className="flex items-center gap-2 py-1 mt-1">
-      <Zap className="h-3.5 w-3.5 text-amber-500 shrink-0" />
-      <Input
-        value={text}
-        onChange={(e) => setText(e.target.value)}
-        placeholder={`Adicionar avulso na ${semana}ª semana...`}
-        className="h-7 text-xs flex-1"
-        onKeyDown={(e) => e.key === "Enter" && handleAdd()}
-      />
-      <Button
-        size="sm"
-        variant="ghost"
-        className="h-7 px-2"
-        onClick={handleAdd}
-        disabled={!text.trim() || adding}
-        title={`Adicionar na ${semana}ª semana`}
-      >
         <Plus className="h-3.5 w-3.5" />
       </Button>
     </div>

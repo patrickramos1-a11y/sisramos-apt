@@ -126,7 +126,7 @@ export default function NovoItemChecklistDialog({
     fetchProfiles();
   }, []);
 
-  const totalItems = anos.length * meses.length * semanas.length;
+  const totalItems = anos.length * meses.length * (tipoItem === "avulso_mes" ? 1 : semanas.length);
 
   const responsavelOptions = profiles.map(p => ({
     value: p.user_id,
@@ -192,7 +192,7 @@ export default function NovoItemChecklistDialog({
         </DialogHeader>
 
         <div className="space-y-4 py-4">
-          {momentOptions.length > 0 && (
+          {momentOptions.length > 0 && tipoItem !== "avulso_mes" && (
             <div className="space-y-2 rounded-lg border bg-muted/20 p-3">
               <div className="flex items-center gap-2">
                 <Layers className="h-4 w-4 text-primary" />
@@ -229,7 +229,7 @@ export default function NovoItemChecklistDialog({
                 })}
               </div>
               <p className="text-[11px] text-muted-foreground">
-                Escolha outro momento para preencher automaticamente as semanas do item avulso ou recorrente.
+                Escolha outro momento para preencher automaticamente as semanas do item recorrente.
               </p>
             </div>
           )}
@@ -237,7 +237,14 @@ export default function NovoItemChecklistDialog({
           {/* Type selection */}
           <div className="space-y-2">
             <Label>Tipo do Item</Label>
-            <Select value={tipoItem} onValueChange={(v) => setTipoItem(v as TipoItem)}>
+            <Select
+              value={tipoItem}
+              onValueChange={(value) => {
+                const nextType = value as TipoItem;
+                setTipoItem(nextType);
+                setSemanas(nextType === "avulso_mes" ? ["1"] : getDefaultSemanaValues());
+              }}
+            >
               <SelectTrigger>
                 <SelectValue />
               </SelectTrigger>
@@ -248,10 +255,10 @@ export default function NovoItemChecklistDialog({
                     <span className="text-xs text-muted-foreground ml-2">— Persiste entre meses</span>
                   </div>
                 </SelectItem>
-                <SelectItem value="avulso_semana">
+                <SelectItem value="avulso_mes">
                   <div>
-                    <span className="font-medium">Avulso da Semana</span>
-                    <span className="text-xs text-muted-foreground ml-2">— Não copia</span>
+                    <span className="font-medium">Avulso do mês</span>
+                    <span className="text-xs text-muted-foreground ml-2">— Fica ativo até receber um resultado</span>
                   </div>
                 </SelectItem>
               </SelectContent>
@@ -286,7 +293,7 @@ export default function NovoItemChecklistDialog({
               ))}
             </div>
           </div>
-          <div className="grid grid-cols-3 gap-3">
+          <div className={cn("grid gap-3", tipoItem === "avulso_mes" ? "grid-cols-2" : "grid-cols-3")}>
             <div className="space-y-2">
               <Label>Ano</Label>
               <MultiSelectDropdown
@@ -305,15 +312,17 @@ export default function NovoItemChecklistDialog({
                 placeholder="Mês"
               />
             </div>
-            <div className="space-y-2">
-              <Label>Semana</Label>
-              <MultiSelectDropdown
-                options={SEMANAS}
-                selected={semanas}
-                onChange={setSemanas}
-                placeholder="Semana"
-              />
-            </div>
+            {tipoItem !== "avulso_mes" && (
+              <div className="space-y-2">
+                <Label>Semana</Label>
+                <MultiSelectDropdown
+                  options={SEMANAS}
+                  selected={semanas}
+                  onChange={setSemanas}
+                  placeholder="Semana"
+                />
+              </div>
+            )}
           </div>
 
           {/* Responsáveis */}
@@ -334,9 +343,9 @@ export default function NovoItemChecklistDialog({
             </p>
           )}
 
-          {tipoItem === "avulso_semana" && (
+          {tipoItem === "avulso_mes" && (
             <p className="text-xs text-amber-600 dark:text-amber-400 bg-amber-500/10 p-2 rounded-md">
-              ⚠ Itens avulsos da semana <strong>não serão copiados</strong> ao usar "Copiar mês".
+              O item ficará na fila mensal até ser marcado como feito, não feito, não relevante ou não consegui fazer.
             </p>
           )}
 
