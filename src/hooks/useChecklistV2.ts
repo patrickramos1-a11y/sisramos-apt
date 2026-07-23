@@ -140,8 +140,39 @@ export function useChecklistV2({ mes, ano }: UseChecklistV2Options) {
       };
     });
 
-    setInstances(resolvedInstances);
-    return resolvedInstances;
+    // The third week is the reference ordering for recurring items. Applying the
+    // same key-based order here keeps every moment aligned even when old instance
+    // overrides differ between weeks.
+    const recurringKey = (instance: ChecklistInstance) =>
+      instance.template_id
+        ? `template:${instance.template_id}`
+        : `legacy:${instance.descricao.trim().toLocaleLowerCase("pt-BR")}`;
+    const referenceRecurring = resolvedInstances
+      .filter(
+        (instance) =>
+          instance.semana === 3 &&
+          instance.tipo_item === "recorrente" &&
+          !instance.parent_id,
+      )
+      .sort((a, b) => a.ordem - b.ordem);
+    const referenceOrder = new Map<string, number>();
+    referenceRecurring.forEach((instance) => {
+      const key = recurringKey(instance);
+      if (!referenceOrder.has(key)) referenceOrder.set(key, referenceOrder.size);
+    });
+
+    const normalizedInstances = referenceOrder.size > 0
+      ? resolvedInstances.map((instance) => {
+          if (instance.tipo_item !== "recorrente" || instance.parent_id) return instance;
+          const canonicalOrder = referenceOrder.get(recurringKey(instance));
+          return canonicalOrder === undefined
+            ? { ...instance, ordem: referenceOrder.size + instance.ordem }
+            : { ...instance, ordem: canonicalOrder };
+        })
+      : resolvedInstances;
+
+    setInstances(normalizedInstances);
+    return normalizedInstances;
   }, []);
 
   // Load data

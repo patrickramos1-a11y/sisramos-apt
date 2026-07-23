@@ -214,11 +214,10 @@ export default function ChecklistWeekTable({
   const showAvulso = filterTipo === "all" || filterTipo === "avulso_semana";
 
   // Helper to render a section of items
-  const renderItemSection = (sectionItems: typeof adaptedItems, allAdapted: typeof adaptedItems) => (
+  const renderItemSection = (sectionItems: typeof adaptedItems) => (
     <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
       <SortableContext items={sectionItems.map((i) => i.id)} strategy={verticalListSortingStrategy}>
-        {sectionItems.map((item) => {
-          const globalIndex = allAdapted.findIndex((a) => a.id === item.id);
+        {sectionItems.map((item, sectionIndex) => {
           const itemAssignees = item.assignees || [];
           const isAssignedToMe = currentUserId && itemAssignees.includes(currentUserId);
           const canCompleteItem = isGestorOrAdmin || isAssignedToMe || itemAssignees.length === 0;
@@ -234,7 +233,7 @@ export default function ChecklistWeekTable({
                 <div className="flex-1">
                   <SortableChecklistItem
                     item={item}
-                    index={globalIndex}
+                    index={sectionIndex}
                     canModify={canModify}
                     canCompleteItem={canCompleteItem && !item.is_group}
                     isLocked={isLocked}
@@ -556,7 +555,7 @@ export default function ChecklistWeekTable({
                       <div className="flex-1 h-px bg-border" />
                     </div>
                   )}
-                  {renderItemSection(recorrenteItems, adaptedItems)}
+                  {renderItemSection(recorrenteItems)}
                 </div>
               )}
               {showAvulso && (
@@ -566,7 +565,7 @@ export default function ChecklistWeekTable({
                     <span className="text-[10px] font-semibold uppercase tracking-wider text-amber-600 dark:text-amber-400">Avulso</span>
                     <div className="flex-1 h-px bg-amber-500/20" />
                   </div>
-                  {avulsoItems.length > 0 && renderItemSection(avulsoItems, adaptedItems)}
+                  {avulsoItems.length > 0 && renderItemSection(avulsoItems)}
                   {avulsoItems.length === 0 && !searchTerm && filterStatus === "all" && (
                     <p className="text-xs text-muted-foreground py-2 pl-5">Nenhum item avulso</p>
                   )}
@@ -584,7 +583,7 @@ export default function ChecklistWeekTable({
                       <div className="flex-1 h-px bg-border" />
                     </div>
                   )}
-                  {renderItemSection(recorrenteItems, adaptedItems)}
+                  {renderItemSection(recorrenteItems)}
                 </div>
               )}
 
@@ -596,7 +595,7 @@ export default function ChecklistWeekTable({
                     <span className="text-[10px] font-semibold uppercase tracking-wider text-amber-600 dark:text-amber-400">Avulso</span>
                     <div className="flex-1 h-px bg-amber-500/20" />
                   </div>
-                  {avulsoItems.length > 0 && renderItemSection(avulsoItems, adaptedItems)}
+                  {avulsoItems.length > 0 && renderItemSection(avulsoItems)}
                   {avulsoItems.length === 0 && !searchTerm && filterStatus === "all" && (
                     <p className="text-xs text-muted-foreground py-2 pl-5">Nenhum item avulso nesta semana</p>
                   )}
