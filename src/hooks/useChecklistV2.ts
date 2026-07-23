@@ -338,6 +338,81 @@ export function useChecklistV2({ mes, ano }: UseChecklistV2Options) {
     const current = instances.find((instance) => instance.id === instanceId);
     if (!current) return;
 
+    // Sub-items do not have their own template. Match them through the recurring
+    // parent and their numbered position so structural edits reach every week.
+    if (current.parent_id) {
+      const currentParent = instances.find((instance) => instance.id === current.parent_id);
+      if (currentParent?.tipo_item === "recorrente") {
+        const currentChildren = instances
+          .filter((instance) => instance.parent_id === currentParent.id)
+          .sort((a, b) => a.ordem - b.ordem);
+        const currentIndex = currentChildren.findIndex((instance) => instance.id === current.id);
+
+        const equivalentParents = instances.filter((instance) => {
+          if (
+            instance.mes !== mes ||
+            instance.ano !== ano ||
+            instance.parent_id ||
+            instance.tipo_item !== "recorrente"
+          ) {
+            return false;
+          }
+
+          const sameTemplate = Boolean(
+            currentParent.template_id &&
+            instance.template_id === currentParent.template_id,
+          );
+          const sameLegacyRecurring =
+            !currentParent.template_id &&
+            !instance.template_id &&
+            instance.descricao === currentParent.descricao;
+          return sameTemplate || sameLegacyRecurring;
+        });
+
+        const siblingIds = equivalentParents
+          .map((parent) =>
+            instances
+              .filter((instance) => instance.parent_id === parent.id)
+              .sort((a, b) => a.ordem - b.ordem)[currentIndex],
+          )
+          .filter((instance): instance is ChecklistInstance => Boolean(instance))
+          .map((instance) => instance.id);
+
+        if (currentIndex >= 0 && siblingIds.length > 0) {
+          const { error } = await (supabase.from("checklist_instances") as any)
+            .update(updates)
+            .in("id", siblingIds);
+
+          if (error) {
+            toast({
+              variant: "destructive",
+              title: "Erro ao atualizar as subtarefas",
+              description: error.message,
+            });
+            return;
+          }
+
+          setInstances((previous) => previous.map((instance) => siblingIds.includes(instance.id) ? {
+            ...instance,
+            ...(updates.descricao_override !== undefined && {
+              descricao: updates.descricao_override,
+              descricao_override: updates.descricao_override,
+            }),
+            ...(updates.link_override !== undefined && {
+              link: updates.link_override,
+              link_override: updates.link_override,
+            }),
+            ...(updates.prioridade !== undefined && { prioridade: updates.prioridade }),
+          } : instance));
+          toast({
+            title: "Subtarefas atualizadas",
+            description: `A alteração foi aplicada em ${siblingIds.length} semana${siblingIds.length === 1 ? "" : "s"}.`,
+          });
+          return;
+        }
+      }
+    }
+
     if (current.tipo_item === "recorrente" && current.template_id) {
       const templateUpdates: Record<string, unknown> = {};
       const instanceUpdates: Record<string, unknown> = {};
