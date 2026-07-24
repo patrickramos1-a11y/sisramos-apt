@@ -8,7 +8,7 @@ import type { ChecklistInstance, ChecklistStatus } from "@/hooks/useChecklistV2"
 import {
   CHECKLIST_STATUS_OPTIONS,
   getChecklistStatusOption,
-  isChecklistStatusFinal,
+  isChecklistMonthlyAvulsoResolved,
   normalizeChecklistStatus,
 } from "@/lib/checklist-status";
 
@@ -34,13 +34,14 @@ export default function ChecklistMonthlyAvulsos({
   const [description, setDescription] = useState("");
   const [isAdding, setIsAdding] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
+  const [isOpen, setIsOpen] = useState(true);
 
   const pendingItems = useMemo(
-    () => items.filter((item) => !isChecklistStatusFinal(item.status)),
+    () => items.filter((item) => !isChecklistMonthlyAvulsoResolved(item.status)),
     [items],
   );
   const historyItems = useMemo(
-    () => items.filter((item) => isChecklistStatusFinal(item.status)),
+    () => items.filter((item) => isChecklistMonthlyAvulsoResolved(item.status)),
     [items],
   );
 
@@ -106,10 +107,10 @@ export default function ChecklistMonthlyAvulsos({
         </Select>
 
         <div className="min-w-0 flex-1">
-          <p className={cn("truncate text-sm font-medium", isChecklistStatusFinal(item.status) && "text-muted-foreground")}>
+          <p className={cn("truncate text-sm font-medium", isChecklistMonthlyAvulsoResolved(item.status) && "text-muted-foreground")}>
             {item.descricao}
           </p>
-          {isChecklistStatusFinal(item.status) && (
+          {isChecklistMonthlyAvulsoResolved(item.status) && (
             <p className="text-[11px] text-muted-foreground">{option.label}</p>
           )}
         </div>
@@ -138,14 +139,24 @@ export default function ChecklistMonthlyAvulsos({
             <CalendarClock className="h-4 w-4" />
           </div>
           <div className="min-w-0">
-            <h2 className="text-sm font-semibold">Avulsos do mês</h2>
+            <h2 className="text-sm font-semibold">Avulsas em acompanhamento</h2>
             <p className="text-xs text-muted-foreground">
-              Permanecem aqui até receberem um resultado final.
+              Seguem para os próximos momentos e meses até ficarem Feitas ou Não feitas.
             </p>
           </div>
           <span className="ml-auto rounded-full bg-amber-100 px-2 py-0.5 text-xs font-semibold text-amber-800">
             {pendingItems.length} pendente{pendingItems.length === 1 ? "" : "s"}
           </span>
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            className="h-8 w-8 shrink-0"
+            onClick={() => setIsOpen((current) => !current)}
+            aria-label={isOpen ? "Recolher avulsas" : "Expandir avulsas"}
+          >
+            {isOpen ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+          </Button>
         </div>
 
         {canModify && (
@@ -154,7 +165,7 @@ export default function ChecklistMonthlyAvulsos({
               value={description}
               onChange={(event) => setDescription(event.target.value)}
               onKeyDown={(event) => event.key === "Enter" && handleAdd()}
-              placeholder="Adicionar demanda avulsa do mês..."
+              placeholder="Adicionar demanda avulsa em acompanhamento..."
               className="h-9 bg-background"
             />
             <Button
@@ -171,15 +182,15 @@ export default function ChecklistMonthlyAvulsos({
         )}
       </div>
 
-      {pendingItems.length > 0 ? (
+      {isOpen && pendingItems.length > 0 ? (
         <div>{pendingItems.map(renderItem)}</div>
-      ) : (
+      ) : isOpen ? (
         <div className="px-4 py-5 text-center text-sm text-muted-foreground">
-          Nenhuma demanda avulsa pendente neste mês.
+          Nenhuma demanda avulsa em acompanhamento.
         </div>
-      )}
+      ) : null}
 
-      {historyItems.length > 0 && (
+      {isOpen && historyItems.length > 0 && (
         <div className="border-t">
           <Button
             type="button"

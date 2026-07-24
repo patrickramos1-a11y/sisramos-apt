@@ -33,7 +33,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Calendar, CheckCircle2, AlertCircle, Search, ChevronUp, Plus, ListTree, Zap, Trash2, ArrowUpDown } from "lucide-react";
+import { Calendar, CheckCircle2, AlertCircle, Search, ChevronDown, ChevronUp, Plus, ListTree, Zap, Trash2, ArrowUpDown } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 import CircularProgress from "./CircularProgress";
@@ -95,6 +95,8 @@ export default function ChecklistWeekTable({
   const [filterPrioridade, setFilterPrioridade] = useState<string>("all");
   const [sortByPriority, setSortByPriority] = useState<"off" | "desc" | "asc">("off");
   const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set());
+  const [recorrentesOpen, setRecorrentesOpen] = useState(true);
+  const [avulsosOpen, setAvulsosOpen] = useState(true);
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
@@ -544,59 +546,44 @@ export default function ChecklistWeekTable({
                   : "Nenhum item nesta semana"}
               </p>
             </div>
-          ) : isMerged ? (
-            // Merged view: unified list (no week separators), with week badges
-            <>
-              {showRecorrente && recorrenteItems.length > 0 && (
-                <div>
-                  {showAvulso && avulsoItems.length > 0 && (
-                    <div className="flex items-center gap-2 mb-2">
-                      <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Recorrentes</span>
-                      <div className="flex-1 h-px bg-border" />
-                    </div>
-                  )}
-                  {renderItemSection(recorrenteItems)}
-                </div>
-              )}
-              {showAvulso && (
-                <div className={cn(showRecorrente && recorrenteItems.length > 0 && "mt-4")}>
-                  <div className="flex items-center gap-2 mb-2">
-                    <Zap className="h-3 w-3 text-amber-500" />
-                    <span className="text-[10px] font-semibold uppercase tracking-wider text-amber-600 dark:text-amber-400">Avulso</span>
-                    <div className="flex-1 h-px bg-amber-500/20" />
-                  </div>
-                  {avulsoItems.length > 0 && renderItemSection(avulsoItems)}
-                  {avulsoItems.length === 0 && !searchTerm && filterStatus === "all" && (
-                    <p className="text-xs text-muted-foreground py-2 pl-5">Nenhum item avulso</p>
-                  )}
-                </div>
-              )}
-            </>
           ) : (
             <>
-              {/* Recorrente section */}
-              {showRecorrente && recorrenteItems.length > 0 && (
+              {showRecorrente && (
                 <div>
-                  {showAvulso && avulsoItems.length > 0 && (
-                    <div className="flex items-center gap-2 mb-2">
-                      <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Recorrentes</span>
-                      <div className="flex-1 h-px bg-border" />
-                    </div>
+                  <button
+                    type="button"
+                    className="mb-2 flex w-full items-center gap-2 rounded-md border bg-muted/20 px-2.5 py-2 text-left"
+                    onClick={() => setRecorrentesOpen((current) => !current)}
+                  >
+                    {recorrentesOpen ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
+                    <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Recorrentes</span>
+                    <span className="rounded-full bg-background px-1.5 py-0.5 text-[10px] text-muted-foreground">{recorrenteItems.length}</span>
+                    <div className="flex-1" />
+                    <span className="text-[10px] text-muted-foreground">{recorrentesOpen ? "Recolher" : "Expandir"}</span>
+                  </button>
+                  {recorrentesOpen && recorrenteItems.length > 0 && renderItemSection(recorrenteItems)}
+                  {recorrentesOpen && recorrenteItems.length === 0 && !searchTerm && filterStatus === "all" && (
+                    <p className="py-2 pl-5 text-xs text-muted-foreground">Nenhum item recorrente</p>
                   )}
-                  {renderItemSection(recorrenteItems)}
                 </div>
               )}
 
-              {/* Avulso section */}
               {showAvulso && (
                 <div className={cn(showRecorrente && recorrenteItems.length > 0 && "mt-4")}>
-                  <div className="flex items-center gap-2 mb-2">
+                  <button
+                    type="button"
+                    className="mb-2 flex w-full items-center gap-2 rounded-md border border-amber-200 bg-amber-50/40 px-2.5 py-2 text-left"
+                    onClick={() => setAvulsosOpen((current) => !current)}
+                  >
+                    {avulsosOpen ? <ChevronUp className="h-3.5 w-3.5 text-amber-600" /> : <ChevronDown className="h-3.5 w-3.5 text-amber-600" />}
                     <Zap className="h-3 w-3 text-amber-500" />
                     <span className="text-[10px] font-semibold uppercase tracking-wider text-amber-600 dark:text-amber-400">Avulso</span>
-                    <div className="flex-1 h-px bg-amber-500/20" />
-                  </div>
-                  {avulsoItems.length > 0 && renderItemSection(avulsoItems)}
-                  {avulsoItems.length === 0 && !searchTerm && filterStatus === "all" && (
+                    <span className="rounded-full bg-background px-1.5 py-0.5 text-[10px] text-amber-700">{avulsoItems.length}</span>
+                    <div className="flex-1" />
+                    <span className="text-[10px] text-amber-700">{avulsosOpen ? "Recolher" : "Expandir"}</span>
+                  </button>
+                  {avulsosOpen && avulsoItems.length > 0 && renderItemSection(avulsoItems)}
+                  {avulsosOpen && avulsoItems.length === 0 && !searchTerm && filterStatus === "all" && (
                     <p className="text-xs text-muted-foreground py-2 pl-5">Nenhum item avulso nesta semana</p>
                   )}
                 </div>

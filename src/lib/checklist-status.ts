@@ -29,6 +29,14 @@ export function isChecklistStatusFinal(status: ChecklistStatus | string | null |
   return normalizeChecklistStatus(status) !== "pendente";
 }
 
+// Avulsos em acompanhamento only leave the active queue after a definitive
+// outcome. "Not relevant" and "could not do" remain visible for the next
+// week, moment, or month until someone closes them as done or not done.
+export function isChecklistMonthlyAvulsoResolved(status: ChecklistStatus | string | null | undefined) {
+  const normalized = normalizeChecklistStatus(status);
+  return normalized === "feito" || normalized === "nao_feito";
+}
+
 export function getChecklistStatusOption(status: ChecklistStatus | string | null | undefined) {
   const normalized = normalizeChecklistStatus(status);
   return CHECKLIST_STATUS_OPTIONS.find((option) => option.value === normalized) ?? CHECKLIST_STATUS_OPTIONS[0];

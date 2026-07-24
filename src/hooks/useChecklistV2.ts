@@ -1,7 +1,12 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { isChecklistStatusFinal, normalizeChecklistStatus, type ChecklistStatus } from "@/lib/checklist-status";
+import {
+  isChecklistMonthlyAvulsoResolved,
+  isChecklistStatusFinal,
+  normalizeChecklistStatus,
+  type ChecklistStatus,
+} from "@/lib/checklist-status";
 
 export type { ChecklistStatus } from "@/lib/checklist-status";
 export type TipoItem = "recorrente" | "avulso_semana" | "avulso_mes";
@@ -95,7 +100,7 @@ export function useChecklistV2({ mes, ano }: UseChecklistV2Options) {
 
   // Fetch instances for a specific month
   const fetchInstances = useCallback(async (targetMes: number, targetAno: number, loadedTemplates: ChecklistTemplate[]) => {
-    const { data, error } = await (supabase
+    const { data: monthInstances, error } = await (supabase
       .from("checklist_instances")
       .select("*") as any)
       .eq("mes", targetMes)
@@ -107,6 +112,32 @@ export function useChecklistV2({ mes, ano }: UseChecklistV2Options) {
       console.error("Error fetching instances:", error);
       return [];
     }
+
+    // Monthly ad-hoc items are an open follow-up queue: they remain available
+    // across later weeks, moments, and months until a definitive outcome.
+    const { data: allMonthlyAvulsos, error: avulsosError } = await (supabase
+      .from("checklist_instances")
+      .select("*") as any)
+      .eq("tipo_item", "avulso_mes")
+      .order("created_at");
+
+    if (avulsosError) {
+      console.error("Error fetching open monthly avulsos:", avulsosError);
+    }
+
+    const isCurrentOrPastPeriod = (instance: any) =>
+      instance.ano < targetAno ||
+      (instance.ano === targetAno && instance.mes <= targetMes);
+    const carriedAvulsos = (allMonthlyAvulsos || []).filter(
+      (instance: any) =>
+        isCurrentOrPastPeriod(instance) &&
+        !isChecklistMonthlyAvulsoResolved(instance.status),
+    );
+    const instancesById = new Map<string, any>();
+    [...(monthInstances || []), ...carriedAvulsos].forEach((instance) => {
+      instancesById.set(instance.id, instance);
+    });
+    const data = Array.from(instancesById.values());
 
     // Fetch instance assignees
     const instanceIds = (data || []).map((i: any) => i.id);
@@ -958,7 +989,9 @@ export function useChecklistV2({ mes, ano }: UseChecklistV2Options) {
   // Delete all instances for a specific week
   const deleteAllWeekInstances = useCallback(async (semana: number) => {
     try {
-      const weekIds = instances.filter((i) => i.semana === semana && i.tipo_item !== "avulso_mes").map((i) => i.id);
+      const weekIds = instances
+        .filter((i) => i.mes === mes && i.ano === ano && i.semana === semana && i.tipo_item !== "avulso_mes")
+        .map((i) => i.id);
       if (weekIds.length === 0) return;
 
       // Delete assignees first
@@ -976,7 +1009,9 @@ export function useChecklistV2({ mes, ano }: UseChecklistV2Options) {
 
       if (error) throw error;
 
-      setInstances((prev) => prev.filter((i) => i.semana !== semana || i.tipo_item === "avulso_mes"));
+      setInstances((prev) => prev.filter(
+        (i) => i.mes !== mes || i.ano !== ano || i.semana !== semana || i.tipo_item === "avulso_mes",
+      ));
       toast({ title: "Semana limpa", description: `Todos os itens da ${semana}ª semana foram removidos.` });
     } catch (error: any) {
       console.error("Error deleting week instances:", error);
@@ -988,7 +1023,9 @@ export function useChecklistV2({ mes, ano }: UseChecklistV2Options) {
   // Delete all instances for the current month
   const deleteAllMonthInstances = useCallback(async () => {
     try {
-      const allIds = instances.map((i) => i.id);
+      const allIds = instances
+        .filter((i) => i.mes === mes && i.ano === ano)
+        .map((i) => i.id);
       if (allIds.length === 0) return;
 
       // Delete assignees first
@@ -1004,7 +1041,7 @@ export function useChecklistV2({ mes, ano }: UseChecklistV2Options) {
 
       if (error) throw error;
 
-      setInstances([]);
+      setInstances((prev) => prev.filter((i) => i.mes !== mes || i.ano !== ano));
       toast({ title: "Mês limpo", description: `Todos os itens do mês foram removidos.` });
     } catch (error: any) {
       console.error("Error deleting all instances:", error);

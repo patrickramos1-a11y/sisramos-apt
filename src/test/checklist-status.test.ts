@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   getChecklistStatusOption,
+  isChecklistMonthlyAvulsoResolved,
   isChecklistStatusFinal,
   normalizeChecklistStatus,
 } from "@/lib/checklist-status";
@@ -17,6 +18,14 @@ describe("checklist status", () => {
     expect(isChecklistStatusFinal("nao_relevante")).toBe(true);
     expect(isChecklistStatusFinal("nao_consegui")).toBe(true);
     expect(isChecklistStatusFinal("pendente")).toBe(false);
+  });
+
+  it("only closes a monthly avulso with a definitive outcome", () => {
+    expect(isChecklistMonthlyAvulsoResolved("feito")).toBe(true);
+    expect(isChecklistMonthlyAvulsoResolved("nao_feito")).toBe(true);
+    expect(isChecklistMonthlyAvulsoResolved("nao_relevante")).toBe(false);
+    expect(isChecklistMonthlyAvulsoResolved("nao_consegui")).toBe(false);
+    expect(isChecklistMonthlyAvulsoResolved("pendente")).toBe(false);
   });
 
   it("falls back to pending for unknown values", () => {
