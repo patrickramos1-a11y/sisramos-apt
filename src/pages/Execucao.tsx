@@ -209,6 +209,10 @@ function getTodayKey() {
   return `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
 }
 
+function compareDateKey(a: string, b: string) {
+  return a.localeCompare(b);
+}
+
 function getRotinaWeeks(rotina: AptRotinaResumo) {
   const weeks = rotina.ocorrencias.length > 0
     ? rotina.ocorrencias.map((item) => item.semana_apt)
@@ -232,11 +236,13 @@ function getDateWeekday(dateKey: string) {
 }
 
 function getWeekdayStatus(ocorrencias: AptRotinaOcorrencia[], weekday: number): AptRotinaStatusOcorrencia | "sem_ocorrencia" {
+  const todayKey = getTodayKey();
   const items = ocorrencias.filter((item) => getDateWeekday(item.data) === weekday);
   if (items.length === 0) return "sem_ocorrencia";
-  if (items.some((item) => item.status_execucao === "pendente")) return "pendente";
+  if (items.some((item) => item.status_execucao === "executado")) return "executado";
   if (items.some((item) => item.status_execucao === "nao_realizado")) return "nao_realizado";
-  return "executado";
+  if (items.some((item) => item.status_execucao === "pendente" && compareDateKey(item.data, todayKey) < 0)) return "nao_realizado";
+  return "pendente";
 }
 
 function weekdayChipClass(status: AptRotinaStatusOcorrencia | "sem_ocorrencia") {
@@ -252,6 +258,10 @@ function getRotinaResponsavelStatus(rotina: AptRotinaResumo, todayKey: string): 
   if (rotina.pendentes > 0) return "pendente";
   if (rotina.nao_feitas > 0) return "nao_realizado";
   return "executado";
+}
+
+function isRotinaExecutableToday(rotina: AptRotinaResumo, todayKey: string) {
+  return rotina.ocorrencias.some((item) => item.data === todayKey);
 }
 
 function getRotinaGestorStatus(rotina: AptRotinaResumo): Demanda["status_gestor"] {
@@ -1231,8 +1241,19 @@ export default function Execucao() {
         const nomeA = getProfileById(a.responsavelId)?.nome ?? "";
         const nomeB = getProfileById(b.responsavelId)?.nome ?? "";
         return nomeA.localeCompare(nomeB, "pt-BR");
-    });
+      });
   }, [executionGroups, filteredRotinaResumos, getProfileById, isGestorOrAdmin, user?.id]);
+
+  const mobileGroupsByResponsavel = useMemo<ResponsavelExecutionSection[]>(() => {
+    const todayKey = getTodayKey();
+
+    return groupsByResponsavel
+      .map((section) => ({
+        ...section,
+        rotinas: section.rotinas.filter((rotina) => isRotinaExecutableToday(rotina, todayKey)),
+      }))
+      .filter((section) => section.groups.length > 0 || section.rotinas.length > 0);
+  }, [groupsByResponsavel]);
 
   const responsavelChips = useMemo(() => {
     if (!isGestorOrAdmin) return [];
@@ -1264,6 +1285,14 @@ export default function Execucao() {
 
   const unifiedExecutionRowsCount = executionGroups.length + filteredRotinaResumos.length;
   const unifiedExecutionOccurrencesCount = groupsByResponsavel.reduce(
+    (acc, section) => acc + sumSectionExecution(section).total,
+    0
+  );
+  const mobileExecutionRowsCount = mobileGroupsByResponsavel.reduce(
+    (acc, section) => acc + section.groups.length + section.rotinas.length,
+    0
+  );
+  const mobileExecutionOccurrencesCount = mobileGroupsByResponsavel.reduce(
     (acc, section) => acc + sumSectionExecution(section).total,
     0
   );
@@ -1880,7 +1909,7 @@ export default function Execucao() {
                 <div>
                   <p className="text-sm font-bold">{mobileExecutionTitle}</p>
                   <p className="text-xs text-muted-foreground">
-                    {unifiedExecutionRowsCount} linhas · {unifiedExecutionOccurrencesCount} ocorrências
+                    {mobileExecutionRowsCount} linhas · {mobileExecutionOccurrencesCount} ocorrências
                   </p>
                 </div>
                 {isGestorOrAdmin && (
@@ -1890,13 +1919,13 @@ export default function Execucao() {
                 )}
               </div>
 
-              {unifiedExecutionRowsCount === 0 ? (
+              {mobileExecutionRowsCount === 0 ? (
                 <MobileEmptyState
                   icon={ListChecks}
                   title="Nenhuma demanda neste recorte"
                   description="Ajuste os filtros ou selecione outro momento para visualizar demandas no celular."
                 />
-              ) : groupsByResponsavel.map((section) => {
+              ) : mobileGroupsByResponsavel.map((section) => {
                 const sectionProfile = getProfileById(section.responsavelId);
                 const sectionStats = sumSectionExecution(section);
                 const sectionRows = section.groups.length + section.rotinas.length;
@@ -1941,6 +1970,8 @@ export default function Execucao() {
                             "rounded-2xl border bg-card p-3 shadow-sm",
                             group.muito_urgente && "border-destructive/30 bg-destructive/[0.04]",
                             group.prioritaria && !group.muito_urgente && "border-warning/30 bg-warning/[0.04]",
+                            responsavelStatus === "executado" && "border-emerald-300 bg-emerald-50/30",
+                            responsavelStatus === "nao_realizado" && "border-red-300 bg-red-50/30",
                             selectedGroupKeys.has(group.key) && "ring-2 ring-primary/30"
                           )}
                         >
@@ -2100,7 +2131,11 @@ export default function Execucao() {
                       return (
                         <article
                           key={`mobile-rotina-${rotina.key}`}
-                          className="rounded-2xl border border-orange-200 bg-orange-50/30 p-3 shadow-sm"
+                          className={cn(
+                            "rounded-2xl border border-orange-200 bg-orange-50/30 p-3 shadow-sm",
+                            todayOccurrence?.status_execucao === "executado" && "border-emerald-300 bg-emerald-50/30",
+                            todayOccurrence?.status_execucao === "nao_realizado" && "border-red-300 bg-red-50/30"
+                          )}
                         >
                           <div className="min-w-0">
                             <div className="mb-2 flex flex-wrap items-center gap-1.5">
@@ -2188,7 +2223,12 @@ export default function Execucao() {
                                 <>
                                   <Button
                                     size="sm"
-                                    className="h-9 flex-1 gap-1 rounded-xl bg-emerald-600/90 text-xs hover:bg-emerald-700"
+                                    className={cn(
+                                      "h-9 flex-1 gap-1 rounded-xl text-xs",
+                                      todayOccurrence?.status_execucao === "executado"
+                                        ? "bg-emerald-600 hover:bg-emerald-700"
+                                        : "bg-emerald-600/90 hover:bg-emerald-700"
+                                    )}
                                     disabled={!todayOccurrence}
                                     onClick={() => todayOccurrence && marcarRotinaOcorrencia(todayOccurrence.id, "executado")}
                                   >
