@@ -510,6 +510,19 @@ export default function Execucao() {
     setExecutionStatusDefaultApplied(true);
   }, [executionStatusDefaultApplied, isGestorOrAdmin, user]);
 
+  const selectExecutionTableTab = (next: ExecutionTableTab) => {
+    setExecutionTableTab(next);
+    setFilters((prev) => ({
+      ...prev,
+      prazo: false,
+      persistente: false,
+    }));
+
+    if (next === "persistentes") {
+      setExecutionStatusFilter("todos");
+    }
+  };
+
   const {
     config: momentosConfig,
     isLocalFallback,
@@ -1005,7 +1018,10 @@ export default function Execucao() {
   })();
 
   useEffect(() => {
-    if (filters.persistente) setExecutionTableTab("persistentes");
+    if (filters.persistente) {
+      setExecutionTableTab("persistentes");
+      setExecutionStatusFilter("todos");
+    }
     if (filters.prazo) setExecutionTableTab("prazo");
   }, [filters.persistente, filters.prazo]);
 
@@ -1204,6 +1220,30 @@ export default function Execucao() {
     user?.id,
   ]);
 
+  const mobileRotinaResumosForStatus = useMemo(() => {
+    const busca = filters.busca.trim().toLowerCase();
+
+    return rotinaResumos.filter((rotina) => {
+      const responsavelId = rotina.responsavel_id || "";
+      const setorId = rotina.setor_id || "sem_setor";
+
+      if (!isGestorOrAdmin && responsavelId !== user?.id) return false;
+      if (filters.responsaveis.length > 0 && !filters.responsaveis.includes(responsavelId)) return false;
+      if (filters.setores.length > 0 && !filters.setores.includes(setorId)) return false;
+      if (activeTopSetor && activeTopSetor !== setorId) return false;
+      if (busca && !`${rotina.modelo.nome} ${rotina.modelo.descricao}`.toLowerCase().includes(busca)) return false;
+      return true;
+    });
+  }, [
+    activeTopSetor,
+    filters.busca,
+    filters.responsaveis,
+    filters.setores,
+    isGestorOrAdmin,
+    rotinaResumos,
+    user?.id,
+  ]);
+
   const groupsByResponsavel = useMemo<ResponsavelExecutionSection[]>(() => {
     if (!isGestorOrAdmin) {
       return [
@@ -1299,6 +1339,14 @@ export default function Execucao() {
   const commonDemandasCount = demandas.filter((item) => !isDemandaPrazo(item)).length;
   const prazoDemandasCount = demandas.filter((item) => isDemandaPrazo(item)).length;
   const executionTabOptions = [
+    {
+      key: "todas" as const,
+      label: "Todas",
+      description: "Visão geral",
+      count: unifiedExecutionRowsCount,
+      icon: Layers3,
+      tone: "text-emerald-600",
+    },
     {
       key: "demandas" as const,
       label: "Momento",
@@ -1398,6 +1446,40 @@ export default function Execucao() {
       (item.status_responsavel === "executado" || item.status_responsavel === "nao_realizado") &&
       item.status_gestor === "pendente"
   ).length;
+  const isPersistentTabActive = filters.persistente || executionTableTab === "persistentes";
+  const persistentStatusCounts = useMemo(
+    () =>
+      mobileRotinaResumosForStatus.reduce(
+        (acc, rotina) => {
+          const responsavelStatus = getRotinaResponsavelStatus(rotina, getTodayKey());
+          const gestorStatus = getRotinaGestorStatus(rotina);
+
+          acc.total += 1;
+          if (responsavelStatus === "pendente") acc.pendentes += 1;
+          if (responsavelStatus === "executado") acc.feitas += 1;
+          if (responsavelStatus === "nao_realizado") acc.naoFeitas += 1;
+          if (responsavelStatus !== "pendente" && gestorStatus === "pendente") acc.aguardando += 1;
+          return acc;
+        },
+        { total: 0, pendentes: 0, feitas: 0, naoFeitas: 0, aguardando: 0 }
+      ),
+    [mobileRotinaResumosForStatus]
+  );
+  const mobileStatusCounts = isPersistentTabActive
+    ? {
+        total: persistentStatusCounts.total,
+        pendentes: persistentStatusCounts.pendentes,
+        feitas: persistentStatusCounts.feitas,
+        naoFeitas: persistentStatusCounts.naoFeitas,
+        aguardando: persistentStatusCounts.aguardando,
+      }
+    : {
+        total: filteredByTopSetor.length,
+        pendentes: pendingCount,
+        feitas: doneCount,
+        naoFeitas: notDoneCount,
+        aguardando: waitingApprovalCount,
+      };
   const allMomentItemsProcessed = filteredByTopSetor.length > 0 && pendingCount === 0;
 
   const mobileSetorStats = useMemo(() => {
@@ -1665,7 +1747,7 @@ export default function Execucao() {
           })}
         </div>
 
-        <div className="mb-3 grid grid-cols-3 gap-2 lg:hidden">
+        <div className="mb-3 grid grid-cols-4 gap-2 lg:hidden">
           {executionTabOptions.map((option) => {
             const Icon = option.icon;
             const active = executionTableTab === option.key;
@@ -1673,14 +1755,7 @@ export default function Execucao() {
               <button
                 key={option.key}
                 type="button"
-                onClick={() => {
-                  setExecutionTableTab(option.key);
-                  setFilters((prev) => ({
-                    ...prev,
-                    prazo: false,
-                    persistente: false,
-                  }));
-                }}
+                onClick={() => selectExecutionTableTab(option.key)}
                 className={cn(
                   "min-w-0 rounded-2xl border px-2.5 py-2 text-left transition-all",
                   active
@@ -1705,17 +1780,18 @@ export default function Execucao() {
         <div className="mb-3 space-y-2 lg:hidden">
           <div className="flex gap-2 overflow-x-auto pb-1">
             {[
-              { key: "pendentes" as ExecutionStatusFilter, label: "Pend.", count: pendingCount, tone: "border-warning/40 bg-warning/10 text-warning" },
-              { key: "feitas" as ExecutionStatusFilter, label: "Feitas", count: doneCount, tone: "border-emerald-500/40 bg-emerald-500/10 text-emerald-700" },
-              { key: "nao_realizadas" as ExecutionStatusFilter, label: "Não feitas", count: notDoneCount, tone: "border-destructive/40 bg-destructive/10 text-destructive" },
-              { key: "aguardando" as ExecutionStatusFilter, label: "Aprov.", count: waitingApprovalCount, tone: "border-primary/40 bg-primary/10 text-primary" },
+              { key: "todos" as ExecutionStatusFilter, label: "Todos", count: mobileStatusCounts.total, tone: "border-foreground/40 bg-foreground/10 text-foreground" },
+              { key: "pendentes" as ExecutionStatusFilter, label: "Pend.", count: mobileStatusCounts.pendentes, tone: "border-warning/40 bg-warning/10 text-warning" },
+              { key: "feitas" as ExecutionStatusFilter, label: "Feitas", count: mobileStatusCounts.feitas, tone: "border-emerald-500/40 bg-emerald-500/10 text-emerald-700" },
+              { key: "nao_realizadas" as ExecutionStatusFilter, label: "Não feitas", count: mobileStatusCounts.naoFeitas, tone: "border-destructive/40 bg-destructive/10 text-destructive" },
+              { key: "aguardando" as ExecutionStatusFilter, label: "Aprov.", count: mobileStatusCounts.aguardando, tone: "border-primary/40 bg-primary/10 text-primary" },
             ].map((item) => {
               const active = executionStatusFilter === item.key;
               return (
                 <button
                   key={item.key}
                   type="button"
-                  onClick={() => setExecutionStatusFilter(active ? "todos" : item.key)}
+                  onClick={() => setExecutionStatusFilter(item.key)}
                   className={cn(
                     "min-w-fit rounded-full border px-3 py-1.5 text-xs font-semibold transition-all",
                     active ? item.tone : "border-border bg-card text-muted-foreground"
@@ -2262,12 +2338,7 @@ export default function Execucao() {
               value={executionTableTab}
               onValueChange={(value) => {
                 const next = value as ExecutionTableTab;
-                setExecutionTableTab(next);
-                setFilters((prev) => ({
-                  ...prev,
-                  prazo: false,
-                  persistente: false,
-                }));
+                selectExecutionTableTab(next);
               }}
               className="space-y-3"
             >
