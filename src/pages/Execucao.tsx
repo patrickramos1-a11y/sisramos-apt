@@ -260,10 +260,6 @@ function getRotinaResponsavelStatus(rotina: AptRotinaResumo, todayKey: string): 
   return "executado";
 }
 
-function isRotinaExecutableToday(rotina: AptRotinaResumo, todayKey: string) {
-  return rotina.ocorrencias.some((item) => item.data === todayKey);
-}
-
 function getRotinaGestorStatus(rotina: AptRotinaResumo): Demanda["status_gestor"] {
   if (rotina.avaliacao?.status_gestor === "aprovado") return "executado";
   if (rotina.avaliacao?.status_gestor === "reprovado") return "nao_realizado";
@@ -1285,13 +1281,7 @@ export default function Execucao() {
   }, [executionGroups, filteredRotinaResumos, getProfileById, isGestorOrAdmin, user?.id]);
 
   const mobileGroupsByResponsavel = useMemo<ResponsavelExecutionSection[]>(() => {
-    const todayKey = getTodayKey();
-
     return groupsByResponsavel
-      .map((section) => ({
-        ...section,
-        rotinas: section.rotinas.filter((rotina) => isRotinaExecutableToday(rotina, todayKey)),
-      }))
       .filter((section) => section.groups.length > 0 || section.rotinas.length > 0);
   }, [groupsByResponsavel]);
 
@@ -1367,7 +1357,7 @@ export default function Execucao() {
       key: "persistentes" as const,
       label: "Persist.",
       description: "Demandas persistentes",
-      count: executionTableTab === "persistentes" ? unifiedExecutionRowsCount : rotinaResumos.length,
+      count: executionTableTab === "persistentes" ? filteredRotinaResumos.length : mobileRotinaResumosForStatus.length,
       icon: RefreshCcw,
       tone: "text-orange-600",
     },
