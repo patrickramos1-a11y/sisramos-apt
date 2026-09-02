@@ -260,6 +260,15 @@ function getRotinaResponsavelStatus(rotina: AptRotinaResumo, todayKey: string): 
   return "executado";
 }
 
+function getRotinaActionOccurrence(rotina: AptRotinaResumo, todayKey: string) {
+  const todayOccurrence = rotina.ocorrencias.find((item) => item.data === todayKey);
+  if (todayOccurrence) return todayOccurrence;
+
+  return [...rotina.ocorrencias]
+    .filter((item) => item.status_execucao === "pendente")
+    .sort((a, b) => a.data.localeCompare(b.data))[0] ?? null;
+}
+
 function getRotinaGestorStatus(rotina: AptRotinaResumo): Demanda["status_gestor"] {
   if (rotina.avaliacao?.status_gestor === "aprovado") return "executado";
   if (rotina.avaliacao?.status_gestor === "reprovado") return "nao_realizado";
@@ -2184,6 +2193,7 @@ export default function Execucao() {
                       const responsavel = getProfileById(rotina.responsavel_id || "");
                       const todayKey = getTodayKey();
                       const todayOccurrence = rotina.ocorrencias.find((item) => item.data === todayKey);
+                      const actionOccurrence = getRotinaActionOccurrence(rotina, todayKey);
                       const responsavelStatus = getRotinaResponsavelStatus(rotina, todayKey);
                       const gestorStatus = getRotinaGestorStatus(rotina);
                       const allWeeks = getRotinaWeeks(rotina);
@@ -2262,7 +2272,16 @@ export default function Execucao() {
                               {isGestorOrAdmin ? (
                                 <>
                                   <div className="flex flex-1 items-center gap-2 rounded-xl border bg-background/70 px-2.5 py-2">
-                                    <StatusBolinha status={responsavelStatus} disabled size="sm" />
+                                    <StatusBolinha
+                                      status={responsavelStatus}
+                                      onClick={
+                                        actionOccurrence
+                                          ? () => marcarRotinaOcorrencia(actionOccurrence.id, nextStatus(actionOccurrence.status_execucao))
+                                          : undefined
+                                      }
+                                      disabled={!actionOccurrence}
+                                      size="sm"
+                                    />
                                     <span className="text-[11px] text-muted-foreground">
                                       Rotina {rotina.feitas}/{rotina.previstas}
                                     </span>
@@ -2295,8 +2314,8 @@ export default function Execucao() {
                                         ? "bg-emerald-600 hover:bg-emerald-700"
                                         : "bg-emerald-600/90 hover:bg-emerald-700"
                                     )}
-                                    disabled={!todayOccurrence}
-                                    onClick={() => todayOccurrence && marcarRotinaOcorrencia(todayOccurrence.id, "executado")}
+                                    disabled={!actionOccurrence}
+                                    onClick={() => actionOccurrence && marcarRotinaOcorrencia(actionOccurrence.id, "executado")}
                                   >
                                     <Check className="h-3.5 w-3.5" />
                                     Feito
@@ -2305,8 +2324,8 @@ export default function Execucao() {
                                     variant={responsavelStatus === "nao_realizado" ? "destructive" : "outline"}
                                     size="sm"
                                     className="h-9 flex-1 gap-1 rounded-xl text-xs"
-                                    disabled={!todayOccurrence}
-                                    onClick={() => todayOccurrence && marcarRotinaOcorrencia(todayOccurrence.id, "nao_realizado")}
+                                    disabled={!actionOccurrence}
+                                    onClick={() => actionOccurrence && marcarRotinaOcorrencia(actionOccurrence.id, "nao_realizado")}
                                   >
                                     <X className="h-3.5 w-3.5" />
                                     Não feito
